@@ -12,6 +12,8 @@
     "db:migrate": "pnpm --filter @skillist/db migrate",
     "typecheck": "turbo typecheck",
     "setup:local": "bash scripts/setup-local.sh",
+    "setup:oauth": "bash scripts/setup-oauth.sh",
+    "setup:secrets": "bash scripts/setup-production-secrets.sh",
     "cli": "pnpm --filter @skillist/cli dev"
   },
   "devDependencies": {

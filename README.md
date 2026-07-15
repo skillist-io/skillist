@@ -125,7 +125,22 @@ GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on 
 | R2 bucket | `skillist-skills` |
 | Queue | `skillist-ai-jobs` |
 
-Configure `skillist.dev` and `api.skillist.dev` routes in Cloudflare dashboard. Enable Email Sending on `skillist.dev` for magic links.
+Configure `skillist.dev` and `api.skillist.dev` routes in Cloudflare dashboard. Email Sending is enabled on `skillist.dev`.
+
+### OAuth & secrets
+
+```bash
+pnpm setup:oauth      # opens provider consoles, pushes secrets when configured
+pnpm setup:secrets    # sync apps/api/.dev.vars → production Worker secrets
+```
+
+GitHub OAuth must be created manually at https://github.com/settings/applications/new (no GitHub API). Then:
+
+```bash
+GITHUB_CLIENT_ID=... GITHUB_CLIENT_SECRET=... pnpm setup:oauth
+```
+
+Google client lives in GCP project `studied-jigsaw-274214` — add Skillist redirect URIs before enabling Google sign-in.
 
 ## License
 
