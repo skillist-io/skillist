@@ -58,6 +58,11 @@ function RegistryPage() {
                   impact={item.impactScore}
                   security={item.securityStatus}
                 />
+                {item.runtime && item.runtime !== "local" && (
+                  <Badge variant="secondary" className="text-xs">
+                    {item.runtime} runtime
+                  </Badge>
+                )}
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm">{item.description}</p>

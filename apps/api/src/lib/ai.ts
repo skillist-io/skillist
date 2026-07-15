@@ -26,6 +26,7 @@ import { cachePublishedSkill, broadcastPublish } from "./publish";
 import { organizations, skillEvals } from "@skillist/db/schema";
 import { evaluatePublishPolicy } from "./publish-policy";
 import { logAudit } from "./audit";
+import { detectSkillRuntime } from "./skill-runtime";
 
 export async function runAiJob(
   env: Env,
@@ -258,6 +259,7 @@ export async function publishVersion(
     .set({
       latestPublishedVersionId: versionId,
       description: validation.frontmatter.description,
+      runtime: detectSkillRuntime(bundle),
       updatedAt: new Date(),
     })
     .where(eq(skills.id, skillId));

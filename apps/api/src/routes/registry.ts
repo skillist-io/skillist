@@ -43,6 +43,7 @@ const listRegistryRoute = createRoute({
                 securityStatus: z.string().nullable(),
                 installCount: z.number(),
                 activationCount: z.number(),
+                runtime: z.string().nullable(),
               }),
             ),
             page: z.number(),
@@ -69,8 +70,24 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
     : undefined;
 
   const items = await c.var.db
-    .select()
+    .select({
+      id: registryEntries.id,
+      skillId: registryEntries.skillId,
+      orgSlug: registryEntries.orgSlug,
+      skillSlug: registryEntries.skillSlug,
+      name: registryEntries.name,
+      description: registryEntries.description,
+      latestVersion: registryEntries.latestVersion,
+      qualityScore: registryEntries.qualityScore,
+      impactScore: registryEntries.impactScore,
+      securityStatus: registryEntries.securityStatus,
+      installCount: registryEntries.installCount,
+      activationCount: registryEntries.activationCount,
+      stars: registryEntries.stars,
+      runtime: skills.runtime,
+    })
     .from(registryEntries)
+    .innerJoin(skills, eq(registryEntries.skillId, skills.id))
     .where(where)
     .limit(limit)
     .offset(offset);
@@ -84,6 +101,10 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
     items: items.map((item) => ({
       ...item,
       installCommand: `skillist install ${item.orgSlug}/${item.skillSlug}`,
+      runCommand:
+        item.runtime && item.runtime !== "local"
+          ? `skillist run ${item.orgSlug}/${item.skillSlug} --script scripts/...`
+          : null,
     })),
     page,
     limit,
@@ -103,9 +124,13 @@ const getRegistrySkillRoute = createRoute({
 
 registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
   const { org, slug } = c.req.valid("param");
-  const [entry] = await c.var.db
-    .select()
+  const [row] = await c.var.db
+    .select({
+      entry: registryEntries,
+      runtime: skills.runtime,
+    })
     .from(registryEntries)
+    .innerJoin(skills, eq(registryEntries.skillId, skills.id))
     .where(
       and(
         eq(registryEntries.orgSlug, org),
@@ -113,10 +138,12 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
       ),
     )
     .limit(1);
-  if (!entry) return c.json({ error: "Not found" }, 404);
+  if (!row) return c.json({ error: "Not found" }, 404);
+  const entry = row.entry;
   return c.json(
     {
       ...entry,
+      runtime: row.runtime,
       installCommand: `skillist install ${entry.orgSlug}/${entry.skillSlug}`,
     },
     200,

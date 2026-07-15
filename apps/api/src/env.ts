@@ -1,4 +1,4 @@
-import type { Ai, SendEmail } from "@cloudflare/workers-types";
+import type { Ai, DurableObjectNamespace, SendEmail } from "@cloudflare/workers-types";
 import type { Hyperdrive } from "@cloudflare/workers-types";
 
 export type Env = {
@@ -6,6 +6,7 @@ export type Env = {
   SKILLS_KV: KVNamespace;
   SKILLS_R2: R2Bucket;
   SKILL_HUB: DurableObjectNamespace;
+  SANDBOX: DurableObjectNamespace;
   AI: Ai;
   EMAIL: SendEmail;
   AI_QUEUE: Queue<AiJobMessage>;

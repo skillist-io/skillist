@@ -1,0 +1,11 @@
+FROM docker.io/cloudflare/sandbox:0.7.0
+
+# Heavy runtime: wrangler CLI, git, extra tooling for infrastructure skills
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g wrangler@4 typescript tsx
+
+EXPOSE 8080

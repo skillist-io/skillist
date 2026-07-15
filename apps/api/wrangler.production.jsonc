@@ -33,13 +33,29 @@
       {
         "name": "SKILL_HUB",
         "class_name": "SkillRealtimeHub"
+      },
+      {
+        "name": "SANDBOX",
+        "class_name": "Sandbox"
       }
     ]
   },
+  "containers": [
+    {
+      "class_name": "Sandbox",
+      "image": "./Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 50
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["SkillRealtimeHub"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["Sandbox"]
     }
   ],
   "ai": {

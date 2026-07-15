@@ -7,7 +7,7 @@
     "Always run preflight and validate-config before deploy",
     "Never expose secrets in logs or commits"
   ],
-  "mcp": {
-    "servers": []
+  "metadata": {
+    "runtime": "container"
   }
 }

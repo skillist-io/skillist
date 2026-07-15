@@ -15,6 +15,13 @@
       "when": 1784153615000,
       "tag": "0001_tessl_features",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784153616000,
+      "tag": "0002_skill_execution",
+      "breakpoints": true
     }
   ]
 }

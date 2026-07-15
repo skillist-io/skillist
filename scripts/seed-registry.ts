@@ -33,6 +33,7 @@ import {
   scanSkillSecurity,
   validateSkillBundle,
 } from "@skillist/skill-format";
+import { detectSkillRuntime } from "../apps/api/src/lib/skill-runtime.ts";
 
 const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const EXAMPLES_DIR = join(ROOT, "examples", "skills");
@@ -177,10 +178,11 @@ async function seedSkill(
   }
 
   const review = reviewSkillBundle(bundle, slug);
-  const impactScore = estimateImpactScore(review);
-  const security = scanSkillSecurity(bundle);
-  const pluginRaw = bundle.get("plugin.json");
-  const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
+    const impactScore = estimateImpactScore(review);
+    const security = scanSkillSecurity(bundle);
+    const pluginRaw = bundle.get("plugin.json");
+    const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
+    const runtime = detectSkillRuntime(bundle);
 
   if (security.status === "fail") {
     throw new Error(
@@ -206,6 +208,7 @@ async function seedSkill(
         slug,
         visibility: "public",
         description: validation.frontmatter.description,
+        runtime,
       })
       .returning();
   } else {
@@ -214,6 +217,7 @@ async function seedSkill(
       .set({
         visibility: "public",
         description: validation.frontmatter.description,
+        runtime,
         updatedAt: new Date(),
       })
       .where(eq(skills.id, skill.id));
