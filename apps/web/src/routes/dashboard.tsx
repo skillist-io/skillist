@@ -80,6 +80,9 @@ function DashboardPage() {
 
 function OrgCard({ org }: { org: Org }) {
   const [slug, setSlug] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("viewer");
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: skills } = useQuery({
@@ -96,6 +99,21 @@ function OrgCard({ org }: { org: Org }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["skills", org.id] });
       setSlug("");
+    },
+  });
+
+  const inviteMember = useMutation({
+    mutationFn: () =>
+      api(`/v1/orgs/${org.id}/members`, {
+        method: "POST",
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+      }),
+    onSuccess: () => {
+      setInviteEmail("");
+      setInviteMessage("Member invited.");
+    },
+    onError: (err) => {
+      setInviteMessage(err instanceof Error ? err.message : "Invite failed");
     },
   });
 
@@ -135,6 +153,39 @@ function OrgCard({ org }: { org: Org }) {
             </li>
           ))}
         </ul>
+        {org.role === "owner" && (
+          <div className="space-y-2 border-t pt-3">
+            <Label>Invite member</Label>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                type="email"
+                placeholder="teammate@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="min-w-[200px] flex-1"
+              />
+              <select
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+              >
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="owner">Owner</option>
+              </select>
+              <Button
+                variant="outline"
+                onClick={() => inviteMember.mutate()}
+                disabled={!inviteEmail || inviteMember.isPending}
+              >
+                Invite
+              </Button>
+            </div>
+            {inviteMessage && (
+              <p className="text-sm text-muted-foreground">{inviteMessage}</p>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

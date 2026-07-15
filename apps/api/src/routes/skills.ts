@@ -18,7 +18,7 @@ import {
 } from "@skillist/skill-format";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
-import { requireOrgRole } from "../lib/org-access";
+import { requireOrgAccess } from "../lib/org-access";
 import { publishVersion } from "../lib/ai";
 import {
   r2Prefix,
@@ -29,7 +29,6 @@ import {
 } from "../lib/r2";
 import { getPublishedSkillMd, getPublishedMeta } from "../lib/publish";
 import type { WorkerDb } from "../lib/db";
-import { resolveUserId } from "../lib/session";
 
 type AppEnv = {
   Bindings: Env;
@@ -63,10 +62,10 @@ const createSkillRoute = createRoute({
 });
 
 skillRoutes.openapi(createSkillRoute, async (c) => {
-  const userId = await resolveUserId(c);
   const { orgId } = c.req.valid("param");
-  const access = await requireOrgRole(c.var.db, orgId, userId, "editor");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+  const userId = access.actorId;
   const body = c.req.valid("json");
   const description =
     body.description ?? `Agent skill: ${body.slug.replace(/-/g, " ")}`;
@@ -139,9 +138,10 @@ const listSkillsRoute = createRoute({
 });
 
 skillRoutes.openapi(listSkillsRoute, async (c) => {
-  const userId = await resolveUserId(c);
   const { orgId } = c.req.valid("param");
-  const access = await requireOrgRole(c.var.db, orgId, userId, "viewer");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer", {
+    apiKeyScope: "skills:read",
+  });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
   const rows = await c.var.db
     .select()
@@ -180,10 +180,12 @@ const uploadVersionRoute = createRoute({
 });
 
 skillRoutes.openapi(uploadVersionRoute, async (c) => {
-  const userId = await resolveUserId(c);
   const { orgId, slug } = c.req.valid("param");
-  const access = await requireOrgRole(c.var.db, orgId, userId, "editor");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor", {
+    apiKeyScope: "skills:write",
+  });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+  const userId = access.actorId;
 
   const [skill] = await c.var.db
     .select()
@@ -243,9 +245,10 @@ const listVersionsRoute = createRoute({
 });
 
 skillRoutes.openapi(listVersionsRoute, async (c) => {
-  const userId = await resolveUserId(c);
   const { orgId, slug } = c.req.valid("param");
-  const access = await requireOrgRole(c.var.db, orgId, userId, "viewer");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer", {
+    apiKeyScope: "skills:read",
+  });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const [skill] = await c.var.db
@@ -286,10 +289,12 @@ const publishRoute = createRoute({
 });
 
 skillRoutes.openapi(publishRoute, async (c) => {
-  const userId = await resolveUserId(c);
   const { orgId, slug, versionId } = c.req.valid("param");
-  const access = await requireOrgRole(c.var.db, orgId, userId, "editor");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor", {
+    apiKeyScope: "skills:publish",
+  });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+  const userId = access.actorId;
 
   const [skill] = await c.var.db
     .select()
@@ -419,9 +424,10 @@ const getVersionFilesRoute = createRoute({
 });
 
 skillRoutes.openapi(getVersionFilesRoute, async (c) => {
-  const userId = await resolveUserId(c);
   const { orgId, slug, versionId } = c.req.valid("param");
-  const access = await requireOrgRole(c.var.db, orgId, userId, "viewer");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer", {
+    apiKeyScope: "skills:read",
+  });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const [skill] = await c.var.db

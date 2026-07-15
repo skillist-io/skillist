@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
+import type { ApiKeyScope, OrgRole } from "@skillist/contracts";
 import { orgMembers } from "@skillist/db/schema";
-import type { OrgRole } from "@skillist/contracts";
+import type { AuthContext } from "./auth-middleware";
 import type { WorkerDb } from "./db";
 
 const ROLE_RANK: Record<OrgRole, number> = {
@@ -8,6 +9,18 @@ const ROLE_RANK: Record<OrgRole, number> = {
   editor: 2,
   owner: 3,
 };
+
+const SCOPE_MIN_ROLE: Record<ApiKeyScope, OrgRole> = {
+  "skills:read": "viewer",
+  "skills:write": "editor",
+  "skills:publish": "editor",
+  "feedback:submit": "editor",
+  "feedback:approve": "owner",
+};
+
+export type OrgAccessResult =
+  | { ok: true; role: OrgRole; actorId: string | null }
+  | { ok: false; status: 401 | 403 };
 
 export async function getOrgMembership(
   db: WorkerDb,
@@ -46,4 +59,41 @@ export async function requireOrgRole(
     return { ok: false, status: 403 };
   }
   return { ok: true, role: member.role as OrgRole };
+}
+
+export async function requireOrgAccess(
+  db: WorkerDb,
+  orgId: string,
+  auth: AuthContext,
+  minRole: OrgRole,
+  options?: { apiKeyScope?: ApiKeyScope },
+): Promise<OrgAccessResult> {
+  if (auth.apiKeyId) {
+    if (!auth.apiKeyOrgId || auth.apiKeyOrgId !== orgId) {
+      return { ok: false, status: 403 };
+    }
+    if (options?.apiKeyScope && !auth.apiKeyScopes.includes(options.apiKeyScope)) {
+      return { ok: false, status: 403 };
+    }
+    const scopeRole = options?.apiKeyScope
+      ? SCOPE_MIN_ROLE[options.apiKeyScope]
+      : "viewer";
+    if (!hasMinRole(scopeRole, minRole)) {
+      return { ok: false, status: 403 };
+    }
+    return {
+      ok: true,
+      role: scopeRole,
+      actorId: auth.apiKeyCreatedBy,
+    };
+  }
+
+  if (!auth.userId) return { ok: false, status: 401 };
+  const memberAccess = await requireOrgRole(db, orgId, auth.userId, minRole);
+  if (!memberAccess.ok) return memberAccess;
+  return {
+    ok: true,
+    role: memberAccess.role,
+    actorId: auth.userId,
+  };
 }

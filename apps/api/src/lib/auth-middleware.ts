@@ -9,6 +9,8 @@ import { resolveSessionUserId } from "./session";
 export type AuthContext = {
   userId: string | null;
   apiKeyId: string | null;
+  apiKeyOrgId: string | null;
+  apiKeyCreatedBy: string | null;
   apiKeyScopes: string[];
 };
 
@@ -22,6 +24,8 @@ export const authMiddleware = createMiddleware<{
   const authHeader = c.req.header("Authorization");
   let userId: string | null = null;
   let apiKeyId: string | null = null;
+  let apiKeyOrgId: string | null = null;
+  let apiKeyCreatedBy: string | null = null;
   let apiKeyScopes: string[] = [];
 
   if (authHeader?.startsWith("Bearer sk_")) {
@@ -34,6 +38,8 @@ export const authMiddleware = createMiddleware<{
       .limit(1);
     if (record) {
       apiKeyId = record.id;
+      apiKeyOrgId = record.orgId;
+      apiKeyCreatedBy = record.createdBy;
       apiKeyScopes = (record.scopes as string[]) ?? [];
       await db
         .update(apiKeys)
@@ -46,7 +52,7 @@ export const authMiddleware = createMiddleware<{
     userId = await resolveSessionUserId(db, c.env, c.req.raw.headers);
   }
 
-  c.set("auth", { userId, apiKeyId, apiKeyScopes });
+  c.set("auth", { userId, apiKeyId, apiKeyOrgId, apiKeyCreatedBy, apiKeyScopes });
   await next();
 });
 
