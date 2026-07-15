@@ -45,6 +45,16 @@ describe("validateSkillBundle", () => {
     const result = validateSkillBundle(bundle);
     expect(result.valid).toBe(false);
   });
+
+  it("allows plugin.json at bundle root", () => {
+    const bundle = createSkillTemplate("my-skill", "A skill with plugin manifest for editor integration.");
+    bundle.set(
+      "plugin.json",
+      JSON.stringify({ name: "my-skill", skills: ["SKILL.md"] }),
+    );
+    const result = validateSkillBundle(bundle, "my-skill");
+    expect(result.valid).toBe(true);
+  });
 });
 
 describe("reviewSkillBundle", () => {

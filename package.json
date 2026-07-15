@@ -14,9 +14,14 @@
     "setup:local": "bash scripts/setup-local.sh",
     "setup:oauth": "bash scripts/setup-oauth.sh",
     "setup:secrets": "bash scripts/setup-production-secrets.sh",
+    "seed:registry": "tsx scripts/seed-registry.ts",
     "cli": "pnpm --filter @skillist/cli dev"
   },
   "devDependencies": {
+    "@skillist/db": "workspace:*",
+    "@skillist/skill-format": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "tsx": "^4.20.3",
     "turbo": "^2.10.5",
     "typescript": "^7.0.2"
   },
