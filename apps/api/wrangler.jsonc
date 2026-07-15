@@ -13,7 +13,7 @@
     {
       "binding": "HYPERDRIVE",
       "id": "local-hyperdrive",
-      "localConnectionString": "postgresql://postgres:postgres@localhost:5432/skillist"
+      "localConnectionString": "postgresql://user:pass@host/neondb?sslmode=require"
     }
   ],
   "kv_namespaces": [

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { apiUrl } from "@/lib/api-url";
 import { Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "@/lib/auth-client";
@@ -19,7 +20,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <Link to="/registry">Registry</Link>
             </Button>
             <Button variant="ghost" asChild>
-              <a href="/docs" target="_blank" rel="noreferrer">
+              <a href={apiUrl("/docs")} target="_blank" rel="noreferrer">
                 API
               </a>
             </Button>

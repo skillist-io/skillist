@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from '@tanstack/react-router'
+import { apiUrl } from "@/lib/api-url";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -85,8 +86,10 @@ function RegistrySkillPage() {
             {(meta?.version as string) ?? (entry?.latestVersion as string) ?? "—"}
           </p>
           <a
-            href={`/v1/skills/${org}/${slug}/SKILL.md`}
+            href={apiUrl(`/v1/skills/${org}/${slug}/SKILL.md`)}
             className="text-primary hover:underline"
+            target="_blank"
+            rel="noreferrer"
           >
             Fetch SKILL.md (KV hot path)
           </a>

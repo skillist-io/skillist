@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   createOrgSchema,
   inviteMemberSchema,
@@ -48,6 +48,21 @@ const listOrgsRoute = createRoute({
 });
 
 orgRoutes.openapi(listOrgsRoute, async (c) => {
+  const auth = c.var.auth;
+  if (auth.apiKeyId && auth.apiKeyOrgId) {
+    const [org] = await c.var.db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        slug: organizations.slug,
+      })
+      .from(organizations)
+      .where(eq(organizations.id, auth.apiKeyOrgId))
+      .limit(1);
+    if (!org) return c.json({ error: "Unauthorized" }, 401);
+    return c.json([{ ...org, role: "editor" }], 200);
+  }
+
   const userId = await resolveUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
   const rows = await c.var.db
@@ -186,4 +201,86 @@ orgRoutes.openapi(createApiKeyRoute, async (c) => {
     })
     .returning();
   return c.json({ id: record!.id, key: rawKey, prefix: keyPrefix }, 201);
+});
+
+const listApiKeysRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/api-keys",
+  tags: ["API Keys"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(
+            z.object({
+              id: z.string().uuid(),
+              name: z.string(),
+              prefix: z.string(),
+              scopes: z.array(z.string()),
+              lastUsedAt: z.string().nullable(),
+              createdAt: z.string(),
+            }),
+          ),
+        },
+      },
+      description: "List API keys",
+    },
+  },
+});
+
+orgRoutes.openapi(listApiKeysRoute, async (c) => {
+  const userId = await resolveUserId(c);
+  const { orgId } = c.req.valid("param");
+  const access = await requireOrgRole(c.var.db, orgId, userId, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const rows = await c.var.db
+    .select({
+      id: apiKeys.id,
+      name: apiKeys.name,
+      prefix: apiKeys.keyPrefix,
+      scopes: apiKeys.scopes,
+      lastUsedAt: apiKeys.lastUsedAt,
+      createdAt: apiKeys.createdAt,
+    })
+    .from(apiKeys)
+    .where(eq(apiKeys.orgId, orgId));
+
+  return c.json(
+    rows.map((row) => ({
+      ...row,
+      lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString(),
+    })),
+    200,
+  );
+});
+
+const revokeApiKeyRoute = createRoute({
+  method: "delete",
+  path: "/orgs/{orgId}/api-keys/{keyId}",
+  tags: ["API Keys"],
+  request: {
+    params: z.object({
+      orgId: z.string().uuid(),
+      keyId: z.string().uuid(),
+    }),
+  },
+  responses: { 200: { description: "API key revoked" } },
+});
+
+orgRoutes.openapi(revokeApiKeyRoute, async (c) => {
+  const userId = await resolveUserId(c);
+  const { orgId, keyId } = c.req.valid("param");
+  const access = await requireOrgRole(c.var.db, orgId, userId, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  await c.var.db
+    .delete(apiKeys)
+    .where(and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, orgId)));
+
+  return c.json({ ok: true }, 200);
 });

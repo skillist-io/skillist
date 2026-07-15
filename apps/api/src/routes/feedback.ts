@@ -14,7 +14,7 @@ import {
 } from "@skillist/db/schema";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
-import { requireOrgRole } from "../lib/org-access";
+import { requireOrgRole, requireOrgAccess } from "../lib/org-access";
 import type { WorkerDb } from "../lib/db";
 import { resolveUserId } from "../lib/session";
 import type { AiJobMessage } from "../env";
@@ -51,9 +51,13 @@ feedbackRoutes.openapi(submitFeedbackRoute, async (c) => {
     return c.json({ error: "Insufficient scope" }, 403);
   }
 
-  const access = userId
-    ? await requireOrgRole(c.var.db, orgId, userId, "editor")
-    : { ok: true as const, role: "editor" as const };
+  const access = auth.apiKeyId
+    ? await requireOrgAccess(c.var.db, orgId, auth, "editor", {
+        apiKeyScope: "feedback:submit",
+      })
+    : userId
+      ? await requireOrgRole(c.var.db, orgId, userId, "editor")
+      : { ok: false as const, status: 401 as const };
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const [skill] = await c.var.db
