@@ -116,6 +116,15 @@ cd ../web && pnpm build && pnpm deploy
 
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on every PR; deploys API + web to Cloudflare on `main` when `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are set.
 
+**Provisioned resources** (General Account `2d19b3b18648f0776ff1435cba466210`):
+
+| Resource | ID / name |
+|----------|-----------|
+| KV `SKILLS_KV` | `e3efe45d7f14430ab6c5868235e6755f` |
+| Hyperdrive `skillist-db` | `3864600443334cd68ad86d592df9fd4a` |
+| R2 bucket | `skillist-skills` |
+| Queue | `skillist-ai-jobs` |
+
 Configure `skillist.dev` and `api.skillist.dev` routes in Cloudflare dashboard. Enable Email Sending on `skillist.dev` for magic links.
 
 ## License
