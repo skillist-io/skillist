@@ -14,3 +14,5 @@ apps/api/wrangler.local.jsonc
 coverage
 .vite
 *.tsbuildinfo
+.seed-kv-tmp.json
+.seed-r2-tmp/

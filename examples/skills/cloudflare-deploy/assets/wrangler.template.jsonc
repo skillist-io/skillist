@@ -1,0 +1,15 @@
+{
+  "name": "my-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "ENVIRONMENT": "production"
+  },
+  "kv_namespaces": [
+    { "binding": "CACHE", "id": "<replace-with-kv-id>" }
+  ],
+  "r2_buckets": [
+    { "binding": "STORAGE", "bucket_name": "my-bucket" }
+  ]
+}

@@ -30,6 +30,7 @@ export type ValidationResult =
   | { valid: false; errors: ValidationError[] };
 
 const OPTIONAL_DIRS = ["scripts", "references", "assets"] as const;
+const ALLOWED_ROOT_FILES = ["plugin.json"] as const;
 
 function parseFrontmatter(content: string): {
   frontmatter: unknown;
@@ -114,15 +115,19 @@ export function validateSkillBundle(
 
   for (const filePath of files.keys()) {
     if (filePath === "SKILL.md") continue;
-    const topDir = filePath.split("/")[0];
     if (
       filePath.includes("..") ||
       filePath.startsWith("/") ||
-      (topDir &&
-        !OPTIONAL_DIRS.includes(topDir as (typeof OPTIONAL_DIRS)[number]) &&
-        !filePath.includes("/"))
+      (ALLOWED_ROOT_FILES as readonly string[]).includes(filePath)
     ) {
-      // Allow files at root only if they're in optional dirs
+      continue;
+    }
+    const topDir = filePath.split("/")[0];
+    if (
+      topDir &&
+      !OPTIONAL_DIRS.includes(topDir as (typeof OPTIONAL_DIRS)[number]) &&
+      !filePath.includes("/")
+    ) {
       if (!OPTIONAL_DIRS.some((d) => filePath.startsWith(`${d}/`))) {
         errors.push({
           path: filePath,
