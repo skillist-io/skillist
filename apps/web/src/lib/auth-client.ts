@@ -11,17 +11,31 @@ export const authClient = createAuthClient({
 export const { signIn, signOut, useSession } = authClient;
 
 export async function signInWithGitHub(callbackURL = "/dashboard") {
-  return signIn.social({
+  const result = await signIn.social({
     provider: "github",
     callbackURL: `${window.location.origin}${callbackURL}`,
   });
+  if (result.error) {
+    throw new Error(result.error.message ?? "GitHub sign-in failed");
+  }
+  if (result.data?.url) {
+    window.location.assign(result.data.url);
+  }
+  return result;
 }
 
 export async function signInWithGoogle(callbackURL = "/dashboard") {
-  return signIn.social({
+  const result = await signIn.social({
     provider: "google",
     callbackURL: `${window.location.origin}${callbackURL}`,
   });
+  if (result.error) {
+    throw new Error(result.error.message ?? "Google sign-in failed");
+  }
+  if (result.data?.url) {
+    window.location.assign(result.data.url);
+  }
+  return result;
 }
 
 export async function sendMagicLink(email: string, callbackURL = "/dashboard") {

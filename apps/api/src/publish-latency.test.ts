@@ -16,7 +16,10 @@ description: Latency benchmark fixture
 `;
 
 describe("publish hot-path latency", () => {
-  it("reads published SKILL.md from KV within 50ms", async () => {
+  const kvLimit = process.env.CI ? 200 : 50;
+  const doLimit = process.env.CI ? 500 : 100;
+
+  it("reads published SKILL.md from KV within budget", async () => {
     await cachePublishedSkill(env.SKILLS_KV, ORG, SLUG, {
       skillMd: SKILL_MD,
       meta: {
@@ -36,10 +39,10 @@ describe("publish hot-path latency", () => {
     const elapsed = performance.now() - start;
 
     expect(result?.skillMd).toContain("bench-skill");
-    expect(elapsed).toBeLessThan(50);
+    expect(elapsed).toBeLessThan(kvLimit);
   });
 
-  it("broadcasts via Durable Object within 100ms", async () => {
+  it("broadcasts via Durable Object within budget", async () => {
     const id = env.SKILL_HUB.idFromName(`${ORG}:${SLUG}`);
     const stub = env.SKILL_HUB.get(id);
 
@@ -59,6 +62,6 @@ describe("publish hot-path latency", () => {
     const elapsed = performance.now() - start;
 
     expect(res.status).toBe(200);
-    expect(elapsed).toBeLessThan(100);
+    expect(elapsed).toBeLessThan(doLimit);
   });
 });

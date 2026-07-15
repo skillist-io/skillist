@@ -53,9 +53,11 @@ if command -v open >/dev/null 2>&1; then
   open "https://console.cloud.google.com/auth/clients/18892623702-71jhukk3defecsbtiqhjkfaj1fb1q5qn.apps.googleusercontent.com?project=studied-jigsaw-274214" || true
 fi
 
-if grep -qE '^GOOGLE_CLIENT_ID=.' "$DEV_VARS"; then
+if grep -qE '^(GOOGLE_CLIENT_ID|GITHUB_CLIENT_ID)=' "$DEV_VARS"; then
   echo "Pushing configured secrets to production..."
   "$ROOT/scripts/setup-production-secrets.sh"
+  echo "Redeploying API so OAuth providers pick up new secrets..."
+  (cd "$ROOT/apps/api" && pnpm exec wrangler deploy --config wrangler.production.jsonc)
 fi
 
 if ! grep -qE '^GITHUB_CLIENT_ID=.' "$DEV_VARS"; then
