@@ -16,7 +16,7 @@ function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-[var(--color-muted-foreground)]">
+        <p className="text-muted-foreground">
           Passwordless auth, API keys, and org membership
         </p>
       </div>
@@ -27,7 +27,7 @@ function SettingsPage() {
           <CardDescription>
             <a
               href="https://better-auth.com/docs/authentication/github"
-              className="text-[var(--color-primary)] underline"
+              className="text-primary underline"
               target="_blank"
               rel="noreferrer"
             >
@@ -39,10 +39,10 @@ function SettingsPage() {
           <p>
             Create a GitHub OAuth App and set the callback URL to:
           </p>
-          <code className="block rounded bg-[var(--color-muted)] px-2 py-1">
+          <code className="block rounded bg-muted px-2 py-1">
             {redirects.github}
           </code>
-          <p className="text-[var(--color-muted-foreground)]">
+          <p className="text-muted-foreground">
             GitHub Apps must grant Email Addresses → Read-only. Include{" "}
             <code>user:email</code> scope (configured server-side).
           </p>
@@ -55,7 +55,7 @@ function SettingsPage() {
           <CardDescription>
             <a
               href="https://better-auth.com/docs/authentication/google"
-              className="text-[var(--color-primary)] underline"
+              className="text-primary underline"
               target="_blank"
               rel="noreferrer"
             >
@@ -68,10 +68,10 @@ function SettingsPage() {
             In Google Cloud Console → Credentials, add this authorized redirect
             URI:
           </p>
-          <code className="block rounded bg-[var(--color-muted)] px-2 py-1">
+          <code className="block rounded bg-muted px-2 py-1">
             {redirects.google}
           </code>
-          <p className="text-[var(--color-muted-foreground)]">
+          <p className="text-muted-foreground">
             Set <code>BETTER_AUTH_URL</code> to your API origin to avoid{" "}
             <code>redirect_uri_mismatch</code>.
           </p>

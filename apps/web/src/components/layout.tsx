@@ -8,10 +8,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-card)]/80 backdrop-blur">
+      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2 font-semibold">
-            <Zap className="h-5 w-5 text-[var(--color-primary)]" />
+            <Zap className="h-5 w-5 text-primary" />
             Skillist
           </Link>
           <nav className="flex items-center gap-2">
@@ -31,7 +31,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Button>
             {session?.user ? (
               <>
-                <span className="hidden text-sm text-[var(--color-muted-foreground)] sm:inline">
+                <span className="hidden text-sm text-muted-foreground sm:inline">
                   {session.user.name ?? session.user.email}
                 </span>
                 <Button

@@ -4,7 +4,9 @@ import { api, type Org, type Skill } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input, Label, Badge } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -39,7 +41,7 @@ function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-[var(--color-muted-foreground)]">
+        <p className="text-muted-foreground">
           Manage organizations and skills
         </p>
       </div>
@@ -125,7 +127,7 @@ function OrgCard({ org }: { org: Org }) {
               <Link
                 to="/orgs/$orgId/skills/$slug"
                 params={{ orgId: org.id, slug: s.slug }}
-                className="text-[var(--color-primary)] hover:underline"
+                className="text-primary hover:underline"
               >
                 {s.slug}
               </Link>{" "}

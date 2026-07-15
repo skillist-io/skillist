@@ -2,7 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import {
   sendMagicLink,
@@ -70,7 +71,7 @@ function LoginPage() {
     <div className="mx-auto max-w-md space-y-6">
       <div className="text-center">
         <h1 className="text-2xl font-bold">Sign in to Skillist</h1>
-        <p className="text-[var(--color-muted-foreground)]">
+        <p className="text-muted-foreground">
           Passwordless — GitHub, Google, or magic link
         </p>
       </div>
@@ -88,7 +89,7 @@ function LoginPage() {
             OAuth via{" "}
             <a
               href="https://better-auth.com/docs/authentication/github"
-              className="text-[var(--color-primary)] underline"
+              className="text-primary underline"
               target="_blank"
               rel="noreferrer"
             >
@@ -97,7 +98,7 @@ function LoginPage() {
             or{" "}
             <a
               href="https://better-auth.com/docs/authentication/google"
-              className="text-[var(--color-primary)] underline"
+              className="text-primary underline"
               target="_blank"
               rel="noreferrer"
             >
@@ -153,7 +154,7 @@ function LoginPage() {
         </CardContent>
       </Card>
 
-      <p className="text-center text-xs text-[var(--color-muted-foreground)]">
+      <p className="text-center text-xs text-muted-foreground">
         <Link to="/" className="underline">
           Back to home
         </Link>

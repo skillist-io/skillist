@@ -13,12 +13,12 @@ function HomePage() {
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
           Realtime Agent Skills
         </h1>
-        <p className="mx-auto max-w-2xl text-lg text-[var(--color-muted-foreground)]">
+        <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
           Manage, version, and deliver SKILL.md files with sub-10ms fan-out.
           Built for the{" "}
           <a
             href="https://agentskills.io/home"
-            className="text-[var(--color-primary)] underline"
+            className="text-primary underline"
           >
             agentskills.io
           </a>{" "}

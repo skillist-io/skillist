@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api, type RegistryItem } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
@@ -24,7 +24,7 @@ function RegistryPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Public Registry</h1>
-        <p className="text-[var(--color-muted-foreground)]">
+        <p className="text-muted-foreground">
           Discover Agent Skills compatible with agentskills.io
         </p>
       </div>
@@ -56,7 +56,7 @@ function RegistryPage() {
                 <Link
                   to="/registry/$org/$slug"
                   params={{ org: item.orgSlug, slug: item.skillSlug }}
-                  className="text-sm text-[var(--color-primary)] hover:underline"
+                  className="text-sm text-primary hover:underline"
                 >
                   View skill →
                 </Link>
@@ -64,7 +64,7 @@ function RegistryPage() {
             </Card>
           ))}
           {data?.items.length === 0 && (
-            <p className="text-[var(--color-muted-foreground)]">
+            <p className="text-muted-foreground">
               No public skills yet.
             </p>
           )}

@@ -5,7 +5,9 @@ import { requireAuth } from "@/lib/require-auth";
 import { diffLines, diffStats } from "@/lib/diff";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea, Badge, Label } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { useState, useEffect, useMemo } from "react";
 
@@ -139,7 +141,7 @@ function SkillEditorPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{slug}</h1>
-          <p className="text-sm text-[var(--color-muted-foreground)]">
+          <p className="text-sm text-muted-foreground">
             {connected ? "Realtime connected" : "Realtime disconnected"}
           </p>
         </div>
@@ -192,7 +194,7 @@ function SkillEditorPage() {
                     type="button"
                     className={`text-left hover:underline ${
                       compareVersionId === v.id
-                        ? "font-semibold text-[var(--color-primary)]"
+                        ? "font-semibold text-primary"
                         : ""
                     }`}
                     onClick={() =>
@@ -216,7 +218,7 @@ function SkillEditorPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <pre className="max-h-64 overflow-auto rounded border bg-[var(--color-muted)] p-2 font-mono text-xs">
+                <pre className="max-h-64 overflow-auto rounded border bg-muted p-2 font-mono text-xs">
                   {diff.map((line, i) => (
                     <div
                       key={i}
@@ -225,7 +227,7 @@ function SkillEditorPage() {
                           ? "bg-green-100 text-green-900"
                           : line.type === "remove"
                             ? "bg-red-100 text-red-900"
-                            : "text-[var(--color-muted-foreground)]"
+                            : "text-muted-foreground"
                       }
                     >
                       {line.type === "add" ? "+ " : line.type === "remove" ? "- " : "  "}

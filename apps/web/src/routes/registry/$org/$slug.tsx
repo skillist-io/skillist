@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { Wifi, WifiOff } from "lucide-react";
 
@@ -39,7 +39,7 @@ function RegistrySkillPage() {
           <h1 className="text-2xl font-bold">
             {(entry?.name as string) ?? slug}
           </h1>
-          <p className="text-[var(--color-muted-foreground)]">
+          <p className="text-muted-foreground">
             {org}/{slug}
           </p>
         </div>
@@ -86,7 +86,7 @@ function RegistrySkillPage() {
           </p>
           <a
             href={`/v1/skills/${org}/${slug}/SKILL.md`}
-            className="text-[var(--color-primary)] hover:underline"
+            className="text-primary hover:underline"
           >
             Fetch SKILL.md (KV hot path)
           </a>
