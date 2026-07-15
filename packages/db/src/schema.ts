@@ -49,6 +49,17 @@ export const evalStatusEnum = pgEnum("eval_status", [
   "completed",
   "failed",
 ]);
+export const skillRuntimeEnum = pgEnum("skill_runtime", [
+  "local",
+  "sandbox",
+  "container",
+]);
+export const skillRunStatusEnum = pgEnum("skill_run_status", [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+]);
 
 // Better Auth tables
 export const users = pgTable("users", {
@@ -190,6 +201,7 @@ export const skills = pgTable(
     slug: text("slug").notNull(),
     visibility: skillVisibilityEnum("visibility").notNull().default("private"),
     description: text("description"),
+    runtime: skillRuntimeEnum("runtime").notNull().default("local"),
     latestPublishedVersionId: uuid("latest_published_version_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -503,5 +515,40 @@ export const skillInventory = pgTable(
       t.repoFullName,
       t.filePath,
     ),
+  ],
+);
+
+export const skillRuns = pgTable(
+  "skill_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => skillVersions.id, { onDelete: "cascade" }),
+    orgSlug: text("org_slug").notNull(),
+    skillSlug: text("skill_slug").notNull(),
+    scriptPath: text("script_path").notNull(),
+    runtime: skillRuntimeEnum("runtime").notNull(),
+    status: skillRunStatusEnum("status").notNull().default("queued"),
+    args: jsonb("args").$type<string[]>(),
+    targetUrl: text("target_url"),
+    stdout: text("stdout"),
+    stderr: text("stderr"),
+    exitCode: integer("exit_code"),
+    durationMs: integer("duration_ms"),
+    error: text("error"),
+    actorId: text("actor_id"),
+    actorType: text("actor_type"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("skill_runs_skill_idx").on(t.skillId),
+    index("skill_runs_created_idx").on(t.createdAt),
   ],
 );

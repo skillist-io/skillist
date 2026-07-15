@@ -154,3 +154,11 @@ export const runEvalSchema = z.object({
     )
     .optional(),
 });
+
+export const runSkillSchema = z.object({
+  scriptPath: z
+    .string()
+    .regex(/^scripts\//, "scriptPath must be under scripts/"),
+  args: z.array(z.string().max(512)).max(20).optional(),
+  targetUrl: z.string().url().max(2048).optional(),
+});

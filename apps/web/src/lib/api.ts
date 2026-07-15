@@ -34,7 +34,19 @@ export type RegistryItem = {
   securityStatus: string | null;
   installCount: number;
   activationCount: number;
+  runtime?: string | null;
   installCommand?: string;
+  runCommand?: string | null;
+};
+
+export type SkillRunResult = {
+  runId: string;
+  status: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  durationMs: number;
+  runtime: string;
 };
 
 export type PublishPolicy = {

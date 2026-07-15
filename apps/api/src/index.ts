@@ -12,10 +12,12 @@ import { registryRoutes } from "./routes/registry";
 import { feedbackRoutes } from "./routes/feedback";
 import { realtimeRoutes } from "./routes/realtime";
 import { governanceRoutes } from "./routes/governance";
+import { executionRoutes } from "./routes/execution";
 import { rateLimit } from "./lib/rate-limit";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
 
 export { SkillRealtimeHub };
+export { Sandbox } from "@cloudflare/sandbox";
 
 const app = new OpenAPIHono<{ Bindings: Env }>();
 
@@ -74,6 +76,7 @@ v1.route("/", skillRoutes);
 v1.route("/", registryRoutes);
 v1.route("/", feedbackRoutes);
 v1.route("/", governanceRoutes);
+v1.route("/", executionRoutes);
 v1.route("/", realtimeRoutes);
 
 app.route("/v1", v1);

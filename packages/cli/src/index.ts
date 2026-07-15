@@ -29,6 +29,7 @@ Usage:
   skillist pull <org>/<skill> [-o dir]     Download published skill bundle
   skillist push <org>/<skill> <dir>        Upload local skill as new draft
   skillist publish <org>/<skill> <dir>       Push + publish to registry
+  skillist run <org>/<skill> --script <path>   Run script in Cloudflare Sandbox
   skillist update [org/skill]              Update installed skills from lockfile
   skillist list                            List skills in lockfile
 
@@ -282,6 +283,32 @@ async function listInstalled() {
   }
 }
 
+async function runSkill(ref: string, scriptPath: string, targetUrl?: string, extraArgs: string[] = []) {
+  const { org, skill } = parseRef(ref);
+  const res = await apiFetch(`/v1/skills/${org}/${skill}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scriptPath,
+      targetUrl,
+      args: extraArgs,
+    }),
+  });
+  const result = (await res.json()) as {
+    runId: string;
+    status: string;
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    durationMs: number;
+    runtime: string;
+  };
+  console.log(`Run ${result.runId} (${result.runtime}) — ${result.status} exit ${result.exitCode} (${result.durationMs}ms)`);
+  if (result.stdout) console.log(result.stdout);
+  if (result.stderr) console.error(result.stderr);
+  if (result.exitCode !== 0) process.exit(result.exitCode);
+}
+
 async function main() {
   const [, , cmd, ref, arg] = process.argv;
 
@@ -337,6 +364,19 @@ async function main() {
 
     if (cmd === "list") {
       await listInstalled();
+      return;
+    }
+
+    if (cmd === "run") {
+      if (!ref) throw new Error("Usage: skillist run <org>/<skill> --script <path> [--url <url>] [-- ...args]");
+      const scriptIdx = process.argv.indexOf("--script");
+      const urlIdx = process.argv.indexOf("--url");
+      const dashIdx = process.argv.indexOf("--");
+      if (scriptIdx < 0) throw new Error("--script is required");
+      const scriptPath = process.argv[scriptIdx + 1]!;
+      const targetUrl = urlIdx >= 0 ? process.argv[urlIdx + 1] : undefined;
+      const extraArgs = dashIdx >= 0 ? process.argv.slice(dashIdx + 1) : [];
+      await runSkill(ref, scriptPath, targetUrl, extraArgs);
       return;
     }
 
