@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Zap } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "@/lib/auth-client";
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
 
   return (
@@ -23,28 +23,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 API
               </a>
             </Button>
-            <Button variant="ghost" asChild>
-              <Link to="/dashboard">Dashboard</Link>
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link to="/settings">Settings</Link>
-            </Button>
             {session?.user ? (
               <>
-                <span className="hidden text-sm text-muted-foreground sm:inline">
-                  {session.user.name ?? session.user.email}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => signOut()}
-                >
+                <Button variant="ghost" asChild>
+                  <Link to="/dashboard">Dashboard</Link>
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => signOut()}>
                   Sign out
                 </Button>
               </>
             ) : (
               <Button asChild>
-                <Link to="/login" search={{ redirect: undefined }}>Sign in</Link>
+                <Link to="/login" search={{ redirect: undefined }}>
+                  Sign in
+                </Link>
               </Button>
             )}
           </nav>

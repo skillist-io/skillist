@@ -21,7 +21,7 @@ function SettingsPage() {
         </p>
       </div>
 
-      <Card>
+      <Card id="github-oauth">
         <CardHeader>
           <CardTitle>GitHub OAuth</CardTitle>
           <CardDescription>
@@ -78,7 +78,7 @@ function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="api-keys">
         <CardHeader>
           <CardTitle>Agent API keys</CardTitle>
           <CardDescription>
