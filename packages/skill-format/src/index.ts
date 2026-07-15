@@ -178,3 +178,20 @@ export function extractDiscoveryMeta(
     description: result.frontmatter.description,
   };
 }
+
+export {
+  reviewSkillBundle,
+  estimateImpactScore,
+  type ReviewCheck,
+  type SkillReviewResult,
+} from "./review.js";
+export {
+  scanSkillSecurity,
+  type SecurityIssue,
+  type SecurityScanResult,
+} from "./security.js";
+export {
+  parsePluginManifest,
+  pluginManifestSchema,
+  type PluginManifest,
+} from "./plugin.js";

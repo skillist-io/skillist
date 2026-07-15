@@ -11,6 +11,7 @@ import { skillRoutes } from "./routes/skills";
 import { registryRoutes } from "./routes/registry";
 import { feedbackRoutes } from "./routes/feedback";
 import { realtimeRoutes } from "./routes/realtime";
+import { governanceRoutes } from "./routes/governance";
 import { rateLimit } from "./lib/rate-limit";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
 
@@ -72,6 +73,7 @@ v1.route("/", orgRoutes);
 v1.route("/", skillRoutes);
 v1.route("/", registryRoutes);
 v1.route("/", feedbackRoutes);
+v1.route("/", governanceRoutes);
 v1.route("/", realtimeRoutes);
 
 app.route("/v1", v1);
@@ -103,7 +105,32 @@ export default {
   async queue(batch: MessageBatch<AiJobMessage>, env: Env): Promise<void> {
     const db = createWorkerDb(env);
     for (const message of batch.messages) {
-      const { jobId, feedbackId } = message.body;
+      const body = message.body;
+      if (body.type === "eval") {
+        const { skillEvals } = await import("@skillist/db/schema");
+        const { eq } = await import("drizzle-orm");
+        const { runSkillEval } = await import("./lib/eval");
+        await db
+          .update(skillEvals)
+          .set({ status: "running" })
+          .where(eq(skillEvals.id, body.evalId));
+        try {
+          await runSkillEval(env, db, body.evalId);
+          message.ack();
+        } catch (err) {
+          await db
+            .update(skillEvals)
+            .set({
+              status: "failed",
+              error: err instanceof Error ? err.message : "Unknown error",
+            })
+            .where(eq(skillEvals.id, body.evalId));
+          message.retry();
+        }
+        continue;
+      }
+
+      const { jobId, feedbackId } = body;
       const { aiJobs } = await import("@skillist/db/schema");
       const { eq } = await import("drizzle-orm");
       await db

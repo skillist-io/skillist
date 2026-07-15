@@ -15,6 +15,9 @@ import {
   createSkillTemplate,
   objectToBundle,
   validateSkillBundle,
+  reviewSkillBundle,
+  estimateImpactScore,
+  scanSkillSecurity,
 } from "@skillist/skill-format";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
@@ -280,7 +283,13 @@ const publishRoute = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z.object({ etag: z.string(), version: z.string() }),
+          schema: z.object({
+            etag: z.string(),
+            version: z.string(),
+            qualityScore: z.number(),
+            impactScore: z.number(),
+            securityStatus: z.string(),
+          }),
         },
       },
       description: "Published",
@@ -310,6 +319,7 @@ skillRoutes.openapi(publishRoute, async (c) => {
       skill.id,
       versionId,
       userId,
+      access.actorType,
     );
     return c.json(result, 200);
   } catch (err) {
@@ -455,4 +465,61 @@ skillRoutes.openapi(getVersionFilesRoute, async (c) => {
     files[path] = content;
   }
   return c.json({ files }, 200);
+});
+
+const previewVersionRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/skills/{slug}/versions/{versionId}/preview",
+  tags: ["Skills"],
+  request: {
+    params: z.object({
+      orgId: z.string().uuid(),
+      slug: z.string(),
+      versionId: z.string().uuid(),
+    }),
+  },
+  responses: { 200: { description: "Review and security preview" } },
+});
+
+skillRoutes.openapi(previewVersionRoute, async (c) => {
+  const { orgId, slug, versionId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer", {
+    apiKeyScope: "skills:read",
+  });
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [skill] = await c.var.db
+    .select()
+    .from(skills)
+    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .limit(1);
+  if (!skill) return c.json({ error: "Not found" }, 404);
+
+  const [version] = await c.var.db
+    .select()
+    .from(skillVersions)
+    .where(eq(skillVersions.id, versionId))
+    .limit(1);
+  if (!version) return c.json({ error: "Not found" }, 404);
+
+  const paths = await listBundlePaths(c.env.SKILLS_R2, version.r2Prefix);
+  const bundle = await downloadBundleFromR2(
+    c.env.SKILLS_R2,
+    version.r2Prefix,
+    paths,
+  );
+  const review = reviewSkillBundle(bundle, slug);
+  const impactScore = estimateImpactScore(review);
+  const security = scanSkillSecurity(bundle);
+
+  return c.json(
+    {
+      qualityScore: review.score,
+      impactScore,
+      securityStatus: security.status,
+      reviewChecks: review.checks,
+      securityIssues: security.issues,
+    },
+    200,
+  );
 });

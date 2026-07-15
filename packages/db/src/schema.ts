@@ -34,6 +34,21 @@ export const aiJobStatusEnum = pgEnum("ai_job_status", [
   "completed",
   "failed",
 ]);
+export const securityStatusEnum = pgEnum("security_status", [
+  "pass",
+  "advisory",
+  "fail",
+]);
+export const telemetryEventEnum = pgEnum("telemetry_event", [
+  "install",
+  "activation",
+]);
+export const evalStatusEnum = pgEnum("eval_status", [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+]);
 
 // Better Auth tables
 export const users = pgTable("users", {
@@ -129,6 +144,11 @@ export const organizations = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
+    publishPolicy: jsonb("publish_policy").$type<{
+      minQualityScore?: number;
+      requireSecurityPass?: boolean;
+      blockOnAdvisory?: boolean;
+    }>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -195,6 +215,16 @@ export const skillVersions = pgTable(
     semver: text("semver").notNull(),
     r2Prefix: text("r2_prefix").notNull(),
     kvEtag: text("kv_etag"),
+    qualityScore: integer("quality_score"),
+    impactScore: integer("impact_score"),
+    securityStatus: securityStatusEnum("security_status"),
+    securityIssues: jsonb("security_issues").$type<
+      { severity: string; path: string; message: string }[]
+    >(),
+    reviewChecks: jsonb("review_checks").$type<
+      { id: string; label: string; passed: boolean; message: string }[]
+    >(),
+    pluginManifest: jsonb("plugin_manifest"),
     parentVersionId: uuid("parent_version_id"),
     createdBy: text("created_by").references(() => users.id, {
       onDelete: "set null",
@@ -287,7 +317,13 @@ export const registryEntries = pgTable(
     name: text("name").notNull(),
     description: text("description").notNull(),
     latestVersion: text("latest_version"),
+    qualityScore: integer("quality_score"),
+    impactScore: integer("impact_score"),
+    securityStatus: securityStatusEnum("security_status"),
+    installCount: integer("install_count").notNull().default(0),
+    activationCount: integer("activation_count").notNull().default(0),
     stars: integer("stars").notNull().default(0),
+    lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -357,4 +393,115 @@ export const aiJobs = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (t) => [index("ai_jobs_feedback_idx").on(t.feedbackId)],
+);
+
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    actorId: text("actor_id"),
+    actorType: text("actor_type").notNull(),
+    action: text("action").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceId: text("resource_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("audit_events_org_idx").on(t.orgId),
+    index("audit_events_created_idx").on(t.createdAt),
+  ],
+);
+
+export const telemetryEvents = pgTable(
+  "telemetry_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgSlug: text("org_slug").notNull(),
+    skillSlug: text("skill_slug").notNull(),
+    eventType: telemetryEventEnum("event_type").notNull(),
+    projectHash: text("project_hash"),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    apiKeyId: uuid("api_key_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("telemetry_skill_idx").on(t.orgSlug, t.skillSlug),
+    index("telemetry_type_idx").on(t.eventType),
+  ],
+);
+
+export const skillEvals = pgTable(
+  "skill_evals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => skillVersions.id, { onDelete: "cascade" }),
+    status: evalStatusEnum("status").notNull().default("queued"),
+    scenarios: jsonb("scenarios").$type<{ name: string; prompt: string }[]>(),
+    baselineScore: integer("baseline_score"),
+    withSkillScore: integer("with_skill_score"),
+    uplift: integer("uplift"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [index("skill_evals_skill_idx").on(t.skillId)],
+);
+
+export const orgRequiredSkills = pgTable(
+  "org_required_skills",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    orgSlug: text("org_slug").notNull(),
+    skillSlug: text("skill_slug").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("org_required_skills_idx").on(t.orgId, t.orgSlug, t.skillSlug),
+  ],
+);
+
+export const skillInventory = pgTable(
+  "skill_inventory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    repoFullName: text("repo_full_name").notNull(),
+    filePath: text("file_path").notNull(),
+    skillSlug: text("skill_slug"),
+    managed: boolean("managed").notNull().default(false),
+    registryOrgSlug: text("registry_org_slug"),
+    registrySkillSlug: text("registry_skill_slug"),
+    scannedAt: timestamp("scanned_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("skill_inventory_repo_path_idx").on(
+      t.orgId,
+      t.repoFullName,
+      t.filePath,
+    ),
+  ],
 );

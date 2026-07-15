@@ -113,3 +113,44 @@ export const inviteMemberSchema = z.object({
   email: z.string().email(),
   role: orgRoleSchema.default("viewer"),
 });
+
+export const publishPolicySchema = z.object({
+  minQualityScore: z.number().int().min(0).max(100).optional(),
+  requireSecurityPass: z.boolean().optional(),
+  blockOnAdvisory: z.boolean().optional(),
+});
+
+export const telemetryEventSchema = z.object({
+  orgSlug: z.string(),
+  skillSlug: z.string(),
+  eventType: z.enum(["install", "activation"]),
+  projectHash: z.string().max(64).optional(),
+});
+
+export const requiredSkillSchema = z.object({
+  orgSlug: z.string(),
+  skillSlug: z.string(),
+});
+
+export const inventoryScanSchema = z.object({
+  items: z.array(
+    z.object({
+      repoFullName: z.string(),
+      filePath: z.string(),
+      skillSlug: z.string().optional(),
+      registryOrgSlug: z.string().optional(),
+      registrySkillSlug: z.string().optional(),
+    }),
+  ),
+});
+
+export const runEvalSchema = z.object({
+  scenarios: z
+    .array(
+      z.object({
+        name: z.string(),
+        prompt: z.string(),
+      }),
+    )
+    .optional(),
+});

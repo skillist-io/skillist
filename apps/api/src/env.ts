@@ -19,12 +19,22 @@ export type Env = {
   AI_GATEWAY_TOKEN?: string;
 };
 
-export type AiJobMessage = {
-  jobId: string;
-  feedbackId: string;
-  skillId: string;
-  orgSlug: string;
-  skillSlug: string;
-};
+export type AiJobMessage =
+  | {
+      type: "feedback";
+      jobId: string;
+      feedbackId: string;
+      skillId: string;
+      orgSlug: string;
+      skillSlug: string;
+    }
+  | {
+      type: "eval";
+      evalId: string;
+      skillId: string;
+      versionId: string;
+      orgSlug: string;
+      skillSlug: string;
+    };
 
 export type { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";

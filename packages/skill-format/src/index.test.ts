@@ -3,6 +3,10 @@ import {
   createSkillTemplate,
   validateSkillBundle,
   validateSkillName,
+  reviewSkillBundle,
+  estimateImpactScore,
+  scanSkillSecurity,
+  parsePluginManifest,
 } from "./index";
 
 describe("validateSkillName", () => {
@@ -40,5 +44,43 @@ describe("validateSkillBundle", () => {
     const bundle = new Map([["SKILL.md", "# No frontmatter"]]);
     const result = validateSkillBundle(bundle);
     expect(result.valid).toBe(false);
+  });
+});
+
+describe("reviewSkillBundle", () => {
+  it("scores a valid template", () => {
+    const bundle = createSkillTemplate("roll-dice", "Roll dice when asked for random numbers in chat.");
+    const review = reviewSkillBundle(bundle, "roll-dice");
+    expect(review.score).toBeGreaterThan(0);
+    expect(review.checks.some((c) => c.id === "valid-bundle" && c.passed)).toBe(true);
+  });
+
+  it("estimates impact from review", () => {
+    const bundle = createSkillTemplate("roll-dice", "Roll dice when asked for random numbers in chat.");
+    const review = reviewSkillBundle(bundle, "roll-dice");
+    expect(estimateImpactScore(review)).toBeGreaterThan(0);
+  });
+});
+
+describe("scanSkillSecurity", () => {
+  it("passes clean bundles", () => {
+    const bundle = createSkillTemplate("safe-skill", "A safe skill with normal instructions.");
+    expect(scanSkillSecurity(bundle).status).toBe("pass");
+  });
+
+  it("fails on credential patterns", () => {
+    const bundle = new Map([
+      ["SKILL.md", "---\nname: leak\ndescription: test\n---\n# Skill\nAKIA1234567890ABCDEF"],
+    ]);
+    expect(scanSkillSecurity(bundle).status).toBe("fail");
+  });
+});
+
+describe("parsePluginManifest", () => {
+  it("parses valid plugin.json", () => {
+    const manifest = parsePluginManifest(
+      JSON.stringify({ name: "my-plugin", skills: ["SKILL.md"] }),
+    );
+    expect(manifest?.name).toBe("my-plugin");
   });
 });
