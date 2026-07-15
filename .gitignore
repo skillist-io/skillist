@@ -1,0 +1,16 @@
+node_modules
+dist
+.wrangler
+.turbo
+.env
+.env.*
+!.env.example
+.dev.vars
+**/.dev.vars
+wrangler.local.jsonc
+apps/api/wrangler.local.jsonc
+*.log
+.DS_Store
+coverage
+.vite
+*.tsbuildinfo

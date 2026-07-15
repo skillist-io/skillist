@@ -1,0 +1,24 @@
+{
+  "name": "@skillist/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./social": "./src/social-providers.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@skillist/db": "workspace:*",
+    "better-auth": "^1.6.23",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@skillist/tsconfig": "workspace:*",
+    "@types/node": "^25.5.0",
+    "typescript": "^7.0.2"
+  }
+}

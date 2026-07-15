@@ -1,0 +1,23 @@
+{
+  "name": "@skillist/skill-format",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@skillist/tsconfig": "workspace:*",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@skillist/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "skillist": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@skillist/skill-format": "workspace:*"
+  },
+  "devDependencies": {
+    "@skillist/tsconfig": "workspace:*",
+    "@types/node": "^22.15.29",
+    "tsx": "^4.20.3",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,180 @@
+import { parse as parseYaml } from "yaml";
+import { z } from "zod";
+
+const SKILL_NAME_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export const skillFrontmatterSchema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(SKILL_NAME_REGEX, "name must be lowercase alphanumeric with hyphens"),
+  description: z.string().min(1).max(1024),
+  license: z.string().optional(),
+  compatibility: z.string().max(500).optional(),
+  metadata: z.record(z.string(), z.string()).optional(),
+  "allowed-tools": z.string().optional(),
+});
+
+export type SkillFrontmatter = z.infer<typeof skillFrontmatterSchema>;
+
+export type SkillBundle = Map<string, string>;
+
+export type ValidationError = {
+  path: string;
+  message: string;
+};
+
+export type ValidationResult =
+  | { valid: true; frontmatter: SkillFrontmatter; body: string }
+  | { valid: false; errors: ValidationError[] };
+
+const OPTIONAL_DIRS = ["scripts", "references", "assets"] as const;
+
+function parseFrontmatter(content: string): {
+  frontmatter: unknown;
+  body: string;
+} | null {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  if (!match) return null;
+  try {
+    const frontmatter = parseYaml(match[1]!);
+    return { frontmatter, body: match[2] ?? "" };
+  } catch {
+    return null;
+  }
+}
+
+export function validateSkillName(name: string, slug?: string): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (name.length < 1 || name.length > 64) {
+    errors.push({ path: "name", message: "name must be 1-64 characters" });
+  }
+  if (!SKILL_NAME_REGEX.test(name)) {
+    errors.push({
+      path: "name",
+      message:
+        "name may only contain lowercase letters, numbers, and hyphens; no leading/trailing/consecutive hyphens",
+    });
+  }
+  if (name.startsWith("-") || name.endsWith("-") || name.includes("--")) {
+    errors.push({
+      path: "name",
+      message: "name must not start/end with hyphen or contain consecutive hyphens",
+    });
+  }
+  if (slug && name !== slug) {
+    errors.push({
+      path: "name",
+      message: `name must match skill slug "${slug}"`,
+    });
+  }
+  return errors;
+}
+
+export function validateSkillBundle(
+  files: SkillBundle,
+  expectedSlug?: string,
+): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  const skillMd = files.get("SKILL.md");
+  if (!skillMd) {
+    return {
+      valid: false,
+      errors: [{ path: "SKILL.md", message: "SKILL.md is required" }],
+    };
+  }
+
+  const parsed = parseFrontmatter(skillMd);
+  if (!parsed) {
+    return {
+      valid: false,
+      errors: [
+        {
+          path: "SKILL.md",
+          message: "SKILL.md must contain YAML frontmatter delimited by ---",
+        },
+      ],
+    };
+  }
+
+  const fmResult = skillFrontmatterSchema.safeParse(parsed.frontmatter);
+  if (!fmResult.success) {
+    for (const issue of fmResult.error.issues) {
+      errors.push({
+        path: `frontmatter.${issue.path.join(".")}`,
+        message: issue.message,
+      });
+    }
+  }
+
+  const name = fmResult.success ? fmResult.data.name : "";
+  errors.push(...validateSkillName(name, expectedSlug));
+
+  for (const filePath of files.keys()) {
+    if (filePath === "SKILL.md") continue;
+    const topDir = filePath.split("/")[0];
+    if (
+      filePath.includes("..") ||
+      filePath.startsWith("/") ||
+      (topDir &&
+        !OPTIONAL_DIRS.includes(topDir as (typeof OPTIONAL_DIRS)[number]) &&
+        !filePath.includes("/"))
+    ) {
+      // Allow files at root only if they're in optional dirs
+      if (!OPTIONAL_DIRS.some((d) => filePath.startsWith(`${d}/`))) {
+        errors.push({
+          path: filePath,
+          message: `unexpected file path; use scripts/, references/, or assets/`,
+        });
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    return { valid: false, errors };
+  }
+
+  return {
+    valid: true,
+    frontmatter: fmResult.data!,
+    body: parsed.body,
+  };
+}
+
+export function createSkillTemplate(slug: string, description: string): SkillBundle {
+  const bundle = new Map<string, string>();
+  bundle.set(
+    "SKILL.md",
+    `---
+name: ${slug}
+description: ${description}
+---
+
+# ${slug}
+
+Add skill instructions here.
+`,
+  );
+  return bundle;
+}
+
+export function bundleToObject(bundle: SkillBundle): Record<string, string> {
+  return Object.fromEntries(bundle);
+}
+
+export function objectToBundle(files: Record<string, string>): SkillBundle {
+  return new Map(Object.entries(files));
+}
+
+export function extractDiscoveryMeta(
+  bundle: SkillBundle,
+): { name: string; description: string } | null {
+  const result = validateSkillBundle(bundle);
+  if (!result.valid) return null;
+  return {
+    name: result.frontmatter.name,
+    description: result.frontmatter.description,
+  };
+}

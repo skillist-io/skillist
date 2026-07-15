@@ -1,0 +1,70 @@
+{
+  "name": "skillist-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BETTER_AUTH_URL": "http://localhost:8787"
+  },
+  "dev": {
+    "port": 8787
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "local-hyperdrive",
+      "localConnectionString": "postgresql://postgres:postgres@localhost:5432/skillist"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SKILLS_KV",
+      "id": "local-skills-kv",
+      "preview_id": "local-skills-kv"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "SKILLS_R2",
+      "bucket_name": "skillist-skills",
+      "preview_bucket_name": "skillist-skills-preview"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SKILL_HUB",
+        "class_name": "SkillRealtimeHub"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SkillRealtimeHub"]
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "send_email": [
+    {
+      "name": "EMAIL"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "AI_QUEUE",
+        "queue": "skillist-ai-jobs"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "skillist-ai-jobs",
+        "max_batch_size": 1,
+        "max_retries": 3
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+import { Link } from "@tanstack/react-router";
+import { Zap } from "lucide-react";
+import { Button } from "./ui/button";
+import { signOut, useSession } from "@/lib/auth-client";
+
+export function Layout({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
+
+  return (
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-card)]/80 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+          <Link to="/" className="flex items-center gap-2 font-semibold">
+            <Zap className="h-5 w-5 text-[var(--color-primary)]" />
+            Skillist
+          </Link>
+          <nav className="flex items-center gap-2">
+            <Button variant="ghost" asChild>
+              <Link to="/registry">Registry</Link>
+            </Button>
+            <Button variant="ghost" asChild>
+              <a href="/docs" target="_blank" rel="noreferrer">
+                API
+              </a>
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link to="/dashboard">Dashboard</Link>
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link to="/settings">Settings</Link>
+            </Button>
+            {session?.user ? (
+              <>
+                <span className="hidden text-sm text-[var(--color-muted-foreground)] sm:inline">
+                  {session.user.name ?? session.user.email}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => signOut()}
+                >
+                  Sign out
+                </Button>
+              </>
+            ) : (
+              <Button asChild>
+                <Link to="/login" search={{ redirect: undefined }}>Sign in</Link>
+              </Button>
+            )}
+          </nav>
+        </div>
+      </header>
+      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+    </div>
+  );
+}

@@ -1,0 +1,9 @@
+{
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "local-hyperdrive",
+      "localConnectionString": "postgresql://user:pass@host/neondb?sslmode=require"
+    }
+  ]
+}
