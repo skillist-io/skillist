@@ -188,6 +188,7 @@ feedbackRoutes.openapi(approveRoute, async (c) => {
       .limit(1);
 
     const message: AiJobMessage = {
+      type: "feedback",
       jobId: job!.id,
       feedbackId: id,
       skillId: skill.id,
@@ -289,6 +290,7 @@ feedbackRoutes.openapi(suggestRoute, async (c) => {
     : [null];
 
   const message: AiJobMessage = {
+    type: "feedback",
     jobId: job!.id,
     feedbackId: id,
     skillId: item.skillId,

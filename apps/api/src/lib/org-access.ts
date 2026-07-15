@@ -19,7 +19,7 @@ const SCOPE_MIN_ROLE: Record<ApiKeyScope, OrgRole> = {
 };
 
 export type OrgAccessResult =
-  | { ok: true; role: OrgRole; actorId: string | null }
+  | { ok: true; role: OrgRole; actorId: string | null; actorType: "user" | "api_key" }
   | { ok: false; status: 401 | 403 };
 
 export async function getOrgMembership(
@@ -85,6 +85,7 @@ export async function requireOrgAccess(
       ok: true,
       role: scopeRole,
       actorId: auth.apiKeyCreatedBy,
+      actorType: "api_key",
     };
   }
 
@@ -95,5 +96,6 @@ export async function requireOrgAccess(
     ok: true,
     role: memberAccess.role,
     actorId: auth.userId,
+    actorType: "user",
   };
 }

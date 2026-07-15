@@ -10,6 +10,10 @@ import {
 import {
   objectToBundle,
   validateSkillBundle,
+  reviewSkillBundle,
+  estimateImpactScore,
+  scanSkillSecurity,
+  parsePluginManifest,
 } from "@skillist/skill-format";
 import {
   downloadBundleFromR2,
@@ -19,7 +23,9 @@ import {
   uploadBundleToR2,
 } from "./r2";
 import { cachePublishedSkill, broadcastPublish } from "./publish";
-import { organizations } from "@skillist/db/schema";
+import { organizations, skillEvals } from "@skillist/db/schema";
+import { evaluatePublishPolicy } from "./publish-policy";
+import { logAudit } from "./audit";
 
 export async function runAiJob(
   env: Env,
@@ -148,7 +154,14 @@ export async function publishVersion(
   skillId: string,
   versionId: string,
   userId: string | null,
-): Promise<{ etag: string; version: string }> {
+  actorType: "user" | "api_key" = "user",
+): Promise<{
+  etag: string;
+  version: string;
+  qualityScore: number;
+  impactScore: number;
+  securityStatus: string;
+}> {
   const [skill] = await db
     .select()
     .from(skills)
@@ -185,6 +198,28 @@ export async function publishVersion(
     );
   }
 
+  const review = reviewSkillBundle(bundle, skill.slug);
+  const impactScore = estimateImpactScore(review);
+  const security = scanSkillSecurity(bundle);
+  const pluginRaw = bundle.get("plugin.json");
+  const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
+
+  const policyCheck = evaluatePublishPolicy(
+    org.publishPolicy ?? undefined,
+    review,
+    security,
+  );
+  if (!policyCheck.allowed) {
+    throw new Error(policyCheck.reasons.join("; "));
+  }
+
+  const reviewChecks = review.checks.map(({ id, label, passed, message }) => ({
+    id,
+    label,
+    passed,
+    message,
+  }));
+
   const skillMd = bundle.get("SKILL.md")!;
   const etag = (await sha256(skillMd)).slice(0, 16);
   const publishedAt = new Date().toISOString();
@@ -205,7 +240,17 @@ export async function publishVersion(
 
   await db
     .update(skillVersions)
-    .set({ status: "published", publishedAt: new Date(), kvEtag: etag })
+    .set({
+      status: "published",
+      publishedAt: new Date(),
+      kvEtag: etag,
+      qualityScore: review.score,
+      impactScore,
+      securityStatus: security.status,
+      securityIssues: security.issues,
+      reviewChecks,
+      pluginManifest: pluginManifest ?? null,
+    })
     .where(eq(skillVersions.id, versionId));
 
   await db
@@ -228,6 +273,10 @@ export async function publishVersion(
         name: validation.frontmatter.name,
         description: validation.frontmatter.description,
         latestVersion: version.semver,
+        qualityScore: review.score,
+        impactScore,
+        securityStatus: security.status,
+        lastReviewedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: registryEntries.skillId,
@@ -235,10 +284,50 @@ export async function publishVersion(
           name: validation.frontmatter.name,
           description: validation.frontmatter.description,
           latestVersion: version.semver,
+          qualityScore: review.score,
+          impactScore,
+          securityStatus: security.status,
+          lastReviewedAt: new Date(),
           updatedAt: new Date(),
         },
       });
   }
+
+  const [evalRow] = await db
+    .insert(skillEvals)
+    .values({
+      skillId: skill.id,
+      versionId: version.id,
+      status: "queued",
+    })
+    .returning();
+
+  if (evalRow) {
+    await env.AI_QUEUE.send({
+      type: "eval",
+      evalId: evalRow.id,
+      skillId: skill.id,
+      versionId: version.id,
+      orgSlug: org.slug,
+      skillSlug: skill.slug,
+    });
+  }
+
+  await logAudit(db, {
+    orgId: org.id,
+    actorId: userId,
+    actorType,
+    action: "skill.published",
+    resourceType: "skill",
+    resourceId: skill.id,
+    metadata: {
+      slug: skill.slug,
+      version: version.semver,
+      qualityScore: review.score,
+      impactScore,
+      securityStatus: security.status,
+    },
+  });
 
   const event = {
     type: "skill.published" as const,
@@ -253,5 +342,11 @@ export async function publishVersion(
 
   await broadcastPublish(env, org.slug, skill.slug, event);
 
-  return { etag, version: version.semver };
+  return {
+    etag,
+    version: version.semver,
+    qualityScore: review.score,
+    impactScore,
+    securityStatus: security.status,
+  };
 }

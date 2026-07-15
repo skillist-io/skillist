@@ -4,6 +4,7 @@ import { api, type RegistryItem } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
 import { useState } from "react";
 
 export const Route = createFileRoute("/registry/")({
@@ -25,7 +26,7 @@ function RegistryPage() {
       <div>
         <h1 className="text-2xl font-bold">Public Registry</h1>
         <p className="text-muted-foreground">
-          Discover Agent Skills compatible with agentskills.io
+          Discover Agent Skills with quality, impact, and security scores
         </p>
       </div>
       <Input
@@ -41,18 +42,36 @@ function RegistryPage() {
           {data?.items.map((item) => (
             <Card key={`${item.orgSlug}/${item.skillSlug}`}>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{item.name}</CardTitle>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base">{item.name}</CardTitle>
+                    <CardDescription>
+                      {item.orgSlug}/{item.skillSlug}
+                    </CardDescription>
+                  </div>
                   {item.latestVersion && (
                     <Badge>v{item.latestVersion}</Badge>
                   )}
                 </div>
-                <CardDescription>
-                  {item.orgSlug}/{item.skillSlug}
-                </CardDescription>
+                <ScoreBadges
+                  quality={item.qualityScore}
+                  impact={item.impactScore}
+                  security={item.securityStatus}
+                />
               </CardHeader>
-              <CardContent>
-                <p className="mb-3 text-sm">{item.description}</p>
+              <CardContent className="space-y-3">
+                <p className="text-sm">{item.description}</p>
+                <div className="flex gap-3 text-xs text-muted-foreground">
+                  <span>{item.installCount} installs</span>
+                  <span>{item.activationCount} activations</span>
+                  <span>{item.stars} stars</span>
+                </div>
+                <InstallSnippet
+                  command={
+                    item.installCommand ??
+                    `skillist install ${item.orgSlug}/${item.skillSlug}`
+                  }
+                />
                 <Link
                   to="/registry/$org/$slug"
                   params={{ org: item.orgSlug, slug: item.skillSlug }}

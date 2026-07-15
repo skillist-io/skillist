@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { apiUrl } from "@/lib/api-url";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type RegistryItem } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { Wifi, WifiOff } from "lucide-react";
 
@@ -19,7 +20,7 @@ function RegistrySkillPage() {
 
   const { data: entry } = useQuery({
     queryKey: ["registry", org, slug],
-    queryFn: () => api<Record<string, unknown>>(`/v1/registry/${org}/${slug}`),
+    queryFn: () => api<RegistryItem>(`/v1/registry/${org}/${slug}`),
   });
 
   const { data: meta } = useQuery({
@@ -33,16 +34,24 @@ function RegistrySkillPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["registry"] }),
   });
 
+  const installCmd =
+    entry?.installCommand ?? `skillist install ${org}/${slug}`;
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
-        <div>
+        <div className="space-y-2">
           <h1 className="text-2xl font-bold">
-            {(entry?.name as string) ?? slug}
+            {entry?.name ?? slug}
           </h1>
           <p className="text-muted-foreground">
             {org}/{slug}
           </p>
+          <ScoreBadges
+            quality={entry?.qualityScore}
+            impact={entry?.impactScore}
+            security={entry?.securityStatus}
+          />
         </div>
         <div className="flex items-center gap-2">
           {connected ? (
@@ -71,6 +80,22 @@ function RegistrySkillPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Install</CardTitle>
+          <CardDescription>
+            Use the Skillist CLI to install this skill into your project
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <InstallSnippet command={installCmd} />
+          <div className="flex gap-4 text-sm text-muted-foreground">
+            <span>{entry?.installCount ?? 0} installs</span>
+            <span>{entry?.activationCount ?? 0} activations</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Discovery metadata</CardTitle>
           <CardDescription>
             Progressive disclosure — name and description only
@@ -79,11 +104,11 @@ function RegistrySkillPage() {
         <CardContent className="space-y-2 text-sm">
           <p>
             <strong>Description:</strong>{" "}
-            {(meta?.description as string) ?? (entry?.description as string)}
+            {(meta?.description as string) ?? entry?.description}
           </p>
           <p>
             <strong>Version:</strong>{" "}
-            {(meta?.version as string) ?? (entry?.latestVersion as string) ?? "—"}
+            {(meta?.version as string) ?? entry?.latestVersion ?? "—"}
           </p>
           <a
             href={apiUrl(`/v1/skills/${org}/${slug}/SKILL.md`)}

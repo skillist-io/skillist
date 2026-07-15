@@ -38,6 +38,11 @@ const listRegistryRoute = createRoute({
                 description: z.string(),
                 latestVersion: z.string().nullable(),
                 stars: z.number(),
+                qualityScore: z.number().nullable(),
+                impactScore: z.number().nullable(),
+                securityStatus: z.string().nullable(),
+                installCount: z.number(),
+                activationCount: z.number(),
               }),
             ),
             page: z.number(),
@@ -76,7 +81,10 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
     .where(where);
 
   return c.json({
-    items,
+    items: items.map((item) => ({
+      ...item,
+      installCommand: `skillist install ${item.orgSlug}/${item.skillSlug}`,
+    })),
     page,
     limit,
     total: countRow?.count ?? 0,
@@ -106,7 +114,13 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
     )
     .limit(1);
   if (!entry) return c.json({ error: "Not found" }, 404);
-  return c.json(entry, 200);
+  return c.json(
+    {
+      ...entry,
+      installCommand: `skillist install ${entry.orgSlug}/${entry.skillSlug}`,
+    },
+    200,
+  );
 });
 
 const subscribeRoute = createRoute({

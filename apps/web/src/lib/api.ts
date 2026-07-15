@@ -29,6 +29,47 @@ export type RegistryItem = {
   description: string;
   latestVersion: string | null;
   stars: number;
+  qualityScore: number | null;
+  impactScore: number | null;
+  securityStatus: string | null;
+  installCount: number;
+  activationCount: number;
+  installCommand?: string;
+};
+
+export type PublishPolicy = {
+  minQualityScore?: number;
+  requireSecurityPass?: boolean;
+  blockOnAdvisory?: boolean;
+};
+
+export type AuditEvent = {
+  id: string;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  actorId: string | null;
+  actorType: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+export type SkillEval = {
+  id: string;
+  status: string;
+  baselineScore: number | null;
+  withSkillScore: number | null;
+  uplift: number | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export type ReviewPreview = {
+  qualityScore: number;
+  impactScore: number;
+  securityStatus: string;
+  reviewChecks: { id: string; label: string; passed: boolean; message: string }[];
+  securityIssues: { severity: string; path: string; message: string }[];
 };
 
 export type Org = {
@@ -52,6 +93,11 @@ export type SkillVersion = {
   semver: string;
   publishedAt: string | null;
   createdAt: string;
+  qualityScore: number | null;
+  impactScore: number | null;
+  securityStatus: string | null;
+  reviewChecks: { id: string; label: string; passed: boolean; message: string }[] | null;
+  securityIssues: { severity: string; path: string; message: string }[] | null;
 };
 
 export type Feedback = {
