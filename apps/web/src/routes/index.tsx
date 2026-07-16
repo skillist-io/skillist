@@ -38,15 +38,15 @@ function HomePage() {
         {[
           {
             title: "Version & publish",
-            desc: "Immutable versions stored in R2, hot SKILL.md cached at the edge in KV.",
+            desc: "Immutable version history with SKILL.md cached at the edge.",
           },
           {
             title: "Realtime delivery",
-            desc: "WebSocket and SSE fan-out via Durable Objects when skills publish.",
+            desc: "WebSocket and SSE fan-out when skills publish.",
           },
           {
             title: "AI improvements",
-            desc: "Human and agent feedback with approval workflows and Worker AI suggestions.",
+            desc: "Human and agent feedback with approval workflows and AI suggestions.",
           },
         ].map((f) => (
           <Card key={f.title}>
