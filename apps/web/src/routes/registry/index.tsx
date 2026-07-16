@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
 import { StarButton } from "@/components/registry-star-button";
+import { QueryError } from "@/components/query-error";
 import { useEffect, useState } from "react";
 
 type RegistryFilters = {
@@ -72,7 +73,7 @@ function RegistryPage() {
       ),
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["registry", queryString],
     queryFn: () =>
       api<{ items: RegistryItem[]; total: number }>(
@@ -93,7 +94,7 @@ function RegistryPage() {
         <div className="lg:col-span-2">
           <Label>Search</Label>
           <Input
-            placeholder="Name, description, or slug…"
+            placeholder="Name, description, or repo…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -241,7 +242,12 @@ function RegistryPage() {
         )}
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <QueryError
+          title="Could not load registry"
+          onRetry={() => void refetch()}
+        />
+      ) : isLoading ? (
         <p>Loading...</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">

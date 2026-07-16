@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LoginForm } from "@/components/login-form";
+import { authErrorMessage } from "@/lib/auth-errors";
 import {
   sendMagicLink,
   signInWithGitHub,
@@ -12,18 +13,26 @@ import {
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({
     redirect: z.string().optional(),
+    error: z.string().optional(),
+    error_description: z.string().optional(),
   }),
   component: LoginPage,
 });
 
 function LoginPage() {
-  const { redirect } = Route.useSearch();
+  const { redirect, error: authError, error_description: authErrorDescription } =
+    Route.useSearch();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const navigate = useNavigate();
   const { data: session } = useSession();
+
+  useEffect(() => {
+    const message = authErrorMessage(authError, authErrorDescription);
+    if (message) setError(message);
+  }, [authError, authErrorDescription]);
 
   if (session?.user) {
     void navigate({ to: redirect ?? "/dashboard" });
@@ -35,7 +44,10 @@ function LoginPage() {
     try {
       await signInWithGitHub(redirect ?? "/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "GitHub sign-in failed");
+      setError(
+        authErrorMessage("oauth_error", err instanceof Error ? err.message : undefined) ??
+          "GitHub sign-in failed",
+      );
       setLoading(null);
     }
   }
@@ -46,7 +58,10 @@ function LoginPage() {
     try {
       await signInWithGoogle(redirect ?? "/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Google sign-in failed");
+      setError(
+        authErrorMessage("oauth_error", err instanceof Error ? err.message : undefined) ??
+          "Google sign-in failed",
+      );
       setLoading(null);
     }
   }

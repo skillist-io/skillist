@@ -24,8 +24,6 @@ export function buildSocialProviders(env: AuthEnv) {
     providers.github = {
       clientId: env.GITHUB_CLIENT_ID,
       clientSecret: env.GITHUB_CLIENT_SECRET,
-      // Required for email — https://better-auth.com/docs/authentication/github
-      scope: ["read:user", "user:email"],
       mapProfileToUser: (profile: GitHubProfile) => {
         const login = profile.login ?? String(profile.id);
         const email =
