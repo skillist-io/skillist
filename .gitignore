@@ -19,3 +19,4 @@ coverage
 .seed-r2-tmp/
 test-results/
 playwright-report/
+tests/e2e/.auth/

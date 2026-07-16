@@ -51,9 +51,7 @@ describe("production smoke", () => {
   });
 
   it("MCP OAuth discovery metadata is exposed", async () => {
-    const res = await fetch(
-      `${API_URL}/.well-known/oauth-protected-resource`,
-    );
+    const res = await fetch(`${API_URL}/.well-known/oauth-protected-resource`);
     expect(res.ok).toBe(true);
     const body = await res.json();
     expect(body.authorization_servers?.length).toBeGreaterThan(0);
