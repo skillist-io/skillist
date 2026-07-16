@@ -31,7 +31,7 @@ export function EndpointsTable() {
               <TableCell>
                 <a
                   href={endpoint.url}
-                  className="text-primary underline-offset-4 hover:underline"
+                  className="font-mono text-xs text-primary underline-offset-4 hover:underline"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

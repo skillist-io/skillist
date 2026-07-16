@@ -3,38 +3,17 @@ title: Quick start
 description: Install the Skillist CLI, sign in, and install your first agent skill.
 ---
 
-## Prerequisites
+import { DocAlert } from "@/components/docs/DocAlert";
+import { QuickStartPanel } from "@/components/docs/QuickStartPanel";
+import { SectionHeading } from "@/components/docs/SectionHeading";
 
-- Node.js 20+
-- An account at [skillist.dev](https://skillist.dev) (GitHub, Google, magic link, or email OTP)
+<DocAlert title="Prerequisites" client:load>
+  Node.js 20+ and an account at [skillist.dev](https://skillist.dev) (GitHub, Google, magic link, or email OTP).
+</DocAlert>
 
-## Install the CLI
+<SectionHeading title="Install & sign in" client:load />
 
-```bash
-npm install -g @skillist/cli
-```
-
-## Sign in
-
-```bash
-skillist login
-```
-
-This opens the Skillist web app and stores an API key locally for publish and run commands.
-
-## Search the registry
-
-```bash
-skillist search performance
-```
-
-## Install a skill
-
-```bash
-skillist install skillist/web-perf-audit
-```
-
-Skills are installed to your local agentskills.io layout. Use `skillist list` to see installed skills.
+<QuickStartPanel client:load />
 
 ## Connect MCP (optional)
 

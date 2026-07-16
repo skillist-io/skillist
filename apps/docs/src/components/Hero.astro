@@ -101,15 +101,18 @@ if (image) {
 
     h1 {
       font-size: clamp(var(--sl-text-3xl), calc(0.25rem + 5vw), var(--sl-text-6xl));
-      line-height: var(--sl-line-height-headings);
-      font-weight: 600;
-      color: var(--sl-color-white);
+      line-height: 1.1;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--foreground);
     }
 
     .tagline {
-      font-size: clamp(var(--sl-text-base), calc(0.0625rem + 2vw), var(--sl-text-xl));
-      color: var(--sl-color-gray-2);
+      font-size: clamp(var(--sl-text-base), calc(0.0625rem + 2vw), var(--sl-text-lg));
+      color: var(--muted-foreground);
+      line-height: 1.6;
       margin: 0;
+      max-width: 42ch;
     }
 
     @media (min-width: 50rem) {

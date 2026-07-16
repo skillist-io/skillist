@@ -4,6 +4,8 @@ description: Skillist exposes a public Model Context Protocol server for registr
 ---
 
 import { DocAlert } from "@/components/docs/DocAlert";
+import { DocTable } from "@/components/docs/DocTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
 
 The **Skillist Registry MCP** server lets agents search, browse, and install skills without leaving the chat. It runs on the same API worker as the REST registry.
 
@@ -11,15 +13,19 @@ The **Skillist Registry MCP** server lets agents search, browse, and install ski
   `https://api.skillist.dev/mcp` — streamable HTTP with optional OAuth via Better Auth.
 </DocAlert>
 
-## Transport
+<SectionHeading title="Transport" client:load />
 
-| Feature | Value |
-|---------|-------|
-| Protocol | MCP 2024-11-05 |
-| Transport | [Streamable HTTP](https://modelcontextprotocol.io/) |
-| Stateless JSON | `POST` with `Accept: application/json` |
-| SSE sessions | `POST`/`GET` with `Accept: text/event-stream` and `Mcp-Session-Id` |
-| Session teardown | `DELETE` with `Mcp-Session-Id` |
+<DocTable
+  client:load
+  columns={["Feature", "Value"]}
+  rows={[
+    ["Protocol", "MCP 2024-11-05"],
+    ["Transport", "Streamable HTTP"],
+    ["Stateless JSON", "POST with Accept: application/json"],
+    ["SSE sessions", "POST/GET with Accept: text/event-stream and Mcp-Session-Id"],
+    ["Session teardown", "DELETE with Mcp-Session-Id"],
+  ]}
+/>
 
 `initialize` returns an `Mcp-Session-Id` header for stateful clients. Plain JSON-RPC POST remains supported for simple clients.
 
@@ -31,14 +37,18 @@ curl https://api.skillist.dev/mcp
 
 Returns transport metadata, tool names, and OAuth discovery URLs.
 
-## Tools
+<SectionHeading title="Tools" client:load />
 
-| Tool | Purpose |
-|------|---------|
-| `registry_search` | Search by query, category, tag, agent, sort |
-| `registry_get_skill` | Full metadata for `org/slug` including eval uplift |
-| `registry_facets` | Categories, tags, and compatible agents |
-| `registry_install_help` | CLI install commands and SKILL.md URL |
+<DocTable
+  client:load
+  columns={["Tool", "Purpose"]}
+  rows={[
+    ["registry_search", "Search by query, category, tag, agent, sort"],
+    ["registry_get_skill", "Full metadata for org/slug including eval uplift"],
+    ["registry_facets", "Categories, tags, and compatible agents"],
+    ["registry_install_help", "CLI install commands and SKILL.md URL"],
+  ]}
+/>
 
 See [Tools reference](/mcp/tools/) for parameters and examples.
 

@@ -3,6 +3,9 @@ title: MCP tools reference
 description: Parameters and examples for each Skillist registry MCP tool.
 ---
 
+import { DocTable } from "@/components/docs/DocTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
+
 All tools are invoked via JSON-RPC `tools/call`:
 
 ```json
@@ -21,16 +24,18 @@ All tools are invoked via JSON-RPC `tools/call`:
 
 Search the public registry by name, description, tags, category, or agent compatibility.
 
-### Parameters
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `query` | string | Search term (optional) |
-| `limit` | number | Max results, default 10, max 20 |
-| `category` | string | Filter by category |
-| `tag` | string | Filter by tag |
-| `agent` | string | `cursor`, `claude`, `vscode`, or `mcp` |
-| `sort` | string | `quality`, `trending`, `stars`, `installs`, `recent`, `name` |
+<DocTable
+  client:load
+  columns={["Field", "Type", "Description"]}
+  rows={[
+    ["query", "string", "Search term (optional)"],
+    ["limit", "number", "Max results, default 10, max 20"],
+    ["category", "string", "Filter by category"],
+    ["tag", "string", "Filter by tag"],
+    ["agent", "string", "cursor, claude, vscode, or mcp"],
+    ["sort", "string", "quality, trending, stars, installs, recent, name"],
+  ]}
+/>
 
 ### Example
 
@@ -49,12 +54,14 @@ Search the public registry by name, description, tags, category, or agent compat
 
 Full metadata for a skill including eval uplift, install command, and manifest.
 
-### Parameters
-
-| Field | Type | Required |
-|-------|------|----------|
-| `org` | string | yes — organization slug, e.g. `skillist` |
-| `slug` | string | yes — skill slug |
+<DocTable
+  client:load
+  columns={["Field", "Type", "Required"]}
+  rows={[
+    ["org", "string", "yes — organization slug, e.g. skillist"],
+    ["slug", "string", "yes — skill slug"],
+  ]}
+/>
 
 ### Example
 
@@ -83,12 +90,14 @@ List available filter facets: categories, tags, and compatible agents. No parame
 
 Returns CLI install commands, SKILL.md URL, and registry page for a skill.
 
-### Parameters
-
-| Field | Type | Required |
-|-------|------|----------|
-| `org` | string | yes |
-| `slug` | string | yes |
+<DocTable
+  client:load
+  columns={["Field", "Type", "Required"]}
+  rows={[
+    ["org", "string", "yes"],
+    ["slug", "string", "yes"],
+  ]}
+/>
 
 ### Example response fields
 
@@ -98,7 +107,7 @@ Returns CLI install commands, SKILL.md URL, and registry page for a skill.
 - `skillMdUrl` — published SKILL.md URL
 - `registryUrl` — web registry detail page
 
-## Agent workflow
+<SectionHeading title="Agent workflow" client:load />
 
 1. `registry_facets` — when the user needs browse filters
 2. `registry_search` — find candidates
