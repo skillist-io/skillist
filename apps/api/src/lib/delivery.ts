@@ -1,18 +1,10 @@
+import { organizations, skills, skillVersions } from "@skillist/db/schema";
 import { and, eq } from "drizzle-orm";
-import {
-  organizations,
-  skillVersions,
-  skills,
-} from "@skillist/db/schema";
+import type { WorkerDb } from "./db";
 import { getPublishedMeta, getPublishedSkillMd } from "./publish";
 import { downloadBundleFromR2, listBundlePaths } from "./r2";
-import type { WorkerDb } from "./db";
 
-export async function serveSkillMd(
-  kv: KVNamespace,
-  org: string,
-  repo: string,
-): Promise<Response> {
+export async function serveSkillMd(kv: KVNamespace, org: string, repo: string): Promise<Response> {
   const cached = await getPublishedSkillMd(kv, org, repo);
   if (!cached) {
     return Response.json({ error: "Not found" }, { status: 404 });
@@ -73,11 +65,7 @@ export async function serveSkillBundle(
   }
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
+  const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
   const files: Record<string, string> = {};
   for (const [path, content] of bundle.entries()) {
     files[path] = content;

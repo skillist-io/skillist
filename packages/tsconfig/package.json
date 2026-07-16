@@ -2,5 +2,9 @@
   "name": "@skillist/tsconfig",
   "version": "0.0.0",
   "private": true,
-  "files": ["base.json", "worker.json", "react.json"]
+  "files": [
+    "base.json",
+    "worker.json",
+    "react.json"
+  ]
 }

@@ -1,38 +1,30 @@
 // @ts-nocheck
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, eq } from "drizzle-orm";
-import {
-  createSkillSchema,
-  uploadVersionSchema,
-} from "@skillist/contracts";
-import {
-  organizations,
-  skillFiles,
-  skillVersions,
-  skills,
-} from "@skillist/db/schema";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createSkillSchema, uploadVersionSchema } from "@skillist/contracts";
+import { organizations, skillFiles, skills, skillVersions } from "@skillist/db/schema";
 import {
   createSkillTemplate,
-  objectToBundle,
-  validateSkillBundle,
-  reviewSkillBundle,
   estimateImpactScore,
-  scanSkillSecurity,
+  objectToBundle,
   resolveNextSemver,
+  reviewSkillBundle,
+  scanSkillSecurity,
+  validateSkillBundle,
 } from "@skillist/skill-format";
+import { and, eq } from "drizzle-orm";
 import type { Env } from "../env";
-import type { AuthContext } from "../lib/auth-middleware";
-import { requireOrgAccess } from "../lib/org-access";
 import { publishVersion, rollbackVersion } from "../lib/ai";
+import type { AuthContext } from "../lib/auth-middleware";
+import type { WorkerDb } from "../lib/db";
+import { requireOrgAccess } from "../lib/org-access";
 import { queueSkillEval } from "../lib/queue-eval";
 import {
+  downloadBundleFromR2,
+  listBundlePaths,
   r2Prefix,
   sha256,
   uploadBundleToR2,
-  listBundlePaths,
-  downloadBundleFromR2,
 } from "../lib/r2";
-import type { WorkerDb } from "../lib/db";
 
 type AppEnv = {
   Bindings: Env;
@@ -71,8 +63,7 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
   const userId = access.actorId;
   const body = c.req.valid("json");
-  const description =
-    body.description ?? `Agent skill: ${body.repo.replace(/-/g, " ")}`;
+  const description = body.description ?? `Agent skill: ${body.repo.replace(/-/g, " ")}`;
   const bundle = createSkillTemplate(body.repo, description);
   const validation = validateSkillBundle(bundle, body.repo);
   if (!validation.valid) {
@@ -111,10 +102,7 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
     size: skillMd.length,
   });
 
-  return c.json(
-    { id: skill.id, repo: skill.repo, visibility: skill.visibility },
-    201,
-  );
+  return c.json({ id: skill.id, repo: skill.repo, visibility: skill.visibility }, 201);
 });
 
 const listSkillsRoute = createRoute({
@@ -147,10 +135,7 @@ skillRoutes.openapi(listSkillsRoute, async (c) => {
     apiKeyScope: "skills:read",
   });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
-  const rows = await c.var.db
-    .select()
-    .from(skills)
-    .where(eq(skills.orgId, orgId));
+  const rows = await c.var.db.select().from(skills).where(eq(skills.orgId, orgId));
   return c.json(rows, 200);
 });
 
@@ -357,10 +342,7 @@ skillRoutes.openapi(publishRoute, async (c) => {
     );
     return c.json(result, 200);
   } catch (err) {
-    return c.json(
-      { error: err instanceof Error ? err.message : "Publish failed" },
-      400,
-    );
+    return c.json({ error: err instanceof Error ? err.message : "Publish failed" }, 400);
   }
 });
 
@@ -403,10 +385,7 @@ skillRoutes.openapi(rollbackRoute, async (c) => {
     );
     return c.json(result, 200);
   } catch (err) {
-    return c.json(
-      { error: err instanceof Error ? err.message : "Rollback failed" },
-      400,
-    );
+    return c.json({ error: err instanceof Error ? err.message : "Rollback failed" }, 400);
   }
 });
 
@@ -446,11 +425,7 @@ skillRoutes.openapi(getVersionFilesRoute, async (c) => {
   if (!version) return c.json({ error: "Not found" }, 404);
 
   const paths = await listBundlePaths(c.env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    c.env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
+  const bundle = await downloadBundleFromR2(c.env.SKILLS_R2, version.r2Prefix, paths);
   const files: Record<string, string> = {};
   for (const [path, content] of bundle.entries()) {
     files[path] = content;
@@ -494,11 +469,7 @@ skillRoutes.openapi(previewVersionRoute, async (c) => {
   if (!version) return c.json({ error: "Not found" }, 404);
 
   const paths = await listBundlePaths(c.env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    c.env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
+  const bundle = await downloadBundleFromR2(c.env.SKILLS_R2, version.r2Prefix, paths);
   const review = reviewSkillBundle(bundle, repo);
   const impactScore = estimateImpactScore(review);
   const security = scanSkillSecurity(bundle);

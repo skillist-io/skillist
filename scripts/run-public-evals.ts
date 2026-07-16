@@ -8,17 +8,12 @@
  *   DATABASE_URL=... pnpm run:public-evals --all --force
  */
 import { execSync } from "node:child_process";
-import { unlinkSync, readFileSync } from "node:fs";
+import { readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { eq, and, desc } from "drizzle-orm";
 import { createDb } from "@skillist/db";
-import {
-  organizations,
-  skills,
-  skillVersions,
-  skillEvals,
-} from "@skillist/db/schema";
+import { organizations, skillEvals, skills, skillVersions } from "@skillist/db/schema";
+import { and, desc, eq } from "drizzle-orm";
 
 const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const WRANGLER_DIR = join(ROOT, "apps", "api");
@@ -51,7 +46,9 @@ function hasFlag(flag: string): boolean {
 function parseSkillsArg(): string[] | null {
   const idx = process.argv.indexOf("--skills");
   if (idx >= 0 && process.argv[idx + 1]) {
-    return process.argv[idx + 1]!.split(",").map((s) => s.trim()).filter(Boolean);
+    return process.argv[idx + 1]!.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
   return null;
 }
@@ -79,9 +76,7 @@ function getCloudflareToken(): string | null {
 
 function getR2Object(key: string): string {
   const tmp = join(ROOT, ".eval-r2-tmp");
-  wrangler(
-    `r2 object get ${R2_BUCKET}/${key} --file=${tmp} --remote -c wrangler.production.jsonc`,
-  );
+  wrangler(`r2 object get ${R2_BUCKET}/${key} --file=${tmp} --remote -c wrangler.production.jsonc`);
   const content = readFileSync(tmp, "utf8");
   unlinkSync(tmp);
   return content;
@@ -153,8 +148,7 @@ async function main() {
   const db = createDb(connectionString);
 
   cfToken = getCloudflareToken();
-  const useHeuristic =
-    process.env.SKILLIST_EVAL_HEURISTIC === "1" || !cfToken;
+  const useHeuristic = process.env.SKILLIST_EVAL_HEURISTIC === "1" || !cfToken;
 
   if (useHeuristic) {
     console.log("Mode: heuristic (set CLOUDFLARE_API_TOKEN or wrangler login for AI evals)");
@@ -203,12 +197,7 @@ async function main() {
       const [existing] = await db
         .select()
         .from(skillEvals)
-        .where(
-          and(
-            eq(skillEvals.versionId, versionId),
-            eq(skillEvals.status, "completed"),
-          ),
-        )
+        .where(and(eq(skillEvals.versionId, versionId), eq(skillEvals.status, "completed")))
         .orderBy(desc(skillEvals.completedAt))
         .limit(1);
 

@@ -1,4 +1,4 @@
-import { createAuth, type Auth, type AuthEnv, type EmailSender } from "@skillist/auth";
+import { type Auth, type AuthEnv, createAuth, type EmailSender } from "@skillist/auth";
 import type { Env } from "../env";
 import { createWorkerDb } from "./db";
 
@@ -13,10 +13,7 @@ export function authEnvFromBindings(env: Env): AuthEnv {
   };
 }
 
-export function createApiAuth(
-  env: Env,
-  sendEmail?: EmailSender,
-): Auth {
+export function createApiAuth(env: Env, sendEmail?: EmailSender): Auth {
   const db = createWorkerDb(env);
   return createAuth(db, authEnvFromBindings(env), sendEmail);
 }

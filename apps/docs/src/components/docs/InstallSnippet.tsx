@@ -1,10 +1,4 @@
-export function InstallSnippet({
-  command,
-  prefix,
-}: {
-  command: string
-  prefix?: string
-}) {
+export function InstallSnippet({ command, prefix }: { command: string; prefix?: string }) {
   return (
     <div className="not-content space-y-1">
       {prefix ? (
@@ -16,5 +10,5 @@ export function InstallSnippet({
         {command}
       </code>
     </div>
-  )
+  );
 }

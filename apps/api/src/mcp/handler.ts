@@ -1,7 +1,8 @@
-import type { Context } from "hono";
 import type { McpSession } from "better-auth/plugins/mcp/client";
+import type { Context } from "hono";
 import type { Env } from "../env";
 import { createWorkerDb } from "../lib/db";
+import { handleMcpJsonRpc, mcpServerInfo } from "./registry-server";
 import {
   createMcpSession,
   createMcpSseStream,
@@ -13,16 +14,11 @@ import {
   validateMcpSession,
   verifyOptionalMcpSession,
 } from "./transport";
-import { handleMcpJsonRpc, mcpServerInfo } from "./registry-server";
 
-function mcpResponseHeaders(
-  apiBaseUrl: string,
-  sessionId?: string,
-): Record<string, string> {
+function mcpResponseHeaders(apiBaseUrl: string, sessionId?: string): Record<string, string> {
   const headers: Record<string, string> = {
     "WWW-Authenticate": mcpWwwAuthenticate(apiBaseUrl),
-    "Access-Control-Expose-Headers":
-      "Mcp-Session-Id, WWW-Authenticate, Content-Type",
+    "Access-Control-Expose-Headers": "Mcp-Session-Id, WWW-Authenticate, Content-Type",
   };
   if (sessionId) {
     headers["Mcp-Session-Id"] = sessionId;
@@ -36,10 +32,7 @@ export async function handleMcpRequest(c: Context<{ Bindings: Env }>) {
   const sessionId = c.req.header("Mcp-Session-Id");
   const apiBaseUrl = c.env.BETTER_AUTH_URL;
   const authClient = createRegistryMcpAuth(apiBaseUrl);
-  const mcpSession = await verifyOptionalMcpSession(
-    authClient,
-    c.req.header("Authorization"),
-  );
+  const mcpSession = await verifyOptionalMcpSession(authClient, c.req.header("Authorization"));
 
   if (method === "GET") {
     if (!accept.includes("text/event-stream")) {

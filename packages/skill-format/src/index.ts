@@ -74,10 +74,7 @@ export function validateSkillName(name: string, slug?: string): ValidationError[
   return errors;
 }
 
-export function validateSkillBundle(
-  files: SkillBundle,
-  expectedSlug?: string,
-): ValidationResult {
+export function validateSkillBundle(files: SkillBundle, expectedSlug?: string): ValidationResult {
   const errors: ValidationError[] = [];
 
   const skillMd = files.get("SKILL.md");
@@ -217,9 +214,7 @@ const KNOWN_AGENTS = new Set([
   "generic",
 ]);
 
-export function extractAgentDiscovery(
-  manifest: PluginManifest | null | undefined,
-): string[] {
+export function extractAgentDiscovery(manifest: PluginManifest | null | undefined): string[] {
   if (!manifest) return [];
   const agents = new Set<string>();
   for (const agent of manifest.agents ?? []) {
@@ -233,23 +228,23 @@ export function extractAgentDiscovery(
 }
 
 export {
+  type PluginManifest,
+  parsePluginManifest,
+  pluginManifestSchema,
+} from "./plugin.js";
+export {
+  estimateImpactScore,
+  type ReviewCheck,
+  reviewSkillBundle,
+  type SkillReviewResult,
+} from "./review.js";
+export {
+  type SecurityIssue,
+  type SecurityScanResult,
+  scanSkillSecurity,
+} from "./security.js";
+export {
   bumpSemver,
   resolveNextSemver,
   type SemverBump,
 } from "./semver.js";
-export {
-  reviewSkillBundle,
-  estimateImpactScore,
-  type ReviewCheck,
-  type SkillReviewResult,
-} from "./review.js";
-export {
-  scanSkillSecurity,
-  type SecurityIssue,
-  type SecurityScanResult,
-} from "./security.js";
-export {
-  parsePluginManifest,
-  pluginManifestSchema,
-  type PluginManifest,
-} from "./plugin.js";

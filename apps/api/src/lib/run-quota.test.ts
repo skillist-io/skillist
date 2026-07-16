@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { ExecutionPolicy } from "@skillist/contracts";
+import { describe, expect, it } from "vitest";
 
 const DEFAULT_POLICY: Required<ExecutionPolicy> = {
   hourlyRunLimit: 50,

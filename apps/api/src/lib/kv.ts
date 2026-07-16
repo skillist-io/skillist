@@ -6,11 +6,7 @@ export function skillMdKey(orgSlug: string, skillRepo: string) {
   return `skill:${orgSlug}:${skillRepo}:latest`;
 }
 
-export function skillVersionKey(
-  orgSlug: string,
-  skillRepo: string,
-  version: string,
-) {
+export function skillVersionKey(orgSlug: string, skillRepo: string, version: string) {
   return `skill:${orgSlug}:${skillRepo}:v:${version}`;
 }
 

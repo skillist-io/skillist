@@ -1,9 +1,8 @@
 // @ts-nocheck
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import {
-  inventoryScanSchema,
   executionPolicySchema,
+  inventoryScanSchema,
   publishPolicySchema,
   requiredSkillSchema,
   runEvalSchema,
@@ -11,8 +10,8 @@ import {
 } from "@skillist/contracts";
 import {
   auditEvents,
-  orgRequiredSkills,
   organizations,
+  orgRequiredSkills,
   registryEntries,
   skillEvals,
   skillInventory,
@@ -21,18 +20,15 @@ import {
   skillVersions,
   telemetryEvents,
 } from "@skillist/db/schema";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { Env } from "../env";
-import type { AuthContext } from "../lib/auth-middleware";
-import { queueSkillEval } from "../lib/queue-eval";
-import type { WorkerDb } from "../lib/db";
 import { logAudit } from "../lib/audit";
+import type { AuthContext } from "../lib/auth-middleware";
+import type { WorkerDb } from "../lib/db";
 import { requireOrgAccess } from "../lib/org-access";
+import { queueSkillEval } from "../lib/queue-eval";
 import { resolveUserId } from "../lib/session";
-import {
-  buildDayBuckets,
-  incrementDayBucket,
-  toDaySeries,
-} from "../lib/time-series";
+import { buildDayBuckets, incrementDayBucket, toDaySeries } from "../lib/time-series";
 
 type AppEnv = {
   Bindings: Env;
@@ -92,8 +88,7 @@ governanceRoutes.openapi(telemetryIngestRoute, async (c) => {
     apiKeyId,
   });
 
-  const column =
-    body.eventType === "install" ? "installCount" : "activationCount";
+  const column = body.eventType === "install" ? "installCount" : "activationCount";
   await c.var.db
     .update(registryEntries)
     .set({
@@ -101,10 +96,7 @@ governanceRoutes.openapi(telemetryIngestRoute, async (c) => {
       updatedAt: new Date(),
     })
     .where(
-      and(
-        eq(registryEntries.orgSlug, body.orgSlug),
-        eq(registryEntries.skillRepo, body.skillRepo),
-      ),
+      and(eq(registryEntries.orgSlug, body.orgSlug), eq(registryEntries.skillRepo, body.skillRepo)),
     );
 
   return c.json({ ok: true }, 201);
@@ -140,12 +132,7 @@ governanceRoutes.openapi(orgTelemetryRoute, async (c) => {
   const events = await c.var.db
     .select()
     .from(telemetryEvents)
-    .where(
-      and(
-        eq(telemetryEvents.orgSlug, org.slug),
-        gte(telemetryEvents.createdAt, since),
-      ),
-    );
+    .where(and(eq(telemetryEvents.orgSlug, org.slug), gte(telemetryEvents.createdAt, since)));
 
   const registry = await c.var.db
     .select({
@@ -352,9 +339,7 @@ governanceRoutes.openapi(removeRequiredSkillRoute, async (c) => {
 
   await c.var.db
     .delete(orgRequiredSkills)
-    .where(
-      and(eq(orgRequiredSkills.id, id), eq(orgRequiredSkills.orgId, orgId)),
-    );
+    .where(and(eq(orgRequiredSkills.id, id), eq(orgRequiredSkills.orgId, orgId)));
 
   return c.json({ ok: true }, 200);
 });
@@ -534,12 +519,7 @@ governanceRoutes.openapi(observabilityRoute, async (c) => {
   const events = await c.var.db
     .select()
     .from(telemetryEvents)
-    .where(
-      and(
-        eq(telemetryEvents.orgSlug, org.slug),
-        gte(telemetryEvents.createdAt, since),
-      ),
-    );
+    .where(and(eq(telemetryEvents.orgSlug, org.slug), gte(telemetryEvents.createdAt, since)));
 
   const registry = await c.var.db
     .select({
@@ -553,12 +533,7 @@ governanceRoutes.openapi(observabilityRoute, async (c) => {
   const runs = await c.var.db
     .select()
     .from(skillRuns)
-    .where(
-      and(
-        eq(skillRuns.orgSlug, org.slug),
-        gte(skillRuns.createdAt, since),
-      ),
-    )
+    .where(and(eq(skillRuns.orgSlug, org.slug), gte(skillRuns.createdAt, since)))
     .orderBy(desc(skillRuns.createdAt));
 
   const runBuckets = buildDayBuckets(days);
@@ -582,13 +557,9 @@ governanceRoutes.openapi(observabilityRoute, async (c) => {
   }
 
   const recentRuns = runs.slice(0, 20);
-  const finished = runs.filter(
-    (r) => r.status === "completed" || r.status === "failed",
-  );
+  const finished = runs.filter((r) => r.status === "completed" || r.status === "failed");
   const succeeded = finished.filter((r) => r.exitCode === 0);
-  const durations = finished
-    .map((r) => r.durationMs ?? 0)
-    .filter((ms) => ms > 0);
+  const durations = finished.map((r) => r.durationMs ?? 0).filter((ms) => ms > 0);
   const avgDurationMs = durations.length
     ? Math.round(durations.reduce((sum, ms) => sum + ms, 0) / durations.length)
     : 0;
@@ -612,9 +583,7 @@ governanceRoutes.openapi(observabilityRoute, async (c) => {
         succeeded: succeeded.length,
         failed: finished.length - succeeded.length,
         successRate:
-          finished.length > 0
-            ? Math.round((succeeded.length / finished.length) * 100)
-            : null,
+          finished.length > 0 ? Math.round((succeeded.length / finished.length) * 100) : null,
         avgDurationMs,
         byRuntime,
         recent: recentRuns,
@@ -657,8 +626,7 @@ governanceRoutes.openapi(inventoryScanRoute, async (c) => {
       registryOrgSlug: item.registryOrgSlug,
       registryRepo: item.registryRepo,
     });
-    const registryOrgSlug =
-      resolved?.registryOrgSlug ?? item.registryOrgSlug ?? null;
+    const registryOrgSlug = resolved?.registryOrgSlug ?? item.registryOrgSlug ?? null;
     const registryRepo = resolved?.registryRepo ?? item.registryRepo ?? null;
 
     await c.var.db
@@ -674,11 +642,7 @@ governanceRoutes.openapi(inventoryScanRoute, async (c) => {
         scannedAt: new Date(),
       })
       .onConflictDoUpdate({
-        target: [
-          skillInventory.orgId,
-          skillInventory.repoFullName,
-          skillInventory.filePath,
-        ],
+        target: [skillInventory.orgId, skillInventory.repoFullName, skillInventory.filePath],
         set: {
           localSlug: item.localSlug ?? null,
           managed: Boolean(registryOrgSlug && registryRepo),

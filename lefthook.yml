@@ -1,0 +1,7 @@
+# https://lefthook.dev/configuration/
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      run: pnpm exec biome check --write --staged --no-errors-on-unmatched --files-ignore-unknown=true
+      stage_fixed: true

@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { api, type RegistryItem } from "@/lib/api";
+import { PublicEvalBadge } from "@/components/public-eval-badge";
+import { InstallSnippet, ScoreBadges } from "@/components/score-badges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
-import { PublicEvalBadge } from "@/components/public-eval-badge";
+import { api, type RegistryItem } from "@/lib/api";
 
 const FEATURED = [
   {
@@ -40,9 +40,7 @@ export function RegistryFeatured() {
     queryKey: ["registry", "featured"],
     queryFn: async () => {
       const items = await Promise.all(
-        FEATURED.map((f) =>
-          api<RegistryItem>(`/v1/registry/${f.org}/${f.slug}`),
-        ),
+        FEATURED.map((f) => api<RegistryItem>(`/v1/registry/${f.org}/${f.slug}`)),
       );
       return FEATURED.map((f, i) => ({
         ...f,
@@ -52,9 +50,7 @@ export function RegistryFeatured() {
   });
 
   if (isLoading) {
-    return (
-      <p className="text-sm text-muted-foreground">Loading featured skills…</p>
-    );
+    return <p className="text-sm text-muted-foreground">Loading featured skills…</p>;
   }
 
   return (
@@ -84,9 +80,7 @@ export function RegistryFeatured() {
             </div>
           </CardHeader>
           <CardContent className="mt-auto space-y-3">
-            <InstallSnippet
-              command={item.installCommand ?? `skillist install ${org}/${slug}`}
-            />
+            <InstallSnippet command={item.installCommand ?? `skillist install ${org}/${slug}`} />
             <Button variant="outline" size="sm" asChild>
               <Link to="/$org/$repo" params={{ org, repo: slug }}>
                 View skill

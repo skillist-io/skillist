@@ -23,9 +23,7 @@ export function evaluatePublishPolicy(
   const minQuality = policy?.minQualityScore ?? 0;
 
   if (review.score < minQuality) {
-    reasons.push(
-      `Quality score ${review.score} is below minimum ${minQuality}`,
-    );
+    reasons.push(`Quality score ${review.score} is below minimum ${minQuality}`);
   }
 
   if (policy?.requireSecurityPass && security.status !== "pass") {
@@ -49,13 +47,9 @@ export function evaluatePublishPolicy(
   if (policy?.minEvalUplift != null) {
     const uplift = evalResult?.uplift;
     if (uplift == null) {
-      reasons.push(
-        `Eval uplift is required (minimum +${policy.minEvalUplift})`,
-      );
+      reasons.push(`Eval uplift is required (minimum +${policy.minEvalUplift})`);
     } else if (uplift < policy.minEvalUplift) {
-      reasons.push(
-        `Eval uplift +${uplift} is below minimum +${policy.minEvalUplift}`,
-      );
+      reasons.push(`Eval uplift +${uplift} is below minimum +${policy.minEvalUplift}`);
     }
   }
 

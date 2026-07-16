@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import { readdir, readFile, writeFile, mkdir, access } from "node:fs/promises";
-import { join, relative, dirname } from "node:path";
-import { validateSkillBundle, type SemverBump } from "@skillist/skill-format";
+import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join, relative } from "node:path";
+import { type SemverBump, validateSkillBundle } from "@skillist/skill-format";
 
 const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.dev";
-const DELIVERY_URL =
-  process.env.SKILLIST_DELIVERY_URL ?? "https://skillist.dev";
+const DELIVERY_URL = process.env.SKILLIST_DELIVERY_URL ?? "https://skillist.dev";
 const API_KEY = process.env.SKILLIST_API_KEY;
 const LOCKFILE = ".skillist.lock";
 
@@ -199,9 +198,7 @@ async function pull(ref: string, outDir: string, recordLock = false) {
 
   if (recordLock) {
     const lock = await readLockfile();
-    const existing = lock.skills.findIndex(
-      (s) => s.org === org && s.repo === repo,
-    );
+    const existing = lock.skills.findIndex((s) => s.org === org && s.repo === repo);
     const entry: LockEntry = {
       org,
       repo,
@@ -262,9 +259,7 @@ async function pushDraft(
   const bundle = new Map(Object.entries(files));
   const validation = validateSkillBundle(bundle, repo);
   if (!validation.valid) {
-    throw new Error(
-      `Invalid skill: ${validation.errors.map((e) => e.message).join(", ")}`,
-    );
+    throw new Error(`Invalid skill: ${validation.errors.map((e) => e.message).join(", ")}`);
   }
 
   const orgId = await resolveOrgId(org);
@@ -310,10 +305,9 @@ async function publish(ref: string, dir: string) {
   const { org, repo } = parseRef(ref);
   const { versionId, orgId, semver } = await pushDraft(org, repo, dir, parseBumpFlag());
 
-  const pubRes = await apiFetch(
-    `/v1/orgs/${orgId}/skills/${repo}/versions/${versionId}/publish`,
-    { method: "POST" },
-  );
+  const pubRes = await apiFetch(`/v1/orgs/${orgId}/skills/${repo}/versions/${versionId}/publish`, {
+    method: "POST",
+  });
   const result = (await pubRes.json()) as {
     version: string;
     qualityScore: number;
@@ -328,9 +322,7 @@ async function publish(ref: string, dir: string) {
 
 async function update(ref?: string) {
   const lock = await readLockfile();
-  const targets = ref
-    ? lock.skills.filter((s) => `${s.org}/${s.repo}` === ref)
-    : lock.skills;
+  const targets = ref ? lock.skills.filter((s) => `${s.org}/${s.repo}` === ref) : lock.skills;
 
   if (targets.length === 0) {
     console.log(ref ? `No lockfile entry for ${ref}` : "Lockfile is empty — run install first");
@@ -349,9 +341,7 @@ async function listInstalled() {
     return;
   }
   for (const s of lock.skills) {
-    console.log(
-      `${s.org}/${s.repo}  v${s.version}  ${s.path}  (${s.installedAt.slice(0, 10)})`,
-    );
+    console.log(`${s.org}/${s.repo}  v${s.version}  ${s.path}  (${s.installedAt.slice(0, 10)})`);
   }
 }
 
@@ -469,14 +459,11 @@ async function runEval(ref: string, wait = false) {
   const draft = versions.find((v) => v.status === "draft") ?? versions[0];
   if (!draft) throw new Error(`No versions found for ${org}/${repo}`);
 
-  const evalRes = await apiFetch(
-    `/v1/orgs/${orgId}/skills/${repo}/versions/${draft.id}/eval`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    },
-  );
+  const evalRes = await apiFetch(`/v1/orgs/${orgId}/skills/${repo}/versions/${draft.id}/eval`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
   const { eval: queued } = (await evalRes.json()) as {
     eval: { id: string; status: string };
   };
@@ -486,9 +473,7 @@ async function runEval(ref: string, wait = false) {
 
   for (let attempt = 0; attempt < 60; attempt++) {
     await new Promise((r) => setTimeout(r, 3000));
-    const detailRes = await apiFetch(
-      `/v1/orgs/${orgId}/skills/${repo}/evals/${queued.id}`,
-    );
+    const detailRes = await apiFetch(`/v1/orgs/${orgId}/skills/${repo}/evals/${queued.id}`);
     const { eval: detail } = (await detailRes.json()) as {
       eval: {
         status: string;
@@ -523,10 +508,9 @@ async function rollbackSkill(orgRepo: string, semver: string) {
   }[];
   const target = versions.find((v) => v.semver === semver);
   if (!target) throw new Error(`Version ${semver} not found`);
-  const res = await apiFetch(
-    `/v1/orgs/${orgId}/skills/${repo}/versions/${target.id}/rollback`,
-    { method: "POST" },
-  );
+  const res = await apiFetch(`/v1/orgs/${orgId}/skills/${repo}/versions/${target.id}/rollback`, {
+    method: "POST",
+  });
   const result = (await res.json()) as { version: string; etag: string };
   console.log(`Rolled back ${org}/${repo} to v${result.version}`);
 }
@@ -556,10 +540,7 @@ async function main() {
 
     if (cmd === "install") {
       const outIdx = process.argv.indexOf("-o");
-      const outDir =
-        outIdx >= 0
-          ? process.argv[outIdx + 1]!
-          : `./${ref?.split("/")[1] ?? "skill"}`;
+      const outDir = outIdx >= 0 ? process.argv[outIdx + 1]! : `./${ref?.split("/")[1] ?? "skill"}`;
       if (!ref) throw new Error("Missing org/repo ref");
       await pull(ref, outDir, true);
       return;
@@ -567,10 +548,7 @@ async function main() {
 
     if (cmd === "pull") {
       const outIdx = process.argv.indexOf("-o");
-      const outDir =
-        outIdx >= 0
-          ? process.argv[outIdx + 1]!
-          : `./${ref?.split("/")[1] ?? "skill"}`;
+      const outDir = outIdx >= 0 ? process.argv[outIdx + 1]! : `./${ref?.split("/")[1] ?? "skill"}`;
       if (!ref) throw new Error("Missing org/repo ref");
       await pull(ref, outDir);
       return;
@@ -599,7 +577,10 @@ async function main() {
     }
 
     if (cmd === "run") {
-      if (!ref) throw new Error("Usage: skillist run <org>/<repo> --script <path> [--url <url>] [-- ...args]");
+      if (!ref)
+        throw new Error(
+          "Usage: skillist run <org>/<repo> --script <path> [--url <url>] [-- ...args]",
+        );
       const scriptIdx = process.argv.indexOf("--script");
       const urlIdx = process.argv.indexOf("--url");
       const dashIdx = process.argv.indexOf("--");

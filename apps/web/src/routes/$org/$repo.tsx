@@ -1,24 +1,18 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type RegistryItem } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
-import { StarButton } from "@/components/registry-star-button";
-import { SkillRunCard } from "@/components/skill-run-card";
-import { SkillRunHistory } from "@/components/skill-run-history";
+import { Wifi, WifiOff } from "lucide-react";
 import { AgentInstallButtons } from "@/components/agent-install-buttons";
 import { PublicEvalBadge } from "@/components/public-eval-badge";
+import { StarButton } from "@/components/registry-star-button";
+import { InstallSnippet, ScoreBadges } from "@/components/score-badges";
 import { SkillAnalyticsChart } from "@/components/skill-analytics-chart";
+import { SkillRunCard } from "@/components/skill-run-card";
+import { SkillRunHistory } from "@/components/skill-run-history";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
-import { Wifi, WifiOff } from "lucide-react";
+import { api, type RegistryItem } from "@/lib/api";
 
 type PluginManifest = {
   agents?: string[];
@@ -42,27 +36,21 @@ function SkillRepoPage() {
 
   const { data: scriptsData } = useQuery({
     queryKey: ["scripts", org, repo],
-    queryFn: () =>
-      api<{ runtime: string; scripts: string[] }>(
-        `/${org}/${repo}/scripts`,
-      ),
+    queryFn: () => api<{ runtime: string; scripts: string[] }>(`/${org}/${repo}/scripts`),
     enabled: entry?.runtime !== "local",
   });
 
   const { data: meta } = useQuery({
     queryKey: ["skill-meta", org, repo, lastEvent?.etag],
-    queryFn: () =>
-      api<Record<string, unknown>>(`/${org}/${repo}/meta`),
+    queryFn: () => api<Record<string, unknown>>(`/${org}/${repo}/meta`),
   });
 
   const subscribe = useMutation({
-    mutationFn: () =>
-      api(`/v1/registry/${org}/${repo}/subscribe`, { method: "POST" }),
+    mutationFn: () => api(`/v1/registry/${org}/${repo}/subscribe`, { method: "POST" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["registry"] }),
   });
 
-  const installCmd =
-    entry?.installCommand ?? `skillist install ${org}/${repo}`;
+  const installCmd = entry?.installCommand ?? `skillist install ${org}/${repo}`;
   const cliInstall = entry?.cliInstall ?? "npm install -g @skillist/cli";
   const scripts = scriptsData?.scripts ?? [];
   const manifest = entry?.pluginManifest as PluginManifest | null | undefined;
@@ -86,9 +74,7 @@ function SkillRepoPage() {
             {entry?.runtime && entry.runtime !== "local" && (
               <Badge variant="secondary">Hosted {entry.runtime}</Badge>
             )}
-            {entry?.category && (
-              <Badge variant="outline">{entry.category}</Badge>
-            )}
+            {entry?.category && <Badge variant="outline">{entry.category}</Badge>}
           </div>
           {entry?.tags?.length ? (
             <div className="flex flex-wrap gap-1">
@@ -110,26 +96,17 @@ function SkillRepoPage() {
               <WifiOff className="h-3 w-3" /> Offline
             </Badge>
           )}
-          <Button
-            onClick={() => subscribe.mutate()}
-            disabled={subscribe.isPending}
-          >
+          <Button onClick={() => subscribe.mutate()} disabled={subscribe.isPending}>
             Subscribe
           </Button>
-          <StarButton
-            org={org}
-            repo={repo}
-            stars={entry?.stars ?? 0}
-            starred={entry?.starred}
-          />
+          <StarButton org={org} repo={repo} stars={entry?.stars ?? 0} starred={entry?.starred} />
         </div>
       </div>
 
       {lastEvent && (
         <Card className="border-green-200 bg-green-50">
           <CardContent className="pt-4 text-sm">
-            Published v{lastEvent.version} at{" "}
-            {new Date(lastEvent.publishedAt).toLocaleString()}
+            Published v{lastEvent.version} at {new Date(lastEvent.publishedAt).toLocaleString()}
           </CardContent>
         </Card>
       )}
@@ -143,16 +120,12 @@ function SkillRepoPage() {
         />
       )}
 
-      {entry?.runtime && entry.runtime !== "local" && (
-        <SkillRunHistory org={org} repo={repo} />
-      )}
+      {entry?.runtime && entry.runtime !== "local" && <SkillRunHistory org={org} repo={repo} />}
 
       <Card>
         <CardHeader>
           <CardTitle>Install</CardTitle>
-          <CardDescription>
-            Install the CLI, then add this skill to your agent
-          </CardDescription>
+          <CardDescription>Install the CLI, then add this skill to your agent</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <InstallSnippet command={cliInstall} prefix="1. Install CLI" />
@@ -182,14 +155,9 @@ function SkillRepoPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {mcpServers.map((server) => (
-              <div
-                key={server.name}
-                className="rounded border px-3 py-2 text-sm"
-              >
+              <div key={server.name} className="rounded border px-3 py-2 text-sm">
                 <p className="font-medium">{server.name}</p>
-                {server.url && (
-                  <p className="text-muted-foreground">{server.url}</p>
-                )}
+                {server.url && <p className="text-muted-foreground">{server.url}</p>}
               </div>
             ))}
           </CardContent>
@@ -214,9 +182,7 @@ function SkillRepoPage() {
       <Card>
         <CardHeader>
           <CardTitle>Agent compatibility</CardTitle>
-          <CardDescription>
-            From plugin.json — which agents can discover this skill
-          </CardDescription>
+          <CardDescription>From plugin.json — which agents can discover this skill</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {entry?.compatibleAgents?.length ? (
@@ -226,9 +192,7 @@ function SkillRepoPage() {
               </Badge>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No agents declared in plugin.json
-            </p>
+            <p className="text-sm text-muted-foreground">No agents declared in plugin.json</p>
           )}
         </CardContent>
       </Card>
@@ -236,18 +200,14 @@ function SkillRepoPage() {
       <Card>
         <CardHeader>
           <CardTitle>Discovery metadata</CardTitle>
-          <CardDescription>
-            Progressive disclosure — name and description only
-          </CardDescription>
+          <CardDescription>Progressive disclosure — name and description only</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>
-            <strong>Description:</strong>{" "}
-            {(meta?.description as string) ?? entry?.description}
+            <strong>Description:</strong> {(meta?.description as string) ?? entry?.description}
           </p>
           <p>
-            <strong>Version:</strong>{" "}
-            {(meta?.version as string) ?? entry?.latestVersion ?? "—"}
+            <strong>Version:</strong> {(meta?.version as string) ?? entry?.latestVersion ?? "—"}
           </p>
           <a
             href={`/${org}/${repo}/SKILL.md`}

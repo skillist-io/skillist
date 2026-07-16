@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { History } from "lucide-react";
-import { api, type SkillRun } from "@/lib/api";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { api, type SkillRun } from "@/lib/api";
 
 import { useSession } from "@/lib/auth-client";
 
@@ -20,10 +20,7 @@ export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps)
 
   const { data, isLoading } = useQuery({
     queryKey: ["runs", org, repo, limit],
-    queryFn: () =>
-      api<{ items: SkillRun[] }>(
-        `/${org}/${repo}/runs?limit=${limit}`,
-      ),
+    queryFn: () => api<{ items: SkillRun[] }>(`/${org}/${repo}/runs?limit=${limit}`),
     enabled: isLoggedIn,
   });
 
@@ -39,9 +36,7 @@ export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps)
             <History className="h-4 w-4" /> Run history
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Loading…
-        </CardContent>
+        <CardContent className="text-sm text-muted-foreground">Loading…</CardContent>
       </Card>
     );
   }
@@ -73,15 +68,11 @@ export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps)
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge
-                    variant={run.status === "completed" ? "default" : "secondary"}
-                  >
+                  <Badge variant={run.status === "completed" ? "default" : "secondary"}>
                     {run.status}
                   </Badge>
                   {run.exitCode != null && (
-                    <span className="text-xs text-muted-foreground">
-                      exit {run.exitCode}
-                    </span>
+                    <span className="text-xs text-muted-foreground">exit {run.exitCode}</span>
                   )}
                 </div>
               </button>
@@ -102,9 +93,7 @@ export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps)
                       {run.stderr}
                     </pre>
                   )}
-                  {run.error && (
-                    <p className="text-xs text-red-600">{run.error}</p>
-                  )}
+                  {run.error && <p className="text-xs text-red-600">{run.error}</p>}
                 </div>
               )}
             </div>

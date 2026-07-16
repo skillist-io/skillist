@@ -1,6 +1,6 @@
+import * as schema from "@skillist/db/schema";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "@skillist/db/schema";
 import type { Env } from "../env";
 
 export function createWorkerDb(env: Env): import("@skillist/auth").WorkerDb {

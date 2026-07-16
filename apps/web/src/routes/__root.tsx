@@ -1,8 +1,8 @@
 import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router";
-import { RouteErrorFallback } from "@/components/route-error";
 import { AppShell } from "@/components/app-shell";
 import { AuthShell } from "@/components/auth-shell";
 import { PublicLayout } from "@/components/public-layout";
+import { RouteErrorFallback } from "@/components/route-error";
 
 function isAppRoute(pathname: string) {
   return (

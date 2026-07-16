@@ -1,4 +1,5 @@
 #!/usr/bin/env npx tsx
+import { execSync } from "node:child_process";
 /**
  * Seed public registry skills from examples/skills/ into production.
  *
@@ -9,12 +10,10 @@
  * Requires: wrangler logged in or CLOUDFLARE_API_TOKEN set.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { execSync } from "node:child_process";
-import { writeFileSync, unlinkSync } from "node:fs";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { unlinkSync, writeFileSync } from "node:fs";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { eq, and } from "drizzle-orm";
 import { createDb } from "@skillist/db";
 import {
   organizations,
@@ -27,14 +26,15 @@ import {
 } from "@skillist/db/schema";
 import {
   estimateImpactScore,
+  extractAgentDiscovery,
+  extractRegistryDiscovery,
   objectToBundle,
   parsePluginManifest,
   reviewSkillBundle,
   scanSkillSecurity,
   validateSkillBundle,
-  extractRegistryDiscovery,
-  extractAgentDiscovery,
 } from "@skillist/skill-format";
+import { and, eq } from "drizzle-orm";
 import { detectSkillRuntime } from "../apps/api/src/lib/skill-runtime.ts";
 
 const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
@@ -46,9 +46,7 @@ const IS_LOCAL = process.argv.includes("--local");
 const R2_BUCKET = IS_LOCAL ? "skillist-skills-preview" : "skillist-skills";
 const KV_NAMESPACE_ID = "e3efe45d7f14430ab6c5868235e6755f";
 const WRANGLER_DIR = join(ROOT, "apps", "api");
-const WRANGLER_CONFIG = IS_LOCAL
-  ? "-c wrangler.jsonc"
-  : "-c wrangler.production.jsonc";
+const WRANGLER_CONFIG = IS_LOCAL ? "-c wrangler.jsonc" : "-c wrangler.production.jsonc";
 
 const SKILL_LEVELS: Record<string, string> = {
   "roll-dice": "1.0.0",
@@ -111,25 +109,18 @@ function wrangler(cmd: string) {
 
 function putR2Object(key: string, filePath: string) {
   const remote = IS_LOCAL ? "" : "--remote";
-  wrangler(
-    `r2 object put ${R2_BUCKET}/${key} --file=${filePath} ${remote}`.trim(),
-  );
+  wrangler(`r2 object put ${R2_BUCKET}/${key} --file=${filePath} ${remote}`.trim());
 }
 
 function putKvKey(key: string, value: string) {
   const remote = IS_LOCAL ? "" : "--remote";
   const tmp = join(ROOT, ".seed-kv-tmp.json");
   writeFileSync(tmp, value, "utf8");
-  wrangler(
-    `kv key put --namespace-id=${KV_NAMESPACE_ID} "${key}" --path=${tmp} ${remote}`.trim(),
-  );
+  wrangler(`kv key put --namespace-id=${KV_NAMESPACE_ID} "${key}" --path=${tmp} ${remote}`.trim());
   unlinkSync(tmp);
 }
 
-async function uploadBundleToR2(
-  prefix: string,
-  bundle: Map<string, string>,
-): Promise<void> {
+async function uploadBundleToR2(prefix: string, bundle: Map<string, string>): Promise<void> {
   const tmpDir = join(ROOT, ".seed-r2-tmp");
   await mkdir(tmpDir, { recursive: true });
   for (const [path, content] of bundle.entries()) {
@@ -182,22 +173,18 @@ async function seedSkill(
 ) {
   const validation = validateSkillBundle(bundle, slug);
   if (!validation.valid) {
-    throw new Error(
-      `${slug}: ${validation.errors.map((e) => e.message).join("; ")}`,
-    );
+    throw new Error(`${slug}: ${validation.errors.map((e) => e.message).join("; ")}`);
   }
 
   const review = reviewSkillBundle(bundle, slug);
-    const impactScore = estimateImpactScore(review);
-    const security = scanSkillSecurity(bundle);
-    const pluginRaw = bundle.get("plugin.json");
-    const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
-    const runtime = detectSkillRuntime(bundle);
+  const impactScore = estimateImpactScore(review);
+  const security = scanSkillSecurity(bundle);
+  const pluginRaw = bundle.get("plugin.json");
+  const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
+  const runtime = detectSkillRuntime(bundle);
 
   if (security.status === "fail") {
-    throw new Error(
-      `${slug}: security fail — ${security.issues.map((i) => i.message).join("; ")}`,
-    );
+    throw new Error(`${slug}: security fail — ${security.issues.map((i) => i.message).join("; ")}`);
   }
 
   console.log(
@@ -361,9 +348,7 @@ async function main() {
 
   console.log("\nDone. Verify:");
   const delivery = IS_LOCAL ? "http://localhost:8787" : "https://skillist.dev";
-  const api = IS_LOCAL
-    ? "http://localhost:8787"
-    : "https://api.skillist.dev";
+  const api = IS_LOCAL ? "http://localhost:8787" : "https://api.skillist.dev";
   console.log(`  curl ${api}/v1/registry`);
   console.log(`  curl ${delivery}/${ORG_SLUG}/roll-dice/SKILL.md`);
   console.log(`  open ${delivery}/${ORG_SLUG}/roll-dice`);

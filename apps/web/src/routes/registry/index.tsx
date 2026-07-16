@@ -1,18 +1,26 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { api, type RegistryItem } from "@/lib/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { QueryError } from "@/components/query-error";
+import { StarButton } from "@/components/registry-star-button";
+import { InstallSnippet, ScoreBadges } from "@/components/score-badges";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
-import { StarButton } from "@/components/registry-star-button";
-import { QueryError } from "@/components/query-error";
-import { useEffect, useState } from "react";
+import { api, type RegistryItem } from "@/lib/api";
 
 type RegistryFilters = {
   q: string;
-  sort: "quality" | "impact" | "installs" | "activations" | "stars" | "trending" | "recent" | "name";
+  sort:
+    | "quality"
+    | "impact"
+    | "installs"
+    | "activations"
+    | "stars"
+    | "trending"
+    | "recent"
+    | "name";
   runtime: "all" | "local" | "sandbox" | "container";
   minQuality: string;
   security: "all" | "pass" | "advisory" | "fail";
@@ -68,17 +76,12 @@ function RegistryPage() {
   const { data: facets } = useQuery({
     queryKey: ["registry-facets"],
     queryFn: () =>
-      api<{ categories: string[]; tags: string[]; agents: string[] }>(
-        "/v1/registry/facets",
-      ),
+      api<{ categories: string[]; tags: string[]; agents: string[] }>("/v1/registry/facets"),
   });
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["registry", queryString],
-    queryFn: () =>
-      api<{ items: RegistryItem[]; total: number }>(
-        `/v1/registry?${queryString}`,
-      ),
+    queryFn: () => api<{ items: RegistryItem[]; total: number }>(`/v1/registry?${queryString}`),
   });
 
   return (
@@ -121,9 +124,7 @@ function RegistryPage() {
           <select
             className="mt-0 w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={runtime}
-            onChange={(e) =>
-              setRuntime(e.target.value as RegistryFilters["runtime"])
-            }
+            onChange={(e) => setRuntime(e.target.value as RegistryFilters["runtime"])}
           >
             <option value="all">All</option>
             <option value="sandbox">Sandbox</option>
@@ -176,9 +177,7 @@ function RegistryPage() {
               key={t}
               type="button"
               className={`rounded-full border px-3 py-1 text-xs ${
-                tag === t
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "bg-background"
+                tag === t ? "border-primary bg-primary text-primary-foreground" : "bg-background"
               }`}
               onClick={() => setTag(tag === t ? "" : t)}
             >
@@ -194,9 +193,7 @@ function RegistryPage() {
           <button
             type="button"
             className={`rounded-full border px-3 py-1 text-xs ${
-              !agent
-                ? "border-primary bg-primary text-primary-foreground"
-                : "bg-background"
+              !agent ? "border-primary bg-primary text-primary-foreground" : "bg-background"
             }`}
             onClick={() => setAgent("")}
           >
@@ -207,9 +204,7 @@ function RegistryPage() {
               key={a}
               type="button"
               className={`rounded-full border px-3 py-1 text-xs ${
-                agent === a
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "bg-background"
+                agent === a ? "border-primary bg-primary text-primary-foreground" : "bg-background"
               }`}
               onClick={() => setAgent(agent === a ? "" : a)}
             >
@@ -243,10 +238,7 @@ function RegistryPage() {
       </div>
 
       {isError ? (
-        <QueryError
-          title="Could not load registry"
-          onRetry={() => void refetch()}
-        />
+        <QueryError title="Could not load registry" onRetry={() => void refetch()} />
       ) : isLoading ? (
         <p>Loading...</p>
       ) : (
@@ -261,14 +253,8 @@ function RegistryPage() {
                       {item.orgSlug}/{item.skillRepo}
                     </CardDescription>
                   </div>
-                  {item.latestVersion && (
-                    <Badge>v{item.latestVersion}</Badge>
-                  )}
-                  <StarButton
-                    org={item.orgSlug}
-                    repo={item.skillRepo}
-                    stars={item.stars}
-                  />
+                  {item.latestVersion && <Badge>v{item.latestVersion}</Badge>}
+                  <StarButton org={item.orgSlug} repo={item.skillRepo} stars={item.stars} />
                 </div>
                 <ScoreBadges
                   quality={item.qualityScore}
@@ -300,8 +286,7 @@ function RegistryPage() {
                 </div>
                 <InstallSnippet
                   command={
-                    item.installCommand ??
-                    `skillist install ${item.orgSlug}/${item.skillRepo}`
+                    item.installCommand ?? `skillist install ${item.orgSlug}/${item.skillRepo}`
                   }
                 />
                 <Link
@@ -315,9 +300,7 @@ function RegistryPage() {
             </Card>
           ))}
           {data?.items.length === 0 && (
-            <p className="text-muted-foreground">
-              No skills match your filters.
-            </p>
+            <p className="text-muted-foreground">No skills match your filters.</p>
           )}
         </div>
       )}

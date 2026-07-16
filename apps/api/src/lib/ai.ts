@@ -1,39 +1,24 @@
-import type { Env } from "../env";
-import type { WorkerDb } from "./db";
-import { and, eq, ne } from "drizzle-orm";
+import { feedback, organizations, skillFiles, skills, skillVersions } from "@skillist/db/schema";
 import {
-  feedback,
-  skillFiles,
-  skillVersions,
-  skills,
-} from "@skillist/db/schema";
-import {
-  objectToBundle,
-  validateSkillBundle,
-  reviewSkillBundle,
-  estimateImpactScore,
-  scanSkillSecurity,
-  parsePluginManifest,
-  extractRegistryDiscovery,
-  extractAgentDiscovery,
   bumpSemver,
+  estimateImpactScore,
+  extractAgentDiscovery,
+  extractRegistryDiscovery,
+  objectToBundle,
+  parsePluginManifest,
+  reviewSkillBundle,
+  scanSkillSecurity,
+  validateSkillBundle,
 } from "@skillist/skill-format";
-import {
-  downloadBundleFromR2,
-  listBundlePaths,
-  r2Prefix,
-  sha256,
-  uploadBundleToR2,
-} from "./r2";
-import { cachePublishedSkill, broadcastPublish } from "./publish";
-import { organizations } from "@skillist/db/schema";
-import { evaluatePublishPolicy } from "./publish-policy";
+import { and, eq, ne } from "drizzle-orm";
+import type { Env } from "../env";
 import { logAudit } from "./audit";
+import type { WorkerDb } from "./db";
+import { broadcastPublish, cachePublishedSkill } from "./publish";
+import { evaluatePublishPolicy } from "./publish-policy";
+import { getVersionEvalStatus, queueSkillEval } from "./queue-eval";
+import { downloadBundleFromR2, listBundlePaths, r2Prefix, sha256, uploadBundleToR2 } from "./r2";
 import { detectSkillRuntime } from "./skill-runtime";
-import {
-  getVersionEvalStatus,
-  queueSkillEval,
-} from "./queue-eval";
 
 export async function runAiJob(
   env: Env,
@@ -41,18 +26,10 @@ export async function runAiJob(
   jobId: string,
   feedbackId: string,
 ): Promise<void> {
-  const [job] = await db
-    .select()
-    .from(feedback)
-    .where(eq(feedback.id, feedbackId))
-    .limit(1);
+  const [job] = await db.select().from(feedback).where(eq(feedback.id, feedbackId)).limit(1);
   if (!job) return;
 
-  const [skill] = await db
-    .select()
-    .from(skills)
-    .where(eq(skills.id, job.skillId))
-    .limit(1);
+  const [skill] = await db.select().from(skills).where(eq(skills.id, job.skillId)).limit(1);
   if (!skill) return;
 
   const [version] = await db
@@ -63,11 +40,7 @@ export async function runAiJob(
   if (!version) return;
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
+  const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
   const skillMd = bundle.get("SKILL.md") ?? "";
 
   const prompt = `You are improving an Agent Skill per agentskills.io spec.
@@ -97,14 +70,10 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
       const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
         messages: [{ role: "user", content: prompt }],
       });
-      improvedMd =
-        (result as { response?: string }).response ?? skillMd;
+      improvedMd = (result as { response?: string }).response ?? skillMd;
     }
   } catch (err) {
-    await db
-      .update(feedback)
-      .set({ status: "pending" })
-      .where(eq(feedback.id, feedbackId));
+    await db.update(feedback).set({ status: "pending" }).where(eq(feedback.id, feedbackId));
     throw err;
   }
 
@@ -164,11 +133,7 @@ export async function publishVersion(
   impactScore: number;
   securityStatus: string;
 }> {
-  const [skill] = await db
-    .select()
-    .from(skills)
-    .where(eq(skills.id, skillId))
-    .limit(1);
+  const [skill] = await db.select().from(skills).where(eq(skills.id, skillId)).limit(1);
   if (!skill) throw new Error("Skill not found");
 
   const [org] = await db
@@ -188,16 +153,10 @@ export async function publishVersion(
   }
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
+  const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
   const validation = validateSkillBundle(bundle, skill.repo);
   if (!validation.valid) {
-    throw new Error(
-      validation.errors.map((e) => e.message).join("; "),
-    );
+    throw new Error(validation.errors.map((e) => e.message).join("; "));
   }
 
   const review = reviewSkillBundle(bundle, skill.repo);
@@ -208,16 +167,11 @@ export async function publishVersion(
   const compatibleAgents = extractAgentDiscovery(pluginManifest);
 
   const policy = org.publishPolicy ?? undefined;
-  const evalNeeded = Boolean(
-    policy?.requireEval || policy?.minEvalUplift != null,
-  );
-  let evalStatus = await getVersionEvalStatus(db, versionId);
+  const evalNeeded = Boolean(policy?.requireEval || policy?.minEvalUplift != null);
+  const evalStatus = await getVersionEvalStatus(db, versionId);
 
   if (evalNeeded) {
-    if (
-      !evalStatus ||
-      evalStatus.status === "failed"
-    ) {
+    if (!evalStatus || evalStatus.status === "failed") {
       const queued = await queueSkillEval(env, db, {
         skillId: skill.id,
         versionId,
@@ -240,12 +194,7 @@ export async function publishVersion(
       ? { status: evalStatus.status, uplift: evalStatus.uplift }
       : null;
 
-  const policyCheck = evaluatePublishPolicy(
-    policy,
-    review,
-    security,
-    completedEval,
-  );
+  const policyCheck = evaluatePublishPolicy(policy, review, security, completedEval);
   if (!policyCheck.allowed) {
     throw new Error(policyCheck.reasons.join("; "));
   }
@@ -401,11 +350,7 @@ export async function rollbackVersion(
   impactScore: number;
   securityStatus: string;
 }> {
-  const [skill] = await db
-    .select()
-    .from(skills)
-    .where(eq(skills.id, skillId))
-    .limit(1);
+  const [skill] = await db.select().from(skills).where(eq(skills.id, skillId)).limit(1);
   if (!skill) throw new Error("Skill not found");
   if (skill.latestPublishedVersionId === versionId) {
     throw new Error("Version is already live");
@@ -431,11 +376,7 @@ export async function rollbackVersion(
   if (!org) throw new Error("Org not found");
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
+  const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
   const validation = validateSkillBundle(bundle, skill.repo);
   if (!validation.valid) {
     throw new Error(validation.errors.map((e) => e.message).join("; "));
