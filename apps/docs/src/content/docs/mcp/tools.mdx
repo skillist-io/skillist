@@ -59,9 +59,11 @@ Full metadata for a skill including eval uplift, install command, and manifest.
   columns={["Field", "Type", "Required"]}
   rows={[
     ["org", "string", "yes — organization slug, e.g. skillist"],
-    ["slug", "string", "yes — skill slug"],
+    ["repo", "string", "yes — skill repo name"],
   ]}
 />
+
+The server also accepts legacy `slug` as an alias for `repo`.
 
 ### Example
 
@@ -70,7 +72,7 @@ Full metadata for a skill including eval uplift, install command, and manifest.
   "name": "registry_get_skill",
   "arguments": {
     "org": "skillist",
-    "slug": "registry-mcp"
+    "repo": "registry-mcp"
   }
 }
 ```
@@ -88,30 +90,30 @@ List available filter facets: categories, tags, and compatible agents. No parame
 
 ## registry_install_help
 
-Returns CLI install commands, SKILL.md URL, and registry page for a skill.
+Returns CLI install commands, SKILL.md URL, and skill page URL for a skill.
 
 <DocTable
   client:load
   columns={["Field", "Type", "Required"]}
   rows={[
     ["org", "string", "yes"],
-    ["slug", "string", "yes"],
+    ["repo", "string", "yes"],
   ]}
 />
 
 ### Example response fields
 
 - `cliInstall` — global CLI setup (`npm install -g @skillist/cli`)
-- `installCommand` — `skillist install org/slug`
+- `installCommand` — `skillist install org/repo`
 - `runCommand` — sandbox run hint when applicable
-- `skillMdUrl` — published SKILL.md URL
-- `registryUrl` — web registry detail page
+- `skillMdUrl` — `https://skillist.dev/{org}/{repo}/SKILL.md`
+- `registryUrl` — `https://skillist.dev/{org}/{repo}`
 
 <SectionHeading title="Agent workflow" client:load />
 
 1. `registry_facets` — when the user needs browse filters
 2. `registry_search` — find candidates
 3. `registry_get_skill` — inspect eval scores and metadata
-4. `registry_install_help` — return install commands to the user
+4. `registry_install_help` — return install commands and delivery URLs to the user
 
 Prefer skills with higher eval uplift and quality scores when multiple matches exist.
