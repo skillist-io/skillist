@@ -1,11 +1,18 @@
 // @ts-check
-import { defineConfig } from "astro/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
+import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "astro/config";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   site: "https://docs.skillist.dev",
   output: "static",
   integrations: [
+    react(),
     starlight({
       title: "Skillist",
       tagline: "Agent skills platform documentation",
@@ -15,9 +22,10 @@ export default defineConfig({
         alt: "Skillist",
         replacesTitle: false,
       },
-      customCss: ["./src/styles/skillist.css"],
+      customCss: ["./src/styles/globals.css", "./src/styles/starlight.css"],
       components: {
         ThemeProvider: "./src/components/ThemeProvider.astro",
+        Hero: "./src/components/Hero.astro",
       },
       social: [
         {
@@ -72,4 +80,12 @@ export default defineConfig({
       ],
     }),
   ],
+  vite: {
+    plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  },
 });

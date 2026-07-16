@@ -21,34 +21,15 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid } from "@astrojs/starlight/components";
+import { FeatureCards } from "@/components/docs/FeatureCards";
+import { EndpointsTable } from "@/components/docs/EndpointsTable";
 
 ## What is Skillist?
 
 Skillist is a platform for managing, versioning, and delivering [agentskills.io](https://agentskills.io/home) skills with sub-10ms fan-out, hosted sandboxes, evals, and a public registry.
 
-<CardGrid stagger>
-  <Card title="Registry MCP" icon="puzzle">
-    Search and install skills from your agent via streamable HTTP at
-    `api.skillist.dev/mcp`.
-  </Card>
-  <Card title="CLI" icon="rocket">
-    Install skills locally with `skillist install org/slug` and publish from your
-    repo.
-  </Card>
-  <Card title="Hosted execution" icon="laptop">
-    Run skill scripts in isolated Cloudflare sandboxes with streaming output.
-  </Card>
-  <Card title="Evals" icon="approve-check">
-    Measure skill uplift across versions before publishing to the registry.
-  </Card>
-</CardGrid>
+<FeatureCards client:load />
 
 ## Endpoints
 
-| Service | URL |
-|---------|-----|
-| Web app | [skillist.dev](https://skillist.dev) |
-| API | [api.skillist.dev](https://api.skillist.dev) |
-| Registry MCP | [api.skillist.dev/mcp](https://api.skillist.dev/mcp) |
-| API reference | [api.skillist.dev/docs](https://api.skillist.dev/docs) |
+<EndpointsTable client:load />
