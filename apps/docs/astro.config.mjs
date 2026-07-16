@@ -20,7 +20,7 @@ export default defineConfig({
       logo: {
         src: "./src/assets/logo.svg",
         alt: "Skillist",
-        replacesTitle: false,
+        replacesTitle: true,
       },
       customCss: ["./src/styles/globals.css", "./src/styles/starlight.css"],
       components: {

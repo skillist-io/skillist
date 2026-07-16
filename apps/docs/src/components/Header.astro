@@ -1,42 +1,115 @@
 ---
-import Default from "@astrojs/starlight/components/Header.astro";
+import config from "virtual:starlight/user-config";
+import LanguageSelect from "virtual:starlight/components/LanguageSelect";
+import Search from "virtual:starlight/components/Search";
+import SiteTitle from "virtual:starlight/components/SiteTitle";
+import SocialIcons from "virtual:starlight/components/SocialIcons";
+import ThemeSelect from "virtual:starlight/components/ThemeSelect";
+
+const shouldRenderSearch =
+  config.pagefind ||
+  config.components.Search !== "@astrojs/starlight/components/Search.astro";
 ---
 
-<div class="sl-flex docs-header">
-  <Default><slot /></Default>
-  <a class="docs-header-cta" href="https://skillist.dev" target="_blank" rel="noopener noreferrer">
-    Open app
-  </a>
+<div class="header">
+  <div class="title-wrapper sl-flex">
+    <SiteTitle />
+  </div>
+  <div class="sl-flex print:hidden">
+    {shouldRenderSearch && <Search />}
+  </div>
+  <div class="sl-hidden md:sl-flex print:hidden right-group">
+    <div class="sl-flex social-icons">
+      <SocialIcons />
+    </div>
+    <ThemeSelect />
+    <LanguageSelect />
+    <a
+      class="docs-header-cta"
+      href="https://skillist.dev"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Open app
+    </a>
+  </div>
 </div>
 
 <style>
-  .docs-header {
-    align-items: center;
-    gap: 1rem;
-    width: 100%;
-  }
+  @layer starlight.core {
+    .header {
+      display: flex;
+      gap: var(--sl-nav-gap);
+      justify-content: space-between;
+      align-items: center;
+      height: 100%;
+    }
 
-  .docs-header-cta {
-    margin-inline-end: 1rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.625rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    text-decoration: none;
-    color: var(--primary-foreground);
-    background: var(--primary);
-    white-space: nowrap;
-    transition: opacity 0.15s ease;
-  }
+    .title-wrapper {
+      overflow: clip;
+      padding: 0.25rem;
+      margin: -0.25rem;
+      min-width: 0;
+    }
 
-  .docs-header-cta:hover {
-    opacity: 0.85;
-  }
+    .right-group,
+    .social-icons {
+      gap: 1rem;
+      align-items: center;
+    }
 
-  @media (max-width: 50rem) {
+    .social-icons::after {
+      content: "";
+      height: 2rem;
+      border-inline-end: 1px solid var(--sl-color-gray-5);
+    }
+
     .docs-header-cta {
-      display: none;
+      padding: 0.5rem 1rem;
+      font-size: 0.625rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--primary-foreground);
+      background: var(--primary);
+      white-space: nowrap;
+      transition: opacity 0.15s ease;
+    }
+
+    .docs-header-cta:hover {
+      opacity: 0.85;
+    }
+
+    @media (min-width: 50rem) {
+      :global(:root[data-has-sidebar]) {
+        --__sidebar-pad: calc(2 * var(--sl-nav-pad-x));
+      }
+      :global(:root:not([data-has-toc])) {
+        --__toc-width: 0rem;
+      }
+      .header {
+        --__sidebar-width: max(
+          0rem,
+          var(--sl-content-inline-start, 0rem) - var(--sl-nav-pad-x)
+        );
+        --__main-column-fr: calc(
+          (
+              100% + var(--__sidebar-pad, 0rem) - var(--__toc-width, var(--sl-sidebar-width)) -
+                (2 * var(--__toc-width, var(--sl-nav-pad-x))) - var(--sl-content-inline-start, 0rem) -
+                var(--sl-content-width)
+            ) / 2
+        );
+        display: grid;
+        grid-template-columns:
+          minmax(
+            calc(var(--__sidebar-width) + max(0rem, var(--__main-column-fr) - var(--sl-nav-gap))),
+            auto
+          )
+          1fr
+          auto;
+        align-content: center;
+      }
     }
   }
 </style>
