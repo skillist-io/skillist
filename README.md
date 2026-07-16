@@ -65,7 +65,14 @@ pnpm dev:web
 - Docs: http://localhost:8787/docs
 - Web: http://localhost:5173
 
-Neon project `lively-dew-31540211` is provisioned; migrations run against `DATABASE_URL` in `.env`. Hyperdrive local dev uses `apps/api/wrangler.local.jsonc` (gitignored).
+Neon project `lively-dew-31540211` is provisioned; migrations run against `DATABASE_URL` in `.env`. Local API dev merges `wrangler.jsonc` with gitignored `wrangler.local.jsonc` (Hyperdrive → Neon). Run `pnpm setup:local` to sync `DATABASE_URL` into the local overlay.
+
+## Smoke tests
+
+```bash
+pnpm smoke          # API + web HTTP checks against production
+pnpm test:e2e       # Playwright browser checks against skillist.dev
+```
 
 ## Agent CLI
 

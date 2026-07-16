@@ -31,6 +31,12 @@ jobs:
 
       - run: pnpm test
 
+      - run: pnpm smoke
+
+      - run: pnpm exec playwright install chromium --with-deps
+
+      - run: pnpm test:e2e
+
       - run: pnpm build
 
   deploy-api:

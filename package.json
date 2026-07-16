@@ -11,6 +11,8 @@
     "db:generate": "pnpm --filter @skillist/db generate",
     "db:migrate": "pnpm --filter @skillist/db migrate",
     "typecheck": "turbo typecheck",
+    "smoke": "vitest run --config tests/vitest.config.ts",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
     "setup:local": "bash scripts/setup-local.sh",
     "setup:oauth": "bash scripts/setup-oauth.sh",
     "setup:secrets": "bash scripts/setup-production-secrets.sh",
@@ -21,12 +23,14 @@
     "publish:packages": "pnpm --filter @skillist/skill-format publish --no-git-checks && pnpm --filter @skillist/cli publish --no-git-checks"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@skillist/db": "workspace:*",
     "@skillist/skill-format": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "tsx": "^4.20.3",
     "turbo": "^2.10.5",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "packageManager": "pnpm@11.13.0",
   "engines": {

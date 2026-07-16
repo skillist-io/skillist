@@ -23,6 +23,7 @@ import {
 } from "@skillist/db/schema";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
+import { queueSkillEval } from "../lib/queue-eval";
 import type { WorkerDb } from "../lib/db";
 import { logAudit } from "../lib/audit";
 import { requireOrgAccess } from "../lib/org-access";
@@ -397,26 +398,27 @@ governanceRoutes.openapi(runEvalRoute, async (c) => {
     return c.json({ error: "Version not found" }, 404);
   }
 
-  const [evalRow] = await c.var.db
-    .insert(skillEvals)
-    .values({
-      skillId: skill.id,
-      versionId,
-      scenarios: body.scenarios ?? null,
-      status: "queued",
-    })
-    .returning();
+  const [org] = await c.var.db
+    .select({ slug: organizations.slug })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
 
-  await c.env.AI_QUEUE.send({
-    type: "eval",
-    evalId: evalRow!.id,
+  const queued = await queueSkillEval(c.env, c.var.db, {
     skillId: skill.id,
     versionId,
-    orgSlug: "",
+    orgSlug: org?.slug ?? orgId,
     skillSlug: slug,
+    scenarios: body.scenarios ?? null,
   });
 
-  return c.json({ eval: evalRow }, 201);
+  const [evalRow] = await c.var.db
+    .select()
+    .from(skillEvals)
+    .where(eq(skillEvals.id, queued.evalId))
+    .limit(1);
+
+  return c.json({ eval: evalRow }, queued.created ? 201 : 200);
 });
 
 const listEvalsRoute = createRoute({
