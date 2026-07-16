@@ -1,0 +1,65 @@
+/* Starlight chrome aligned with shadcn tokens */
+
+:root:not([data-theme="light"]),
+:root[data-theme="dark"] {
+  --sl-color-white: var(--foreground);
+  --sl-color-gray-1: var(--foreground);
+  --sl-color-gray-2: color-mix(in oklch, var(--foreground) 82%, transparent);
+  --sl-color-gray-3: var(--muted-foreground);
+  --sl-color-gray-4: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--card);
+  --sl-color-black: var(--background);
+
+  --sl-color-accent-low: var(--muted);
+  --sl-color-accent: var(--primary);
+  --sl-color-accent-high: var(--primary-foreground);
+
+  --sl-color-text: color-mix(in oklch, var(--foreground) 82%, transparent);
+  --sl-color-text-accent: var(--primary);
+  --sl-color-text-invert: var(--primary-foreground);
+  --sl-color-bg: var(--background);
+  --sl-color-bg-nav: color-mix(in oklch, var(--background) 92%, transparent);
+  --sl-color-bg-sidebar: var(--sidebar);
+  --sl-color-bg-inline-code: var(--muted);
+  --sl-color-bg-accent: var(--muted);
+  --sl-color-hairline-light: var(--border);
+  --sl-color-hairline: var(--border);
+  --sl-color-hairline-shade: var(--background);
+}
+
+:root[data-theme="light"],
+[data-theme="light"] ::backdrop {
+  --sl-color-white: var(--foreground);
+  --sl-color-gray-1: var(--foreground);
+  --sl-color-gray-2: color-mix(in oklch, var(--foreground) 75%, transparent);
+  --sl-color-gray-3: var(--muted-foreground);
+  --sl-color-gray-4: var(--muted-foreground);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--muted);
+  --sl-color-gray-7: var(--background);
+  --sl-color-black: var(--background);
+
+  --sl-color-accent-low: var(--muted);
+  --sl-color-accent: var(--primary);
+  --sl-color-accent-high: var(--primary-foreground);
+  --sl-color-text-accent: var(--primary);
+  --sl-color-bg-nav: var(--sidebar);
+  --sl-color-bg-sidebar: var(--sidebar);
+  --sl-color-bg-inline-code: var(--muted);
+}
+
+.site-title {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.sl-markdown-content a:not([class]) {
+  color: var(--primary);
+  text-underline-offset: 3px;
+}
+
+/* Let shadcn islands use full width inside starlight content */
+.sl-markdown-content .not-content {
+  margin-inline: 0;
+}

@@ -3,13 +3,13 @@ title: Registry MCP
 description: Skillist exposes a public Model Context Protocol server for registry discovery and install help.
 ---
 
+import { DocAlert } from "@/components/docs/DocAlert";
+
 The **Skillist Registry MCP** server lets agents search, browse, and install skills without leaving the chat. It runs on the same API worker as the REST registry.
 
-## Endpoint
-
-```
-https://api.skillist.dev/mcp
-```
+<DocAlert title="Endpoint" client:load>
+  `https://api.skillist.dev/mcp` — streamable HTTP with optional OAuth via Better Auth.
+</DocAlert>
 
 ## Transport
 

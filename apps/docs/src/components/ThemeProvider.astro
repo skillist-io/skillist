@@ -18,6 +18,7 @@
         : "dark");
     document.documentElement.dataset.theme =
       theme === "light" ? "light" : "dark";
+    document.documentElement.classList.toggle("dark", theme !== "light");
     document.documentElement.style.colorScheme =
       theme === "light" ? "light" : "dark";
 

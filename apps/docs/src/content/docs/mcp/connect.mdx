@@ -3,13 +3,11 @@ title: Connect your agent
 description: Configure Cursor, Claude Code, VS Code, and other MCP clients to use the Skillist registry server.
 ---
 
-## Endpoint
+import { DocAlert } from "@/components/docs/DocAlert";
 
-All clients connect to:
-
-```
-https://api.skillist.dev/mcp
-```
+<DocAlert title="MCP endpoint" client:load>
+  All clients connect to `https://api.skillist.dev/mcp` using streamable HTTP.
+</DocAlert>
 
 ## Cursor
 
