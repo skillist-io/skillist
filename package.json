@@ -6,6 +6,7 @@
     "dev": "turbo dev",
     "dev:api": "turbo dev --filter=@skillist/api",
     "dev:web": "turbo dev --filter=@skillist/web",
+    "dev:docs": "turbo dev --filter=@skillist/docs",
     "lint": "turbo lint",
     "test": "turbo test",
     "db:generate": "pnpm --filter @skillist/db generate",

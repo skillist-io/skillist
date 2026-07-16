@@ -1,9 +1,13 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { apiReference } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
-import { createAuth } from "@skillist/auth";
+import {
+  oAuthDiscoveryMetadata,
+  oAuthProtectedResourceMetadata,
+} from "better-auth/plugins";
 import type { Env, AiJobMessage } from "./env";
 import { authMiddleware } from "./lib/auth-middleware";
+import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { createWorkerDb } from "./lib/db";
 import { runAiJob } from "./lib/ai";
 import { orgRoutes } from "./routes/orgs";
@@ -28,12 +32,28 @@ app.use(
   "/mcp",
   cors({
     origin: "*",
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Accept"],
+    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowHeaders: [
+      "Content-Type",
+      "Accept",
+      "Authorization",
+      "Mcp-Session-Id",
+    ],
+    exposeHeaders: ["Mcp-Session-Id", "WWW-Authenticate"],
   }),
 );
 app.all("/mcp", handleMcpRequest);
 app.options("/mcp", (c) => c.body(null, 204));
+
+app.get("/.well-known/oauth-authorization-server", async (c) => {
+  const auth = createApiAuth(c.env, createApiEmailSender(c.env));
+  return oAuthDiscoveryMetadata(auth)(c.req.raw);
+});
+
+app.get("/.well-known/oauth-protected-resource", async (c) => {
+  const auth = createApiAuth(c.env, createApiEmailSender(c.env));
+  return oAuthProtectedResourceMetadata(auth)(c.req.raw);
+});
 
 app.use(
   "*",
@@ -55,41 +75,18 @@ app.get("/health", (c) =>
     status: "ok",
     service: "skillist-api",
     ts: Date.now(),
-    mcp: mcpServerInfo(),
+    mcp: mcpServerInfo(c.env.BETTER_AUTH_URL),
     auth: {
       github: Boolean(c.env.GITHUB_CLIENT_ID && c.env.GITHUB_CLIENT_SECRET),
       google: Boolean(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET),
+      mcpOAuth: true,
     },
   }),
 );
 
 // Better Auth handler
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
-  const db = createWorkerDb(c.env);
-  const auth = createAuth(
-    db,
-    {
-      BETTER_AUTH_SECRET: c.env.BETTER_AUTH_SECRET,
-      BETTER_AUTH_URL: c.env.BETTER_AUTH_URL,
-      GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
-      GITHUB_CLIENT_SECRET: c.env.GITHUB_CLIENT_SECRET,
-      GOOGLE_CLIENT_ID: c.env.GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET: c.env.GOOGLE_CLIENT_SECRET,
-    },
-    async ({ to, subject, html, text }) => {
-      try {
-        await c.env.EMAIL.send({
-          to,
-          from: "welcome@skillist.dev",
-          subject,
-          html,
-          text,
-        });
-      } catch {
-        console.log(`Email to ${to}: ${subject} — ${text}`);
-      }
-    },
-  );
+  const auth = createApiAuth(c.env, createApiEmailSender(c.env));
   return auth.handler(c.req.raw);
 });
 

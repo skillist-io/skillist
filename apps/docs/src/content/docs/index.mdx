@@ -1,0 +1,54 @@
+---
+title: Skillist documentation
+description: Learn how to discover, install, and run agent skills with Skillist — registry, CLI, MCP, and hosted sandboxes.
+template: splash
+hero:
+  tagline: Realtime agent skills for Cursor, Claude Code, VS Code, and any agentskills.io client.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Quick start
+      link: /getting-started/quick-start/
+      icon: right-arrow
+      variant: primary
+    - text: Connect via MCP
+      link: /mcp/connect/
+      icon: setting
+      variant: minimal
+    - text: Browse registry
+      link: https://skillist.dev/registry
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+## What is Skillist?
+
+Skillist is a platform for managing, versioning, and delivering [agentskills.io](https://agentskills.io/home) skills with sub-10ms fan-out, hosted sandboxes, evals, and a public registry.
+
+<CardGrid stagger>
+  <Card title="Registry MCP" icon="puzzle">
+    Search and install skills from your agent via streamable HTTP at
+    `api.skillist.dev/mcp`.
+  </Card>
+  <Card title="CLI" icon="rocket">
+    Install skills locally with `skillist install org/slug` and publish from your
+    repo.
+  </Card>
+  <Card title="Hosted execution" icon="laptop">
+    Run skill scripts in isolated Cloudflare sandboxes with streaming output.
+  </Card>
+  <Card title="Evals" icon="approve-check">
+    Measure skill uplift across versions before publishing to the registry.
+  </Card>
+</CardGrid>
+
+## Endpoints
+
+| Service | URL |
+|---------|-----|
+| Web app | [skillist.dev](https://skillist.dev) |
+| API | [api.skillist.dev](https://api.skillist.dev) |
+| Registry MCP | [api.skillist.dev/mcp](https://api.skillist.dev/mcp) |
+| API reference | [api.skillist.dev/docs](https://api.skillist.dev/docs) |

@@ -1,0 +1,40 @@
+---
+title: Authentication
+description: Sign in to Skillist with GitHub, Google, magic link, or email OTP — no passwords.
+---
+
+Skillist uses [Better Auth](https://better-auth.com/) for passwordless authentication.
+
+## Sign-in methods
+
+| Method | Where |
+|--------|-------|
+| GitHub OAuth | [skillist.dev/login](https://skillist.dev/login) |
+| Google OAuth | [skillist.dev/login](https://skillist.dev/login) |
+| Magic link | Email link via API |
+| Email OTP | One-time code via email |
+
+## API auth
+
+Session cookies are used by the web app. The CLI and API keys use Bearer tokens after `skillist login`.
+
+Protected API routes live under `/v1/*` and require a valid session or org API key.
+
+## MCP OAuth
+
+MCP clients use a separate OAuth flow via the [Better Auth MCP plugin](/mcp/oauth/). Sign-in still happens at `skillist.dev/login`.
+
+## Sandbox policy
+
+Hosted sandbox **runs** require authentication. Anonymous users can browse public skill scripts but cannot execute them.
+
+## Local OAuth redirects
+
+| Provider | Redirect URI |
+|----------|--------------|
+| GitHub | `http://localhost:8787/api/auth/callback/github` |
+| Google | `http://localhost:8787/api/auth/callback/google` |
+
+Production uses `https://api.skillist.dev/api/auth/callback/{provider}`.
+
+See `apps/api/.dev.vars.example` for local client IDs.

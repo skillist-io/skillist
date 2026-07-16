@@ -1,0 +1,60 @@
+---
+title: CLI
+description: Skillist command-line interface for registry search, install, publish, and sandbox runs.
+---
+
+## Install
+
+```bash
+npm install -g @skillist/cli
+```
+
+Package: [`@skillist/cli`](https://www.npmjs.com/package/@skillist/cli)
+
+## Authentication
+
+```bash
+skillist login     # browser OAuth / magic link flow
+skillist logout
+skillist whoami
+```
+
+## Registry
+
+```bash
+skillist search <query> [--category <cat>] [--tag <tag>]
+skillist install <org>/<slug>
+skillist list
+```
+
+## Publishing
+
+From a skill directory with `plugin.json` and `SKILL.md`:
+
+```bash
+skillist publish [--bump major|minor|patch]
+```
+
+Publishing queues an eval run. Your org policy may require a passing eval before the version goes live.
+
+## Sandbox runs
+
+For skills with hosted runtime scripts:
+
+```bash
+skillist run <org>/<slug> --script scripts/<name>
+```
+
+Requires a signed-in session. Anonymous sandbox runs are not permitted.
+
+## Environment
+
+| Variable | Description |
+|----------|-------------|
+| `SKILLIST_API_URL` | API base URL (default `https://api.skillist.dev`) |
+
+Local development:
+
+```bash
+export SKILLIST_API_URL=http://localhost:8787
+```

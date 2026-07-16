@@ -1,0 +1,47 @@
+---
+title: Quick start
+description: Install the Skillist CLI, sign in, and install your first agent skill.
+---
+
+## Prerequisites
+
+- Node.js 20+
+- An account at [skillist.dev](https://skillist.dev) (GitHub, Google, magic link, or email OTP)
+
+## Install the CLI
+
+```bash
+npm install -g @skillist/cli
+```
+
+## Sign in
+
+```bash
+skillist login
+```
+
+This opens the Skillist web app and stores an API key locally for publish and run commands.
+
+## Search the registry
+
+```bash
+skillist search performance
+```
+
+## Install a skill
+
+```bash
+skillist install skillist/web-perf-audit
+```
+
+Skills are installed to your local agentskills.io layout. Use `skillist list` to see installed skills.
+
+## Connect MCP (optional)
+
+To search the registry from inside Cursor or another MCP client without the CLI, see [Connect your agent](/mcp/connect/).
+
+## Next steps
+
+- [CLI reference](/getting-started/cli/)
+- [Registry MCP overview](/mcp/)
+- [Browse the registry](https://skillist.dev/registry)

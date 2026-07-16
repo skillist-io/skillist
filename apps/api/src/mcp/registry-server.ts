@@ -1,4 +1,5 @@
 import type { WorkerDb } from "../lib/db";
+import type { McpSession } from "better-auth/plugins/mcp/client";
 import {
   getRegistryFacets,
   getRegistrySkill,
@@ -166,6 +167,7 @@ function rpcError(
 async function handleSingle(
   db: WorkerDb,
   req: JsonRpcRequest,
+  _session: McpSession | null,
 ): Promise<Record<string, unknown>> {
   const { id, method, params } = req;
 
@@ -218,25 +220,37 @@ async function handleSingle(
 export async function handleMcpJsonRpc(
   db: WorkerDb,
   body: unknown,
+  session: McpSession | null = null,
 ): Promise<Record<string, unknown> | Record<string, unknown>[]> {
   if (Array.isArray(body)) {
     const responses = await Promise.all(
-      body.map((item) => handleSingle(db, item as JsonRpcRequest)),
+      body.map((item) => handleSingle(db, item as JsonRpcRequest, session)),
     );
     return responses.filter(
       (r) => r.id !== null && r.id !== undefined,
     ) as Record<string, unknown>[];
   }
-  return handleSingle(db, body as JsonRpcRequest);
+  return handleSingle(db, body as JsonRpcRequest, session);
 }
 
-export function mcpServerInfo() {
+export function mcpServerInfo(apiBaseUrl?: string) {
+  const base = apiBaseUrl?.replace(/\/$/, "") ?? "https://api.skillist.dev";
   return {
     name: "skillist-registry",
     version: "1.0.0",
     description: "Public Skillist agent skills registry MCP server",
     endpoint: "/mcp",
     transport: "streamable-http",
+    protocolVersion: "2024-11-05",
+    oauth: {
+      authorizationServer: `${base}/.well-known/oauth-authorization-server`,
+      protectedResource: `${base}/.well-known/oauth-protected-resource`,
+      loginPage: "https://skillist.dev/login",
+    },
+    session: {
+      header: "Mcp-Session-Id",
+      sseAccept: "text/event-stream",
+    },
     tools: REGISTRY_MCP_TOOLS.map((t) => t.name),
     docs: "https://skillist.dev",
   };

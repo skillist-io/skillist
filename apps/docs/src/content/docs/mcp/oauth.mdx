@@ -1,0 +1,57 @@
+---
+title: OAuth authentication
+description: Skillist uses the Better Auth MCP plugin so OAuth-capable MCP clients can sign in with your Skillist account.
+---
+
+Skillist acts as an OAuth provider for MCP clients using the [Better Auth MCP plugin](https://better-auth.com/docs/plugins/mcp). This lets Cursor and other OAuth-aware clients obtain Bearer tokens tied to your Skillist user.
+
+## Discovery URLs
+
+MCP clients discover authorization metadata from the API origin:
+
+| Document | URL |
+|----------|-----|
+| Protected resource | `https://api.skillist.dev/.well-known/oauth-protected-resource` |
+| Authorization server | `https://api.skillist.dev/.well-known/oauth-authorization-server` |
+
+Better Auth also serves metadata under `/api/auth/.well-known/…` for clients that follow the auth server path.
+
+## Sign-in flow
+
+1. Your MCP client reads `WWW-Authenticate` from an MCP response (or fetches protected-resource metadata).
+2. The client opens the OAuth authorization URL.
+3. You sign in at **[skillist.dev/login](https://skillist.dev/login)** (GitHub, Google, magic link, or email OTP).
+4. The client receives an access token and sends `Authorization: Bearer <token>` on subsequent MCP requests.
+
+## Public vs authenticated access
+
+| Access | Registry read tools |
+|--------|---------------------|
+| No token | Allowed — `registry_search`, `registry_get_skill`, `registry_facets`, `registry_install_help` |
+| Bearer token | Same tools, session tied to your user ID for future authenticated tools |
+
+Registry MCP advertises OAuth via the `WWW-Authenticate` header on all responses so clients can upgrade to an authenticated session when needed.
+
+## Scopes
+
+Default OIDC scopes: `openid`, `profile`, `email`, `offline_access`.
+
+## Local development
+
+When running the API locally (`http://localhost:8787`):
+
+| Setting | Value |
+|---------|-------|
+| MCP endpoint | `http://localhost:8787/mcp` |
+| Auth server | `http://localhost:8787/api/auth` |
+| Login page | `http://localhost:5173/login` |
+
+Run `pnpm dev:api` and `pnpm dev:web` together for end-to-end OAuth testing.
+
+## Implementation notes
+
+- OAuth tables: `oauth_application`, `oauth_access_token`, `oauth_consent` (Better Auth OIDC schema)
+- Token verification: `GET /api/auth/mcp/get-session` with Bearer token
+- MCP transport: streamable HTTP with optional `Mcp-Session-Id` (separate from OAuth access tokens)
+
+For platform developers, see the API source under `apps/api/src/mcp/` and `packages/auth/`.

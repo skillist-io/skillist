@@ -18,6 +18,7 @@
     "@skillist/contracts": "workspace:*",
     "@skillist/db": "workspace:*",
     "@skillist/skill-format": "workspace:*",
+    "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.30",
     "postgres": "^3.4.9",

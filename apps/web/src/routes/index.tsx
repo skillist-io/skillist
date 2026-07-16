@@ -53,7 +53,14 @@ function HomePage() {
             />
             <p className="text-sm text-muted-foreground">
               Tools: registry_search, registry_get_skill, registry_facets,
-              registry_install_help.{" "}
+              registry_install_help. Streamable HTTP with OAuth via{" "}
+              <a
+                href="https://docs.skillist.dev/mcp/connect/"
+                className="text-primary underline"
+              >
+                docs
+              </a>
+              .{" "}
               <a href="https://api.skillist.dev/mcp" className="text-primary underline">
                 Server info
               </a>

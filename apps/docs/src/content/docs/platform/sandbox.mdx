@@ -1,0 +1,39 @@
+---
+title: Sandbox execution
+description: Run skill scripts in isolated Cloudflare sandboxes with streaming output and quotas.
+---
+
+Skills can declare hosted scripts in `plugin.json` with runtime `sandbox` or `container`. Skillist runs these in isolated Cloudflare Sandboxes on the API worker.
+
+## Requirements
+
+- Signed-in Skillist account
+- Skill visibility that permits your org membership (public skills allow any authenticated user to run)
+
+Anonymous sandbox runs return **401 Unauthorized**.
+
+## CLI
+
+```bash
+skillist run skillist/web-perf-audit --script scripts/audit
+```
+
+## Web UI
+
+Skill detail pages include a **Run** card when the skill has sandbox scripts. Sign in to enable the run button.
+
+## API
+
+```
+POST /v1/skills/{org}/{slug}/runs
+```
+
+Requires session auth. See [API docs](https://api.skillist.dev/docs) for request body and streaming responses.
+
+## Output
+
+Runs stream stdout/stderr over SSE. History is available in the dashboard for authenticated users.
+
+## Policy
+
+Org admins can configure execution policy (quotas, allowed runtimes) in governance settings.
