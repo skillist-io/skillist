@@ -1,0 +1,19 @@
+{
+  "name": "registry-mcp",
+  "version": "1.0.0",
+  "description": "Discover and install skills via the Skillist registry MCP server",
+  "skills": ["SKILL.md"],
+  "agents": ["cursor", "claude", "vscode", "mcp"],
+  "rules": [
+    "Use registry_search before recommending skills",
+    "Always include skillist install command in recommendations"
+  ],
+  "mcp": {
+    "servers": [
+      {
+        "name": "skillist-registry",
+        "url": "https://api.skillist.dev/mcp"
+      }
+    ]
+  }
+}

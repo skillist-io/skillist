@@ -61,6 +61,7 @@ const SKILL_LEVELS: Record<string, string> = {
   "docs-writer": "1.0.0",
   "test-generator": "1.0.0",
   "stripe-integration": "1.0.0",
+  "registry-mcp": "1.0.0",
 };
 
 async function walkBundle(dir: string): Promise<Map<string, string>> {
