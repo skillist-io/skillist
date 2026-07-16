@@ -15,12 +15,25 @@ import { governanceRoutes } from "./routes/governance";
 import { executionRoutes } from "./routes/execution";
 import { rateLimit } from "./lib/rate-limit";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
+import { handleMcpRequest } from "./mcp/handler";
+import { mcpServerInfo } from "./mcp/registry-server";
 
 export { SkillRealtimeHub };
 export { Sandbox } from "@cloudflare/sandbox";
 export { SandboxHeavy } from "./durable-objects/sandbox-heavy";
 
 const app = new OpenAPIHono<{ Bindings: Env }>();
+
+app.use(
+  "/mcp",
+  cors({
+    origin: "*",
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Accept"],
+  }),
+);
+app.all("/mcp", handleMcpRequest);
+app.options("/mcp", (c) => c.body(null, 204));
 
 app.use(
   "*",
@@ -42,6 +55,7 @@ app.get("/health", (c) =>
     status: "ok",
     service: "skillist-api",
     ts: Date.now(),
+    mcp: mcpServerInfo(),
     auth: {
       github: Boolean(c.env.GITHUB_CLIENT_ID && c.env.GITHUB_CLIENT_SECRET),
       google: Boolean(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET),

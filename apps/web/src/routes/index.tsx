@@ -38,6 +38,31 @@ function HomePage() {
       </section>
 
       <section className="mx-auto max-w-xl space-y-3">
+        <h2 className="text-center text-lg font-semibold">Registry MCP</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Connect via MCP</CardTitle>
+            <CardDescription>
+              Search and install skills from any MCP-compatible agent
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <InstallSnippet
+              command='{ "mcpServers": { "skillist-registry": { "url": "https://api.skillist.dev/mcp" } } }'
+              prefix="Cursor .cursor/mcp.json"
+            />
+            <p className="text-sm text-muted-foreground">
+              Tools: registry_search, registry_get_skill, registry_facets,
+              registry_install_help.{" "}
+              <a href="https://api.skillist.dev/mcp" className="text-primary underline">
+                Server info
+              </a>
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mx-auto max-w-xl space-y-3">
         <h2 className="text-center text-lg font-semibold">Quick start</h2>
         <Card>
           <CardContent className="space-y-3 pt-6">

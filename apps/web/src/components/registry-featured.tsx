@@ -10,6 +10,11 @@ import { PublicEvalBadge } from "@/components/public-eval-badge";
 const FEATURED = [
   {
     org: "skillist",
+    slug: "registry-mcp",
+    pitch: "Search and install skills via MCP — connect to api.skillist.dev/mcp.",
+  },
+  {
+    org: "skillist",
     slug: "web-perf-audit",
     pitch: "Run Lighthouse-style audits in a hosted sandbox with streaming output.",
   },
