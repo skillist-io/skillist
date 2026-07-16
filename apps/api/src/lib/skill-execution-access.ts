@@ -17,6 +17,7 @@ export async function assertSkillRunAccess(
   auth: AuthContext,
   _org: typeof organizations.$inferSelect,
   skill: typeof skills.$inferSelect,
+  mode: "run" | "view" = "run",
 ): Promise<SkillRunAccess> {
   if (!skill.latestPublishedVersionId) {
     return { ok: false, status: 404 };
@@ -39,12 +40,15 @@ export async function assertSkillRunAccess(
         isAnonymous: false,
       };
     }
-    return {
-      ok: true,
-      actorId: null,
-      actorType: "system",
-      isAnonymous: true,
-    };
+    if (mode === "view") {
+      return {
+        ok: true,
+        actorId: null,
+        actorType: "system",
+        isAnonymous: true,
+      };
+    }
+    return { ok: false, status: 401 };
   }
 
   const access = await requireOrgAccess(db, skill.orgId, auth, "viewer", {
