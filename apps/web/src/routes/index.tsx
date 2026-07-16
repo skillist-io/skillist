@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RegistryTrending } from "@/components/registry-trending";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -37,16 +38,16 @@ function HomePage() {
       <section className="grid gap-4 sm:grid-cols-3">
         {[
           {
-            title: "Version & publish",
-            desc: "Immutable version history with SKILL.md cached at the edge.",
+            title: "Hosted execution",
+            desc: "Run skill scripts in isolated sandboxes with streaming output and quotas.",
           },
           {
-            title: "Realtime delivery",
-            desc: "WebSocket and SSE fan-out when skills publish.",
+            title: "Evals & observability",
+            desc: "Measure skill uplift, track regression across versions, and monitor runs.",
           },
           {
-            title: "AI improvements",
-            desc: "Human and agent feedback with approval workflows and AI suggestions.",
+            title: "Registry discovery",
+            desc: "Search by tags, agents, runtime, and trending — install via CLI.",
           },
         ].map((f) => (
           <Card key={f.title}>
@@ -56,6 +57,16 @@ function HomePage() {
             </CardHeader>
           </Card>
         ))}
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold">Trending skills</h2>
+          <Button variant="outline" asChild>
+            <Link to="/registry">View all</Link>
+          </Button>
+        </div>
+        <RegistryTrending />
       </section>
     </div>
   );

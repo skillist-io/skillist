@@ -38,7 +38,15 @@ app.use("/v1/*", rateLimit());
 app.use("/v1/*", authMiddleware);
 
 app.get("/health", (c) =>
-  c.json({ status: "ok", service: "skillist-api", ts: Date.now() }),
+  c.json({
+    status: "ok",
+    service: "skillist-api",
+    ts: Date.now(),
+    auth: {
+      github: Boolean(c.env.GITHUB_CLIENT_ID && c.env.GITHUB_CLIENT_SECRET),
+      google: Boolean(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET),
+    },
+  }),
 );
 
 // Better Auth handler
