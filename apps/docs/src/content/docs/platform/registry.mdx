@@ -3,32 +3,54 @@ title: Registry
 description: Browse, search, and install public agent skills from skillist.dev.
 ---
 
+import { DocAlert } from "@/components/docs/DocAlert";
+import { SectionHeading } from "@/components/docs/SectionHeading";
+
 The Skillist registry lists public skills published by organizations. Each entry includes quality scores, eval uplift, compatible agents, tags, and install commands.
 
 ## Web UI
 
-Browse at [skillist.dev/registry](https://skillist.dev/registry). Skill detail pages show eval history, MCP server config (when declared in `plugin.json`), and install snippets.
+Browse at [skillist.dev/registry](https://skillist.dev/registry).
+
+Skill **detail pages** use GitHub-style URLs:
+
+```
+https://skillist.dev/{org}/{repo}
+```
+
+Example: [skillist.dev/skillist/web-perf-audit](https://skillist.dev/skillist/web-perf-audit)
+
+Detail pages show eval history, MCP server config (when declared in `plugin.json`), install snippets, and a **Run** card for skills with hosted scripts.
+
+See [Delivery URLs](/platform/delivery/) for SKILL.md, meta, and bundle paths.
 
 ## REST API
 
 ```
 GET https://api.skillist.dev/v1/registry
-GET https://api.skillist.dev/v1/registry/{org}/{slug}
+GET https://api.skillist.dev/v1/registry/{org}/{repo}
+GET https://api.skillist.dev/v1/registry/facets
 ```
 
-OpenAPI reference: [api.skillist.dev/docs](https://api.skillist.dev/docs)
+Additional routes support stars, analytics, and subscriptions per skill. OpenAPI reference: [api.skillist.dev/docs](https://api.skillist.dev/docs)
+
+<DocAlert title="org/repo naming" client:load>
+  Public skills are identified by **org** (organization slug) and **repo** (skill repo name). CLI and MCP use the same `org/repo` form.
+</DocAlert>
 
 ## MCP API
 
-For in-agent discovery, use [Registry MCP](/mcp/) at `https://api.skillist.dev/mcp`.
+For in-agent discovery, use [Registry MCP](/mcp/) at `https://api.skillist.dev/mcp`. Tools accept `org` and `repo` parameters and return apex delivery URLs in install help responses.
 
 ## Publishing
 
 1. Create an organization on Skillist
 2. Author a skill with `SKILL.md` and `plugin.json` per [agentskills.io](https://agentskills.io/home)
-3. Publish via dashboard or `skillist publish`
+3. Publish via dashboard or `skillist publish <org>/<repo> <dir>`
 4. Set visibility to `public` for registry listing
+
+After publish, delivery is available at `skillist.dev/{org}/{repo}/SKILL.md` with sub-10ms KV reads at the edge.
 
 ## Featured skills
 
-See [skillist.dev](https://skillist.dev) for curated picks and the `registry-mcp` demo skill.
+See [skillist.dev](https://skillist.dev) for curated picks and the [`skillist/registry-mcp`](https://skillist.dev/skillist/registry-mcp) demo skill.

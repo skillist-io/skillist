@@ -65,7 +65,9 @@ export default defineConfig({
         {
           label: "Platform",
           items: [
+            { label: "Delivery URLs", slug: "platform/delivery" },
             { label: "Registry", slug: "platform/registry" },
+            { label: "Skill inventory", slug: "platform/inventory" },
             { label: "Authentication", slug: "platform/authentication" },
             { label: "Sandbox execution", slug: "platform/sandbox" },
           ],

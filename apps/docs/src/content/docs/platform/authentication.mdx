@@ -16,7 +16,7 @@ Skillist uses [Better Auth](https://better-auth.com/) for passwordless authentic
 
 ## API auth
 
-Session cookies are used by the web app. The CLI and API keys use Bearer tokens after `skillist login`.
+Session cookies are used by the web app. Production sessions use cross-subdomain cookies on `.skillist.dev` so `skillist.dev` and `api.skillist.dev` share the same session. The CLI and API keys use Bearer tokens after `skillist login`.
 
 Protected API routes live under `/v1/*` and require a valid session or org API key.
 
