@@ -199,4 +199,24 @@ export type Feedback = {
   suggestedPatch: string | null;
   status: string;
   createdAt: string;
+  aiJob?: {
+    id: string;
+    status: string;
+    resultDraftVersionId: string | null;
+    error: string | null;
+    completedAt: string | null;
+    draftSemver: string | null;
+  } | null;
+};
+
+export type SkillInventoryItem = {
+  id: string;
+  orgId: string;
+  repoFullName: string;
+  filePath: string;
+  skillSlug: string | null;
+  managed: boolean;
+  registryOrgSlug: string | null;
+  registrySkillSlug: string | null;
+  scannedAt: string;
 };

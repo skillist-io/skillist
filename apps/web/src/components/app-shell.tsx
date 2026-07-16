@@ -29,6 +29,10 @@ function useBreadcrumbs() {
     return [{ label: "Settings", href: "/settings", current: true }];
   }
 
+  if (segments[0] === "inventory") {
+    return [{ label: "Inventory", href: "/inventory", current: true }];
+  }
+
   if (segments[0] === "observability") {
     return [{ label: "Observability", href: "/observability", current: true }];
   }

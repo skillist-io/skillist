@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readdir, readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { join, relative, dirname } from "node:path";
-import { validateSkillBundle } from "@skillist/skill-format";
+import { validateSkillBundle, type SemverBump } from "@skillist/skill-format";
 
 const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.dev";
 const API_KEY = process.env.SKILLIST_API_KEY;
@@ -30,7 +30,9 @@ Usage:
   skillist install <org>/<skill> [-o dir]  Download and record in lockfile
   skillist pull <org>/<skill> [-o dir]     Download published skill bundle
   skillist push <org>/<skill> <dir>        Upload local skill as new draft
+                                              [--bump major|minor|patch]
   skillist publish <org>/<skill> <dir>       Push + publish to registry
+                                              [--bump major|minor|patch]
   skillist run <org>/<skill> --script <path>   Run script in hosted sandbox
                                               [--url <url>] [--stream] [-- ...args]
   skillist eval <org>/<skill>                 Queue skill eval on latest draft
@@ -214,7 +216,8 @@ async function pushDraft(
   org: string,
   skill: string,
   dir: string,
-): Promise<{ versionId: string; orgId: string }> {
+  bump: SemverBump = "patch",
+): Promise<{ versionId: string; orgId: string; semver: string }> {
   const fileMap = await readLocalBundle(dir);
   const files = Object.fromEntries(fileMap);
   const bundle = new Map(Object.entries(files));
@@ -228,7 +231,11 @@ async function pushDraft(
   const orgId = await resolveOrgId(org);
 
   const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${skill}/versions`);
-  const versions = (await versionsRes.json()) as { id: string; status: string }[];
+  const versions = (await versionsRes.json()) as {
+    id: string;
+    status: string;
+    semver: string;
+  }[];
   const latest = versions.find((v) => v.status === "draft") ?? versions[0];
 
   const uploadRes = await apiFetch(`/v1/orgs/${orgId}/skills/${skill}/versions`, {
@@ -237,24 +244,32 @@ async function pushDraft(
     body: JSON.stringify({
       files,
       parentVersionId: latest?.id,
+      bump,
     }),
   });
-  const uploaded = (await uploadRes.json()) as { id: string };
+  const uploaded = (await uploadRes.json()) as { id: string; semver: string };
 
-  return { versionId: uploaded.id, orgId };
+  return { versionId: uploaded.id, orgId, semver: uploaded.semver };
+}
+
+function parseBumpFlag(): SemverBump {
+  const idx = process.argv.indexOf("--bump");
+  const value = idx >= 0 ? process.argv[idx + 1] : "patch";
+  if (value === "major" || value === "minor" || value === "patch") return value;
+  throw new Error(`Invalid --bump value "${value}" — use major, minor, or patch`);
 }
 
 async function push(ref: string, dir: string) {
   if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for push");
   const { org, skill } = parseRef(ref);
-  await pushDraft(org, skill, dir);
-  console.log(`Pushed ${relative(process.cwd(), dir)} → ${org}/${skill}`);
+  const { semver } = await pushDraft(org, skill, dir, parseBumpFlag());
+  console.log(`Pushed ${relative(process.cwd(), dir)} → ${org}/${skill} v${semver}`);
 }
 
 async function publish(ref: string, dir: string) {
   if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for publish");
   const { org, skill } = parseRef(ref);
-  const { versionId, orgId } = await pushDraft(org, skill, dir);
+  const { versionId, orgId, semver } = await pushDraft(org, skill, dir, parseBumpFlag());
 
   const pubRes = await apiFetch(
     `/v1/orgs/${orgId}/skills/${skill}/versions/${versionId}/publish`,
@@ -268,7 +283,7 @@ async function publish(ref: string, dir: string) {
   };
 
   console.log(
-    `Published ${org}/${skill} v${result.version} — Q${result.qualityScore} I${result.impactScore} security:${result.securityStatus}`,
+    `Published ${org}/${skill} v${result.version} (draft v${semver}) — Q${result.qualityScore} I${result.impactScore} security:${result.securityStatus}`,
   );
 }
 

@@ -233,6 +233,11 @@ export function extractAgentDiscovery(
 }
 
 export {
+  bumpSemver,
+  resolveNextSemver,
+  type SemverBump,
+} from "./semver.js";
+export {
   reviewSkillBundle,
   estimateImpactScore,
   type ReviewCheck,

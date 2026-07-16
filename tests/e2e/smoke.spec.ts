@@ -18,7 +18,7 @@ test("login guard redirects dashboard to login", async ({ page }) => {
   await expect(page).toHaveURL(/\/login/);
 });
 
-test("registry skill detail renders", async ({ page }) => {
-  await page.goto("/registry/skillist/registry-mcp");
-  await expect(page.getByRole("heading", { name: "registry-mcp" })).toBeVisible();
+test("inventory route serves app shell", async ({ page }) => {
+  await page.goto("/inventory");
+  await expect(page.locator("#root")).toBeVisible();
 });

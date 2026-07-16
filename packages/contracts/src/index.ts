@@ -59,6 +59,7 @@ export const createSkillSchema = z.object({
 export const uploadVersionSchema = z.object({
   files: z.record(z.string(), z.string()),
   semver: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
+  bump: z.enum(["major", "minor", "patch"]).optional(),
   parentVersionId: z.string().uuid().optional(),
 });
 

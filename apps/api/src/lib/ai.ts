@@ -16,6 +16,7 @@ import {
   parsePluginManifest,
   extractRegistryDiscovery,
   extractAgentDiscovery,
+  bumpSemver,
 } from "@skillist/skill-format";
 import {
   downloadBundleFromR2,
@@ -123,7 +124,7 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
     id: versionId,
     skillId: skill.id,
     status: "draft",
-    semver: bumpPatch(version.semver),
+    semver: bumpSemver(version.semver, "patch"),
     r2Prefix: prefix,
     parentVersionId: version.id,
     createdBy: job.submittedBy,
@@ -147,12 +148,6 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
       completedAt: new Date(),
     })
     .where(eq(aiJobs.id, jobId));
-}
-
-function bumpPatch(semver: string): string {
-  const parts = semver.split(".").map(Number);
-  parts[2] = (parts[2] ?? 0) + 1;
-  return parts.join(".");
 }
 
 export async function publishVersion(

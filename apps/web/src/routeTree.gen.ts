@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ObservabilityRouteImport } from './routes/observability'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
@@ -32,6 +33,11 @@ const ObservabilityRoute = ObservabilityRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GovernanceRoute = GovernanceRouteImport.update({
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/governance'
+    | '/inventory'
     | '/login'
     | '/observability'
     | '/settings'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/governance'
+    | '/inventory'
     | '/login'
     | '/observability'
     | '/settings'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/governance'
+    | '/inventory'
     | '/login'
     | '/observability'
     | '/settings'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   GovernanceRoute: typeof GovernanceRoute
+  InventoryRoute: typeof InventoryRoute
   LoginRoute: typeof LoginRoute
   ObservabilityRoute: typeof ObservabilityRoute
   SettingsRoute: typeof SettingsRoute
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/governance': {
@@ -219,6 +239,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   GovernanceRoute: GovernanceRoute,
+  InventoryRoute: InventoryRoute,
   LoginRoute: LoginRoute,
   ObservabilityRoute: ObservabilityRoute,
   SettingsRoute: SettingsRoute,

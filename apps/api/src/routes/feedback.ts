@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   approveFeedbackSchema,
   rejectFeedbackSchema,
@@ -11,6 +11,7 @@ import {
   approvals,
   feedback,
   skills,
+  skillVersions,
 } from "@skillist/db/schema";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
@@ -118,8 +119,47 @@ feedbackRoutes.openapi(listFeedbackRoute, async (c) => {
       status
         ? and(eq(feedback.skillId, skill.id), eq(feedback.status, status))
         : eq(feedback.skillId, skill.id),
-    );
-  return c.json(rows, 200);
+    )
+    .orderBy(desc(feedback.createdAt));
+
+  const enriched = await Promise.all(
+    rows.map(async (row) => {
+      const [job] = await c.var.db
+        .select({
+          id: aiJobs.id,
+          status: aiJobs.status,
+          resultDraftVersionId: aiJobs.resultDraftVersionId,
+          error: aiJobs.error,
+          completedAt: aiJobs.completedAt,
+        })
+        .from(aiJobs)
+        .where(eq(aiJobs.feedbackId, row.id))
+        .orderBy(desc(aiJobs.createdAt))
+        .limit(1);
+
+      let draftSemver: string | null = null;
+      if (job?.resultDraftVersionId) {
+        const [draft] = await c.var.db
+          .select({ semver: skillVersions.semver })
+          .from(skillVersions)
+          .where(eq(skillVersions.id, job.resultDraftVersionId))
+          .limit(1);
+        draftSemver = draft?.semver ?? null;
+      }
+
+      return {
+        ...row,
+        aiJob: job
+          ? {
+              ...job,
+              draftSemver,
+            }
+          : null,
+      };
+    }),
+  );
+
+  return c.json(enriched, 200);
 });
 
 const approveRoute = createRoute({

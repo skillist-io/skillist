@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type SkillVersion, type Feedback, type Org, type ReviewPreview, type SkillEval, type PublishPolicy } from "@/lib/api";
+import { api, type SkillVersion, type Org, type ReviewPreview, type SkillEval, type PublishPolicy } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { diffLines, diffStats } from "@/lib/diff";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,19 @@ import { SkillRunCard } from "@/components/skill-run-card";
 import { SkillRunHistory } from "@/components/skill-run-history";
 import { SkillEvalPanel } from "@/components/skill-eval-panel";
 import { SkillEvalRegression } from "@/components/skill-eval-regression";
+import { FeedbackInbox } from "@/components/feedback-inbox";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { useState, useEffect, useMemo } from "react";
+
+type SemverBump = "patch" | "minor" | "major";
+
+function previewNextSemver(base: string | undefined, bump: SemverBump): string {
+  if (!base) return "0.1.0";
+  const [major = 0, minor = 0, patch = 0] = base.split(".").map(Number);
+  if (bump === "major") return `${major + 1}.0.0`;
+  if (bump === "minor") return `${major}.${minor + 1}.0`;
+  return `${major}.${minor}.${patch + 1}`;
+}
 
 export const Route = createFileRoute("/orgs/$orgId/skills/$slug")({
   beforeLoad: () => requireAuth(),
@@ -26,6 +37,7 @@ function SkillEditorPage() {
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [feedbackBody, setFeedbackBody] = useState("");
+  const [versionBump, setVersionBump] = useState<SemverBump>("patch");
   const [compareVersionId, setCompareVersionId] = useState<string | null>(null);
   const { data: orgs } = useQuery({
     queryKey: ["orgs"],
@@ -152,6 +164,7 @@ function SkillEditorPage() {
         body: JSON.stringify({
           files: { ...files?.files, "SKILL.md": content },
           parentVersionId: latestDraft?.id,
+          bump: versionBump,
         }),
       }),
     onSuccess: () => {
@@ -175,8 +188,10 @@ function SkillEditorPage() {
       api(`/v1/orgs/${orgId}/skills/${slug}/versions/${versionId}/publish`, {
         method: "POST",
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] });
+      queryClient.invalidateQueries({ queryKey: ["evals", orgId, slug] });
+    },
   });
 
   const rollback = useMutation({
@@ -194,12 +209,6 @@ function SkillEditorPage() {
         method: "PATCH",
         body: JSON.stringify({ visibility: "public" }),
       }),
-  });
-
-  const { data: feedbackList } = useQuery({
-    queryKey: ["feedback", orgId, slug],
-    queryFn: () =>
-      api<Feedback[]>(`/v1/orgs/${orgId}/skills/${slug}/feedback`),
   });
 
   const submitFeedback = useMutation({
@@ -227,21 +236,42 @@ function SkillEditorPage() {
       queryClient.invalidateQueries({ queryKey: ["feedback", orgId, slug] }),
   });
 
+  const nextDraftSemver = previewNextSemver(
+    latestDraft?.semver ?? publishedVersion?.semver,
+    versionBump,
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{slug}</h1>
           <p className="text-sm text-muted-foreground">
             {connected ? "Realtime connected" : "Realtime disconnected"}
+            {latestDraft ? ` · draft v${latestDraft.semver}` : ""}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="version-bump" className="text-xs">
+              Next version
+            </Label>
+            <select
+              id="version-bump"
+              className="rounded-md border bg-background px-2 py-1.5 text-sm"
+              value={versionBump}
+              onChange={(e) => setVersionBump(e.target.value as SemverBump)}
+            >
+              <option value="patch">Patch → v{previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "patch")}</option>
+              <option value="minor">Minor → v{previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "minor")}</option>
+              <option value="major">Major → v{previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "major")}</option>
+            </select>
+          </div>
           <Button variant="outline" onClick={() => setPublic.mutate()}>
             Make public
           </Button>
           <Button onClick={() => saveVersion.mutate()} disabled={saveVersion.isPending}>
-            Save draft
+            Save v{nextDraftSemver}
           </Button>
           {latestDraft && (
             <Button
@@ -408,47 +438,21 @@ function SkillEditorPage() {
             </Card>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Feedback inbox</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label>Submit feedback</Label>
-                <Textarea
-                  value={feedbackBody}
-                  onChange={(e) => setFeedbackBody(e.target.value)}
-                  placeholder="Suggest an improvement..."
-                />
-                <Button
-                  className="mt-2"
-                  size="sm"
-                  onClick={() => submitFeedback.mutate()}
-                  disabled={!feedbackBody || !latestDraft}
-                >
-                  Submit
-                </Button>
-              </div>
-              {feedbackList?.map((f) => (
-                <div key={f.id} className="rounded border p-3 text-sm">
-                  <div className="mb-1 flex justify-between">
-                    <Badge>{f.source}</Badge>
-                    <Badge>{f.status}</Badge>
-                  </div>
-                  <p>{f.body}</p>
-                  {f.status === "pending" && (
-                    <Button
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => approveFeedback.mutate(f.id)}
-                    >
-                      Approve + AI suggest
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          <FeedbackInbox
+            orgId={orgId}
+            slug={slug}
+            latestDraftId={latestDraft?.id}
+            editorContent={content}
+            feedbackBody={feedbackBody}
+            onFeedbackBodyChange={setFeedbackBody}
+            onSubmit={() => submitFeedback.mutate()}
+            onApprove={(id) => approveFeedback.mutate(id)}
+            onApplyDraft={(skillMd) => setContent(skillMd)}
+            onPublishDraft={(versionId) => publish.mutate(versionId)}
+            isSubmitting={submitFeedback.isPending}
+            isApproving={approveFeedback.isPending}
+            isPublishing={publish.isPending}
+          />
         </div>
       </div>
     </div>
