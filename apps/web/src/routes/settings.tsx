@@ -314,14 +314,14 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         events: number;
         installs: number;
         activations: number;
-        bySkill: { skillSlug: string; installCount: number; activationCount: number }[];
+        bySkill: { skillRepo: string; installCount: number; activationCount: number }[];
       }>(`/v1/orgs/${orgId}/telemetry`),
   });
 
   const { data: requiredData } = useQuery({
     queryKey: ["required-skills", orgId],
     queryFn: () =>
-      api<{ items: { id: string; orgSlug: string; skillSlug: string }[] }>(
+      api<{ items: { id: string; orgSlug: string; skillRepo: string }[] }>(
         `/v1/orgs/${orgId}/required-skills`,
       ),
   });
@@ -384,7 +384,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         method: "POST",
         body: JSON.stringify({
           orgSlug: requiredOrgSlug,
-          skillSlug: requiredSkillSlug,
+          skillRepo: requiredSkillSlug,
         }),
       }),
     onSuccess: () => {
@@ -552,7 +552,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
               className="flex items-center justify-between rounded border px-3 py-2 text-sm"
             >
               <span>
-                {item.orgSlug}/{item.skillSlug}
+                {item.orgSlug}/{item.skillRepo}
               </span>
               <Button
                 size="sm"
@@ -578,8 +578,8 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
             {telemetryData?.activations ?? 0} activations
           </p>
           {telemetryData?.bySkill?.map((s) => (
-            <div key={s.skillSlug} className="flex justify-between rounded border px-2 py-1">
-              <span>{s.skillSlug}</span>
+            <div key={s.skillRepo} className="flex justify-between rounded border px-2 py-1">
+              <span>{s.skillRepo}</span>
               <span className="text-muted-foreground">
                 {s.installCount} / {s.activationCount}
               </span>

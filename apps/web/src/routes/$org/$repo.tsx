@@ -1,9 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { apiUrl } from "@/lib/api-url";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type RegistryItem } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
 import { StarButton } from "@/components/registry-star-button";
@@ -21,42 +26,43 @@ type PluginManifest = {
   mcp?: { servers?: { name: string; url?: string }[] };
 };
 
-export const Route = createFileRoute("/registry/$org/$slug")({
-  component: RegistrySkillPage,
+export const Route = createFileRoute("/$org/$repo")({
+  component: SkillRepoPage,
 });
 
-function RegistrySkillPage() {
-  const { org, slug } = Route.useParams();
+function SkillRepoPage() {
+  const { org, repo } = Route.useParams();
   const queryClient = useQueryClient();
-  const { connected, lastEvent } = useSkillRealtime(org, slug);
+  const { connected, lastEvent } = useSkillRealtime(org, repo);
 
   const { data: entry } = useQuery({
-    queryKey: ["registry", org, slug],
-    queryFn: () => api<RegistryItem>(`/v1/registry/${org}/${slug}`),
+    queryKey: ["registry", org, repo],
+    queryFn: () => api<RegistryItem>(`/v1/registry/${org}/${repo}`),
   });
 
   const { data: scriptsData } = useQuery({
-    queryKey: ["scripts", org, slug],
+    queryKey: ["scripts", org, repo],
     queryFn: () =>
       api<{ runtime: string; scripts: string[] }>(
-        `/v1/skills/${org}/${slug}/scripts`,
+        `/${org}/${repo}/scripts`,
       ),
     enabled: entry?.runtime !== "local",
   });
 
   const { data: meta } = useQuery({
-    queryKey: ["skill-meta", org, slug, lastEvent?.etag],
-    queryFn: () => api<Record<string, unknown>>(`/v1/skills/${org}/${slug}/meta`),
+    queryKey: ["skill-meta", org, repo, lastEvent?.etag],
+    queryFn: () =>
+      api<Record<string, unknown>>(`/${org}/${repo}/meta`),
   });
 
   const subscribe = useMutation({
     mutationFn: () =>
-      api(`/v1/registry/${org}/${slug}/subscribe`, { method: "POST" }),
+      api(`/v1/registry/${org}/${repo}/subscribe`, { method: "POST" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["registry"] }),
   });
 
   const installCmd =
-    entry?.installCommand ?? `skillist install ${org}/${slug}`;
+    entry?.installCommand ?? `skillist install ${org}/${repo}`;
   const cliInstall = entry?.cliInstall ?? "npm install -g @skillist/cli";
   const scripts = scriptsData?.scripts ?? [];
   const manifest = entry?.pluginManifest as PluginManifest | null | undefined;
@@ -66,11 +72,9 @@ function RegistrySkillPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold">
-            {entry?.name ?? slug}
-          </h1>
+          <h1 className="text-2xl font-bold">{entry?.name ?? repo}</h1>
           <p className="text-muted-foreground">
-            {org}/{slug}
+            {org}/{repo}
           </p>
           <div className="flex flex-wrap gap-2">
             <ScoreBadges
@@ -106,12 +110,15 @@ function RegistrySkillPage() {
               <WifiOff className="h-3 w-3" /> Offline
             </Badge>
           )}
-          <Button onClick={() => subscribe.mutate()} disabled={subscribe.isPending}>
+          <Button
+            onClick={() => subscribe.mutate()}
+            disabled={subscribe.isPending}
+          >
             Subscribe
           </Button>
           <StarButton
             org={org}
-            slug={slug}
+            repo={repo}
             stars={entry?.stars ?? 0}
             starred={entry?.starred}
           />
@@ -130,14 +137,14 @@ function RegistrySkillPage() {
       {scripts.length > 0 && (
         <SkillRunCard
           org={org}
-          slug={slug}
+          repo={repo}
           scripts={scripts}
           defaultTargetUrl="https://skillist.dev"
         />
       )}
 
       {entry?.runtime && entry.runtime !== "local" && (
-        <SkillRunHistory org={org} slug={slug} />
+        <SkillRunHistory org={org} repo={repo} />
       )}
 
       <Card>
@@ -151,7 +158,7 @@ function RegistrySkillPage() {
           <InstallSnippet command={cliInstall} prefix="1. Install CLI" />
           <AgentInstallButtons
             org={org}
-            slug={slug}
+            repo={repo}
             agents={entry?.compatibleAgents}
             installCommand={installCmd}
           />
@@ -163,7 +170,7 @@ function RegistrySkillPage() {
         </CardContent>
       </Card>
 
-      <SkillAnalyticsChart org={org} slug={slug} />
+      <SkillAnalyticsChart org={org} repo={repo} />
 
       {mcpServers.length > 0 && (
         <Card>
@@ -243,7 +250,7 @@ function RegistrySkillPage() {
             {(meta?.version as string) ?? entry?.latestVersion ?? "—"}
           </p>
           <a
-            href={apiUrl(`/v1/skills/${org}/${slug}/SKILL.md`)}
+            href={`/${org}/${repo}/SKILL.md`}
             className="text-primary hover:underline"
             target="_blank"
             rel="noreferrer"

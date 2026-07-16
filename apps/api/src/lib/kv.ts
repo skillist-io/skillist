@@ -1,17 +1,17 @@
-export function skillMetaKey(orgSlug: string, skillSlug: string) {
-  return `skill:${orgSlug}:${skillSlug}:meta`;
+export function skillMetaKey(orgSlug: string, skillRepo: string) {
+  return `skill:${orgSlug}:${skillRepo}:meta`;
 }
 
-export function skillMdKey(orgSlug: string, skillSlug: string) {
-  return `skill:${orgSlug}:${skillSlug}:latest`;
+export function skillMdKey(orgSlug: string, skillRepo: string) {
+  return `skill:${orgSlug}:${skillRepo}:latest`;
 }
 
 export function skillVersionKey(
   orgSlug: string,
-  skillSlug: string,
+  skillRepo: string,
   version: string,
 ) {
-  return `skill:${orgSlug}:${skillSlug}:v:${version}`;
+  return `skill:${orgSlug}:${skillRepo}:v:${version}`;
 }
 
 export type SkillKvMeta = {
@@ -21,7 +21,7 @@ export type SkillKvMeta = {
   versionId: string;
   etag: string;
   org: string;
-  slug: string;
+  repo: string;
   publishedAt: string;
 };
 

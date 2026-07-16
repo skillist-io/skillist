@@ -110,13 +110,13 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
 
   const newBundle = new Map(bundle);
   newBundle.set("SKILL.md", improvedMd);
-  const validation = validateSkillBundle(newBundle, skill.slug);
+  const validation = validateSkillBundle(newBundle, skill.repo);
   if (!validation.valid) {
     throw new Error("AI output failed validation");
   }
 
   const versionId = crypto.randomUUID();
-  const prefix = r2Prefix(skill.orgId, skill.slug, versionId);
+  const prefix = r2Prefix(skill.orgId, skill.repo, versionId);
   await uploadBundleToR2(env.SKILLS_R2, prefix, newBundle);
 
   const fileEntries = [...newBundle.entries()];
@@ -193,14 +193,14 @@ export async function publishVersion(
     version.r2Prefix,
     paths,
   );
-  const validation = validateSkillBundle(bundle, skill.slug);
+  const validation = validateSkillBundle(bundle, skill.repo);
   if (!validation.valid) {
     throw new Error(
       validation.errors.map((e) => e.message).join("; "),
     );
   }
 
-  const review = reviewSkillBundle(bundle, skill.slug);
+  const review = reviewSkillBundle(bundle, skill.repo);
   const impactScore = estimateImpactScore(review);
   const security = scanSkillSecurity(bundle);
   const pluginRaw = bundle.get("plugin.json");
@@ -222,7 +222,7 @@ export async function publishVersion(
         skillId: skill.id,
         versionId,
         orgSlug: org.slug,
-        skillSlug: skill.slug,
+        skillRepo: skill.repo,
       });
       throw new Error(
         queued.created
@@ -261,7 +261,7 @@ export async function publishVersion(
   const etag = (await sha256(skillMd)).slice(0, 16);
   const publishedAt = new Date().toISOString();
 
-  await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.slug, {
+  await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
     skillMd,
     meta: {
       name: validation.frontmatter.name,
@@ -270,7 +270,7 @@ export async function publishVersion(
       versionId: version.id,
       etag,
       org: org.slug,
-      slug: skill.slug,
+      repo: skill.repo,
       publishedAt,
     },
   });
@@ -319,7 +319,7 @@ export async function publishVersion(
       .values({
         skillId: skill.id,
         orgSlug: org.slug,
-        skillSlug: skill.slug,
+        skillRepo: skill.repo,
         name: validation.frontmatter.name,
         description: validation.frontmatter.description,
         latestVersion: version.semver,
@@ -357,7 +357,7 @@ export async function publishVersion(
     resourceType: "skill",
     resourceId: skill.id,
     metadata: {
-      slug: skill.slug,
+      repo: skill.repo,
       version: version.semver,
       qualityScore: review.score,
       impactScore,
@@ -368,7 +368,7 @@ export async function publishVersion(
   const event = {
     type: "skill.published" as const,
     org: org.slug,
-    slug: skill.slug,
+    repo: skill.repo,
     version: version.semver,
     versionId: version.id,
     etag,
@@ -376,7 +376,7 @@ export async function publishVersion(
     skillMd: skillMd.length < 65536 ? skillMd : undefined,
   };
 
-  await broadcastPublish(env, org.slug, skill.slug, event);
+  await broadcastPublish(env, org.slug, skill.repo, event);
 
   return {
     etag,
@@ -436,12 +436,12 @@ export async function rollbackVersion(
     version.r2Prefix,
     paths,
   );
-  const validation = validateSkillBundle(bundle, skill.slug);
+  const validation = validateSkillBundle(bundle, skill.repo);
   if (!validation.valid) {
     throw new Error(validation.errors.map((e) => e.message).join("; "));
   }
 
-  const review = reviewSkillBundle(bundle, skill.slug);
+  const review = reviewSkillBundle(bundle, skill.repo);
   const impactScore = estimateImpactScore(review);
   const security = scanSkillSecurity(bundle);
   const pluginRaw = bundle.get("plugin.json");
@@ -459,7 +459,7 @@ export async function rollbackVersion(
   const etag = (await sha256(skillMd)).slice(0, 16);
   const publishedAt = new Date().toISOString();
 
-  await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.slug, {
+  await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
     skillMd,
     meta: {
       name: validation.frontmatter.name,
@@ -468,7 +468,7 @@ export async function rollbackVersion(
       versionId: version.id,
       etag,
       org: org.slug,
-      slug: skill.slug,
+      repo: skill.repo,
       publishedAt,
     },
   });
@@ -517,7 +517,7 @@ export async function rollbackVersion(
       .values({
         skillId: skill.id,
         orgSlug: org.slug,
-        skillSlug: skill.slug,
+        skillRepo: skill.repo,
         name: validation.frontmatter.name,
         description: validation.frontmatter.description,
         latestVersion: version.semver,
@@ -555,7 +555,7 @@ export async function rollbackVersion(
     resourceType: "skill",
     resourceId: skill.id,
     metadata: {
-      slug: skill.slug,
+      repo: skill.repo,
       version: version.semver,
       versionId: version.id,
     },
@@ -564,7 +564,7 @@ export async function rollbackVersion(
   const event = {
     type: "skill.published" as const,
     org: org.slug,
-    slug: skill.slug,
+    repo: skill.repo,
     version: version.semver,
     versionId: version.id,
     etag,
@@ -572,7 +572,7 @@ export async function rollbackVersion(
     skillMd: skillMd.length < 65536 ? skillMd : undefined,
   };
 
-  await broadcastPublish(env, org.slug, skill.slug, event);
+  await broadcastPublish(env, org.slug, skill.repo, event);
 
   return {
     etag,

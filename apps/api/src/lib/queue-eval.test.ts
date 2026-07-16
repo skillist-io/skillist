@@ -31,7 +31,7 @@ describe("queueSkillEval", () => {
       skillId: "skill-1",
       versionId: "version-1",
       orgSlug: "skillist",
-      skillSlug: "roll-dice",
+      skillRepo: "roll-dice",
     });
 
     expect(result).toEqual({

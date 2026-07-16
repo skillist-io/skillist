@@ -32,7 +32,6 @@ import {
   listBundlePaths,
   downloadBundleFromR2,
 } from "../lib/r2";
-import { getPublishedSkillMd, getPublishedMeta } from "../lib/publish";
 import type { WorkerDb } from "../lib/db";
 
 type AppEnv = {
@@ -56,7 +55,7 @@ const createSkillRoute = createRoute({
         "application/json": {
           schema: z.object({
             id: z.string().uuid(),
-            slug: z.string(),
+            repo: z.string(),
             visibility: z.string(),
           }),
         },
@@ -73,9 +72,9 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
   const userId = access.actorId;
   const body = c.req.valid("json");
   const description =
-    body.description ?? `Agent skill: ${body.slug.replace(/-/g, " ")}`;
-  const bundle = createSkillTemplate(body.slug, description);
-  const validation = validateSkillBundle(bundle, body.slug);
+    body.description ?? `Agent skill: ${body.repo.replace(/-/g, " ")}`;
+  const bundle = createSkillTemplate(body.repo, description);
+  const validation = validateSkillBundle(bundle, body.repo);
   if (!validation.valid) {
     return c.json({ error: validation.errors }, 400);
   }
@@ -84,7 +83,7 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
     .insert(skills)
     .values({
       orgId,
-      slug: body.slug,
+      repo: body.repo,
       visibility: body.visibility,
       description,
     })
@@ -92,7 +91,7 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
   if (!skill) return c.json({ error: "Failed" }, 500);
 
   const versionId = crypto.randomUUID();
-  const prefix = r2Prefix(orgId, body.slug, versionId);
+  const prefix = r2Prefix(orgId, body.repo, versionId);
   await uploadBundleToR2(c.env.SKILLS_R2, prefix, bundle);
 
   await c.var.db.insert(skillVersions).values({
@@ -113,7 +112,7 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
   });
 
   return c.json(
-    { id: skill.id, slug: skill.slug, visibility: skill.visibility },
+    { id: skill.id, repo: skill.repo, visibility: skill.visibility },
     201,
   );
 });
@@ -130,7 +129,7 @@ const listSkillsRoute = createRoute({
           schema: z.array(
             z.object({
               id: z.string().uuid(),
-              slug: z.string(),
+              repo: z.string(),
               visibility: z.string(),
               description: z.string().nullable(),
             }),
@@ -157,12 +156,12 @@ skillRoutes.openapi(listSkillsRoute, async (c) => {
 
 const uploadVersionRoute = createRoute({
   method: "put",
-  path: "/orgs/{orgId}/skills/{slug}/versions",
+  path: "/orgs/{orgId}/skills/{repo}/versions",
   tags: ["Skills"],
   request: {
     params: z.object({
       orgId: z.string().uuid(),
-      slug: z.string(),
+      repo: z.string(),
     }),
     body: {
       content: { "application/json": { schema: uploadVersionSchema } },
@@ -185,7 +184,7 @@ const uploadVersionRoute = createRoute({
 });
 
 skillRoutes.openapi(uploadVersionRoute, async (c) => {
-  const { orgId, slug } = c.req.valid("param");
+  const { orgId, repo } = c.req.valid("param");
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor", {
     apiKeyScope: "skills:write",
   });
@@ -195,19 +194,19 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Skill not found" }, 404);
 
   const body = c.req.valid("json");
   const bundle = objectToBundle(body.files);
-  const validation = validateSkillBundle(bundle, slug);
+  const validation = validateSkillBundle(bundle, repo);
   if (!validation.valid) {
     return c.json({ error: validation.errors }, 400);
   }
 
   const versionId = crypto.randomUUID();
-  const prefix = r2Prefix(orgId, slug, versionId);
+  const prefix = r2Prefix(orgId, repo, versionId);
   await uploadBundleToR2(c.env.SKILLS_R2, prefix, bundle);
 
   const parentVersion = body.parentVersionId
@@ -258,7 +257,7 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
     skillId: skill.id,
     versionId,
     orgSlug: org?.slug ?? orgId,
-    skillSlug: slug,
+    skillRepo: repo,
   });
 
   return c.json(
@@ -274,16 +273,16 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
 
 const listVersionsRoute = createRoute({
   method: "get",
-  path: "/orgs/{orgId}/skills/{slug}/versions",
+  path: "/orgs/{orgId}/skills/{repo}/versions",
   tags: ["Skills"],
   request: {
-    params: z.object({ orgId: z.string().uuid(), slug: z.string() }),
+    params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
   },
   responses: { 200: { description: "Version list" } },
 });
 
 skillRoutes.openapi(listVersionsRoute, async (c) => {
-  const { orgId, slug } = c.req.valid("param");
+  const { orgId, repo } = c.req.valid("param");
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer", {
     apiKeyScope: "skills:read",
   });
@@ -292,7 +291,7 @@ skillRoutes.openapi(listVersionsRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -305,12 +304,12 @@ skillRoutes.openapi(listVersionsRoute, async (c) => {
 
 const publishRoute = createRoute({
   method: "post",
-  path: "/orgs/{orgId}/skills/{slug}/versions/{versionId}/publish",
+  path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/publish",
   tags: ["Skills"],
   request: {
     params: z.object({
       orgId: z.string().uuid(),
-      slug: z.string(),
+      repo: z.string(),
       versionId: z.string().uuid(),
     }),
   },
@@ -333,7 +332,7 @@ const publishRoute = createRoute({
 });
 
 skillRoutes.openapi(publishRoute, async (c) => {
-  const { orgId, slug, versionId } = c.req.valid("param");
+  const { orgId, repo, versionId } = c.req.valid("param");
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor", {
     apiKeyScope: "skills:publish",
   });
@@ -343,7 +342,7 @@ skillRoutes.openapi(publishRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -367,12 +366,12 @@ skillRoutes.openapi(publishRoute, async (c) => {
 
 const rollbackRoute = createRoute({
   method: "post",
-  path: "/orgs/{orgId}/skills/{slug}/versions/{versionId}/rollback",
+  path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/rollback",
   tags: ["Skills"],
   request: {
     params: z.object({
       orgId: z.string().uuid(),
-      slug: z.string(),
+      repo: z.string(),
       versionId: z.string().uuid(),
     }),
   },
@@ -380,7 +379,7 @@ const rollbackRoute = createRoute({
 });
 
 skillRoutes.openapi(rollbackRoute, async (c) => {
-  const { orgId, slug, versionId } = c.req.valid("param");
+  const { orgId, repo, versionId } = c.req.valid("param");
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor", {
     apiKeyScope: "skills:publish",
   });
@@ -389,7 +388,7 @@ skillRoutes.openapi(rollbackRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -411,103 +410,14 @@ skillRoutes.openapi(rollbackRoute, async (c) => {
   }
 });
 
-const getSkillMdRoute = createRoute({
-  method: "get",
-  path: "/skills/{org}/{slug}/SKILL.md",
-  tags: ["Delivery"],
-  request: {
-    params: z.object({ org: z.string(), slug: z.string() }),
-  },
-  responses: { 200: { description: "SKILL.md content" } },
-});
-
-skillRoutes.openapi(getSkillMdRoute, async (c) => {
-  const { org, slug } = c.req.valid("param");
-  const cached = await getPublishedSkillMd(c.env.SKILLS_KV, org, slug);
-  if (!cached) return c.json({ error: "Not found" }, 404);
-  return new Response(cached.skillMd, {
-    headers: {
-      "Content-Type": "text/markdown; charset=utf-8",
-      ETag: cached.meta.etag,
-      "Cache-Control": "public, max-age=60",
-      "X-Skillist-Version": cached.meta.version,
-    },
-  });
-});
-
-const getSkillMetaRoute = createRoute({
-  method: "get",
-  path: "/skills/{org}/{slug}/meta",
-  tags: ["Delivery"],
-  request: {
-    params: z.object({ org: z.string(), slug: z.string() }),
-  },
-  responses: { 200: { description: "Discovery metadata" } },
-});
-
-skillRoutes.openapi(getSkillMetaRoute, async (c) => {
-  const { org, slug } = c.req.valid("param");
-  const meta = await getPublishedMeta(c.env.SKILLS_KV, org, slug);
-  if (!meta) return c.json({ error: "Not found" }, 404);
-  return c.json(meta, 200);
-});
-
-const getBundleRoute = createRoute({
-  method: "get",
-  path: "/skills/{org}/{slug}/bundle",
-  tags: ["Delivery"],
-  request: {
-    params: z.object({ org: z.string(), slug: z.string() }),
-  },
-  responses: { 200: { description: "Skill bundle" } },
-});
-
-skillRoutes.openapi(getBundleRoute, async (c) => {
-  const { org, slug } = c.req.valid("param");
-  const [orgRow] = await c.var.db
-    .select()
-    .from(organizations)
-    .where(eq(organizations.slug, org))
-    .limit(1);
-  if (!orgRow) return c.json({ error: "Not found" }, 404);
-
-  const [skill] = await c.var.db
-    .select()
-    .from(skills)
-    .where(and(eq(skills.orgId, orgRow.id), eq(skills.slug, slug)))
-    .limit(1);
-  if (!skill || !skill.latestPublishedVersionId) {
-    return c.json({ error: "Not found" }, 404);
-  }
-
-  const [version] = await c.var.db
-    .select()
-    .from(skillVersions)
-    .where(eq(skillVersions.id, skill.latestPublishedVersionId))
-    .limit(1);
-  if (!version) return c.json({ error: "Not found" }, 404);
-
-  const paths = await listBundlePaths(c.env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    c.env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
-  const files: Record<string, string> = {};
-  for (const [path, content] of bundle.entries()) {
-    files[path] = content;
-  }
-  return c.json({ files, version: version.semver }, 200);
-});
-
 const getVersionFilesRoute = createRoute({
   method: "get",
-  path: "/orgs/{orgId}/skills/{slug}/versions/{versionId}/files",
+  path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/files",
   tags: ["Skills"],
   request: {
     params: z.object({
       orgId: z.string().uuid(),
-      slug: z.string(),
+      repo: z.string(),
       versionId: z.string().uuid(),
     }),
   },
@@ -515,7 +425,7 @@ const getVersionFilesRoute = createRoute({
 });
 
 skillRoutes.openapi(getVersionFilesRoute, async (c) => {
-  const { orgId, slug, versionId } = c.req.valid("param");
+  const { orgId, repo, versionId } = c.req.valid("param");
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer", {
     apiKeyScope: "skills:read",
   });
@@ -524,7 +434,7 @@ skillRoutes.openapi(getVersionFilesRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -550,12 +460,12 @@ skillRoutes.openapi(getVersionFilesRoute, async (c) => {
 
 const previewVersionRoute = createRoute({
   method: "get",
-  path: "/orgs/{orgId}/skills/{slug}/versions/{versionId}/preview",
+  path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/preview",
   tags: ["Skills"],
   request: {
     params: z.object({
       orgId: z.string().uuid(),
-      slug: z.string(),
+      repo: z.string(),
       versionId: z.string().uuid(),
     }),
   },
@@ -563,7 +473,7 @@ const previewVersionRoute = createRoute({
 });
 
 skillRoutes.openapi(previewVersionRoute, async (c) => {
-  const { orgId, slug, versionId } = c.req.valid("param");
+  const { orgId, repo, versionId } = c.req.valid("param");
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer", {
     apiKeyScope: "skills:read",
   });
@@ -572,7 +482,7 @@ skillRoutes.openapi(previewVersionRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -589,7 +499,7 @@ skillRoutes.openapi(previewVersionRoute, async (c) => {
     version.r2Prefix,
     paths,
   );
-  const review = reviewSkillBundle(bundle, slug);
+  const review = reviewSkillBundle(bundle, repo);
   const impactScore = estimateImpactScore(review);
   const security = scanSkillSecurity(bundle);
 

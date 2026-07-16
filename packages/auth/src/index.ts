@@ -71,6 +71,14 @@ export function createAuth(
       "https://skillist.dev",
       "https://api.skillist.dev",
     ],
+    advanced: env.BETTER_AUTH_URL.includes("localhost")
+      ? undefined
+      : {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: ".skillist.dev",
+          },
+        },
     emailAndPassword: {
       enabled: false,
     },

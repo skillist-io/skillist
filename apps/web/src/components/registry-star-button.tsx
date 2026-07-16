@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 
 type StarButtonProps = {
   org: string;
-  slug: string;
+  repo: string;
   stars: number;
   starred?: boolean;
   size?: "sm" | "default";
@@ -13,7 +13,7 @@ type StarButtonProps = {
 
 export function StarButton({
   org,
-  slug,
+  repo,
   stars,
   starred = false,
   size = "sm",
@@ -23,14 +23,14 @@ export function StarButton({
   const toggle = useMutation({
     mutationFn: async () => {
       if (starred) {
-        await api(`/v1/registry/${org}/${slug}/star`, { method: "DELETE" });
+        await api(`/v1/registry/${org}/${repo}/star`, { method: "DELETE" });
       } else {
-        await api(`/v1/registry/${org}/${slug}/star`, { method: "POST" });
+        await api(`/v1/registry/${org}/${repo}/star`, { method: "POST" });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["registry"] });
-      queryClient.invalidateQueries({ queryKey: ["registry", org, slug] });
+      queryClient.invalidateQueries({ queryKey: ["registry", org, repo] });
     },
   });
 

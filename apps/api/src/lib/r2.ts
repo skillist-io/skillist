@@ -6,10 +6,10 @@ import {
 
 export function r2Prefix(
   orgId: string,
-  skillSlug: string,
+  skillRepo: string,
   versionId: string,
 ): string {
-  return `orgs/${orgId}/skills/${skillSlug}/v/${versionId}`;
+  return `orgs/${orgId}/skills/${skillRepo}/v/${versionId}`;
 }
 
 export async function uploadBundleToR2(

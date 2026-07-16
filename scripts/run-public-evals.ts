@@ -175,7 +175,7 @@ async function main() {
   let targetSlugs = explicitSkills;
   if (!targetSlugs && hasFlag("--all")) {
     const rows = await db
-      .select({ slug: skills.slug })
+      .select({ slug: skills.repo })
       .from(skills)
       .where(eq(skills.orgId, org.id));
     targetSlugs = rows.map((r) => r.slug).sort();
@@ -190,7 +190,7 @@ async function main() {
     const [skill] = await db
       .select()
       .from(skills)
-      .where(and(eq(skills.orgId, org.id), eq(skills.slug, slug)))
+      .where(and(eq(skills.orgId, org.id), eq(skills.repo, slug)))
       .limit(1);
     if (!skill?.latestPublishedVersionId) {
       console.warn(`  skip ${slug}: no published version`);

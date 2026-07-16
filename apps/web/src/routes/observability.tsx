@@ -188,10 +188,10 @@ function ObservabilityPage() {
                 {data.telemetry.bySkill.length ? (
                   data.telemetry.bySkill.map((row) => (
                     <div
-                      key={row.skillSlug}
+                      key={row.skillRepo}
                       className="flex items-center justify-between rounded border px-2 py-1"
                     >
-                      <span>{row.skillSlug}</span>
+                      <span>{row.skillRepo}</span>
                       <span className="font-mono text-xs text-muted-foreground">
                         {row.installCount} installs · {row.activationCount} activations
                       </span>
@@ -220,7 +220,7 @@ function ObservabilityPage() {
                       <Badge variant={run.exitCode === 0 ? "default" : "destructive"}>
                         {run.status}
                       </Badge>
-                      <span className="font-medium">{run.skillSlug}</span>
+                      <span className="font-medium">{run.skillRepo}</span>
                       <span className="text-xs text-muted-foreground">
                         {run.scriptPath}
                       </span>

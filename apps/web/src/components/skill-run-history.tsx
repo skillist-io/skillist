@@ -9,20 +9,20 @@ import { useSession } from "@/lib/auth-client";
 
 type SkillRunHistoryProps = {
   org: string;
-  slug: string;
+  repo: string;
   limit?: number;
 };
 
-export function SkillRunHistory({ org, slug, limit = 10 }: SkillRunHistoryProps) {
+export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["runs", org, slug, limit],
+    queryKey: ["runs", org, repo, limit],
     queryFn: () =>
       api<{ items: SkillRun[] }>(
-        `/v1/skills/${org}/${slug}/runs?limit=${limit}`,
+        `/${org}/${repo}/runs?limit=${limit}`,
       ),
     enabled: isLoggedIn,
   });

@@ -13,7 +13,7 @@ import {
 
 type SkillEvalPanelProps = {
   orgId: string;
-  slug: string;
+  repo: string;
   versionId?: string;
   onRunEval: () => void;
   isRunning: boolean;
@@ -28,7 +28,7 @@ function statusVariant(status: string) {
 
 export function SkillEvalPanel({
   orgId,
-  slug,
+  repo,
   versionId,
   onRunEval,
   isRunning,
@@ -36,9 +36,9 @@ export function SkillEvalPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: evals } = useQuery({
-    queryKey: ["evals", orgId, slug],
+    queryKey: ["evals", orgId, repo],
     queryFn: () =>
-      api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${slug}/evals`),
+      api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${repo}/evals`),
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       const pending = items.some(
@@ -49,10 +49,10 @@ export function SkillEvalPanel({
   });
 
   const { data: detail } = useQuery({
-    queryKey: ["eval", orgId, slug, expandedId],
+    queryKey: ["eval", orgId, repo, expandedId],
     queryFn: () =>
       api<{ eval: SkillEval }>(
-        `/v1/orgs/${orgId}/skills/${slug}/evals/${expandedId}`,
+        `/v1/orgs/${orgId}/skills/${repo}/evals/${expandedId}`,
       ),
     enabled: !!expandedId,
   });
