@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   CheckCircle2,
+  Globe,
   Laptop,
   Puzzle,
   Rocket,
@@ -39,7 +40,7 @@ const features: Feature[] = [
     badge: "Tooling",
     href: "/getting-started/cli/",
     description:
-      "Install skills locally with skillist install org/slug and publish from your repo.",
+      "Install skills locally with skillist install org/repo and publish from your repo.",
   },
   {
     title: "Hosted execution",
@@ -48,6 +49,14 @@ const features: Feature[] = [
     href: "/platform/sandbox/",
     description:
       "Run skill scripts in isolated Cloudflare sandboxes with streaming output.",
+  },
+  {
+    title: "Delivery URLs",
+    icon: Globe,
+    badge: "Platform",
+    href: "/platform/delivery/",
+    description:
+      "GitHub-style skillist.dev/org/repo pages with SKILL.md, meta, and bundle at the edge.",
   },
   {
     title: "Evals",

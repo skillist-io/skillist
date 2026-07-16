@@ -1,0 +1,92 @@
+---
+title: Skill inventory
+description: Map GitHub repoFullName discoveries to Skillist registry delivery URLs.
+---
+
+import { DocAlert } from "@/components/docs/DocAlert";
+import { DocTable } from "@/components/docs/DocTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
+
+The **skill inventory** tracks agentskills.io skills discovered in your GitHub repositories and links them to Skillist registry identities when a match exists.
+
+<DocAlert title="Requires sign-in" client:load>
+  Inventory is available at [skillist.dev/inventory](https://skillist.dev/inventory) for authenticated org members. API routes live under `/v1/orgs/{orgId}/inventory`.
+</DocAlert>
+
+## Scan payload
+
+Submit discovered skills via the web UI or API:
+
+```
+POST /v1/orgs/{orgId}/inventory/scan
+```
+
+Each item describes where a skill was found in a repo:
+
+<DocTable
+  client:load
+  columns={["Field", "Description"]}
+  rows={[
+    ["repoFullName", "GitHub-style owner/repo, e.g. acme/web-app"],
+    ["filePath", "Path to SKILL.md in the repo"],
+    ["localSlug", "Folder or skill name in the repo when it differs from the registry repo"],
+    ["registryOrgSlug", "Optional explicit Skillist org override"],
+    ["registryRepo", "Optional explicit Skillist repo override"],
+  ]}
+/>
+
+### Example
+
+```json
+{
+  "items": [
+    {
+      "repoFullName": "skillist/cloudflare-deploy",
+      "filePath": ".cursor/skills/cloudflare-deploy/SKILL.md",
+      "localSlug": "cloudflare-deploy"
+    },
+    {
+      "repoFullName": "acme/web-app",
+      "filePath": ".claude/skills/review/SKILL.md",
+      "localSlug": "review",
+      "registryOrgSlug": "skillist",
+      "registryRepo": "sql-review"
+    }
+  ]
+}
+```
+
+## GitHub → registry resolution
+
+When `registryOrgSlug` and `registryRepo` are omitted, Skillist resolves a delivery URL using this order:
+
+1. **Explicit override** — use `registryOrgSlug` + `registryRepo` if both are provided and the registry entry exists
+2. **Exact match** — registry entry where org = GitHub owner and repo = GitHub repo name
+3. **Local slug** — registry entry where org = owner and repo = `localSlug` (when the skill folder name differs from the GitHub repo name)
+4. **Unpublished skill** — fall back to a skill in the org's private catalog with the same repo name
+
+A resolved match is marked **managed** and linked to:
+
+```
+https://skillist.dev/{registryOrgSlug}/{registryRepo}
+```
+
+Items with no match remain **local** until published or explicitly mapped.
+
+## List inventory
+
+```
+GET /v1/orgs/{orgId}/inventory
+```
+
+Returns scanned items with `managed`, `registryOrgSlug`, `registryRepo`, and `scannedAt` for each discovery.
+
+## CI integration
+
+Run a scan from CI after detecting skill folders in a monorepo, then POST results to the inventory API with an org API key. The web UI includes a **Load example** payload to test the flow.
+
+## Related
+
+- [Delivery URLs](/platform/delivery/) — canonical `skillist.dev/{org}/{repo}` paths
+- [Registry](/platform/registry/) — publish skills so inventory can resolve them
+- [Authentication](/platform/authentication/) — sessions and API keys for inventory routes
