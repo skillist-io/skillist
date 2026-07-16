@@ -1,31 +1,28 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { apiReference } from "@scalar/hono-api-reference";
+import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import { cors } from "hono/cors";
-import {
-  oAuthDiscoveryMetadata,
-  oAuthProtectedResourceMetadata,
-} from "better-auth/plugins";
-import type { Env, AiJobMessage } from "./env";
-import { authMiddleware } from "./lib/auth-middleware";
-import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
-import { createWorkerDb } from "./lib/db";
-import { runAiJob } from "./lib/ai";
-import { orgRoutes } from "./routes/orgs";
-import { skillRoutes } from "./routes/skills";
-import { registryRoutes } from "./routes/registry";
-import { feedbackRoutes } from "./routes/feedback";
-import { realtimeRoutes } from "./routes/realtime";
-import { governanceRoutes } from "./routes/governance";
-import { executionRoutes } from "./routes/execution";
-import { deliveryRoutes } from "./routes/delivery";
-import { rateLimit } from "./lib/rate-limit";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
+import type { AiJobMessage, Env } from "./env";
+import { runAiJob } from "./lib/ai";
+import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
+import { authMiddleware } from "./lib/auth-middleware";
+import { createWorkerDb } from "./lib/db";
+import { rateLimit } from "./lib/rate-limit";
 import { handleMcpRequest } from "./mcp/handler";
 import { mcpServerInfo } from "./mcp/registry-server";
+import { deliveryRoutes } from "./routes/delivery";
+import { executionRoutes } from "./routes/execution";
+import { feedbackRoutes } from "./routes/feedback";
+import { governanceRoutes } from "./routes/governance";
+import { orgRoutes } from "./routes/orgs";
+import { realtimeRoutes } from "./routes/realtime";
+import { registryRoutes } from "./routes/registry";
+import { skillRoutes } from "./routes/skills";
 
-export { SkillRealtimeHub };
 export { Sandbox } from "@cloudflare/sandbox";
 export { SandboxHeavy } from "./durable-objects/sandbox-heavy";
+export { SkillRealtimeHub };
 
 const app = new OpenAPIHono<{ Bindings: Env }>();
 
@@ -34,12 +31,7 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-    allowHeaders: [
-      "Content-Type",
-      "Accept",
-      "Authorization",
-      "Mcp-Session-Id",
-    ],
+    allowHeaders: ["Content-Type", "Accept", "Authorization", "Mcp-Session-Id"],
     exposeHeaders: ["Mcp-Session-Id", "WWW-Authenticate"],
   }),
 );
@@ -59,11 +51,7 @@ app.get("/.well-known/oauth-protected-resource", async (c) => {
 app.use(
   "*",
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://skillist.dev",
-      "https://api.skillist.dev",
-    ],
+    origin: ["http://localhost:5173", "https://skillist.dev", "https://api.skillist.dev"],
     credentials: true,
   }),
 );
@@ -75,8 +63,7 @@ app.use("/v1/*", authMiddleware);
 app.use("*", async (c, next) => {
   const path = c.req.path;
   const needsAuth =
-    /^\/[^/]+\/[^/]+\/(scripts|run|runs)(\/|$)/.test(path) ||
-    path.startsWith("/runs/");
+    /^\/[^/]+\/[^/]+\/(scripts|run|runs)(\/|$)/.test(path) || path.startsWith("/runs/");
   if (!needsAuth) {
     await next();
     return;
@@ -175,10 +162,7 @@ export default {
       const { jobId, feedbackId } = body;
       const { aiJobs } = await import("@skillist/db/schema");
       const { eq } = await import("drizzle-orm");
-      await db
-        .update(aiJobs)
-        .set({ status: "running" })
-        .where(eq(aiJobs.id, jobId));
+      await db.update(aiJobs).set({ status: "running" }).where(eq(aiJobs.id, jobId));
       try {
         await runAiJob(env, db, jobId, feedbackId);
         message.ack();

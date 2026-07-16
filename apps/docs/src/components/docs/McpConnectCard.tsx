@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { InstallSnippet } from "@/components/docs/InstallSnippet"
+import { InstallSnippet } from "@/components/docs/InstallSnippet";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function McpConnectCard() {
   return (
@@ -11,10 +11,8 @@ export function McpConnectCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <InstallSnippet
-          command='{ "mcpServers": { "skillist-registry": { "url": "https://api.skillist.dev/mcp" } } }'
-        />
+        <InstallSnippet command='{ "mcpServers": { "skillist-registry": { "url": "https://api.skillist.dev/mcp" } } }' />
       </CardContent>
     </Card>
-  )
+  );
 }

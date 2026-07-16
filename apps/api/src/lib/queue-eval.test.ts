@@ -5,12 +5,8 @@ describe("queueSkillEval", () => {
   it("dedupes queued evals for the same version", async () => {
     const send = vi.fn();
     const env = { AI_QUEUE: { send } } as never;
-    const insertReturning = vi
-      .fn()
-      .mockResolvedValueOnce([{ id: "eval-1", status: "queued" }]);
-    const selectLimit = vi
-      .fn()
-      .mockResolvedValueOnce([{ id: "eval-existing", status: "running" }]);
+    const insertReturning = vi.fn().mockResolvedValueOnce([{ id: "eval-1", status: "queued" }]);
+    const selectLimit = vi.fn().mockResolvedValueOnce([{ id: "eval-existing", status: "running" }]);
 
     const db = {
       select: vi.fn(() => ({

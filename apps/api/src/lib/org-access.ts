@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
 import type { ApiKeyScope, OrgRole } from "@skillist/contracts";
 import { orgMembers } from "@skillist/db/schema";
+import { and, eq } from "drizzle-orm";
 import type { AuthContext } from "./auth-middleware";
 import type { WorkerDb } from "./db";
 
@@ -23,11 +23,7 @@ export type OrgAccessResult =
   | { ok: true; role: OrgRole; actorId: string | null; actorType: "user" | "api_key" }
   | { ok: false; status: 401 | 403 };
 
-export async function getOrgMembership(
-  db: WorkerDb,
-  orgId: string,
-  userId: string,
-) {
+export async function getOrgMembership(db: WorkerDb, orgId: string, userId: string) {
   const [member] = await db
     .select()
     .from(orgMembers)
@@ -76,9 +72,7 @@ export async function requireOrgAccess(
     if (options?.apiKeyScope && !auth.apiKeyScopes.includes(options.apiKeyScope)) {
       return { ok: false, status: 403 };
     }
-    const scopeRole = options?.apiKeyScope
-      ? SCOPE_MIN_ROLE[options.apiKeyScope]
-      : "viewer";
+    const scopeRole = options?.apiKeyScope ? SCOPE_MIN_ROLE[options.apiKeyScope] : "viewer";
     if (!hasMinRole(scopeRole, minRole)) {
       return { ok: false, status: 403 };
     }

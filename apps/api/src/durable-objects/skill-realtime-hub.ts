@@ -65,12 +65,7 @@ export class SkillRealtimeHub extends DurableObject {
     }
   }
 
-  async webSocketClose(
-    ws: WebSocket,
-    _code: number,
-    _reason: string,
-    _wasClean: boolean,
-  ) {
+  async webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean) {
     ws.close();
   }
 
@@ -86,13 +81,14 @@ export class SkillRealtimeHub extends DurableObject {
     }
 
     // SSE clients receive via storage writers if any
-    const keys = await this.ctx.storage.list<{ writer: WritableStreamDefaultWriter; interval: ReturnType<typeof setInterval> }>({ prefix: "sse:" });
+    const keys = await this.ctx.storage.list<{
+      writer: WritableStreamDefaultWriter;
+      interval: ReturnType<typeof setInterval>;
+    }>({ prefix: "sse:" });
     const encoder = new TextEncoder();
     for (const [, entry] of keys) {
       try {
-        await entry.writer.write(
-          encoder.encode(`event: skill.published\ndata: ${payload}\n\n`),
-        );
+        await entry.writer.write(encoder.encode(`event: skill.published\ndata: ${payload}\n\n`));
       } catch {
         clearInterval(entry.interval);
       }

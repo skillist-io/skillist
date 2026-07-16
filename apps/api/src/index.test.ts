@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { SELF } from "cloudflare:test";
+import { describe, expect, it } from "vitest";
 
 describe("skillist api", () => {
   it("health check", async () => {

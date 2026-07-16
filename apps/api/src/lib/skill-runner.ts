@@ -1,11 +1,6 @@
 import { getSandbox } from "@cloudflare/sandbox";
+import { organizations, skillRuns, skills, skillVersions } from "@skillist/db/schema";
 import { and, eq } from "drizzle-orm";
-import {
-  organizations,
-  skillRuns,
-  skills,
-  skillVersions,
-} from "@skillist/db/schema";
 import type { Env } from "../env";
 import { logAudit } from "./audit";
 import type { WorkerDb } from "./db";
@@ -16,9 +11,9 @@ import {
   EXEC_TIMEOUT_MS,
   listRunnableScripts,
   MAX_OUTPUT_CHARS,
+  type SkillRuntime,
   validateScriptPath,
   validateTargetUrl,
-  type SkillRuntime,
 } from "./skill-runtime";
 
 export type RunSkillInput = {
@@ -125,11 +120,7 @@ export async function getPublishedBundle(
   if (!version) throw new Error("Published version not found");
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
+  const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
 
   return { bundle, skill, version };
 }
@@ -142,18 +133,11 @@ export async function runSkillScript(
   const { orgSlug, skillRepo, scriptPath, args = [], targetUrl } = input;
 
   if (!validateScriptPath(scriptPath)) {
-    throw new Error(
-      "scriptPath must be an allowlisted scripts/* file (.sh, .js, .ts, .py)",
-    );
+    throw new Error("scriptPath must be an allowlisted scripts/* file (.sh, .js, .ts, .py)");
   }
 
   const validatedUrl = validateTargetUrl(targetUrl);
-  const { bundle, skill, version } = await getPublishedBundle(
-    env,
-    db,
-    orgSlug,
-    skillRepo,
-  );
+  const { bundle, skill, version } = await getPublishedBundle(env, db, orgSlug, skillRepo);
 
   if (!bundle.has(scriptPath)) {
     throw new Error(`Script not found in bundle: ${scriptPath}`);
@@ -184,13 +168,9 @@ export async function runSkillScript(
   const runId = runRow!.id;
   const sandboxId = `run-${runId}`;
   const sandboxBinding = runtime === "container" ? env.SANDBOX_HEAVY : env.SANDBOX;
-  const sandbox = getSandbox(
-    sandboxBinding as never,
-    sandboxId,
-  ) as unknown as SandboxHandle;
+  const sandbox = getSandbox(sandboxBinding as never, sandboxId) as unknown as SandboxHandle;
 
-  const timeout =
-    runtime === "container" ? CONTAINER_TIMEOUT_MS : EXEC_TIMEOUT_MS;
+  const timeout = runtime === "container" ? CONTAINER_TIMEOUT_MS : EXEC_TIMEOUT_MS;
 
   try {
     await materializeBundle(sandbox, bundle);
@@ -219,12 +199,8 @@ export async function runSkillScript(
         : undefined,
     });
 
-    const stdout = truncateOutput(
-      result.stdout ?? streamChunks.stdout.join(""),
-    );
-    const stderr = truncateOutput(
-      result.stderr ?? streamChunks.stderr.join(""),
-    );
+    const stdout = truncateOutput(result.stdout ?? streamChunks.stdout.join(""));
+    const stderr = truncateOutput(result.stderr ?? streamChunks.stderr.join(""));
     const status = result.success ? "completed" : "failed";
 
     await db
@@ -291,8 +267,6 @@ export async function runSkillScript(
   }
 }
 
-export function getRunnableScriptsFromBundle(
-  bundle: Map<string, string>,
-): string[] {
+export function getRunnableScriptsFromBundle(bundle: Map<string, string>): string[] {
   return listRunnableScripts(bundle);
 }

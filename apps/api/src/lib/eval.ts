@@ -1,15 +1,8 @@
+import { skillEvals, skills, skillVersions } from "@skillist/db/schema";
+import { eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { WorkerDb } from "./db";
-import { eq } from "drizzle-orm";
-import {
-  skillEvals,
-  skillVersions,
-  skills,
-} from "@skillist/db/schema";
-import {
-  downloadBundleFromR2,
-  listBundlePaths,
-} from "./r2";
+import { downloadBundleFromR2, listBundlePaths } from "./r2";
 
 export type EvalScenario = {
   name: string;
@@ -72,28 +65,13 @@ function parseScore(text: string): number {
   return Math.min(100, Math.max(0, n));
 }
 
-export async function runSkillEval(
-  env: Env,
-  db: WorkerDb,
-  evalId: string,
-): Promise<void> {
-  const [row] = await db
-    .select()
-    .from(skillEvals)
-    .where(eq(skillEvals.id, evalId))
-    .limit(1);
+export async function runSkillEval(env: Env, db: WorkerDb, evalId: string): Promise<void> {
+  const [row] = await db.select().from(skillEvals).where(eq(skillEvals.id, evalId)).limit(1);
   if (!row) return;
 
-  await db
-    .update(skillEvals)
-    .set({ status: "running" })
-    .where(eq(skillEvals.id, evalId));
+  await db.update(skillEvals).set({ status: "running" }).where(eq(skillEvals.id, evalId));
 
-  const [skill] = await db
-    .select()
-    .from(skills)
-    .where(eq(skills.id, row.skillId))
-    .limit(1);
+  const [skill] = await db.select().from(skills).where(eq(skills.id, row.skillId)).limit(1);
   const [version] = await db
     .select()
     .from(skillVersions)
@@ -110,11 +88,7 @@ export async function runSkillEval(
   const scenarios = row.scenarios ?? DEFAULT_SCENARIOS;
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
-  const bundle = await downloadBundleFromR2(
-    env.SKILLS_R2,
-    version.r2Prefix,
-    paths,
-  );
+  const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
   const skillMd = bundle.get("SKILL.md") ?? "";
 
   const results: EvalScenarioResult[] = [];

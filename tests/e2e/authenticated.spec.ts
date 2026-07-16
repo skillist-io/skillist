@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { hasAuthState } from "./global-setup";
 
 test.describe("signed-in flows", () => {
-  test.beforeEach(async ({}, testInfo) => {
+  test.beforeEach(async (_context, testInfo) => {
     if (!(await hasAuthState())) {
       testInfo.skip(
         true,

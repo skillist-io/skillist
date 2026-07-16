@@ -1,14 +1,6 @@
-import {
-  bundleToObject,
-  objectToBundle,
-  type SkillBundle,
-} from "@skillist/skill-format";
+import { bundleToObject, objectToBundle, type SkillBundle } from "@skillist/skill-format";
 
-export function r2Prefix(
-  orgId: string,
-  skillRepo: string,
-  versionId: string,
-): string {
+export function r2Prefix(orgId: string, skillRepo: string, versionId: string): string {
   return `orgs/${orgId}/skills/${skillRepo}/v/${versionId}`;
 }
 
@@ -42,10 +34,7 @@ export async function downloadBundleFromR2(
   return bundle;
 }
 
-export async function listBundlePaths(
-  bucket: R2Bucket,
-  prefix: string,
-): Promise<string[]> {
+export async function listBundlePaths(bucket: R2Bucket, prefix: string): Promise<string[]> {
   const listed = await bucket.list({ prefix: `${prefix}/` });
   return listed.objects.map((o) => o.key.replace(`${prefix}/`, ""));
 }
@@ -62,9 +51,7 @@ function contentTypeForPath(path: string): string {
 export async function sha256(content: string): Promise<string> {
   const data = new TextEncoder().encode(content);
   const hash = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(hash)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export { bundleToObject, objectToBundle };

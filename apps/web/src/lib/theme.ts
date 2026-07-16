@@ -13,9 +13,7 @@ export function getStoredTheme(): Theme {
 
 export function resolveTheme(theme: Theme): "light" | "dark" {
   if (theme === "system") {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
   return theme;
 }

@@ -12,19 +12,10 @@ export type VersionStatus = z.infer<typeof versionStatusSchema>;
 export const feedbackSourceSchema = z.enum(["human", "agent"]);
 export type FeedbackSource = z.infer<typeof feedbackSourceSchema>;
 
-export const feedbackStatusSchema = z.enum([
-  "pending",
-  "approved",
-  "rejected",
-]);
+export const feedbackStatusSchema = z.enum(["pending", "approved", "rejected"]);
 export type FeedbackStatus = z.infer<typeof feedbackStatusSchema>;
 
-export const aiJobStatusSchema = z.enum([
-  "queued",
-  "running",
-  "completed",
-  "failed",
-]);
+export const aiJobStatusSchema = z.enum(["queued", "running", "completed", "failed"]);
 export type AiJobStatus = z.infer<typeof aiJobStatusSchema>;
 
 export const apiKeyScopeSchema = z.enum([
@@ -58,7 +49,10 @@ export const createSkillSchema = z.object({
 
 export const uploadVersionSchema = z.object({
   files: z.record(z.string(), z.string()),
-  semver: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
+  semver: z
+    .string()
+    .regex(/^\d+\.\d+\.\d+$/)
+    .optional(),
   bump: z.enum(["major", "minor", "patch"]).optional(),
   parentVersionId: z.string().uuid().optional(),
 });
@@ -83,16 +77,7 @@ export const registryQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   sort: z
-    .enum([
-      "quality",
-      "impact",
-      "installs",
-      "activations",
-      "stars",
-      "trending",
-      "recent",
-      "name",
-    ])
+    .enum(["quality", "impact", "installs", "activations", "stars", "trending", "recent", "name"])
     .default("quality"),
   runtime: z.enum(["all", "local", "sandbox", "container"]).default("all"),
   minQuality: z.coerce.number().int().min(0).max(100).optional(),
@@ -187,9 +172,7 @@ export const runEvalSchema = z.object({
 });
 
 export const runSkillSchema = z.object({
-  scriptPath: z
-    .string()
-    .regex(/^scripts\//, "scriptPath must be under scripts/"),
+  scriptPath: z.string().regex(/^scripts\//, "scriptPath must be under scripts/"),
   args: z.array(z.string().max(512)).max(20).optional(),
   targetUrl: z.string().url().max(2048).optional(),
   stream: z.boolean().optional(),

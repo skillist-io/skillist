@@ -1,4 +1,3 @@
-import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import type { registryQuerySchema } from "@skillist/contracts";
 import {
   registryEntries,
@@ -7,6 +6,7 @@ import {
   skills,
   skillVersions,
 } from "@skillist/db/schema";
+import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import type { z } from "zod";
 import type { WorkerDb } from "./db";
 
@@ -81,10 +81,7 @@ function registryOrderBy(query: z.infer<typeof registryQuerySchema>) {
   }
 }
 
-export async function listRegistry(
-  db: WorkerDb,
-  query: z.infer<typeof registryQuerySchema>,
-) {
+export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQuerySchema>) {
   const { page, limit } = query;
   const offset = (page - 1) * limit;
   const where = buildRegistryWhere(query);
@@ -188,12 +185,7 @@ export async function getRegistrySkill(
     })
     .from(registryEntries)
     .innerJoin(skills, eq(registryEntries.skillId, skills.id))
-    .where(
-      and(
-        eq(registryEntries.orgSlug, org),
-        eq(registryEntries.skillRepo, slug),
-      ),
-    )
+    .where(and(eq(registryEntries.orgSlug, org), eq(registryEntries.skillRepo, slug)))
     .limit(1);
   if (!row) return null;
 
@@ -202,12 +194,7 @@ export async function getRegistrySkill(
     const [star] = await db
       .select({ id: registryStars.id })
       .from(registryStars)
-      .where(
-        and(
-          eq(registryStars.userId, userId),
-          eq(registryStars.skillId, row.skillId),
-        ),
-      )
+      .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, row.skillId)))
       .limit(1);
     starred = !!star;
   }

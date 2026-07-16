@@ -1,14 +1,14 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type Org, type Skill } from "@/lib/api";
-import { requireAuth } from "@/lib/require-auth";
+import { useState } from "react";
 import { QueryError } from "@/components/query-error";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { api, type Org, type Skill } from "@/lib/api";
+import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => requireAuth(),
@@ -20,7 +20,11 @@ function DashboardPage() {
   const [orgSlug, setOrgSlug] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: orgs, isError: orgsError, refetch: refetchOrgs } = useQuery({
+  const {
+    data: orgs,
+    isError: orgsError,
+    refetch: refetchOrgs,
+  } = useQuery({
     queryKey: ["orgs"],
     queryFn: () => api<Org[]>("/v1/orgs"),
   });
@@ -42,9 +46,7 @@ function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Manage organizations and skills
-        </p>
+        <p className="text-muted-foreground">Manage organizations and skills</p>
       </div>
 
       <Card>
@@ -70,9 +72,7 @@ function DashboardPage() {
         </CardContent>
       </Card>
 
-      {orgsError ? (
-        <QueryError onRetry={() => void refetchOrgs()} />
-      ) : null}
+      {orgsError ? <QueryError onRetry={() => void refetchOrgs()} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {orgs?.map((org) => (
@@ -91,7 +91,11 @@ function OrgCard({ org }: { org: Org }) {
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: skills, isError: skillsError, refetch: refetchSkills } = useQuery({
+  const {
+    data: skills,
+    isError: skillsError,
+    refetch: refetchSkills,
+  } = useQuery({
     queryKey: ["skills", org.id],
     queryFn: () => api<Skill[]>(`/v1/orgs/${org.id}/skills`),
   });
@@ -152,14 +156,9 @@ function OrgCard({ org }: { org: Org }) {
             Add skill
           </Button>
         </div>
-        {createSkillError ? (
-          <p className="text-sm text-destructive">{createSkillError}</p>
-        ) : null}
+        {createSkillError ? <p className="text-sm text-destructive">{createSkillError}</p> : null}
         {skillsError ? (
-          <QueryError
-            title="Could not load skills"
-            onRetry={() => void refetchSkills()}
-          />
+          <QueryError title="Could not load skills" onRetry={() => void refetchSkills()} />
         ) : null}
         <ul className="space-y-1 text-sm">
           {skills?.map((s) => (
@@ -203,9 +202,7 @@ function OrgCard({ org }: { org: Org }) {
                 Invite
               </Button>
             </div>
-            {inviteMessage && (
-              <p className="text-sm text-muted-foreground">{inviteMessage}</p>
-            )}
+            {inviteMessage && <p className="text-sm text-muted-foreground">{inviteMessage}</p>}
           </div>
         )}
       </CardContent>

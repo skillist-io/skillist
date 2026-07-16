@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
 import { organizations, registryEntries, skills } from "@skillist/db/schema";
+import { and, eq } from "drizzle-orm";
 import type { WorkerDb } from "./db";
 
 export type RegistryRef = {
@@ -59,12 +59,7 @@ export async function resolveGithubToRegistry(
         skillRepo: registryEntries.skillRepo,
       })
       .from(registryEntries)
-      .where(
-        and(
-          eq(registryEntries.orgSlug, owner),
-          eq(registryEntries.skillRepo, repo),
-        ),
-      )
+      .where(and(eq(registryEntries.orgSlug, owner), eq(registryEntries.skillRepo, repo)))
       .limit(1);
     if (hit) {
       return { registryOrgSlug: hit.orgSlug, registryRepo: hit.skillRepo };

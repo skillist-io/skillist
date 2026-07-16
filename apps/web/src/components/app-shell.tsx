@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,12 +10,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 function useBreadcrumbs() {
@@ -63,17 +59,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarInset>
           <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
             <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
+            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
             <Breadcrumb>
               <BreadcrumbList>
                 {crumbs.map((crumb, index) => (
                   <span key={crumb.label} className="contents">
-                    {index > 0 && (
-                      <BreadcrumbSeparator className="hidden md:block" />
-                    )}
+                    {index > 0 && <BreadcrumbSeparator className="hidden md:block" />}
                     <BreadcrumbItem className={index === 0 ? "hidden md:block" : undefined}>
                       {crumb.current ? (
                         <BreadcrumbPage>{crumb.label}</BreadcrumbPage>

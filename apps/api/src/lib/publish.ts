@@ -1,5 +1,5 @@
 import type { Env } from "../env";
-import { skillMdKey, skillMetaKey, type SkillKvContent } from "./kv";
+import { type SkillKvContent, skillMdKey, skillMetaKey } from "./kv";
 
 export async function cachePublishedSkill(
   kv: KVNamespace,

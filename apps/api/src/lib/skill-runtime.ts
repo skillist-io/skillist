@@ -28,10 +28,7 @@ export function detectSkillRuntime(bundle: SkillBundle): SkillRuntime {
   }
 
   const hasHeavy = scripts.some(
-    (s) =>
-      s.includes("wrangler") ||
-      s.includes("deploy") ||
-      s.includes("preflight"),
+    (s) => s.includes("wrangler") || s.includes("deploy") || s.includes("preflight"),
   );
   if (hasHeavy || bundle.has("assets/wrangler.template.jsonc")) {
     return "container";
@@ -47,10 +44,7 @@ export function validateScriptPath(path: string): boolean {
   return true;
 }
 
-export function buildExecCommand(
-  scriptPath: string,
-  args: string[] = [],
-): string {
+export function buildExecCommand(scriptPath: string, args: string[] = []): string {
   const quotedArgs = args.map((a) => shellQuote(a)).join(" ");
   const argSuffix = quotedArgs ? ` ${quotedArgs}` : "";
 

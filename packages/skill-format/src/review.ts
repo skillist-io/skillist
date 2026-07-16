@@ -14,10 +14,7 @@ export type SkillReviewResult = {
   checks: ReviewCheck[];
 };
 
-export function reviewSkillBundle(
-  files: SkillBundle,
-  expectedSlug?: string,
-): SkillReviewResult {
+export function reviewSkillBundle(files: SkillBundle, expectedSlug?: string): SkillReviewResult {
   const checks: ReviewCheck[] = [];
   const validation = validateSkillBundle(files, expectedSlug);
 
@@ -41,9 +38,7 @@ export function reviewSkillBundle(
   checks.push(...reviewStructure(files));
 
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
-  const earned = checks
-    .filter((c) => c.passed)
-    .reduce((s, c) => s + c.weight, 0);
+  const earned = checks.filter((c) => c.passed).reduce((s, c) => s + c.weight, 0);
   const score = totalWeight > 0 ? Math.round((earned / totalWeight) * 100) : 0;
 
   return { score, checks };
@@ -80,7 +75,7 @@ function reviewFrontmatter(fm: SkillFrontmatter): ReviewCheck[] {
 
 function reviewBody(body: string): ReviewCheck[] {
   const trimmed = body.trim();
-  const headings = (trimmed.match(/^#+\s/mg) ?? []).length;
+  const headings = (trimmed.match(/^#+\s/gm) ?? []).length;
   const hasSteps = /^\d+\.|^-\s/m.test(trimmed);
   return [
     {
@@ -112,9 +107,7 @@ function reviewBody(body: string): ReviewCheck[] {
 
 function reviewStructure(files: SkillBundle): ReviewCheck[] {
   const hasScripts = [...files.keys()].some((p) => p.startsWith("scripts/"));
-  const hasReferences = [...files.keys()].some((p) =>
-    p.startsWith("references/"),
-  );
+  const hasReferences = [...files.keys()].some((p) => p.startsWith("references/"));
   const hasPlugin = files.has("plugin.json");
   return [
     {
@@ -139,9 +132,7 @@ function reviewStructure(files: SkillBundle): ReviewCheck[] {
       id: "plugin-manifest",
       label: "Plugin manifest",
       passed: hasPlugin,
-      message: hasPlugin
-        ? "plugin.json present for bundled context"
-        : "No plugin.json (optional)",
+      message: hasPlugin ? "plugin.json present for bundled context" : "No plugin.json (optional)",
       weight: 5,
     },
   ];

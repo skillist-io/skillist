@@ -1,9 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { env } from "cloudflare:test";
-import {
-  cachePublishedSkill,
-  getPublishedSkillMd,
-} from "./lib/publish";
+import { describe, expect, it } from "vitest";
+import { cachePublishedSkill, getPublishedSkillMd } from "./lib/publish";
 
 const ORG = "bench-org";
 const SLUG = "bench-skill";

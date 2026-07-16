@@ -1,14 +1,8 @@
-import { Link, isRedirect, useRouter } from "@tanstack/react-router";
 import type { ErrorComponentProps } from "@tanstack/react-router";
+import { isRedirect, Link, useRouter } from "@tanstack/react-router";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 function describeError(error: unknown): {
   title: string;
@@ -23,8 +17,7 @@ function describeError(error: unknown): {
     };
   }
 
-  const message =
-    error instanceof Error ? error.message : "An unexpected error occurred.";
+  const message = error instanceof Error ? error.message : "An unexpected error occurred.";
 
   if (/failed to fetch|network|load failed/i.test(message)) {
     return {
@@ -53,8 +46,7 @@ function describeError(error: unknown): {
 export function RouteErrorFallback({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   const { title, message, showSignIn } = describeError(error);
-  const detail =
-    error instanceof Error ? error.stack ?? error.message : String(error);
+  const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
 
   return (
     <div className="flex min-h-[50vh] items-center justify-center p-6">
@@ -71,11 +63,7 @@ export function RouteErrorFallback({ error, reset }: ErrorComponentProps) {
             <RefreshCw className="size-4" />
             Try again
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void router.navigate({ to: "/" })}
-          >
+          <Button type="button" variant="outline" onClick={() => void router.navigate({ to: "/" })}>
             Go home
           </Button>
           {showSignIn ? (

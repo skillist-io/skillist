@@ -4,11 +4,7 @@ type BarChartProps = {
   className?: string;
 };
 
-export function MiniBarChart({
-  data,
-  valueLabel,
-  className = "",
-}: BarChartProps) {
+export function MiniBarChart({ data, valueLabel, className = "" }: BarChartProps) {
   const max = Math.max(...data.map((d) => d.value), 1);
 
   return (
