@@ -52,3 +52,5 @@ https://skillist.dev/{org}/{repo}/SKILL.md
 - `skillist rollback <org>/<repo> <semver>` — roll back to a previous published version
 - `skillist update [org/repo]` — refresh installed skills
 - `skillist list` — show lockfile entries
+- `skillist inventory scan [--org <slug>]` — discover local agent skills and POST scan
+- `skillist inventory list [--org <slug>]` — list org inventory from the API
