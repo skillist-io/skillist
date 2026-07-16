@@ -16,6 +16,7 @@ import {
   registryEntries,
   skillEvals,
   skillInventory,
+  skillRuns,
   skills,
   skillVersions,
   telemetryEvents,
@@ -443,6 +444,142 @@ governanceRoutes.openapi(listEvalsRoute, async (c) => {
     .limit(20);
 
   return c.json({ items }, 200);
+});
+
+const getEvalRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/skills/{slug}/evals/{evalId}",
+  tags: ["Evals"],
+  request: {
+    params: z.object({
+      orgId: z.string().uuid(),
+      slug: z.string(),
+      evalId: z.string().uuid(),
+    }),
+  },
+  responses: { 200: { description: "Eval detail" } },
+});
+
+governanceRoutes.openapi(getEvalRoute, async (c) => {
+  const { orgId, slug, evalId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [skill] = await c.var.db
+    .select()
+    .from(skills)
+    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .limit(1);
+  if (!skill) return c.json({ error: "Not found" }, 404);
+
+  const [evalRow] = await c.var.db
+    .select()
+    .from(skillEvals)
+    .where(and(eq(skillEvals.id, evalId), eq(skillEvals.skillId, skill.id)))
+    .limit(1);
+  if (!evalRow) return c.json({ error: "Not found" }, 404);
+
+  return c.json({ eval: evalRow }, 200);
+});
+
+const observabilityRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/observability",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    query: z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }),
+  },
+  responses: { 200: { description: "Org observability" } },
+});
+
+governanceRoutes.openapi(observabilityRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const { days } = c.req.valid("query");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  if (!org) return c.json({ error: "Not found" }, 404);
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const events = await c.var.db
+    .select()
+    .from(telemetryEvents)
+    .where(
+      and(
+        eq(telemetryEvents.orgSlug, org.slug),
+        gte(telemetryEvents.createdAt, since),
+      ),
+    );
+
+  const registry = await c.var.db
+    .select({
+      skillSlug: registryEntries.skillSlug,
+      installCount: registryEntries.installCount,
+      activationCount: registryEntries.activationCount,
+    })
+    .from(registryEntries)
+    .where(eq(registryEntries.orgSlug, org.slug));
+
+  const runs = await c.var.db
+    .select()
+    .from(skillRuns)
+    .where(
+      and(
+        eq(skillRuns.orgSlug, org.slug),
+        gte(skillRuns.createdAt, since),
+      ),
+    )
+    .orderBy(desc(skillRuns.createdAt))
+    .limit(50);
+
+  const finished = runs.filter(
+    (r) => r.status === "completed" || r.status === "failed",
+  );
+  const succeeded = finished.filter((r) => r.exitCode === 0);
+  const durations = finished
+    .map((r) => r.durationMs ?? 0)
+    .filter((ms) => ms > 0);
+  const avgDurationMs = durations.length
+    ? Math.round(durations.reduce((sum, ms) => sum + ms, 0) / durations.length)
+    : 0;
+
+  const byRuntime = runs.reduce<Record<string, number>>((acc, run) => {
+    acc[run.runtime] = (acc[run.runtime] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return c.json(
+    {
+      telemetry: {
+        events: events.length,
+        installs: events.filter((e) => e.eventType === "install").length,
+        activations: events.filter((e) => e.eventType === "activation").length,
+        bySkill: registry,
+      },
+      runs: {
+        total: runs.length,
+        finished: finished.length,
+        succeeded: succeeded.length,
+        failed: finished.length - succeeded.length,
+        successRate:
+          finished.length > 0
+            ? Math.round((succeeded.length / finished.length) * 100)
+            : null,
+        avgDurationMs,
+        byRuntime,
+        recent: runs.slice(0, 20),
+      },
+    },
+    200,
+  );
 });
 
 const inventoryScanRoute = createRoute({

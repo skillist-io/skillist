@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ObservabilityRouteImport } from './routes/observability'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
@@ -20,6 +21,11 @@ import { Route as OrgsOrgIdSkillsSlugRouteImport } from './routes/orgs/$orgId/sk
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObservabilityRoute = ObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/registry/': typeof RegistryIndexRoute
   '/registry/$org/$slug': typeof RegistryOrgSlugRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/registry': typeof RegistryIndexRoute
   '/registry/$org/$slug': typeof RegistryOrgSlugRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/registry/': typeof RegistryIndexRoute
   '/registry/$org/$slug': typeof RegistryOrgSlugRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
+    | '/observability'
     | '/settings'
     | '/registry/'
     | '/registry/$org/$slug'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
+    | '/observability'
     | '/settings'
     | '/registry'
     | '/registry/$org/$slug'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
+    | '/observability'
     | '/settings'
     | '/registry/'
     | '/registry/$org/$slug'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  ObservabilityRoute: typeof ObservabilityRoute
   SettingsRoute: typeof SettingsRoute
   RegistryIndexRoute: typeof RegistryIndexRoute
   RegistryOrgSlugRoute: typeof RegistryOrgSlugRoute
@@ -128,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/observability': {
+      id: '/observability'
+      path: '/observability'
+      fullPath: '/observability'
+      preLoaderRoute: typeof ObservabilityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  ObservabilityRoute: ObservabilityRoute,
   SettingsRoute: SettingsRoute,
   RegistryIndexRoute: RegistryIndexRoute,
   RegistryOrgSlugRoute: RegistryOrgSlugRoute,

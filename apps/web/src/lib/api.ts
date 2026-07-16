@@ -53,6 +53,8 @@ export type SkillRunResult = {
 
 export type SkillRun = {
   id: string;
+  orgSlug?: string;
+  skillSlug?: string;
   scriptPath: string;
   runtime: string;
   status: string;
@@ -91,12 +93,44 @@ export type AuditEvent = {
 
 export type SkillEval = {
   id: string;
+  versionId?: string;
   status: string;
   baselineScore: number | null;
   withSkillScore: number | null;
   uplift: number | null;
+  results?: {
+    name: string;
+    prompt: string;
+    baselineScore: number;
+    withSkillScore: number;
+    uplift: number;
+  }[] | null;
+  error?: string | null;
   createdAt: string;
   completedAt: string | null;
+};
+
+export type ObservabilitySummary = {
+  telemetry: {
+    events: number;
+    installs: number;
+    activations: number;
+    bySkill: {
+      skillSlug: string;
+      installCount: number;
+      activationCount: number;
+    }[];
+  };
+  runs: {
+    total: number;
+    finished: number;
+    succeeded: number;
+    failed: number;
+    successRate: number | null;
+    avgDurationMs: number;
+    byRuntime: Record<string, number>;
+    recent: SkillRun[];
+  };
 };
 
 export type ReviewPreview = {

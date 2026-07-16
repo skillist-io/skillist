@@ -31,6 +31,8 @@ Usage:
   skillist publish <org>/<skill> <dir>       Push + publish to registry
   skillist run <org>/<skill> --script <path>   Run script in hosted sandbox
                                               [--url <url>] [--stream] [-- ...args]
+  skillist eval <org>/<skill>                 Queue skill eval on latest draft
+                                              [--wait]
   skillist update [org/skill]              Update installed skills from lockfile
   skillist list                            List skills in lockfile
 
@@ -392,6 +394,59 @@ async function runSkill(
   if (result.exitCode !== 0) process.exit(result.exitCode);
 }
 
+async function runEval(ref: string, wait = false) {
+  if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for eval");
+  const { org, skill } = parseRef(ref);
+  const orgId = await resolveOrgId(org);
+
+  const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${skill}/versions`);
+  const versions = (await versionsRes.json()) as { id: string; status: string }[];
+  const draft = versions.find((v) => v.status === "draft") ?? versions[0];
+  if (!draft) throw new Error(`No versions found for ${org}/${skill}`);
+
+  const evalRes = await apiFetch(
+    `/v1/orgs/${orgId}/skills/${skill}/versions/${draft.id}/eval`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    },
+  );
+  const { eval: queued } = (await evalRes.json()) as {
+    eval: { id: string; status: string };
+  };
+  console.log(`Eval queued: ${queued.id}`);
+
+  if (!wait) return;
+
+  for (let attempt = 0; attempt < 60; attempt++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const detailRes = await apiFetch(
+      `/v1/orgs/${orgId}/skills/${skill}/evals/${queued.id}`,
+    );
+    const { eval: detail } = (await detailRes.json()) as {
+      eval: {
+        status: string;
+        baselineScore: number | null;
+        withSkillScore: number | null;
+        uplift: number | null;
+        error?: string | null;
+      };
+    };
+    if (detail.status === "completed") {
+      console.log(
+        `Eval complete: ${detail.baselineScore} → ${detail.withSkillScore} (+${detail.uplift ?? 0})`,
+      );
+      return;
+    }
+    if (detail.status === "failed") {
+      throw new Error(detail.error ?? "Eval failed");
+    }
+    process.stderr.write(".");
+  }
+  throw new Error("Eval timed out");
+}
+
 async function main() {
   const [, , cmd, ref, arg] = process.argv;
 
@@ -466,6 +521,12 @@ async function main() {
       const extraArgs = dashIdx >= 0 ? process.argv.slice(dashIdx + 1) : [];
       const stream = process.argv.includes("--stream");
       await runSkill(ref, scriptPath, targetUrl, extraArgs, stream);
+      return;
+    }
+
+    if (cmd === "eval") {
+      if (!ref) throw new Error("Usage: skillist eval <org>/<skill> [--wait]");
+      await runEval(ref, process.argv.includes("--wait"));
       return;
     }
 

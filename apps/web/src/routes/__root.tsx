@@ -7,6 +7,7 @@ function isAppRoute(pathname: string) {
   return (
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/settings") ||
+    pathname.startsWith("/observability") ||
     pathname.startsWith("/orgs/")
   );
 }

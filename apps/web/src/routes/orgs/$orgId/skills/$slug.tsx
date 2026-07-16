@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type SkillVersion, type Feedback, type Org, type ReviewPreview, type SkillEval } from "@/lib/api";
+import { api, type SkillVersion, type Feedback, type Org, type ReviewPreview } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { diffLines, diffStats } from "@/lib/diff";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { ScoreBadges } from "@/components/score-badges";
 import { SkillRunCard } from "@/components/skill-run-card";
 import { SkillRunHistory } from "@/components/skill-run-history";
+import { SkillEvalPanel } from "@/components/skill-eval-panel";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { useState, useEffect, useMemo } from "react";
 
@@ -57,12 +58,6 @@ function SkillEditorPage() {
         `/v1/orgs/${orgId}/skills/${slug}/versions/${latestDraft!.id}/preview`,
       ),
     enabled: !!latestDraft,
-  });
-
-  const { data: evals } = useQuery({
-    queryKey: ["evals", orgId, slug],
-    queryFn: () =>
-      api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${slug}/evals`),
   });
 
   const { data: files } = useQuery({
@@ -187,15 +182,6 @@ function SkillEditorPage() {
           <Button variant="outline" onClick={() => setPublic.mutate()}>
             Make public
           </Button>
-          {latestDraft && (
-            <Button
-              variant="outline"
-              onClick={() => runEval.mutate()}
-              disabled={runEval.isPending}
-            >
-              Run eval
-            </Button>
-          )}
           <Button onClick={() => saveVersion.mutate()} disabled={saveVersion.isPending}>
             Save draft
           </Button>
@@ -274,28 +260,13 @@ function SkillEditorPage() {
             <SkillRunHistory org={orgSlug} slug={slug} />
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Evals</CardTitle>
-              <CardDescription>With-skill vs baseline uplift</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {evals?.items?.length ? (
-                evals.items.map((ev) => (
-                  <div key={ev.id} className="flex justify-between rounded border px-2 py-1">
-                    <Badge>{ev.status}</Badge>
-                    <span>
-                      {ev.baselineScore != null && ev.withSkillScore != null
-                        ? `${ev.baselineScore} → ${ev.withSkillScore} (+${ev.uplift ?? 0})`
-                        : "Pending"}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted-foreground">No eval runs yet.</p>
-              )}
-            </CardContent>
-          </Card>
+          <SkillEvalPanel
+            orgId={orgId}
+            slug={slug}
+            versionId={latestDraft?.id}
+            onRunEval={() => runEval.mutate()}
+            isRunning={runEval.isPending}
+          />
 
           <Card>
             <CardHeader>

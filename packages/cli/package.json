@@ -37,7 +37,10 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "dependencies": {
+      "@skillist/skill-format": "^0.1.0"
+    }
   },
   "dependencies": {
     "@skillist/skill-format": "workspace:*"

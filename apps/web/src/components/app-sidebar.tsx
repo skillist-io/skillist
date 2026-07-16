@@ -2,6 +2,7 @@ import * as React from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   LayoutDashboard,
   Settings2,
   Zap,
@@ -30,7 +31,7 @@ type NavItem = {
   title: string;
   to: string;
   icon: LucideIcon;
-  section: "dashboard" | "settings";
+  section: "dashboard" | "observability" | "settings";
 };
 
 const navMain: NavItem[] = [
@@ -39,6 +40,12 @@ const navMain: NavItem[] = [
     to: "/dashboard",
     icon: LayoutDashboard,
     section: "dashboard",
+  },
+  {
+    title: "Observability",
+    to: "/observability",
+    icon: Activity,
+    section: "observability",
   },
   {
     title: "Settings",
@@ -53,8 +60,15 @@ const settingsLinks = [
   { title: "API keys", href: "#api-keys" },
 ];
 
+const observabilityLinks = [
+  { title: "Run metrics", href: "#run-metrics" },
+  { title: "Install funnel", href: "#install-funnel" },
+  { title: "Recent runs", href: "#recent-runs" },
+];
+
 function activeSection(pathname: string): NavItem["section"] {
   if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/observability")) return "observability";
   return "dashboard";
 }
 
@@ -157,6 +171,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarGroupContent>
               {section === "dashboard" ? (
                 <OrgSkillNav orgs={orgs ?? []} filter={filter} pathname={pathname} />
+              ) : section === "observability" ? (
+                observabilityLinks.map((link) => (
+                  <a
+                    key={link.title}
+                    href={link.href}
+                    className="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <span className="font-medium">{link.title}</span>
+                  </a>
+                ))
               ) : (
                 settingsLinks.map((link) => (
                   <a
