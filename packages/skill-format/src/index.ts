@@ -184,6 +184,28 @@ export function extractDiscoveryMeta(
   };
 }
 
+export function extractRegistryDiscovery(frontmatter: SkillFrontmatter): {
+  category: string | null;
+  tags: string[];
+} {
+  const metadata = frontmatter.metadata ?? {};
+  const tags = new Set<string>();
+
+  if (metadata.category) tags.add(metadata.category.trim().toLowerCase());
+  if (metadata.level) tags.add(metadata.level.trim().toLowerCase());
+  if (metadata.tags) {
+    for (const part of metadata.tags.split(/[,;]/)) {
+      const tag = part.trim().toLowerCase();
+      if (tag) tags.add(tag);
+    }
+  }
+
+  return {
+    category: metadata.category?.trim().toLowerCase() ?? null,
+    tags: [...tags],
+  };
+}
+
 export {
   reviewSkillBundle,
   estimateImpactScore,

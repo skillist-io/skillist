@@ -46,6 +46,16 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
     clauses.push(eq(skills.runtime, query.runtime));
   }
 
+  if (query.category) {
+    clauses.push(eq(registryEntries.category, query.category.toLowerCase()));
+  }
+
+  if (query.tag) {
+    clauses.push(
+      sql`${registryEntries.tags} @> ${JSON.stringify([query.tag.toLowerCase()])}::jsonb`,
+    );
+  }
+
   return clauses.length ? and(...clauses) : undefined;
 }
 
@@ -126,6 +136,8 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
       installCount: registryEntries.installCount,
       activationCount: registryEntries.activationCount,
       stars: registryEntries.stars,
+      category: registryEntries.category,
+      tags: registryEntries.tags,
       runtime: skills.runtime,
     })
     .from(registryEntries)
@@ -154,6 +166,42 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
     limit,
     total: countRow?.count ?? 0,
   });
+});
+
+const registryFacetsRoute = createRoute({
+  method: "get",
+  path: "/registry/facets",
+  tags: ["Registry"],
+  responses: { 200: { description: "Registry filter facets" } },
+});
+
+registryRoutes.openapi(registryFacetsRoute, async (c) => {
+  const categoryRows = await c.var.db
+    .selectDistinct({ category: registryEntries.category })
+    .from(registryEntries)
+    .where(sql`${registryEntries.category} IS NOT NULL`);
+
+  const tagRows = await c.var.db
+    .select({ tags: registryEntries.tags })
+    .from(registryEntries);
+
+  const tagSet = new Set<string>();
+  for (const row of tagRows) {
+    for (const tag of row.tags ?? []) {
+      if (tag) tagSet.add(tag);
+    }
+  }
+
+  return c.json(
+    {
+      categories: categoryRows
+        .map((r) => r.category)
+        .filter(Boolean)
+        .sort(),
+      tags: [...tagSet].sort(),
+    },
+    200,
+  );
 });
 
 const getRegistrySkillRoute = createRoute({

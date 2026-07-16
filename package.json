@@ -15,7 +15,8 @@
     "setup:oauth": "bash scripts/setup-oauth.sh",
     "setup:secrets": "bash scripts/setup-production-secrets.sh",
     "seed:registry": "tsx scripts/seed-registry.ts",
-    "cli": "pnpm --filter @skillist/cli dev"
+    "cli": "pnpm --filter skillist dev",
+    "cli:build": "pnpm --filter @skillist/skill-format build && pnpm --filter skillist build"
   },
   "devDependencies": {
     "@skillist/db": "workspace:*",

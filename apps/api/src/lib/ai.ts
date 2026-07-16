@@ -14,6 +14,7 @@ import {
   estimateImpactScore,
   scanSkillSecurity,
   parsePluginManifest,
+  extractRegistryDiscovery,
 } from "@skillist/skill-format";
 import {
   downloadBundleFromR2,
@@ -266,6 +267,7 @@ export async function publishVersion(
 
   if (skill.visibility === "public") {
     const { registryEntries } = await import("@skillist/db/schema");
+    const discovery = extractRegistryDiscovery(validation.frontmatter);
     await db
       .insert(registryEntries)
       .values({
@@ -278,6 +280,8 @@ export async function publishVersion(
         qualityScore: review.score,
         impactScore,
         securityStatus: security.status,
+        category: discovery.category,
+        tags: discovery.tags,
         lastReviewedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -289,6 +293,8 @@ export async function publishVersion(
           qualityScore: review.score,
           impactScore,
           securityStatus: security.status,
+          category: discovery.category,
+          tags: discovery.tags,
           lastReviewedAt: new Date(),
           updatedAt: new Date(),
         },

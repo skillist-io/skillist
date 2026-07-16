@@ -18,6 +18,7 @@ import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
 
 export { SkillRealtimeHub };
 export { Sandbox } from "@cloudflare/sandbox";
+export { SandboxHeavy } from "./durable-objects/sandbox-heavy";
 
 const app = new OpenAPIHono<{ Bindings: Env }>();
 

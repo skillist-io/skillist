@@ -39,6 +39,10 @@
       {
         "name": "SANDBOX",
         "class_name": "Sandbox"
+      },
+      {
+        "name": "SANDBOX_HEAVY",
+        "class_name": "SandboxHeavy"
       }
     ]
   },
@@ -48,6 +52,12 @@
       "image": "./Dockerfile",
       "instance_type": "lite",
       "max_instances": 10
+    },
+    {
+      "class_name": "SandboxHeavy",
+      "image": "./Dockerfile.heavy",
+      "instance_type": "basic",
+      "max_instances": 5
     }
   ],
   "migrations": [
@@ -58,6 +68,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["Sandbox"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["SandboxHeavy"]
     }
   ],
   "ai": {

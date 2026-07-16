@@ -1,15 +1,27 @@
 {
   "name": "@skillist/skill-format",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "agentskills.io bundle validation and review for Skillist",
+  "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./src/index.ts"
+    }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "pnpm run build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "yaml": "^2.9.0",

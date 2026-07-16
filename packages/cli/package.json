@@ -1,15 +1,43 @@
 {
-  "name": "@skillist/cli",
-  "version": "0.0.0",
-  "private": true,
+  "name": "skillist",
+  "version": "0.1.0",
+  "description": "CLI for the Skillist Agent Skills platform",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "skillist": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "agents",
+    "skills",
+    "agentskills",
+    "cli",
+    "skillist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/blakebauman/skillist.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://skillist.dev",
+  "bugs": {
+    "url": "https://github.com/blakebauman/skillist/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@skillist/skill-format": "workspace:*"

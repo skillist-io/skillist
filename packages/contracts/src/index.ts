@@ -87,6 +87,8 @@ export const registryQuerySchema = z.object({
   runtime: z.enum(["all", "local", "sandbox", "container"]).default("all"),
   minQuality: z.coerce.number().int().min(0).max(100).optional(),
   security: z.enum(["all", "pass", "advisory", "fail"]).default("all"),
+  category: z.string().max(64).optional(),
+  tag: z.string().max(64).optional(),
 });
 
 export const skillMetaSchema = z.object({

@@ -7,6 +7,7 @@ export type Env = {
   SKILLS_R2: R2Bucket;
   SKILL_HUB: DurableObjectNamespace;
   SANDBOX: DurableObjectNamespace;
+  SANDBOX_HEAVY: DurableObjectNamespace;
   AI: Ai;
   EMAIL: SendEmail;
   AI_QUEUE: Queue<AiJobMessage>;

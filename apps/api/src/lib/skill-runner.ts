@@ -183,8 +183,9 @@ export async function runSkillScript(
 
   const runId = runRow!.id;
   const sandboxId = `run-${runId}`;
+  const sandboxBinding = runtime === "container" ? env.SANDBOX_HEAVY : env.SANDBOX;
   const sandbox = getSandbox(
-    env.SANDBOX as never,
+    sandboxBinding as never,
     sandboxId,
   ) as unknown as SandboxHandle;
 
