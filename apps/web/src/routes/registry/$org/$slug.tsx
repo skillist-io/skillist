@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
 import { SkillRunCard } from "@/components/skill-run-card";
+import { SkillRunHistory } from "@/components/skill-run-history";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { Wifi, WifiOff } from "lucide-react";
 
@@ -101,6 +102,10 @@ function RegistrySkillPage() {
           scripts={scripts}
           defaultTargetUrl="https://skillist.dev"
         />
+      )}
+
+      {entry?.runtime && entry.runtime !== "local" && (
+        <SkillRunHistory org={org} slug={slug} />
       )}
 
       <Card>

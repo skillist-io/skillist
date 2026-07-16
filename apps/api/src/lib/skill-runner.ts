@@ -29,6 +29,7 @@ export type RunSkillInput = {
   targetUrl?: string;
   actorId?: string | null;
   actorType?: "user" | "api_key" | "system";
+  onOutput?: (stream: "stdout" | "stderr", chunk: string) => void;
 };
 
 export type RunSkillResult = {
@@ -59,6 +60,8 @@ type SandboxHandle = {
       cwd?: string;
       timeout?: number;
       env?: Record<string, string | undefined>;
+      stream?: boolean;
+      onOutput?: (stream: "stdout" | "stderr", data: string) => void;
     },
   ): Promise<{
     stdout: string;
@@ -198,14 +201,29 @@ export async function runSkillScript(
 
     const command = buildExecCommand(scriptPath, execArgs);
     const started = Date.now();
+    const streamChunks: { stdout: string[]; stderr: string[] } = {
+      stdout: [],
+      stderr: [],
+    };
     const result = await sandbox.exec(command, {
       cwd: "/workspace",
       timeout,
       env: validatedUrl ? { SKILLIST_TARGET_URL: validatedUrl } : undefined,
+      stream: !!input.onOutput,
+      onOutput: input.onOutput
+        ? (stream, data) => {
+            streamChunks[stream].push(data);
+            input.onOutput!(stream, data);
+          }
+        : undefined,
     });
 
-    const stdout = truncateOutput(result.stdout ?? "");
-    const stderr = truncateOutput(result.stderr ?? "");
+    const stdout = truncateOutput(
+      result.stdout ?? streamChunks.stdout.join(""),
+    );
+    const stderr = truncateOutput(
+      result.stderr ?? streamChunks.stderr.join(""),
+    );
     const status = result.success ? "completed" : "failed";
 
     await db
