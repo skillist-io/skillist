@@ -5,11 +5,7 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./src/index.ts"
-    }
+    ".": "./src/index.ts"
   },
   "files": [
     "dist"
@@ -21,7 +17,13 @@
     "prepublishOnly": "pnpm run build"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
   },
   "dependencies": {
     "yaml": "^2.9.0",
