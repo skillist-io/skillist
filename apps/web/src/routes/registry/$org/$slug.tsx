@@ -9,8 +9,17 @@ import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
 import { StarButton } from "@/components/registry-star-button";
 import { SkillRunCard } from "@/components/skill-run-card";
 import { SkillRunHistory } from "@/components/skill-run-history";
+import { AgentInstallButtons } from "@/components/agent-install-buttons";
+import { PublicEvalBadge } from "@/components/public-eval-badge";
+import { SkillAnalyticsChart } from "@/components/skill-analytics-chart";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { Wifi, WifiOff } from "lucide-react";
+
+type PluginManifest = {
+  agents?: string[];
+  rules?: string[];
+  mcp?: { servers?: { name: string; url?: string }[] };
+};
 
 export const Route = createFileRoute("/registry/$org/$slug")({
   component: RegistrySkillPage,
@@ -48,7 +57,10 @@ function RegistrySkillPage() {
 
   const installCmd =
     entry?.installCommand ?? `skillist install ${org}/${slug}`;
+  const cliInstall = entry?.cliInstall ?? "npm install -g @skillist/cli";
   const scripts = scriptsData?.scripts ?? [];
+  const manifest = entry?.pluginManifest as PluginManifest | null | undefined;
+  const mcpServers = manifest?.mcp?.servers ?? [];
 
   return (
     <div className="space-y-6">
@@ -66,10 +78,23 @@ function RegistrySkillPage() {
               impact={entry?.impactScore}
               security={entry?.securityStatus}
             />
+            <PublicEvalBadge eval={entry?.eval} />
             {entry?.runtime && entry.runtime !== "local" && (
               <Badge variant="secondary">Hosted {entry.runtime}</Badge>
             )}
+            {entry?.category && (
+              <Badge variant="outline">{entry.category}</Badge>
+            )}
           </div>
+          {entry?.tags?.length ? (
+            <div className="flex flex-wrap gap-1">
+              {entry.tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {connected ? (
@@ -119,17 +144,65 @@ function RegistrySkillPage() {
         <CardHeader>
           <CardTitle>Install</CardTitle>
           <CardDescription>
-            Use the Skillist CLI to install this skill into your project
+            Install the CLI, then add this skill to your agent
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <InstallSnippet command={installCmd} />
+        <CardContent className="space-y-4">
+          <InstallSnippet command={cliInstall} prefix="1. Install CLI" />
+          <AgentInstallButtons
+            org={org}
+            slug={slug}
+            agents={entry?.compatibleAgents}
+            installCommand={installCmd}
+          />
           <div className="flex gap-4 text-sm text-muted-foreground">
             <span>{entry?.installCount ?? 0} installs</span>
             <span>{entry?.activationCount ?? 0} activations</span>
+            <span>{entry?.stars ?? 0} stars</span>
           </div>
         </CardContent>
       </Card>
+
+      <SkillAnalyticsChart org={org} slug={slug} />
+
+      {mcpServers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>MCP servers</CardTitle>
+            <CardDescription>
+              Model Context Protocol servers declared in plugin.json
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {mcpServers.map((server) => (
+              <div
+                key={server.name}
+                className="rounded border px-3 py-2 text-sm"
+              >
+                <p className="font-medium">{server.name}</p>
+                {server.url && (
+                  <p className="text-muted-foreground">{server.url}</p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {manifest?.rules?.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Plugin rules</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+              {manifest.rules.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

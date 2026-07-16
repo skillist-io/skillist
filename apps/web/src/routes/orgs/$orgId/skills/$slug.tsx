@@ -137,6 +137,15 @@ function SkillEditorPage() {
       queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] }),
   });
 
+  const rollback = useMutation({
+    mutationFn: (versionId: string) =>
+      api(`/v1/orgs/${orgId}/skills/${slug}/versions/${versionId}/rollback`, {
+        method: "POST",
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] }),
+  });
+
   const setPublic = useMutation({
     mutationFn: () =>
       api(`/v1/orgs/${orgId}/skills/${slug}/visibility`, {
@@ -298,7 +307,20 @@ function SkillEditorPage() {
                   >
                     v{v.semver}
                   </button>
-                  <Badge>{v.status}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge>{v.status}</Badge>
+                    {(v.status === "published" || v.status === "archived") &&
+                      v.id !== publishedVersion?.id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => rollback.mutate(v.id)}
+                          disabled={rollback.isPending}
+                        >
+                          Rollback
+                        </Button>
+                      )}
+                  </div>
                 </div>
               ))}
             </CardContent>

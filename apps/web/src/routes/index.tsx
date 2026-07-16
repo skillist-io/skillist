@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegistryTrending } from "@/components/registry-trending";
+import { InstallSnippet } from "@/components/score-badges";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -16,14 +17,14 @@ function HomePage() {
         </h1>
         <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
           Manage, version, and deliver SKILL.md files with sub-10ms fan-out.
-          Built for the{" "}
+          Works with Cursor, Claude Code, VS Code, and any{" "}
           <a
             href="https://agentskills.io/home"
             className="text-primary underline"
           >
             agentskills.io
           </a>{" "}
-          standard.
+          client.
         </p>
         <div className="flex justify-center gap-3">
           <Button size="lg" asChild>
@@ -33,6 +34,26 @@ function HomePage() {
             <Link to="/dashboard">Open dashboard</Link>
           </Button>
         </div>
+      </section>
+
+      <section className="mx-auto max-w-xl space-y-3">
+        <h2 className="text-center text-lg font-semibold">Quick start</h2>
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <InstallSnippet
+              command="npm install -g @skillist/cli"
+              prefix="Install the CLI"
+            />
+            <InstallSnippet
+              command="skillist search performance"
+              prefix="Search the registry"
+            />
+            <InstallSnippet
+              command="skillist install skillist/web-perf-audit"
+              prefix="Install a skill"
+            />
+          </CardContent>
+        </Card>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">

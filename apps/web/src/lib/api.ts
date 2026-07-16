@@ -40,7 +40,16 @@ export type RegistryItem = {
   compatibleAgents?: string[];
   starred?: boolean;
   installCommand?: string;
+  cliInstall?: string;
   runCommand?: string | null;
+  pluginManifest?: Record<string, unknown> | null;
+  eval?: {
+    status: string;
+    uplift: number | null;
+    baselineScore: number | null;
+    withSkillScore: number | null;
+    completedAt: string | null;
+  } | null;
 };
 
 export type SkillRunResult = {

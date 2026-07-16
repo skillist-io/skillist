@@ -45,8 +45,19 @@ export function ScoreBadges({
   );
 }
 
-export function InstallSnippet({ command }: { command: string }) {
+export function InstallSnippet({
+  command,
+  prefix,
+}: {
+  command: string;
+  prefix?: string;
+}) {
   return (
-    <code className="block rounded bg-muted px-2 py-1 text-xs">{command}</code>
+    <div className="space-y-1">
+      {prefix && (
+        <p className="text-xs text-muted-foreground">{prefix}</p>
+      )}
+      <code className="block rounded bg-muted px-2 py-1 text-xs">{command}</code>
+    </div>
   );
 }

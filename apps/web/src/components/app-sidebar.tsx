@@ -5,6 +5,7 @@ import {
   Activity,
   LayoutDashboard,
   Settings2,
+  Shield,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -31,7 +32,7 @@ type NavItem = {
   title: string;
   to: string;
   icon: LucideIcon;
-  section: "dashboard" | "observability" | "settings";
+  section: "dashboard" | "observability" | "governance" | "settings";
 };
 
 const navMain: NavItem[] = [
@@ -48,6 +49,12 @@ const navMain: NavItem[] = [
     section: "observability",
   },
   {
+    title: "Governance",
+    to: "/governance",
+    icon: Shield,
+    section: "governance",
+  },
+  {
     title: "Settings",
     to: "/settings",
     icon: Settings2,
@@ -60,6 +67,12 @@ const settingsLinks = [
   { title: "API keys", href: "#api-keys" },
 ];
 
+const governanceLinks = [
+  { title: "Publish policies", href: "#governance" },
+  { title: "Execution quotas", href: "#governance" },
+  { title: "Audit log", href: "#governance" },
+];
+
 const observabilityLinks = [
   { title: "Run metrics", href: "#run-metrics" },
   { title: "Install funnel", href: "#install-funnel" },
@@ -68,6 +81,7 @@ const observabilityLinks = [
 
 function activeSection(pathname: string): NavItem["section"] {
   if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/governance")) return "governance";
   if (pathname.startsWith("/observability")) return "observability";
   return "dashboard";
 }
@@ -173,6 +187,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <OrgSkillNav orgs={orgs ?? []} filter={filter} pathname={pathname} />
               ) : section === "observability" ? (
                 observabilityLinks.map((link) => (
+                  <a
+                    key={link.title}
+                    href={link.href}
+                    className="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <span className="font-medium">{link.title}</span>
+                  </a>
+                ))
+              ) : section === "governance" ? (
+                governanceLinks.map((link) => (
                   <a
                     key={link.title}
                     href={link.href}

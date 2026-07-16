@@ -35,6 +35,7 @@ Usage:
                                               [--url <url>] [--stream] [-- ...args]
   skillist eval <org>/<skill>                 Queue skill eval on latest draft
                                               [--wait]
+  skillist rollback <org>/<skill> <semver>    Roll back to a previous published version
   skillist update [org/skill]              Update installed skills from lockfile
   skillist list                            List skills in lockfile
 
@@ -454,6 +455,25 @@ async function runEval(ref: string, wait = false) {
   throw new Error("Eval timed out");
 }
 
+async function rollbackSkill(orgSkill: string, semver: string) {
+  const { org, skill } = parseRef(orgSkill);
+  const orgId = await resolveOrgId(org);
+  const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${skill}/versions`);
+  const versions = (await versionsRes.json()) as {
+    id: string;
+    semver: string;
+    status: string;
+  }[];
+  const target = versions.find((v) => v.semver === semver);
+  if (!target) throw new Error(`Version ${semver} not found`);
+  const res = await apiFetch(
+    `/v1/orgs/${orgId}/skills/${skill}/versions/${target.id}/rollback`,
+    { method: "POST" },
+  );
+  const result = (await res.json()) as { version: string; etag: string };
+  console.log(`Rolled back ${org}/${skill} to v${result.version}`);
+}
+
 async function main() {
   const [, , cmd, ref, arg] = process.argv;
 
@@ -538,6 +558,14 @@ async function main() {
     if (cmd === "eval") {
       if (!ref) throw new Error("Usage: skillist eval <org>/<skill> [--wait]");
       await runEval(ref, process.argv.includes("--wait"));
+      return;
+    }
+
+    if (cmd === "rollback") {
+      if (!ref || !arg) {
+        throw new Error("Usage: skillist rollback <org>/<skill> <semver>");
+      }
+      await rollbackSkill(ref, arg);
       return;
     }
 

@@ -54,6 +54,13 @@ const SKILL_LEVELS: Record<string, string> = {
   "roll-dice": "1.0.0",
   "web-perf-audit": "1.0.0",
   "cloudflare-deploy": "1.0.0",
+  "api-design": "1.0.0",
+  "sql-review": "1.0.0",
+  "git-commit": "1.0.0",
+  "security-audit": "1.0.0",
+  "docs-writer": "1.0.0",
+  "test-generator": "1.0.0",
+  "stripe-integration": "1.0.0",
 };
 
 async function walkBundle(dir: string): Promise<Map<string, string>> {

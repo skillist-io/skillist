@@ -1,0 +1,11 @@
+{
+  "name": "stripe-integration",
+  "version": "1.0.0",
+  "description": "Stripe payments integration skill",
+  "skills": ["SKILL.md"],
+  "agents": ["cursor", "claude", "vscode"],
+  "rules": [
+    "Never log or commit Stripe secret keys",
+    "Always verify webhook signatures"
+  ]
+}

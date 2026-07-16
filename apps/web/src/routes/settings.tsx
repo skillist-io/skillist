@@ -138,7 +138,13 @@ function SettingsPage() {
               {activeOrgId && (
                 <>
                   <ApiKeyManager orgId={activeOrgId} />
-                  <GovernancePanel orgId={activeOrgId} />
+                  <p className="text-sm text-muted-foreground">
+                    Publish policies, quotas, and audit logs are on the{" "}
+                    <a href="/governance" className="text-primary underline">
+                      Governance
+                    </a>{" "}
+                    page.
+                  </p>
                 </>
               )}
             </>
@@ -267,7 +273,7 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
   );
 }
 
-function GovernancePanel({ orgId }: { orgId: string }) {
+export function GovernancePanel({ orgId }: { orgId: string }) {
   const queryClient = useQueryClient();
   const [minQuality, setMinQuality] = useState(60);
   const [requirePass, setRequirePass] = useState(false);

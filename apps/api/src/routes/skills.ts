@@ -10,6 +10,7 @@ import {
   skillFiles,
   skillVersions,
   skills,
+  skillEvals,
 } from "@skillist/db/schema";
 import {
   createSkillTemplate,
@@ -22,7 +23,7 @@ import {
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import { requireOrgAccess } from "../lib/org-access";
-import { publishVersion } from "../lib/ai";
+import { publishVersion, rollbackVersion } from "../lib/ai";
 import {
   r2Prefix,
   sha256,
@@ -231,6 +232,38 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
     });
   }
 
+  const [org] = await c.var.db
+    .select({ publishPolicy: organizations.publishPolicy })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+
+  if (org?.publishPolicy?.requireEval) {
+    const [evalRow] = await c.var.db
+      .insert(skillEvals)
+      .values({
+        skillId: skill.id,
+        versionId,
+        status: "queued",
+      })
+      .returning();
+    if (evalRow) {
+      const [orgRow] = await c.var.db
+        .select({ slug: organizations.slug })
+        .from(organizations)
+        .where(eq(organizations.id, orgId))
+        .limit(1);
+      await c.env.AI_QUEUE.send({
+        type: "eval",
+        evalId: evalRow.id,
+        skillId: skill.id,
+        versionId,
+        orgSlug: orgRow?.slug ?? orgId,
+        skillSlug: slug,
+      });
+    }
+  }
+
   return c.json(
     { id: version!.id, semver: version!.semver, status: version!.status },
     201,
@@ -325,6 +358,52 @@ skillRoutes.openapi(publishRoute, async (c) => {
   } catch (err) {
     return c.json(
       { error: err instanceof Error ? err.message : "Publish failed" },
+      400,
+    );
+  }
+});
+
+const rollbackRoute = createRoute({
+  method: "post",
+  path: "/orgs/{orgId}/skills/{slug}/versions/{versionId}/rollback",
+  tags: ["Skills"],
+  request: {
+    params: z.object({
+      orgId: z.string().uuid(),
+      slug: z.string(),
+      versionId: z.string().uuid(),
+    }),
+  },
+  responses: { 200: { description: "Rolled back" } },
+});
+
+skillRoutes.openapi(rollbackRoute, async (c) => {
+  const { orgId, slug, versionId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor", {
+    apiKeyScope: "skills:publish",
+  });
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [skill] = await c.var.db
+    .select()
+    .from(skills)
+    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .limit(1);
+  if (!skill) return c.json({ error: "Not found" }, 404);
+
+  try {
+    const result = await rollbackVersion(
+      c.env,
+      c.var.db,
+      skill.id,
+      versionId,
+      access.actorId,
+      access.actorType,
+    );
+    return c.json(result, 200);
+  } catch (err) {
+    return c.json(
+      { error: err instanceof Error ? err.message : "Rollback failed" },
       400,
     );
   }
