@@ -41,7 +41,7 @@ const features: Feature[] = [
     icon: Laptop,
     badge: "Sandbox",
     href: "/platform/sandbox/",
-    description: "Run skill scripts in isolated Cloudflare sandboxes with streaming output.",
+    description: "Run skill scripts in isolated hosted sandboxes with streaming output.",
   },
   {
     title: "Delivery URLs",
