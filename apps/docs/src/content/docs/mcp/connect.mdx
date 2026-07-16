@@ -4,24 +4,17 @@ description: Configure Cursor, Claude Code, VS Code, and other MCP clients to us
 ---
 
 import { DocAlert } from "@/components/docs/DocAlert";
+import { DocTable } from "@/components/docs/DocTable";
+import { McpConnectCard } from "@/components/docs/McpConnectCard";
+import { SectionHeading } from "@/components/docs/SectionHeading";
 
 <DocAlert title="MCP endpoint" client:load>
   All clients connect to `https://api.skillist.dev/mcp` using streamable HTTP.
 </DocAlert>
 
-## Cursor
+<SectionHeading title="Cursor" client:load />
 
-Add to `.cursor/mcp.json` in your project (or global Cursor MCP settings):
-
-```json
-{
-  "mcpServers": {
-    "skillist-registry": {
-      "url": "https://api.skillist.dev/mcp"
-    }
-  }
-}
-```
+<McpConnectCard client:load />
 
 Restart Cursor or reload MCP servers. OAuth-capable Cursor builds discover authorization automatically — see [OAuth authentication](/mcp/oauth/).
 
@@ -31,29 +24,11 @@ Ask your agent to call `registry_facets` or `registry_search` with query `"perfo
 
 ## Claude Desktop / Claude Code
 
-Use the remote HTTP transport with the same URL:
-
-```json
-{
-  "mcpServers": {
-    "skillist-registry": {
-      "url": "https://api.skillist.dev/mcp"
-    }
-  }
-}
-```
-
-Consult Anthropic's MCP docs for the config file location on your OS.
+Use the remote HTTP transport with the same URL in your MCP config. Consult Anthropic's MCP docs for the config file location on your OS.
 
 ## VS Code
 
-If your VS Code MCP extension supports streamable HTTP, point it at:
-
-```
-https://api.skillist.dev/mcp
-```
-
-Use the extension's server registration UI or `settings.json` per the extension's documentation.
+If your VS Code MCP extension supports streamable HTTP, point it at `https://api.skillist.dev/mcp` via the extension's server registration UI or `settings.json`.
 
 ## Generic HTTP client
 
@@ -97,11 +72,15 @@ The [`skillist/registry-mcp`](https://skillist.dev/registry/skillist/registry-mc
 skillist install skillist/registry-mcp
 ```
 
-## Troubleshooting
+<SectionHeading title="Troubleshooting" client:load />
 
-| Issue | Fix |
-|-------|-----|
-| 401 from MCP client | Complete OAuth sign-in at [skillist.dev/login](https://skillist.dev/login) if your client requires tokens |
-| Session not found | Call `initialize` first or omit `Mcp-Session-Id` for stateless JSON mode |
-| CORS errors | MCP is served with permissive CORS; ensure your client sends `Content-Type: application/json` |
-| OAuth discovery fails | Confirm `/.well-known/oauth-protected-resource` is reachable — see [OAuth](/mcp/oauth/) |
+<DocTable
+  client:load
+  columns={["Issue", "Fix"]}
+  rows={[
+    ["401 from MCP client", "Complete OAuth sign-in at skillist.dev/login if your client requires tokens"],
+    ["Session not found", "Call initialize first or omit Mcp-Session-Id for stateless JSON mode"],
+    ["CORS errors", "Ensure your client sends Content-Type: application/json"],
+    ["OAuth discovery fails", "Confirm /.well-known/oauth-protected-resource is reachable — see OAuth docs"],
+  ]}
+/>

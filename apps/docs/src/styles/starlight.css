@@ -1,4 +1,4 @@
-/* Starlight chrome aligned with shadcn tokens */
+/* Starlight chrome aligned with Skillist radix-sera design system */
 
 :root:not([data-theme="light"]),
 :root[data-theme="dark"] {
@@ -49,17 +49,117 @@
   --sl-color-bg-inline-code: var(--muted);
 }
 
+/* Typography */
 .site-title {
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
+.sl-markdown-content {
+  --sl-content-width: 46rem;
+}
+
+.sl-markdown-content h2 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 2.5rem;
+}
+
+.sl-markdown-content h3 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 2rem;
+}
+
+.sl-markdown-content p,
+.sl-markdown-content li {
+  line-height: 1.7;
+}
+
 .sl-markdown-content a:not([class]) {
   color: var(--primary);
   text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
 }
 
-/* Let shadcn islands use full width inside starlight content */
+.sl-markdown-content a:not([class]):hover {
+  color: color-mix(in oklch, var(--primary) 80%, var(--foreground));
+}
+
+/* Header */
+header.header {
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Sidebar */
+.sidebar-content a[aria-current="page"] {
+  background: var(--muted);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.sidebar-content a:hover {
+  background: color-mix(in oklch, var(--muted) 80%, transparent);
+}
+
+.sidebar-content .group-label span {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Inline code + tables in prose */
+.sl-markdown-content :not(pre) > code {
+  border-radius: 0;
+  font-size: 0.8125em;
+  padding: 0.15em 0.4em;
+}
+
+.sl-markdown-content table {
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  width: 100%;
+}
+
+.sl-markdown-content th {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+}
+
+/* shadcn islands */
 .sl-markdown-content .not-content {
   margin-inline: 0;
+}
+
+.sl-markdown-content .not-content + h2,
+.sl-markdown-content .not-content + h3 {
+  margin-top: 3rem;
+}
+
+/* Hero splash page */
+main[data-pagefind-body] .content-panel:has(.hero) {
+  border: none;
+}
+
+.hero h1 {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.hero .tagline {
+  color: var(--muted-foreground);
+  line-height: 1.6;
 }

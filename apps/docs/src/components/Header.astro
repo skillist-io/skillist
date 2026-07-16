@@ -1,0 +1,42 @@
+---
+import Default from "@astrojs/starlight/components/Header.astro";
+---
+
+<div class="sl-flex docs-header">
+  <Default><slot /></Default>
+  <a class="docs-header-cta" href="https://skillist.dev" target="_blank" rel="noopener noreferrer">
+    Open app
+  </a>
+</div>
+
+<style>
+  .docs-header {
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .docs-header-cta {
+    margin-inline-end: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--primary-foreground);
+    background: var(--primary);
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+  }
+
+  .docs-header-cta:hover {
+    opacity: 0.85;
+  }
+
+  @media (max-width: 50rem) {
+    .docs-header-cta {
+      display: none;
+    }
+  }
+</style>

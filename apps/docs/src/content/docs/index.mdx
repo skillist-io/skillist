@@ -23,13 +23,16 @@ hero:
 
 import { FeatureCards } from "@/components/docs/FeatureCards";
 import { EndpointsTable } from "@/components/docs/EndpointsTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
 
-## What is Skillist?
-
-Skillist is a platform for managing, versioning, and delivering [agentskills.io](https://agentskills.io/home) skills with sub-10ms fan-out, hosted sandboxes, evals, and a public registry.
+<SectionHeading
+  title="What is Skillist?"
+  description="Manage, version, and deliver agentskills.io skills with sub-10ms fan-out, hosted sandboxes, evals, and a public registry."
+  client:load
+/>
 
 <FeatureCards client:load />
 
-## Endpoints
+<SectionHeading title="Endpoints" client:load />
 
 <EndpointsTable client:load />
