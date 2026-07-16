@@ -31,13 +31,29 @@ jobs:
 
       - run: pnpm test
 
-      - run: pnpm smoke
-
       - run: pnpm exec playwright install chromium --with-deps
 
       - run: pnpm test:e2e
 
       - run: pnpm build
+
+  smoke:
+    needs: [check, deploy-api, deploy-web, deploy-docs]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm smoke
 
   deploy-api:
     needs: check
