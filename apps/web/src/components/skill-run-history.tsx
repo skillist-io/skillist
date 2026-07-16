@@ -5,6 +5,8 @@ import { api, type SkillRun } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { useSession } from "@/lib/auth-client";
+
 type SkillRunHistoryProps = {
   org: string;
   slug: string;
@@ -13,6 +15,8 @@ type SkillRunHistoryProps = {
 
 export function SkillRunHistory({ org, slug, limit = 10 }: SkillRunHistoryProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user);
 
   const { data, isLoading } = useQuery({
     queryKey: ["runs", org, slug, limit],
@@ -20,9 +24,12 @@ export function SkillRunHistory({ org, slug, limit = 10 }: SkillRunHistoryProps)
       api<{ items: SkillRun[] }>(
         `/v1/skills/${org}/${slug}/runs?limit=${limit}`,
       ),
+    enabled: isLoggedIn,
   });
 
   const items = data?.items ?? [];
+
+  if (!isLoggedIn) return null;
 
   if (isLoading) {
     return (

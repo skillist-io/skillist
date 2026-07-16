@@ -63,6 +63,7 @@ executionRoutes.openapi(listScriptsRoute, async (c) => {
     c.var.auth,
     loaded.org,
     loaded.skill,
+    "view",
   );
   if (!access.ok) return c.json({ error: "Not found" }, access.status === 401 ? 401 : 404);
 

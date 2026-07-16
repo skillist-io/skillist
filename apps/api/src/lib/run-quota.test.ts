@@ -26,11 +26,11 @@ describe("execution policy defaults", () => {
 });
 
 describe("skill visibility access rules", () => {
-  it("public skills allow anonymous runs", () => {
+  it("public skills require sign-in for sandbox runs", () => {
     const visibility = "public";
     const auth = { userId: null, apiKeyId: null };
-    const allowsAnonymous = visibility === "public" && !auth.userId && !auth.apiKeyId;
-    expect(allowsAnonymous).toBe(true);
+    const canRun = visibility === "public" && (!!auth.userId || !!auth.apiKeyId);
+    expect(canRun).toBe(false);
   });
 
   it("private skills require authentication", () => {
