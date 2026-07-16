@@ -17,7 +17,7 @@ export default defineConfig({
       },
       customCss: ["./src/styles/skillist.css"],
       components: {
-        Head: "./src/components/Head.astro",
+        ThemeProvider: "./src/components/ThemeProvider.astro",
       },
       social: [
         {
