@@ -85,7 +85,7 @@ governanceRoutes.openapi(telemetryIngestRoute, async (c) => {
 
   await c.var.db.insert(telemetryEvents).values({
     orgSlug: body.orgSlug,
-    skillSlug: body.skillSlug,
+    skillRepo: body.skillRepo,
     eventType: body.eventType,
     projectHash: body.projectHash ?? null,
     userId,
@@ -103,7 +103,7 @@ governanceRoutes.openapi(telemetryIngestRoute, async (c) => {
     .where(
       and(
         eq(registryEntries.orgSlug, body.orgSlug),
-        eq(registryEntries.skillSlug, body.skillSlug),
+        eq(registryEntries.skillRepo, body.skillRepo),
       ),
     );
 
@@ -149,7 +149,7 @@ governanceRoutes.openapi(orgTelemetryRoute, async (c) => {
 
   const registry = await c.var.db
     .select({
-      skillSlug: registryEntries.skillSlug,
+      skillRepo: registryEntries.skillRepo,
       installCount: registryEntries.installCount,
       activationCount: registryEntries.activationCount,
     })
@@ -324,7 +324,7 @@ governanceRoutes.openapi(addRequiredSkillRoute, async (c) => {
     .values({
       orgId,
       orgSlug: body.orgSlug,
-      skillSlug: body.skillSlug,
+      skillRepo: body.skillRepo,
     })
     .onConflictDoNothing()
     .returning();
@@ -361,12 +361,12 @@ governanceRoutes.openapi(removeRequiredSkillRoute, async (c) => {
 
 const runEvalRoute = createRoute({
   method: "post",
-  path: "/orgs/{orgId}/skills/{slug}/versions/{versionId}/eval",
+  path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/eval",
   tags: ["Evals"],
   request: {
     params: z.object({
       orgId: z.string().uuid(),
-      slug: z.string(),
+      repo: z.string(),
       versionId: z.string().uuid(),
     }),
     body: {
@@ -377,7 +377,7 @@ const runEvalRoute = createRoute({
 });
 
 governanceRoutes.openapi(runEvalRoute, async (c) => {
-  const { orgId, slug, versionId } = c.req.valid("param");
+  const { orgId, repo, versionId } = c.req.valid("param");
   const body = c.req.valid("json") ?? {};
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
@@ -385,7 +385,7 @@ governanceRoutes.openapi(runEvalRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -408,7 +408,7 @@ governanceRoutes.openapi(runEvalRoute, async (c) => {
     skillId: skill.id,
     versionId,
     orgSlug: org?.slug ?? orgId,
-    skillSlug: slug,
+    skillRepo: repo,
     scenarios: body.scenarios ?? null,
   });
 
@@ -423,23 +423,23 @@ governanceRoutes.openapi(runEvalRoute, async (c) => {
 
 const listEvalsRoute = createRoute({
   method: "get",
-  path: "/orgs/{orgId}/skills/{slug}/evals",
+  path: "/orgs/{orgId}/skills/{repo}/evals",
   tags: ["Evals"],
   request: {
-    params: z.object({ orgId: z.string().uuid(), slug: z.string() }),
+    params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
   },
   responses: { 200: { description: "Eval history" } },
 });
 
 governanceRoutes.openapi(listEvalsRoute, async (c) => {
-  const { orgId, slug } = c.req.valid("param");
+  const { orgId, repo } = c.req.valid("param");
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -470,12 +470,12 @@ governanceRoutes.openapi(listEvalsRoute, async (c) => {
 
 const getEvalRoute = createRoute({
   method: "get",
-  path: "/orgs/{orgId}/skills/{slug}/evals/{evalId}",
+  path: "/orgs/{orgId}/skills/{repo}/evals/{evalId}",
   tags: ["Evals"],
   request: {
     params: z.object({
       orgId: z.string().uuid(),
-      slug: z.string(),
+      repo: z.string(),
       evalId: z.string().uuid(),
     }),
   },
@@ -483,14 +483,14 @@ const getEvalRoute = createRoute({
 });
 
 governanceRoutes.openapi(getEvalRoute, async (c) => {
-  const { orgId, slug, evalId } = c.req.valid("param");
+  const { orgId, repo, evalId } = c.req.valid("param");
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -543,7 +543,7 @@ governanceRoutes.openapi(observabilityRoute, async (c) => {
 
   const registry = await c.var.db
     .select({
-      skillSlug: registryEntries.skillSlug,
+      skillRepo: registryEntries.skillRepo,
       installCount: registryEntries.installCount,
       activationCount: registryEntries.activationCount,
     })
@@ -647,18 +647,30 @@ governanceRoutes.openapi(inventoryScanRoute, async (c) => {
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
+  const { resolveGithubToRegistry } = await import("../lib/github-registry-map");
+
   let upserted = 0;
   for (const item of body.items) {
+    const resolved = await resolveGithubToRegistry(c.var.db, {
+      repoFullName: item.repoFullName,
+      localSlug: item.localSlug,
+      registryOrgSlug: item.registryOrgSlug,
+      registryRepo: item.registryRepo,
+    });
+    const registryOrgSlug =
+      resolved?.registryOrgSlug ?? item.registryOrgSlug ?? null;
+    const registryRepo = resolved?.registryRepo ?? item.registryRepo ?? null;
+
     await c.var.db
       .insert(skillInventory)
       .values({
         orgId,
         repoFullName: item.repoFullName,
         filePath: item.filePath,
-        skillSlug: item.skillSlug ?? null,
-        managed: Boolean(item.registryOrgSlug && item.registrySkillSlug),
-        registryOrgSlug: item.registryOrgSlug ?? null,
-        registrySkillSlug: item.registrySkillSlug ?? null,
+        localSlug: item.localSlug ?? null,
+        managed: Boolean(registryOrgSlug && registryRepo),
+        registryOrgSlug,
+        registryRepo,
         scannedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -668,10 +680,10 @@ governanceRoutes.openapi(inventoryScanRoute, async (c) => {
           skillInventory.filePath,
         ],
         set: {
-          skillSlug: item.skillSlug ?? null,
-          managed: Boolean(item.registryOrgSlug && item.registrySkillSlug),
-          registryOrgSlug: item.registryOrgSlug ?? null,
-          registrySkillSlug: item.registrySkillSlug ?? null,
+          localSlug: item.localSlug ?? null,
+          managed: Boolean(registryOrgSlug && registryRepo),
+          registryOrgSlug,
+          registryRepo,
           scannedAt: new Date(),
         },
       });

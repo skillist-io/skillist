@@ -17,8 +17,8 @@ import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
-import { Route as RegistryOrgSlugRouteImport } from './routes/registry/$org/$slug'
-import { Route as OrgsOrgIdSkillsSlugRouteImport } from './routes/orgs/$orgId/skills/$slug'
+import { Route as OrgRepoRouteImport } from './routes/$org/$repo'
+import { Route as OrgsOrgIdSkillsRepoRouteImport } from './routes/orgs/$orgId/skills/$repo'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -60,14 +60,14 @@ const RegistryIndexRoute = RegistryIndexRouteImport.update({
   path: '/registry/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RegistryOrgSlugRoute = RegistryOrgSlugRouteImport.update({
-  id: '/registry/$org/$slug',
-  path: '/registry/$org/$slug',
+const OrgRepoRoute = OrgRepoRouteImport.update({
+  id: '/$org/$repo',
+  path: '/$org/$repo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrgsOrgIdSkillsSlugRoute = OrgsOrgIdSkillsSlugRouteImport.update({
-  id: '/orgs/$orgId/skills/$slug',
-  path: '/orgs/$orgId/skills/$slug',
+const OrgsOrgIdSkillsRepoRoute = OrgsOrgIdSkillsRepoRouteImport.update({
+  id: '/orgs/$orgId/skills/$repo',
+  path: '/orgs/$orgId/skills/$repo',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -79,9 +79,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
+  '/$org/$repo': typeof OrgRepoRoute
   '/registry/': typeof RegistryIndexRoute
-  '/registry/$org/$slug': typeof RegistryOrgSlugRoute
-  '/orgs/$orgId/skills/$slug': typeof OrgsOrgIdSkillsSlugRoute
+  '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,9 +91,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
+  '/$org/$repo': typeof OrgRepoRoute
   '/registry': typeof RegistryIndexRoute
-  '/registry/$org/$slug': typeof RegistryOrgSlugRoute
-  '/orgs/$orgId/skills/$slug': typeof OrgsOrgIdSkillsSlugRoute
+  '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,9 +104,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
+  '/$org/$repo': typeof OrgRepoRoute
   '/registry/': typeof RegistryIndexRoute
-  '/registry/$org/$slug': typeof RegistryOrgSlugRoute
-  '/orgs/$orgId/skills/$slug': typeof OrgsOrgIdSkillsSlugRoute
+  '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,9 +118,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/observability'
     | '/settings'
+    | '/$org/$repo'
     | '/registry/'
-    | '/registry/$org/$slug'
-    | '/orgs/$orgId/skills/$slug'
+    | '/orgs/$orgId/skills/$repo'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,9 +130,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/observability'
     | '/settings'
+    | '/$org/$repo'
     | '/registry'
-    | '/registry/$org/$slug'
-    | '/orgs/$orgId/skills/$slug'
+    | '/orgs/$orgId/skills/$repo'
   id:
     | '__root__'
     | '/'
@@ -142,9 +142,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/observability'
     | '/settings'
+    | '/$org/$repo'
     | '/registry/'
-    | '/registry/$org/$slug'
-    | '/orgs/$orgId/skills/$slug'
+    | '/orgs/$orgId/skills/$repo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -155,9 +155,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ObservabilityRoute: typeof ObservabilityRoute
   SettingsRoute: typeof SettingsRoute
+  OrgRepoRoute: typeof OrgRepoRoute
   RegistryIndexRoute: typeof RegistryIndexRoute
-  RegistryOrgSlugRoute: typeof RegistryOrgSlugRoute
-  OrgsOrgIdSkillsSlugRoute: typeof OrgsOrgIdSkillsSlugRoute
+  OrgsOrgIdSkillsRepoRoute: typeof OrgsOrgIdSkillsRepoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -218,18 +218,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/registry/$org/$slug': {
-      id: '/registry/$org/$slug'
-      path: '/registry/$org/$slug'
-      fullPath: '/registry/$org/$slug'
-      preLoaderRoute: typeof RegistryOrgSlugRouteImport
+    '/$org/$repo': {
+      id: '/$org/$repo'
+      path: '/$org/$repo'
+      fullPath: '/$org/$repo'
+      preLoaderRoute: typeof OrgRepoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/orgs/$orgId/skills/$slug': {
-      id: '/orgs/$orgId/skills/$slug'
-      path: '/orgs/$orgId/skills/$slug'
-      fullPath: '/orgs/$orgId/skills/$slug'
-      preLoaderRoute: typeof OrgsOrgIdSkillsSlugRouteImport
+    '/orgs/$orgId/skills/$repo': {
+      id: '/orgs/$orgId/skills/$repo'
+      path: '/orgs/$orgId/skills/$repo'
+      fullPath: '/orgs/$orgId/skills/$repo'
+      preLoaderRoute: typeof OrgsOrgIdSkillsRepoRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -243,9 +243,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ObservabilityRoute: ObservabilityRoute,
   SettingsRoute: SettingsRoute,
+  OrgRepoRoute: OrgRepoRoute,
   RegistryIndexRoute: RegistryIndexRoute,
-  RegistryOrgSlugRoute: RegistryOrgSlugRoute,
-  OrgsOrgIdSkillsSlugRoute: OrgsOrgIdSkillsSlugRoute,
+  OrgsOrgIdSkillsRepoRoute: OrgsOrgIdSkillsRepoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

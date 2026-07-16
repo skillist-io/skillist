@@ -53,9 +53,9 @@ export const REGISTRY_MCP_TOOLS: McpTool[] = [
       type: "object",
       properties: {
         org: { type: "string", description: "Organization slug, e.g. skillist" },
-        slug: { type: "string", description: "Skill slug" },
+        repo: { type: "string", description: "Skill repo name" },
       },
-      required: ["org", "slug"],
+      required: ["org", "repo"],
     },
   },
   {
@@ -72,9 +72,9 @@ export const REGISTRY_MCP_TOOLS: McpTool[] = [
       type: "object",
       properties: {
         org: { type: "string" },
-        slug: { type: "string" },
+        repo: { type: "string" },
       },
-      required: ["org", "slug"],
+      required: ["org", "repo"],
     },
   },
 ];
@@ -117,12 +117,12 @@ async function callTool(
     }
     case "registry_get_skill": {
       const org = String(args.org ?? "");
-      const slug = String(args.slug ?? "");
-      if (!org || !slug) {
-        throw new Error("org and slug are required");
+      const repo = String(args.repo ?? args.slug ?? "");
+      if (!org || !repo) {
+        throw new Error("org and repo are required");
       }
-      const skill = await getRegistrySkill(db, org, slug);
-      if (!skill) throw new Error(`Skill not found: ${org}/${slug}`);
+      const skill = await getRegistrySkill(db, org, repo);
+      if (!skill) throw new Error(`Skill not found: ${org}/${repo}`);
       return textResult(skill);
     }
     case "registry_facets": {
@@ -130,21 +130,21 @@ async function callTool(
     }
     case "registry_install_help": {
       const org = String(args.org ?? "");
-      const slug = String(args.slug ?? "");
-      if (!org || !slug) {
-        throw new Error("org and slug are required");
+      const repo = String(args.repo ?? args.slug ?? "");
+      if (!org || !repo) {
+        throw new Error("org and repo are required");
       }
-      const skill = await getRegistrySkill(db, org, slug);
-      if (!skill) throw new Error(`Skill not found: ${org}/${slug}`);
+      const skill = await getRegistrySkill(db, org, repo);
+      if (!skill) throw new Error(`Skill not found: ${org}/${repo}`);
       return textResult({
         cliInstall: skill.cliInstall,
         installCommand: skill.installCommand,
         runCommand:
           skill.runtime && skill.runtime !== "local"
-            ? `skillist run ${org}/${slug} --script scripts/<script>`
+            ? `skillist run ${org}/${repo} --script scripts/<script>`
             : null,
-        skillMdUrl: `https://api.skillist.dev/v1/skills/${org}/${slug}/SKILL.md`,
-        registryUrl: `https://skillist.dev/registry/${org}/${slug}`,
+        skillMdUrl: `https://skillist.dev/${org}/${repo}/SKILL.md`,
+        registryUrl: `https://skillist.dev/${org}/${repo}`,
       });
     }
     default:

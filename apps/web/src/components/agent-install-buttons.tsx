@@ -18,14 +18,14 @@ const AGENT_PATHS: Record<string, { label: string; path: string }> = {
 
 type AgentInstallButtonsProps = {
   org: string;
-  slug: string;
+  repo: string;
   agents?: string[];
   installCommand: string;
 };
 
 export function AgentInstallButtons({
   org,
-  slug,
+  repo,
   agents = [],
   installCommand,
 }: AgentInstallButtonsProps) {
@@ -37,7 +37,7 @@ export function AgentInstallButtons({
         {known.length ? (
           known.map((agent) => {
             const info = AGENT_PATHS[agent]!;
-            const cmd = `skillist install ${org}/${slug} -o ${info.path}/${slug}`;
+            const cmd = `skillist install ${org}/${repo} -o ${info.path}/${repo}`;
             return (
               <Button
                 key={agent}

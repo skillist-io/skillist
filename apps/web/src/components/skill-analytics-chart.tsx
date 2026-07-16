@@ -5,12 +5,12 @@ import { MiniBarChart } from "@/components/mini-bar-chart";
 
 type SkillAnalyticsChartProps = {
   org: string;
-  slug: string;
+  repo: string;
 };
 
-export function SkillAnalyticsChart({ org, slug }: SkillAnalyticsChartProps) {
+export function SkillAnalyticsChart({ org, repo }: SkillAnalyticsChartProps) {
   const { data } = useQuery({
-    queryKey: ["registry-analytics", org, slug],
+    queryKey: ["registry-analytics", org, repo],
     queryFn: () =>
       api<{
         installs: number;
@@ -19,7 +19,7 @@ export function SkillAnalyticsChart({ org, slug }: SkillAnalyticsChartProps) {
           installs: { date: string; count: number }[];
           activations: { date: string; count: number }[];
         };
-      }>(`/v1/registry/${org}/${slug}/analytics?days=30`),
+      }>(`/v1/registry/${org}/${repo}/analytics?days=30`),
   });
 
   if (!data) return null;

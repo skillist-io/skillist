@@ -25,10 +25,12 @@ Skill detail pages include a **Run** card when the skill has sandbox scripts. Si
 ## API
 
 ```
-POST /v1/skills/{org}/{slug}/runs
+POST /{org}/{repo}/run
+GET  /{org}/{repo}/scripts
+GET  /{org}/{repo}/runs
 ```
 
-Requires session auth. See [API docs](https://api.skillist.dev/docs) for request body and streaming responses.
+Public URLs on `skillist.dev` (and `api.skillist.dev`). Requires session auth or API key. See [API docs](https://api.skillist.dev/docs) for request body and streaming responses.
 
 ## Output
 

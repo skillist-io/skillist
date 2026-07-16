@@ -24,7 +24,7 @@ export async function api<T>(
 
 export type RegistryItem = {
   orgSlug: string;
-  skillSlug: string;
+  skillRepo: string;
   name: string;
   description: string;
   latestVersion: string | null;
@@ -65,7 +65,7 @@ export type SkillRunResult = {
 export type SkillRun = {
   id: string;
   orgSlug?: string;
-  skillSlug?: string;
+  skillRepo?: string;
   scriptPath: string;
   runtime: string;
   status: string;
@@ -131,7 +131,7 @@ export type ObservabilitySummary = {
     installs: number;
     activations: number;
     bySkill: {
-      skillSlug: string;
+      skillRepo: string;
       installCount: number;
       activationCount: number;
     }[];
@@ -171,7 +171,7 @@ export type Org = {
 
 export type Skill = {
   id: string;
-  slug: string;
+  repo: string;
   visibility: string;
   description: string | null;
 };
@@ -214,9 +214,9 @@ export type SkillInventoryItem = {
   orgId: string;
   repoFullName: string;
   filePath: string;
-  skillSlug: string | null;
+  localSlug: string | null;
   managed: boolean;
   registryOrgSlug: string | null;
-  registrySkillSlug: string | null;
+  registryRepo: string | null;
   scannedAt: string;
 };

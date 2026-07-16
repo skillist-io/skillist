@@ -10,7 +10,7 @@ test("homepage shows hero and registry MCP section", async ({ page }) => {
 test("registry lists skills", async ({ page }) => {
   await page.goto("/registry");
   await expect(page.getByRole("heading", { name: "Public Registry" })).toBeVisible();
-  await expect(page.locator("a[href*='/registry/skillist/']").first()).toBeVisible();
+  await expect(page.locator("a[href*='/skillist/']").first()).toBeVisible();
 });
 
 test("login guard redirects dashboard to login", async ({ page }) => {

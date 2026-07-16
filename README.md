@@ -124,9 +124,12 @@ packages/
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /v1/skills/{org}/{slug}/SKILL.md` | Hot KV read (&lt;10ms edge) |
-| `GET /v1/skills/{org}/{slug}/meta` | Discovery metadata only |
-| `GET /v1/realtime/skills/{org}/{slug}` | WebSocket fan-out |
+| `GET /{org}/{repo}/SKILL.md` | Hot KV read (&lt;10ms edge) on skillist.dev |
+| `GET /{org}/{repo}/meta` | Discovery metadata only |
+| `GET /{org}/{repo}/bundle` | Full published skill bundle |
+| `GET /{org}/{repo}/scripts` | List runnable scripts |
+| `POST /{org}/{repo}/run` | Hosted sandbox execution |
+| `GET /v1/realtime/skills/{org}/{repo}` | WebSocket fan-out |
 | `GET /v1/registry` | Public skill marketplace |
 | `POST /v1/feedback/{id}/approve` | Approve + queue AI draft |
 

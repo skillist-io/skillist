@@ -3,15 +3,15 @@ import type { SkillPublishedEvent } from "@skillist/contracts";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-export function useSkillRealtime(org: string, slug: string) {
+export function useSkillRealtime(org: string, repo: string) {
   const [connected, setConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<SkillPublishedEvent | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!org || !slug) return;
+    if (!org || !repo) return;
 
-    const wsUrl = `${API_URL.replace("http", "ws")}/v1/realtime/skills/${org}/${slug}`;
+    const wsUrl = `${API_URL.replace("http", "ws")}/v1/realtime/skills/${org}/${repo}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -37,7 +37,7 @@ export function useSkillRealtime(org: string, slug: string) {
       clearInterval(ping);
       ws.close();
     };
-  }, [org, slug]);
+  }, [org, repo]);
 
   return { connected, lastEvent };
 }

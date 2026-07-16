@@ -300,7 +300,7 @@ function OrgSkills({
     skills?.filter(
       (skill) =>
         !filter ||
-        skill.slug.toLowerCase().includes(filter) ||
+        skill.repo.toLowerCase().includes(filter) ||
         org.slug.toLowerCase().includes(filter),
     ) ?? [];
 
@@ -315,18 +315,18 @@ function OrgSkills({
       </div>
       {visibleSkills.length ? (
         visibleSkills.map((skill) => {
-          const href = `/orgs/${org.id}/skills/${skill.slug}`;
+          const href = `/orgs/${org.id}/skills/${skill.repo}`;
           const active = pathname === href;
           return (
             <Link
               key={skill.id}
-              to="/orgs/$orgId/skills/$slug"
-              params={{ orgId: org.id, slug: skill.slug }}
+              to="/orgs/$orgId/skills/$repo"
+              params={{ orgId: org.id, repo: skill.repo }}
               className={`flex flex-col items-start gap-1 px-4 py-3 text-sm leading-tight hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
                 active ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
               }`}
             >
-              <span className="font-medium">{skill.slug}</span>
+              <span className="font-medium">{skill.repo}</span>
               <span className="text-xs text-muted-foreground">{skill.visibility}</span>
             </Link>
           );

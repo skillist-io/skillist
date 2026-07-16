@@ -39,7 +39,7 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
       or(
         ilike(registryEntries.name, `%${query.q}%`),
         ilike(registryEntries.description, `%${query.q}%`),
-        ilike(registryEntries.skillSlug, `%${query.q}%`),
+        ilike(registryEntries.skillRepo, `%${query.q}%`),
         ilike(registryEntries.orgSlug, `%${query.q}%`),
       ),
     );
@@ -91,7 +91,7 @@ function registryOrderBy(query: z.infer<typeof registryQuerySchema>) {
         sql`(
           SELECT count(*)::int FROM ${telemetryEvents}
           WHERE ${telemetryEvents.orgSlug} = ${registryEntries.orgSlug}
-            AND ${telemetryEvents.skillSlug} = ${registryEntries.skillSlug}
+            AND ${telemetryEvents.skillRepo} = ${registryEntries.skillRepo}
             AND ${telemetryEvents.createdAt} >= now() - interval '7 days'
         ) * 2 + ${registryEntries.stars} * 3 + ${registryEntries.installCount}`,
       );
@@ -118,7 +118,7 @@ const listRegistryRoute = createRoute({
             items: z.array(
               z.object({
                 orgSlug: z.string(),
-                skillSlug: z.string(),
+                skillRepo: z.string(),
                 name: z.string(),
                 description: z.string(),
                 latestVersion: z.string().nullable(),
@@ -154,7 +154,7 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
       id: registryEntries.id,
       skillId: registryEntries.skillId,
       orgSlug: registryEntries.orgSlug,
-      skillSlug: registryEntries.skillSlug,
+      skillRepo: registryEntries.skillRepo,
       name: registryEntries.name,
       description: registryEntries.description,
       latestVersion: registryEntries.latestVersion,
@@ -186,10 +186,10 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
     items: items.map((item) => ({
       ...item,
       cliInstall: CLI_INSTALL,
-      installCommand: `skillist install ${item.orgSlug}/${item.skillSlug}`,
+      installCommand: `skillist install ${item.orgSlug}/${item.skillRepo}`,
       runCommand:
         item.runtime && item.runtime !== "local"
-          ? `skillist run ${item.orgSlug}/${item.skillSlug} --script scripts/...`
+          ? `skillist run ${item.orgSlug}/${item.skillRepo} --script scripts/...`
           : null,
     })),
     page,
@@ -248,16 +248,16 @@ registryRoutes.openapi(registryFacetsRoute, async (c) => {
 
 const getRegistrySkillRoute = createRoute({
   method: "get",
-  path: "/registry/{org}/{slug}",
+  path: "/registry/{org}/{repo}",
   tags: ["Registry"],
   request: {
-    params: z.object({ org: z.string(), slug: z.string() }),
+    params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: { 200: { description: "Registry skill detail" } },
 });
 
 registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
-  const { org, slug } = c.req.valid("param");
+  const { org, repo } = c.req.valid("param");
   const userId = await resolveUserId(c);
   const [row] = await c.var.db
     .select({
@@ -271,7 +271,7 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
     .where(
       and(
         eq(registryEntries.orgSlug, org),
-        eq(registryEntries.skillSlug, slug),
+        eq(registryEntries.skillRepo, repo),
       ),
     )
     .limit(1);
@@ -329,7 +329,7 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
       runtime: row.runtime,
       starred,
       cliInstall: CLI_INSTALL,
-      installCommand: `skillist install ${entry.orgSlug}/${entry.skillSlug}`,
+      installCommand: `skillist install ${entry.orgSlug}/${entry.skillRepo}`,
       pluginManifest,
       eval: evalSummary,
     },
@@ -339,10 +339,10 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
 
 const starSkillRoute = createRoute({
   method: "post",
-  path: "/registry/{org}/{slug}/star",
+  path: "/registry/{org}/{repo}/star",
   tags: ["Registry"],
   request: {
-    params: z.object({ org: z.string(), slug: z.string() }),
+    params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: { 201: { description: "Starred" } },
 });
@@ -350,7 +350,7 @@ const starSkillRoute = createRoute({
 registryRoutes.openapi(starSkillRoute, async (c) => {
   const userId = await resolveUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
-  const { org, slug } = c.req.valid("param");
+  const { org, repo } = c.req.valid("param");
 
   const [entry] = await c.var.db
     .select({
@@ -361,7 +361,7 @@ registryRoutes.openapi(starSkillRoute, async (c) => {
     .where(
       and(
         eq(registryEntries.orgSlug, org),
-        eq(registryEntries.skillSlug, slug),
+        eq(registryEntries.skillRepo, repo),
       ),
     )
     .limit(1);
@@ -388,10 +388,10 @@ registryRoutes.openapi(starSkillRoute, async (c) => {
 
 const unstarSkillRoute = createRoute({
   method: "delete",
-  path: "/registry/{org}/{slug}/star",
+  path: "/registry/{org}/{repo}/star",
   tags: ["Registry"],
   request: {
-    params: z.object({ org: z.string(), slug: z.string() }),
+    params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: { 200: { description: "Unstarred" } },
 });
@@ -399,7 +399,7 @@ const unstarSkillRoute = createRoute({
 registryRoutes.openapi(unstarSkillRoute, async (c) => {
   const userId = await resolveUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
-  const { org, slug } = c.req.valid("param");
+  const { org, repo } = c.req.valid("param");
 
   const [entry] = await c.var.db
     .select({ skillId: registryEntries.skillId })
@@ -407,7 +407,7 @@ registryRoutes.openapi(unstarSkillRoute, async (c) => {
     .where(
       and(
         eq(registryEntries.orgSlug, org),
-        eq(registryEntries.skillSlug, slug),
+        eq(registryEntries.skillRepo, repo),
       ),
     )
     .limit(1);
@@ -438,17 +438,17 @@ registryRoutes.openapi(unstarSkillRoute, async (c) => {
 
 const registryAnalyticsRoute = createRoute({
   method: "get",
-  path: "/registry/{org}/{slug}/analytics",
+  path: "/registry/{org}/{repo}/analytics",
   tags: ["Registry"],
   request: {
-    params: z.object({ org: z.string(), slug: z.string() }),
+    params: z.object({ org: z.string(), repo: z.string() }),
     query: z.object({ days: z.coerce.number().min(1).max(90).default(30) }),
   },
   responses: { 200: { description: "Per-skill telemetry time series" } },
 });
 
 registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
-  const { org, slug } = c.req.valid("param");
+  const { org, repo } = c.req.valid("param");
   const { days } = c.req.valid("query");
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -458,7 +458,7 @@ registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
     .where(
       and(
         eq(telemetryEvents.orgSlug, org),
-        eq(telemetryEvents.skillSlug, slug),
+        eq(telemetryEvents.skillRepo, repo),
         gte(telemetryEvents.createdAt, since),
       ),
     )
@@ -489,10 +489,10 @@ registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
 
 const subscribeRoute = createRoute({
   method: "post",
-  path: "/registry/{org}/{slug}/subscribe",
+  path: "/registry/{org}/{repo}/subscribe",
   tags: ["Registry"],
   request: {
-    params: z.object({ org: z.string(), slug: z.string() }),
+    params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: { 201: { description: "Subscribed" } },
 });
@@ -500,7 +500,7 @@ const subscribeRoute = createRoute({
 registryRoutes.openapi(subscribeRoute, async (c) => {
   const userId = await resolveUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
-  const { org, slug } = c.req.valid("param");
+  const { org, repo } = c.req.valid("param");
 
   const [orgRow] = await c.var.db
     .select()
@@ -512,7 +512,7 @@ registryRoutes.openapi(subscribeRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgRow.id), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgRow.id), eq(skills.repo, repo)))
     .limit(1);
   if (!skill || skill.visibility !== "public") {
     return c.json({ error: "Not found" }, 404);
@@ -528,10 +528,10 @@ registryRoutes.openapi(subscribeRoute, async (c) => {
 
 const updateVisibilityRoute = createRoute({
   method: "patch",
-  path: "/orgs/{orgId}/skills/{slug}/visibility",
+  path: "/orgs/{orgId}/skills/{repo}/visibility",
   tags: ["Skills"],
   request: {
-    params: z.object({ orgId: z.string().uuid(), slug: z.string() }),
+    params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
     body: {
       content: {
         "application/json": {
@@ -547,7 +547,7 @@ const updateVisibilityRoute = createRoute({
 
 registryRoutes.openapi(updateVisibilityRoute, async (c) => {
   const userId = await resolveUserId(c);
-  const { orgId, slug } = c.req.valid("param");
+  const { orgId, repo } = c.req.valid("param");
   const { visibility } = c.req.valid("json");
   const { requireOrgRole } = await import("../lib/org-access");
   const access = await requireOrgRole(c.var.db, orgId, userId, "editor");
@@ -556,7 +556,7 @@ registryRoutes.openapi(updateVisibilityRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -581,7 +581,7 @@ registryRoutes.openapi(updateVisibilityRoute, async (c) => {
         .values({
           skillId: skill.id,
           orgSlug: orgRow.slug,
-          skillSlug: slug,
+          skillRepo: slug,
           name: meta.name,
           description: meta.description,
           latestVersion: meta.version,

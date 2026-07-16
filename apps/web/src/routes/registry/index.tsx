@@ -246,13 +246,13 @@ function RegistryPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {data?.items.map((item) => (
-            <Card key={`${item.orgSlug}/${item.skillSlug}`}>
+            <Card key={`${item.orgSlug}/${item.skillRepo}`}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
                     <CardTitle className="text-base">{item.name}</CardTitle>
                     <CardDescription>
-                      {item.orgSlug}/{item.skillSlug}
+                      {item.orgSlug}/{item.skillRepo}
                     </CardDescription>
                   </div>
                   {item.latestVersion && (
@@ -260,7 +260,7 @@ function RegistryPage() {
                   )}
                   <StarButton
                     org={item.orgSlug}
-                    slug={item.skillSlug}
+                    repo={item.skillRepo}
                     stars={item.stars}
                   />
                 </div>
@@ -295,12 +295,12 @@ function RegistryPage() {
                 <InstallSnippet
                   command={
                     item.installCommand ??
-                    `skillist install ${item.orgSlug}/${item.skillSlug}`
+                    `skillist install ${item.orgSlug}/${item.skillRepo}`
                   }
                 />
                 <Link
-                  to="/registry/$org/$slug"
-                  params={{ org: item.orgSlug, slug: item.skillSlug }}
+                  to="/$org/$repo"
+                  params={{ org: item.orgSlug, repo: item.skillRepo }}
                   className="text-sm text-primary hover:underline"
                 >
                   View skill →

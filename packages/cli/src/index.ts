@@ -4,12 +4,14 @@ import { join, relative, dirname } from "node:path";
 import { validateSkillBundle, type SemverBump } from "@skillist/skill-format";
 
 const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.dev";
+const DELIVERY_URL =
+  process.env.SKILLIST_DELIVERY_URL ?? "https://skillist.dev";
 const API_KEY = process.env.SKILLIST_API_KEY;
 const LOCKFILE = ".skillist.lock";
 
 type LockEntry = {
   org: string;
-  skill: string;
+  repo: string;
   version: string;
   installedAt: string;
   path: string;
@@ -27,32 +29,33 @@ Usage:
   skillist search [query]                  Search public registry
                                               [--category <cat>] [--tag <tag>]
                                               [--agent <name>] [--sort ...]
-  skillist install <org>/<skill> [-o dir]  Download and record in lockfile
-  skillist pull <org>/<skill> [-o dir]     Download published skill bundle
-  skillist push <org>/<skill> <dir>        Upload local skill as new draft
+  skillist install <org>/<repo> [-o dir]   Download and record in lockfile
+  skillist pull <org>/<repo> [-o dir]      Download published skill bundle
+  skillist push <org>/<repo> <dir>         Upload local skill as new draft
                                               [--bump major|minor|patch]
-  skillist publish <org>/<skill> <dir>       Push + publish to registry
+  skillist publish <org>/<repo> <dir>        Push + publish to registry
                                               [--bump major|minor|patch]
-  skillist run <org>/<skill> --script <path>   Run script in hosted sandbox
+  skillist run <org>/<repo> --script <path>    Run script in hosted sandbox
                                               [--url <url>] [--stream] [-- ...args]
-  skillist eval <org>/<skill>                 Queue skill eval on latest draft
+  skillist eval <org>/<repo>                  Queue skill eval on latest draft
                                               [--wait]
-  skillist rollback <org>/<skill> <semver>    Roll back to a previous published version
-  skillist update [org/skill]              Update installed skills from lockfile
+  skillist rollback <org>/<repo> <semver>     Roll back to a previous published version
+  skillist update [org/repo]               Update installed skills from lockfile
   skillist list                            List skills in lockfile
 
 Environment:
-  SKILLIST_API_URL   API base URL (default: https://api.skillist.dev)
-  SKILLIST_API_KEY   Bearer token (sk_...) — required for push/publish
+  SKILLIST_API_URL        API base URL (default: https://api.skillist.dev)
+  SKILLIST_DELIVERY_URL   Public delivery URL (default: https://skillist.dev)
+  SKILLIST_API_KEY        Bearer token (sk_...) — required for push/publish
 `);
 }
 
-function parseRef(ref: string): { org: string; skill: string } {
-  const [org, skill] = ref.split("/");
-  if (!org || !skill) {
-    throw new Error(`Invalid ref "${ref}" — use org/skill`);
+function parseRef(ref: string): { org: string; repo: string } {
+  const [org, repo] = ref.split("/");
+  if (!org || !repo) {
+    throw new Error(`Invalid ref "${ref}" — use org/repo`);
   }
-  return { org, skill };
+  return { org, repo };
 }
 
 async function apiFetch(path: string, init?: RequestInit) {
@@ -68,11 +71,47 @@ async function apiFetch(path: string, init?: RequestInit) {
   return res;
 }
 
+async function deliveryFetch(path: string, init?: RequestInit) {
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string>),
+  };
+  if (API_KEY && !headers.Authorization) {
+    headers.Authorization = `Bearer ${API_KEY}`;
+  }
+  const res = await fetch(`${DELIVERY_URL}${path}`, { ...init, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error ?? res.statusText);
+  }
+  return res;
+}
+
 async function readLockfile(): Promise<Lockfile> {
   try {
     await access(LOCKFILE);
     const raw = await readFile(LOCKFILE, "utf8");
-    return JSON.parse(raw) as Lockfile;
+    const parsed = JSON.parse(raw) as {
+      version: 1;
+      skills: Array<{
+        org: string;
+        repo?: string;
+        skill?: string;
+        version: string;
+        installedAt: string;
+        path: string;
+      }>;
+    };
+    // Migrate legacy lock entries that used `skill` instead of `repo`
+    return {
+      version: 1,
+      skills: parsed.skills.map((s) => ({
+        org: s.org,
+        repo: s.repo ?? s.skill ?? "",
+        version: s.version,
+        installedAt: s.installedAt,
+        path: s.path,
+      })),
+    };
   } catch {
     return { version: 1, skills: [] };
   }
@@ -82,12 +121,12 @@ async function writeLockfile(lock: Lockfile) {
   await writeFile(LOCKFILE, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
 }
 
-async function recordTelemetry(org: string, skill: string, eventType: "install" | "activation") {
+async function recordTelemetry(org: string, repo: string, eventType: "install" | "activation") {
   try {
     await apiFetch("/v1/telemetry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgSlug: org, skillSlug: skill, eventType }),
+      body: JSON.stringify({ orgSlug: org, skillRepo: repo, eventType }),
     });
   } catch {
     // telemetry is best-effort
@@ -108,7 +147,7 @@ async function search(
   const data = (await res.json()) as {
     items: {
       orgSlug: string;
-      skillSlug: string;
+      skillRepo: string;
       name: string;
       description: string;
       latestVersion: string | null;
@@ -137,18 +176,18 @@ async function search(
       .join(" ");
     const tags = item.tags?.length ? ` [${item.tags.join(", ")}]` : "";
     console.log(
-      `${item.orgSlug}/${item.skillSlug}  ${item.name}  v${item.latestVersion ?? "?"}  ${scores}${tags}`,
+      `${item.orgSlug}/${item.skillRepo}  ${item.name}  v${item.latestVersion ?? "?"}  ${scores}${tags}`,
     );
     console.log(`  ${item.description.slice(0, 100)}`);
-    console.log(`  ${item.installCommand ?? `skillist install ${item.orgSlug}/${item.skillSlug}`}`);
+    console.log(`  ${item.installCommand ?? `skillist install ${item.orgSlug}/${item.skillRepo}`}`);
     console.log();
   }
   console.log(`${data.total} total matches`);
 }
 
 async function pull(ref: string, outDir: string, recordLock = false) {
-  const { org, skill } = parseRef(ref);
-  const res = await apiFetch(`/v1/skills/${org}/${skill}/bundle`);
+  const { org, repo } = parseRef(ref);
+  const res = await deliveryFetch(`/${org}/${repo}/bundle`);
   const bundle = (await res.json()) as { files: Record<string, string>; version: string };
 
   await mkdir(outDir, { recursive: true });
@@ -161,11 +200,11 @@ async function pull(ref: string, outDir: string, recordLock = false) {
   if (recordLock) {
     const lock = await readLockfile();
     const existing = lock.skills.findIndex(
-      (s) => s.org === org && s.skill === skill,
+      (s) => s.org === org && s.repo === repo,
     );
     const entry: LockEntry = {
       org,
-      skill,
+      repo,
       version: bundle.version,
       installedAt: new Date().toISOString(),
       path: outDir,
@@ -173,11 +212,11 @@ async function pull(ref: string, outDir: string, recordLock = false) {
     if (existing >= 0) lock.skills[existing] = entry;
     else lock.skills.push(entry);
     await writeLockfile(lock);
-    await recordTelemetry(org, skill, "install");
+    await recordTelemetry(org, repo, "install");
   }
 
   console.log(
-    `Pulled ${org}/${skill} → ${outDir} (${Object.keys(bundle.files).length} files, v${bundle.version})`,
+    `Pulled ${org}/${repo} → ${outDir} (${Object.keys(bundle.files).length} files, v${bundle.version})`,
   );
 }
 
@@ -214,14 +253,14 @@ async function resolveOrgId(orgSlug: string): Promise<string> {
 
 async function pushDraft(
   org: string,
-  skill: string,
+  repo: string,
   dir: string,
   bump: SemverBump = "patch",
 ): Promise<{ versionId: string; orgId: string; semver: string }> {
   const fileMap = await readLocalBundle(dir);
   const files = Object.fromEntries(fileMap);
   const bundle = new Map(Object.entries(files));
-  const validation = validateSkillBundle(bundle, skill);
+  const validation = validateSkillBundle(bundle, repo);
   if (!validation.valid) {
     throw new Error(
       `Invalid skill: ${validation.errors.map((e) => e.message).join(", ")}`,
@@ -230,7 +269,7 @@ async function pushDraft(
 
   const orgId = await resolveOrgId(org);
 
-  const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${skill}/versions`);
+  const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${repo}/versions`);
   const versions = (await versionsRes.json()) as {
     id: string;
     status: string;
@@ -238,7 +277,7 @@ async function pushDraft(
   }[];
   const latest = versions.find((v) => v.status === "draft") ?? versions[0];
 
-  const uploadRes = await apiFetch(`/v1/orgs/${orgId}/skills/${skill}/versions`, {
+  const uploadRes = await apiFetch(`/v1/orgs/${orgId}/skills/${repo}/versions`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -261,18 +300,18 @@ function parseBumpFlag(): SemverBump {
 
 async function push(ref: string, dir: string) {
   if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for push");
-  const { org, skill } = parseRef(ref);
-  const { semver } = await pushDraft(org, skill, dir, parseBumpFlag());
-  console.log(`Pushed ${relative(process.cwd(), dir)} → ${org}/${skill} v${semver}`);
+  const { org, repo } = parseRef(ref);
+  const { semver } = await pushDraft(org, repo, dir, parseBumpFlag());
+  console.log(`Pushed ${relative(process.cwd(), dir)} → ${org}/${repo} v${semver}`);
 }
 
 async function publish(ref: string, dir: string) {
   if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for publish");
-  const { org, skill } = parseRef(ref);
-  const { versionId, orgId, semver } = await pushDraft(org, skill, dir, parseBumpFlag());
+  const { org, repo } = parseRef(ref);
+  const { versionId, orgId, semver } = await pushDraft(org, repo, dir, parseBumpFlag());
 
   const pubRes = await apiFetch(
-    `/v1/orgs/${orgId}/skills/${skill}/versions/${versionId}/publish`,
+    `/v1/orgs/${orgId}/skills/${repo}/versions/${versionId}/publish`,
     { method: "POST" },
   );
   const result = (await pubRes.json()) as {
@@ -283,14 +322,14 @@ async function publish(ref: string, dir: string) {
   };
 
   console.log(
-    `Published ${org}/${skill} v${result.version} (draft v${semver}) — Q${result.qualityScore} I${result.impactScore} security:${result.securityStatus}`,
+    `Published ${org}/${repo} v${result.version} (draft v${semver}) — Q${result.qualityScore} I${result.impactScore} security:${result.securityStatus}`,
   );
 }
 
 async function update(ref?: string) {
   const lock = await readLockfile();
   const targets = ref
-    ? lock.skills.filter((s) => `${s.org}/${s.skill}` === ref)
+    ? lock.skills.filter((s) => `${s.org}/${s.repo}` === ref)
     : lock.skills;
 
   if (targets.length === 0) {
@@ -299,7 +338,7 @@ async function update(ref?: string) {
   }
 
   for (const entry of targets) {
-    await pull(`${entry.org}/${entry.skill}`, entry.path, true);
+    await pull(`${entry.org}/${entry.repo}`, entry.path, true);
   }
 }
 
@@ -311,7 +350,7 @@ async function listInstalled() {
   }
   for (const s of lock.skills) {
     console.log(
-      `${s.org}/${s.skill}  v${s.version}  ${s.path}  (${s.installedAt.slice(0, 10)})`,
+      `${s.org}/${s.repo}  v${s.version}  ${s.path}  (${s.installedAt.slice(0, 10)})`,
     );
   }
 }
@@ -378,10 +417,13 @@ async function runSkill(
   extraArgs: string[] = [],
   stream = false,
 ) {
-  const { org, skill } = parseRef(ref);
-  const res = await apiFetch(`/v1/skills/${org}/${skill}/run`, {
+  const { org, repo } = parseRef(ref);
+  const res = await deliveryFetch(`/${org}/${repo}/run`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}),
+    },
     body: JSON.stringify({
       scriptPath,
       targetUrl,
@@ -419,16 +461,16 @@ async function runSkill(
 
 async function runEval(ref: string, wait = false) {
   if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for eval");
-  const { org, skill } = parseRef(ref);
+  const { org, repo } = parseRef(ref);
   const orgId = await resolveOrgId(org);
 
-  const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${skill}/versions`);
+  const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${repo}/versions`);
   const versions = (await versionsRes.json()) as { id: string; status: string }[];
   const draft = versions.find((v) => v.status === "draft") ?? versions[0];
-  if (!draft) throw new Error(`No versions found for ${org}/${skill}`);
+  if (!draft) throw new Error(`No versions found for ${org}/${repo}`);
 
   const evalRes = await apiFetch(
-    `/v1/orgs/${orgId}/skills/${skill}/versions/${draft.id}/eval`,
+    `/v1/orgs/${orgId}/skills/${repo}/versions/${draft.id}/eval`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -445,7 +487,7 @@ async function runEval(ref: string, wait = false) {
   for (let attempt = 0; attempt < 60; attempt++) {
     await new Promise((r) => setTimeout(r, 3000));
     const detailRes = await apiFetch(
-      `/v1/orgs/${orgId}/skills/${skill}/evals/${queued.id}`,
+      `/v1/orgs/${orgId}/skills/${repo}/evals/${queued.id}`,
     );
     const { eval: detail } = (await detailRes.json()) as {
       eval: {
@@ -470,10 +512,10 @@ async function runEval(ref: string, wait = false) {
   throw new Error("Eval timed out");
 }
 
-async function rollbackSkill(orgSkill: string, semver: string) {
-  const { org, skill } = parseRef(orgSkill);
+async function rollbackSkill(orgRepo: string, semver: string) {
+  const { org, repo } = parseRef(orgRepo);
   const orgId = await resolveOrgId(org);
-  const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${skill}/versions`);
+  const versionsRes = await apiFetch(`/v1/orgs/${orgId}/skills/${repo}/versions`);
   const versions = (await versionsRes.json()) as {
     id: string;
     semver: string;
@@ -482,11 +524,11 @@ async function rollbackSkill(orgSkill: string, semver: string) {
   const target = versions.find((v) => v.semver === semver);
   if (!target) throw new Error(`Version ${semver} not found`);
   const res = await apiFetch(
-    `/v1/orgs/${orgId}/skills/${skill}/versions/${target.id}/rollback`,
+    `/v1/orgs/${orgId}/skills/${repo}/versions/${target.id}/rollback`,
     { method: "POST" },
   );
   const result = (await res.json()) as { version: string; etag: string };
-  console.log(`Rolled back ${org}/${skill} to v${result.version}`);
+  console.log(`Rolled back ${org}/${repo} to v${result.version}`);
 }
 
 async function main() {
@@ -518,7 +560,7 @@ async function main() {
         outIdx >= 0
           ? process.argv[outIdx + 1]!
           : `./${ref?.split("/")[1] ?? "skill"}`;
-      if (!ref) throw new Error("Missing org/skill ref");
+      if (!ref) throw new Error("Missing org/repo ref");
       await pull(ref, outDir, true);
       return;
     }
@@ -529,19 +571,19 @@ async function main() {
         outIdx >= 0
           ? process.argv[outIdx + 1]!
           : `./${ref?.split("/")[1] ?? "skill"}`;
-      if (!ref) throw new Error("Missing org/skill ref");
+      if (!ref) throw new Error("Missing org/repo ref");
       await pull(ref, outDir);
       return;
     }
 
     if (cmd === "push") {
-      if (!ref || !arg) throw new Error("Usage: skillist push <org>/<skill> <dir>");
+      if (!ref || !arg) throw new Error("Usage: skillist push <org>/<repo> <dir>");
       await push(ref, arg);
       return;
     }
 
     if (cmd === "publish") {
-      if (!ref || !arg) throw new Error("Usage: skillist publish <org>/<skill> <dir>");
+      if (!ref || !arg) throw new Error("Usage: skillist publish <org>/<repo> <dir>");
       await publish(ref, arg);
       return;
     }
@@ -557,7 +599,7 @@ async function main() {
     }
 
     if (cmd === "run") {
-      if (!ref) throw new Error("Usage: skillist run <org>/<skill> --script <path> [--url <url>] [-- ...args]");
+      if (!ref) throw new Error("Usage: skillist run <org>/<repo> --script <path> [--url <url>] [-- ...args]");
       const scriptIdx = process.argv.indexOf("--script");
       const urlIdx = process.argv.indexOf("--url");
       const dashIdx = process.argv.indexOf("--");
@@ -571,14 +613,14 @@ async function main() {
     }
 
     if (cmd === "eval") {
-      if (!ref) throw new Error("Usage: skillist eval <org>/<skill> [--wait]");
+      if (!ref) throw new Error("Usage: skillist eval <org>/<repo> [--wait]");
       await runEval(ref, process.argv.includes("--wait"));
       return;
     }
 
     if (cmd === "rollback") {
       if (!ref || !arg) {
-        throw new Error("Usage: skillist rollback <org>/<skill> <semver>");
+        throw new Error("Usage: skillist rollback <org>/<repo> <semver>");
       }
       await rollbackSkill(ref, arg);
       return;

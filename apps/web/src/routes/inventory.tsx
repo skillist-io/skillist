@@ -18,16 +18,16 @@ import { Textarea } from "@/components/ui/textarea";
 const EXAMPLE_SCAN = `{
   "items": [
     {
-      "repoFullName": "acme/web-app",
-      "filePath": ".cursor/skills/deploy/SKILL.md",
-      "skillSlug": "deploy",
-      "registryOrgSlug": "skillist",
-      "registrySkillSlug": "cloudflare-deploy"
+      "repoFullName": "skillist/cloudflare-deploy",
+      "filePath": ".cursor/skills/cloudflare-deploy/SKILL.md",
+      "localSlug": "cloudflare-deploy"
     },
     {
       "repoFullName": "acme/web-app",
       "filePath": ".claude/skills/review/SKILL.md",
-      "skillSlug": "review"
+      "localSlug": "review",
+      "registryOrgSlug": "skillist",
+      "registryRepo": "sql-review"
     }
   ]
 }`;
@@ -177,24 +177,29 @@ function InventoryPage() {
                   <p className="truncate font-mono text-xs text-muted-foreground">
                     {item.filePath}
                   </p>
-                  {item.skillSlug && (
-                    <p className="text-xs text-muted-foreground">slug: {item.skillSlug}</p>
+                  {item.localSlug && (
+                    <p className="text-xs text-muted-foreground">local: {item.localSlug}</p>
+                  )}
+                  {item.managed && item.registryOrgSlug && item.registryRepo && (
+                    <p className="text-xs text-muted-foreground">
+                      → skillist.dev/{item.registryOrgSlug}/{item.registryRepo}
+                    </p>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Badge variant={item.managed ? "default" : "secondary"}>
                     {item.managed ? "managed" : "local"}
                   </Badge>
-                  {item.registryOrgSlug && item.registrySkillSlug && (
+                  {item.registryOrgSlug && item.registryRepo && (
                     <Button size="sm" variant="outline" asChild>
                       <Link
-                        to="/registry/$org/$slug"
+                        to="/$org/$repo"
                         params={{
                           org: item.registryOrgSlug,
-                          slug: item.registrySkillSlug,
+                          repo: item.registryRepo,
                         }}
                       >
-                        {item.registryOrgSlug}/{item.registrySkillSlug}
+                        {item.registryOrgSlug}/{item.registryRepo}
                       </Link>
                     </Button>
                   )}
