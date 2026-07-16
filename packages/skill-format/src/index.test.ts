@@ -7,6 +7,7 @@ import {
   estimateImpactScore,
   scanSkillSecurity,
   parsePluginManifest,
+  extractRegistryDiscovery,
 } from "./index";
 
 describe("validateSkillName", () => {
@@ -92,5 +93,24 @@ describe("parsePluginManifest", () => {
       JSON.stringify({ name: "my-plugin", skills: ["SKILL.md"] }),
     );
     expect(manifest?.name).toBe("my-plugin");
+  });
+});
+
+describe("extractRegistryDiscovery", () => {
+  it("extracts category and tags from metadata", () => {
+    const result = extractRegistryDiscovery({
+      name: "test-skill",
+      description: "A test skill",
+      metadata: {
+        category: "performance",
+        level: "mid",
+        tags: "audit, web",
+      },
+    });
+    expect(result.category).toBe("performance");
+    expect(result.tags).toContain("performance");
+    expect(result.tags).toContain("mid");
+    expect(result.tags).toContain("audit");
+    expect(result.tags).toContain("web");
   });
 });

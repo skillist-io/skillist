@@ -29,6 +29,13 @@
       "when": 1784153617000,
       "tag": "0003_execution_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784153618000,
+      "tag": "0004_registry_tags",
+      "breakpoints": true
     }
   ]
 }

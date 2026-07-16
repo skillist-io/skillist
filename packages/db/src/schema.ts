@@ -341,6 +341,8 @@ export const registryEntries = pgTable(
     installCount: integer("install_count").notNull().default(0),
     activationCount: integer("activation_count").notNull().default(0),
     stars: integer("stars").notNull().default(0),
+    category: text("category"),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
     lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -349,6 +351,7 @@ export const registryEntries = pgTable(
   (t) => [
     uniqueIndex("registry_org_skill_idx").on(t.orgSlug, t.skillSlug),
     index("registry_search_idx").on(t.name, t.description),
+    index("registry_category_idx").on(t.category),
   ],
 );
 

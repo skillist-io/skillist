@@ -35,6 +35,8 @@ export type RegistryItem = {
   installCount: number;
   activationCount: number;
   runtime?: string | null;
+  category?: string | null;
+  tags?: string[];
   installCommand?: string;
   runCommand?: string | null;
 };

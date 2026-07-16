@@ -3,7 +3,7 @@ import { readdir, readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { join, relative, dirname } from "node:path";
 import { validateSkillBundle } from "@skillist/skill-format";
 
-const API_URL = process.env.SKILLIST_API_URL ?? "http://localhost:8787";
+const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.dev";
 const API_KEY = process.env.SKILLIST_API_KEY;
 const LOCKFILE = ".skillist.lock";
 
@@ -29,12 +29,13 @@ Usage:
   skillist pull <org>/<skill> [-o dir]     Download published skill bundle
   skillist push <org>/<skill> <dir>        Upload local skill as new draft
   skillist publish <org>/<skill> <dir>       Push + publish to registry
-  skillist run <org>/<skill> --script <path>   Run script in Cloudflare Sandbox
+  skillist run <org>/<skill> --script <path>   Run script in hosted sandbox
+                                              [--url <url>] [--stream] [-- ...args]
   skillist update [org/skill]              Update installed skills from lockfile
   skillist list                            List skills in lockfile
 
 Environment:
-  SKILLIST_API_URL   API base URL (default: http://localhost:8787)
+  SKILLIST_API_URL   API base URL (default: https://api.skillist.dev)
   SKILLIST_API_KEY   Bearer token (sk_...) — required for push/publish
 `);
 }
@@ -86,8 +87,12 @@ async function recordTelemetry(org: string, skill: string, eventType: "install" 
   }
 }
 
-async function search(query: string) {
-  const res = await apiFetch(`/v1/registry?q=${encodeURIComponent(query)}&limit=20`);
+async function search(query: string, options: { category?: string; tag?: string } = {}) {
+  const params = new URLSearchParams({ limit: "20" });
+  if (query) params.set("q", query);
+  if (options.category) params.set("category", options.category);
+  if (options.tag) params.set("tag", options.tag);
+  const res = await apiFetch(`/v1/registry?${params}`);
   const data = (await res.json()) as {
     items: {
       orgSlug: string;
@@ -98,6 +103,8 @@ async function search(query: string) {
       qualityScore: number | null;
       impactScore: number | null;
       securityStatus: string | null;
+      category?: string | null;
+      tags?: string[];
       installCommand?: string;
     }[];
     total: number;
@@ -116,8 +123,9 @@ async function search(query: string) {
     ]
       .filter(Boolean)
       .join(" ");
+    const tags = item.tags?.length ? ` [${item.tags.join(", ")}]` : "";
     console.log(
-      `${item.orgSlug}/${item.skillSlug}  ${item.name}  v${item.latestVersion ?? "?"}  ${scores}`,
+      `${item.orgSlug}/${item.skillSlug}  ${item.name}  v${item.latestVersion ?? "?"}  ${scores}${tags}`,
     );
     console.log(`  ${item.description.slice(0, 100)}`);
     console.log(`  ${item.installCommand ?? `skillist install ${item.orgSlug}/${item.skillSlug}`}`);
@@ -283,7 +291,68 @@ async function listInstalled() {
   }
 }
 
-async function runSkill(ref: string, scriptPath: string, targetUrl?: string, extraArgs: string[] = []) {
+async function parseSseRun(response: Response): Promise<{
+  runId: string;
+  status: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  durationMs: number;
+  runtime: string;
+}> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No response body");
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: {
+    runId: string;
+    status: string;
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    durationMs: number;
+    runtime: string;
+  } | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+    for (const part of parts) {
+      const lines = part.split("\n");
+      let event = "message";
+      let data = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) event = line.slice(7);
+        if (line.startsWith("data: ")) data = line.slice(6);
+      }
+      if (!data) continue;
+      const payload = JSON.parse(data) as Record<string, unknown>;
+      if (event === "output") {
+        const chunk = String(payload.chunk ?? "");
+        if (payload.stream === "stderr") process.stderr.write(chunk);
+        else process.stdout.write(chunk);
+      } else if (event === "done") {
+        result = payload as unknown as NonNullable<typeof result>;
+      } else if (event === "error") {
+        throw new Error(String(payload.message ?? "Execution failed"));
+      }
+    }
+  }
+
+  if (!result) throw new Error("Stream ended without result");
+  return result;
+}
+
+async function runSkill(
+  ref: string,
+  scriptPath: string,
+  targetUrl?: string,
+  extraArgs: string[] = [],
+  stream = false,
+) {
   const { org, skill } = parseRef(ref);
   const res = await apiFetch(`/v1/skills/${org}/${skill}/run`, {
     method: "POST",
@@ -292,20 +361,34 @@ async function runSkill(ref: string, scriptPath: string, targetUrl?: string, ext
       scriptPath,
       targetUrl,
       args: extraArgs,
+      stream,
     }),
   });
-  const result = (await res.json()) as {
-    runId: string;
-    status: string;
-    stdout: string;
-    stderr: string;
-    exitCode: number;
-    durationMs: number;
-    runtime: string;
-  };
-  console.log(`Run ${result.runId} (${result.runtime}) — ${result.status} exit ${result.exitCode} (${result.durationMs}ms)`);
-  if (result.stdout) console.log(result.stdout);
-  if (result.stderr) console.error(result.stderr);
+
+  const result =
+    stream && res.headers.get("content-type")?.includes("text/event-stream")
+      ? await parseSseRun(res)
+      : ((await res.json()) as {
+          runId: string;
+          status: string;
+          stdout: string;
+          stderr: string;
+          exitCode: number;
+          durationMs: number;
+          runtime: string;
+        });
+
+  if (!stream) {
+    console.log(
+      `Run ${result.runId} (${result.runtime}) — ${result.status} exit ${result.exitCode} (${result.durationMs}ms)`,
+    );
+    if (result.stdout) console.log(result.stdout);
+    if (result.stderr) console.error(result.stderr);
+  } else {
+    console.error(
+      `\nRun ${result.runId} (${result.runtime}) — ${result.status} exit ${result.exitCode} (${result.durationMs}ms)`,
+    );
+  }
   if (result.exitCode !== 0) process.exit(result.exitCode);
 }
 
@@ -319,7 +402,12 @@ async function main() {
 
   try {
     if (cmd === "search") {
-      await search(ref ?? "");
+      const categoryIdx = process.argv.indexOf("--category");
+      const tagIdx = process.argv.indexOf("--tag");
+      await search(ref ?? "", {
+        category: categoryIdx >= 0 ? process.argv[categoryIdx + 1] : undefined,
+        tag: tagIdx >= 0 ? process.argv[tagIdx + 1] : undefined,
+      });
       return;
     }
 
@@ -376,7 +464,8 @@ async function main() {
       const scriptPath = process.argv[scriptIdx + 1]!;
       const targetUrl = urlIdx >= 0 ? process.argv[urlIdx + 1] : undefined;
       const extraArgs = dashIdx >= 0 ? process.argv.slice(dashIdx + 1) : [];
-      await runSkill(ref, scriptPath, targetUrl, extraArgs);
+      const stream = process.argv.includes("--stream");
+      await runSkill(ref, scriptPath, targetUrl, extraArgs, stream);
       return;
     }
 

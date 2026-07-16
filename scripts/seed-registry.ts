@@ -32,6 +32,7 @@ import {
   reviewSkillBundle,
   scanSkillSecurity,
   validateSkillBundle,
+  extractRegistryDiscovery,
 } from "@skillist/skill-format";
 import { detectSkillRuntime } from "../apps/api/src/lib/skill-runtime.ts";
 
@@ -287,6 +288,7 @@ async function seedSkill(
   putKvKey(skillMetaKey(org.slug, slug), JSON.stringify(meta));
   putKvKey(skillMdKey(org.slug, slug), skillMd);
 
+  const discovery = extractRegistryDiscovery(validation.frontmatter);
   await db
     .insert(registryEntries)
     .values({
@@ -299,6 +301,8 @@ async function seedSkill(
       qualityScore: review.score,
       impactScore,
       securityStatus: security.status,
+      category: discovery.category,
+      tags: discovery.tags,
       lastReviewedAt: publishedAt,
     })
     .onConflictDoUpdate({
@@ -310,6 +314,8 @@ async function seedSkill(
         qualityScore: review.score,
         impactScore,
         securityStatus: security.status,
+        category: discovery.category,
+        tags: discovery.tags,
         lastReviewedAt: publishedAt,
         updatedAt: new Date(),
       },

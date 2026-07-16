@@ -14,6 +14,8 @@ type RegistryFilters = {
   runtime: "all" | "local" | "sandbox" | "container";
   minQuality: string;
   security: "all" | "pass" | "advisory" | "fail";
+  category: string;
+  tag: string;
 };
 
 function buildRegistryQuery(filters: RegistryFilters): string {
@@ -23,6 +25,8 @@ function buildRegistryQuery(filters: RegistryFilters): string {
   params.set("runtime", filters.runtime);
   if (filters.minQuality) params.set("minQuality", filters.minQuality);
   params.set("security", filters.security);
+  if (filters.category) params.set("category", filters.category);
+  if (filters.tag) params.set("tag", filters.tag);
   return params.toString();
 }
 
@@ -37,6 +41,8 @@ function RegistryPage() {
   const [runtime, setRuntime] = useState<RegistryFilters["runtime"]>("all");
   const [minQuality, setMinQuality] = useState("");
   const [security, setSecurity] = useState<RegistryFilters["security"]>("all");
+  const [category, setCategory] = useState("");
+  const [tag, setTag] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQ(search), 300);
@@ -49,6 +55,14 @@ function RegistryPage() {
     runtime,
     minQuality,
     security,
+    category,
+    tag,
+  });
+
+  const { data: facets } = useQuery({
+    queryKey: ["registry-facets"],
+    queryFn: () =>
+      api<{ categories: string[]; tags: string[] }>("/v1/registry/facets"),
   });
 
   const { data, isLoading } = useQuery({
@@ -68,7 +82,7 @@ function RegistryPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <div className="lg:col-span-2">
           <Label>Search</Label>
           <Input
@@ -118,7 +132,51 @@ function RegistryPage() {
             onChange={(e) => setMinQuality(e.target.value)}
           />
         </div>
+        <div>
+          <Label>Category</Label>
+          <select
+            className="mt-0 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">All</option>
+            {facets?.categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {facets && facets.tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Label className="text-muted-foreground">Tags</Label>
+          <button
+            type="button"
+            className={`rounded-full border px-3 py-1 text-xs ${
+              !tag ? "border-primary bg-primary text-primary-foreground" : "bg-background"
+            }`}
+            onClick={() => setTag("")}
+          >
+            all
+          </button>
+          {facets.tags.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`rounded-full border px-3 py-1 text-xs ${
+                tag === t
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-background"
+              }`}
+              onClick={() => setTag(tag === t ? "" : t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Label className="text-muted-foreground">Security</Label>
@@ -171,6 +229,11 @@ function RegistryPage() {
                     {item.runtime} runtime
                   </Badge>
                 )}
+                {item.tags?.map((t) => (
+                  <Badge key={t} variant="outline" className="text-xs">
+                    {t}
+                  </Badge>
+                ))}
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm">{item.description}</p>
