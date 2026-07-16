@@ -474,6 +474,15 @@ export const skillEvals = pgTable(
     baselineScore: integer("baseline_score"),
     withSkillScore: integer("with_skill_score"),
     uplift: integer("uplift"),
+    results: jsonb("results").$type<
+      {
+        name: string;
+        prompt: string;
+        baselineScore: number;
+        withSkillScore: number;
+        uplift: number;
+      }[]
+    >(),
     error: text("error"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

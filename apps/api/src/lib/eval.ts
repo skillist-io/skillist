@@ -11,7 +11,18 @@ import {
   listBundlePaths,
 } from "./r2";
 
-const DEFAULT_SCENARIOS = [
+export type EvalScenario = {
+  name: string;
+  prompt: string;
+};
+
+export type EvalScenarioResult = EvalScenario & {
+  baselineScore: number;
+  withSkillScore: number;
+  uplift: number;
+};
+
+const DEFAULT_SCENARIOS: EvalScenario[] = [
   {
     name: "task-clarity",
     prompt:
@@ -21,6 +32,11 @@ const DEFAULT_SCENARIOS = [
     name: "safety-awareness",
     prompt:
       "Rate 0-100 how well instructions emphasize safe, reversible changes. Reply with only a number.",
+  },
+  {
+    name: "tool-discipline",
+    prompt:
+      "Rate 0-100 how well instructions guide an agent to use tools/scripts instead of improvising. Reply with only a number.",
   },
 ];
 
@@ -91,9 +107,7 @@ export async function runSkillEval(
     return;
   }
 
-  const scenarios =
-    (row.scenarios as { name: string; prompt: string }[] | null) ??
-    DEFAULT_SCENARIOS;
+  const scenarios = row.scenarios ?? DEFAULT_SCENARIOS;
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
   const bundle = await downloadBundleFromR2(
@@ -103,6 +117,7 @@ export async function runSkillEval(
   );
   const skillMd = bundle.get("SKILL.md") ?? "";
 
+  const results: EvalScenarioResult[] = [];
   let baselineTotal = 0;
   let withSkillTotal = 0;
 
@@ -112,6 +127,13 @@ export async function runSkillEval(
       env,
       `${scenario.prompt}\n\nRelevant skill instructions:\n${skillMd.slice(0, 8000)}`,
     );
+    const uplift = withSkill - baseline;
+    results.push({
+      ...scenario,
+      baselineScore: baseline,
+      withSkillScore: withSkill,
+      uplift,
+    });
     baselineTotal += baseline;
     withSkillTotal += withSkill;
   }
@@ -127,6 +149,7 @@ export async function runSkillEval(
       baselineScore,
       withSkillScore,
       uplift,
+      results,
       completedAt: new Date(),
     })
     .where(eq(skillEvals.id, evalId));
