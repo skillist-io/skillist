@@ -4,30 +4,64 @@
 
 <script is:inline>
   window.StarlightThemeProvider = (() => {
-    const starlightTheme =
-      typeof localStorage !== "undefined" &&
-      localStorage.getItem("starlight-theme");
-    const skillistTheme =
-      typeof localStorage !== "undefined" &&
-      localStorage.getItem("skillist-theme");
-    const stored = starlightTheme || skillistTheme;
-    const theme =
-      stored ||
-      (window.matchMedia("(prefers-color-scheme: light)").matches
-        ? "light"
-        : "dark");
-    document.documentElement.dataset.theme =
-      theme === "light" ? "light" : "dark";
-    document.documentElement.classList.toggle("dark", theme !== "light");
-    document.documentElement.style.colorScheme =
-      theme === "light" ? "light" : "dark";
+    const storageKey = "starlight-theme";
 
-    if (skillistTheme && !starlightTheme) {
-      localStorage.setItem("starlight-theme", skillistTheme);
-    }
+    const parseTheme = (theme) =>
+      theme === "auto" || theme === "dark" || theme === "light" ? theme : "auto";
+
+    const getPreferredColorScheme = () =>
+      window.matchMedia("(prefers-color-scheme: light)").matches
+        ? "light"
+        : "dark";
+
+    const resolveTheme = (theme) =>
+      theme === "auto" ? getPreferredColorScheme() : theme;
+
+    const applyTheme = (resolved) => {
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.classList.toggle("dark", resolved !== "light");
+      document.documentElement.style.colorScheme = resolved;
+    };
+
+    const loadTheme = () => {
+      const starlightTheme =
+        typeof localStorage !== "undefined" &&
+        localStorage.getItem(storageKey);
+      const skillistTheme =
+        typeof localStorage !== "undefined" &&
+        localStorage.getItem("skillist-theme");
+
+      if (skillistTheme && !starlightTheme) {
+        localStorage.setItem(storageKey, skillistTheme);
+      }
+
+      return parseTheme(starlightTheme || skillistTheme || "auto");
+    };
+
+    applyTheme(resolveTheme(loadTheme()));
+
+    // Starlight's theme picker updates data-theme; keep shadcn tokens in sync.
+    new MutationObserver(() => {
+      const resolved = document.documentElement.dataset.theme;
+      if (resolved !== "light" && resolved !== "dark") return;
+      document.documentElement.classList.toggle("dark", resolved !== "light");
+      document.documentElement.style.colorScheme = resolved;
+    }).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
+    window.matchMedia("(prefers-color-scheme: light)").addEventListener(
+      "change",
+      () => {
+        if (loadTheme() === "auto") {
+          applyTheme(getPreferredColorScheme());
+        }
+      }
+    );
 
     return {
-      updatePickers(theme = stored || "auto") {
+      updatePickers(theme = loadTheme()) {
         document
           .querySelectorAll("starlight-theme-select")
           .forEach((picker) => {
