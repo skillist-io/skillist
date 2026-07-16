@@ -18,6 +18,7 @@ import {
   reviewSkillBundle,
   estimateImpactScore,
   scanSkillSecurity,
+  resolveNextSemver,
 } from "@skillist/skill-format";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
@@ -209,7 +210,19 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
   const prefix = r2Prefix(orgId, slug, versionId);
   await uploadBundleToR2(c.env.SKILLS_R2, prefix, bundle);
 
-  const semver = body.semver ?? "0.1.0";
+  const parentVersion = body.parentVersionId
+    ? await c.var.db
+        .select({ semver: skillVersions.semver })
+        .from(skillVersions)
+        .where(eq(skillVersions.id, body.parentVersionId))
+        .limit(1)
+        .then((rows) => rows[0] ?? null)
+    : null;
+
+  const semver = resolveNextSemver(parentVersion?.semver, {
+    semver: body.semver,
+    bump: body.bump,
+  });
   const [version] = await c.var.db
     .insert(skillVersions)
     .values({

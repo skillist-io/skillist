@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   LayoutDashboard,
+  PackageSearch,
   Settings2,
   Shield,
   Zap,
@@ -32,7 +33,7 @@ type NavItem = {
   title: string;
   to: string;
   icon: LucideIcon;
-  section: "dashboard" | "observability" | "governance" | "settings";
+  section: "dashboard" | "inventory" | "observability" | "governance" | "settings";
 };
 
 const navMain: NavItem[] = [
@@ -41,6 +42,12 @@ const navMain: NavItem[] = [
     to: "/dashboard",
     icon: LayoutDashboard,
     section: "dashboard",
+  },
+  {
+    title: "Inventory",
+    to: "/inventory",
+    icon: PackageSearch,
+    section: "inventory",
   },
   {
     title: "Observability",
@@ -79,10 +86,16 @@ const observabilityLinks = [
   { title: "Recent runs", href: "#recent-runs" },
 ];
 
+const inventoryLinks = [
+  { title: "Discovered skills", href: "#discovered" },
+  { title: "Submit scan", href: "#scan" },
+];
+
 function activeSection(pathname: string): NavItem["section"] {
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/governance")) return "governance";
   if (pathname.startsWith("/observability")) return "observability";
+  if (pathname.startsWith("/inventory")) return "inventory";
   return "dashboard";
 }
 
@@ -197,6 +210,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 ))
               ) : section === "governance" ? (
                 governanceLinks.map((link) => (
+                  <a
+                    key={link.title}
+                    href={link.href}
+                    className="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  >
+                    <span className="font-medium">{link.title}</span>
+                  </a>
+                ))
+              ) : section === "inventory" ? (
+                inventoryLinks.map((link) => (
                   <a
                     key={link.title}
                     href={link.href}
