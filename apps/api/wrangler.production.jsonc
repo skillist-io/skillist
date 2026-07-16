@@ -8,7 +8,8 @@
   },
   "routes": [
     { "pattern": "api.skillist.dev", "custom_domain": true },
-    { "pattern": "skillist.dev/api/*", "zone_name": "skillist.dev" }
+    { "pattern": "skillist.dev/api/*", "zone_name": "skillist.dev" },
+    { "pattern": "skillist.dev/v1/*", "zone_name": "skillist.dev" }
   ],
   "hyperdrive": [
     {
