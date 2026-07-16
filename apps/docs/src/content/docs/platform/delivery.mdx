@@ -78,7 +78,7 @@ See [Tools reference](/mcp/tools/) for parameters (`org` and `repo`).
 
 ## How routing works
 
-Cloudflare zone routes cannot place wildcards mid-path (e.g. `skillist.dev/*/SKILL.md`), so delivery is implemented in two layers:
+DNS zone routing cannot place wildcards mid-path (e.g. `skillist.dev/*/SKILL.md`), so delivery is implemented in two layers:
 
 1. **API worker** — serves `/{org}/{repo}/SKILL.md`, `/meta`, `/bundle`, and authenticated `/scripts`, `/run`, `/runs`
 2. **Web worker** — intercepts the same paths on `skillist.dev` and forwards them to the API worker via a service binding; also proxies `/v1/*` and `/api/*` for same-origin SPA requests

@@ -3,7 +3,7 @@ title: Authentication
 description: Sign in to Skillist with GitHub, Google, magic link, or email OTP — no passwords.
 ---
 
-Skillist uses [Better Auth](https://better-auth.com/) for passwordless authentication.
+Skillist supports passwordless authentication — no passwords stored.
 
 ## Sign-in methods
 
@@ -22,7 +22,7 @@ Protected API routes live under `/v1/*` and require a valid session or org API k
 
 ## MCP OAuth
 
-MCP clients use a separate OAuth flow via the [Better Auth MCP plugin](/mcp/oauth/). Sign-in still happens at `skillist.dev/login`.
+MCP clients use a separate OAuth flow — see [OAuth authentication](/mcp/oauth/). Sign-in still happens at `skillist.dev/login`.
 
 ## Sandbox policy
 
