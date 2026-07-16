@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type SkillVersion, type Feedback, type Org, type ReviewPreview } from "@/lib/api";
+import { api, type SkillVersion, type Feedback, type Org, type ReviewPreview, type SkillEval } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { diffLines, diffStats } from "@/lib/diff";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { ScoreBadges } from "@/components/score-badges";
 import { SkillRunCard } from "@/components/skill-run-card";
 import { SkillRunHistory } from "@/components/skill-run-history";
 import { SkillEvalPanel } from "@/components/skill-eval-panel";
+import { SkillEvalRegression } from "@/components/skill-eval-regression";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { useState, useEffect, useMemo } from "react";
 
@@ -58,6 +59,12 @@ function SkillEditorPage() {
         `/v1/orgs/${orgId}/skills/${slug}/versions/${latestDraft!.id}/preview`,
       ),
     enabled: !!latestDraft,
+  });
+
+  const { data: evals } = useQuery({
+    queryKey: ["evals", orgId, slug],
+    queryFn: () =>
+      api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${slug}/evals`),
   });
 
   const { data: files } = useQuery({
@@ -267,6 +274,8 @@ function SkillEditorPage() {
             onRunEval={() => runEval.mutate()}
             isRunning={runEval.isPending}
           />
+
+          <SkillEvalRegression evals={evals?.items ?? []} />
 
           <Card>
             <CardHeader>

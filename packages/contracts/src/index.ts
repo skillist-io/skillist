@@ -98,6 +98,7 @@ export const registryQuerySchema = z.object({
   security: z.enum(["all", "pass", "advisory", "fail"]).default("all"),
   category: z.string().max(64).optional(),
   tag: z.string().max(64).optional(),
+  agent: z.string().max(64).optional(),
 });
 
 export const skillMetaSchema = z.object({

@@ -14,6 +14,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 function useBreadcrumbs() {
@@ -82,6 +83,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 ))}
               </BreadcrumbList>
             </Breadcrumb>
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
           </header>
           <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>
         </SidebarInset>

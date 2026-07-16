@@ -27,6 +27,11 @@ import type { WorkerDb } from "../lib/db";
 import { logAudit } from "../lib/audit";
 import { requireOrgAccess } from "../lib/org-access";
 import { resolveUserId } from "../lib/session";
+import {
+  buildDayBuckets,
+  incrementDayBucket,
+  toDaySeries,
+} from "../lib/time-series";
 
 type AppEnv = {
   Bindings: Env;
@@ -437,8 +442,23 @@ governanceRoutes.openapi(listEvalsRoute, async (c) => {
   if (!skill) return c.json({ error: "Not found" }, 404);
 
   const items = await c.var.db
-    .select()
+    .select({
+      id: skillEvals.id,
+      versionId: skillEvals.versionId,
+      status: skillEvals.status,
+      scenarios: skillEvals.scenarios,
+      baselineScore: skillEvals.baselineScore,
+      withSkillScore: skillEvals.withSkillScore,
+      uplift: skillEvals.uplift,
+      results: skillEvals.results,
+      error: skillEvals.error,
+      createdAt: skillEvals.createdAt,
+      completedAt: skillEvals.completedAt,
+      semver: skillVersions.semver,
+      versionStatus: skillVersions.status,
+    })
     .from(skillEvals)
+    .innerJoin(skillVersions, eq(skillEvals.versionId, skillVersions.id))
     .where(eq(skillEvals.skillId, skill.id))
     .orderBy(desc(skillEvals.createdAt))
     .limit(20);
@@ -537,9 +557,29 @@ governanceRoutes.openapi(observabilityRoute, async (c) => {
         gte(skillRuns.createdAt, since),
       ),
     )
-    .orderBy(desc(skillRuns.createdAt))
-    .limit(50);
+    .orderBy(desc(skillRuns.createdAt));
 
+  const runBuckets = buildDayBuckets(days);
+  const successBuckets = buildDayBuckets(days);
+  const installBuckets = buildDayBuckets(days);
+  const activationBuckets = buildDayBuckets(days);
+
+  for (const run of runs) {
+    incrementDayBucket(runBuckets, run.createdAt);
+    if (run.exitCode === 0) {
+      incrementDayBucket(successBuckets, run.createdAt);
+    }
+  }
+
+  for (const event of events) {
+    if (event.eventType === "install") {
+      incrementDayBucket(installBuckets, event.createdAt);
+    } else if (event.eventType === "activation") {
+      incrementDayBucket(activationBuckets, event.createdAt);
+    }
+  }
+
+  const recentRuns = runs.slice(0, 20);
   const finished = runs.filter(
     (r) => r.status === "completed" || r.status === "failed",
   );
@@ -575,7 +615,13 @@ governanceRoutes.openapi(observabilityRoute, async (c) => {
             : null,
         avgDurationMs,
         byRuntime,
-        recent: runs.slice(0, 20),
+        recent: recentRuns,
+      },
+      series: {
+        runs: toDaySeries(runBuckets),
+        successes: toDaySeries(successBuckets),
+        installs: toDaySeries(installBuckets),
+        activations: toDaySeries(activationBuckets),
       },
     },
     200,

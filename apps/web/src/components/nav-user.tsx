@@ -24,9 +24,13 @@ import {
   Bell,
   ChevronsUpDown,
   LogOut,
+  Monitor,
+  Moon,
   Settings2,
+  Sun,
 } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
+import { useTheme } from "@/components/theme-provider";
 
 export function NavUser({
   user,
@@ -38,6 +42,7 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+  const { theme, setTheme } = useTheme();
   const initials = user.name
     .split(" ")
     .map((part) => part[0])
@@ -98,6 +103,22 @@ export function NavUser({
               <DropdownMenuItem>
                 <Bell />
                 Notifications
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                <Sun />
+                Light theme
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                <Moon />
+                Dark theme
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")}>
+                <Monitor />
+                System theme
+                {theme === "system" ? " ✓" : ""}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

@@ -26,7 +26,7 @@ function usage() {
 Usage:
   skillist search [query]                  Search public registry
                                               [--category <cat>] [--tag <tag>]
-                                              [--sort quality|stars|trending|...]
+                                              [--agent <name>] [--sort ...]
   skillist install <org>/<skill> [-o dir]  Download and record in lockfile
   skillist pull <org>/<skill> [-o dir]     Download published skill bundle
   skillist push <org>/<skill> <dir>        Upload local skill as new draft
@@ -93,13 +93,14 @@ async function recordTelemetry(org: string, skill: string, eventType: "install" 
 
 async function search(
   query: string,
-  options: { category?: string; tag?: string; sort?: string } = {},
+  options: { category?: string; tag?: string; sort?: string; agent?: string } = {},
 ) {
   const params = new URLSearchParams({ limit: "20" });
   if (query) params.set("q", query);
   if (options.category) params.set("category", options.category);
   if (options.tag) params.set("tag", options.tag);
   if (options.sort) params.set("sort", options.sort);
+  if (options.agent) params.set("agent", options.agent);
   const res = await apiFetch(`/v1/registry?${params}`);
   const data = (await res.json()) as {
     items: {
@@ -466,10 +467,12 @@ async function main() {
       const categoryIdx = process.argv.indexOf("--category");
       const tagIdx = process.argv.indexOf("--tag");
       const sortIdx = process.argv.indexOf("--sort");
+      const agentIdx = process.argv.indexOf("--agent");
       await search(ref ?? "", {
         category: categoryIdx >= 0 ? process.argv[categoryIdx + 1] : undefined,
         tag: tagIdx >= 0 ? process.argv[tagIdx + 1] : undefined,
         sort: sortIdx >= 0 ? process.argv[sortIdx + 1] : undefined,
+        agent: agentIdx >= 0 ? process.argv[agentIdx + 1] : undefined,
       });
       return;
     }

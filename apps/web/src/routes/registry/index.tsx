@@ -17,6 +17,7 @@ type RegistryFilters = {
   security: "all" | "pass" | "advisory" | "fail";
   category: string;
   tag: string;
+  agent: string;
 };
 
 function buildRegistryQuery(filters: RegistryFilters): string {
@@ -28,6 +29,7 @@ function buildRegistryQuery(filters: RegistryFilters): string {
   params.set("security", filters.security);
   if (filters.category) params.set("category", filters.category);
   if (filters.tag) params.set("tag", filters.tag);
+  if (filters.agent) params.set("agent", filters.agent);
   return params.toString();
 }
 
@@ -44,6 +46,7 @@ function RegistryPage() {
   const [security, setSecurity] = useState<RegistryFilters["security"]>("all");
   const [category, setCategory] = useState("");
   const [tag, setTag] = useState("");
+  const [agent, setAgent] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQ(search), 300);
@@ -58,12 +61,15 @@ function RegistryPage() {
     security,
     category,
     tag,
+    agent,
   });
 
   const { data: facets } = useQuery({
     queryKey: ["registry-facets"],
     queryFn: () =>
-      api<{ categories: string[]; tags: string[] }>("/v1/registry/facets"),
+      api<{ categories: string[]; tags: string[]; agents: string[] }>(
+        "/v1/registry/facets",
+      ),
   });
 
   const { data, isLoading } = useQuery({
@@ -176,6 +182,37 @@ function RegistryPage() {
               onClick={() => setTag(tag === t ? "" : t)}
             >
               {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {facets && facets.agents.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Label className="text-muted-foreground">Agents</Label>
+          <button
+            type="button"
+            className={`rounded-full border px-3 py-1 text-xs ${
+              !agent
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-background"
+            }`}
+            onClick={() => setAgent("")}
+          >
+            all
+          </button>
+          {facets.agents.map((a) => (
+            <button
+              key={a}
+              type="button"
+              className={`rounded-full border px-3 py-1 text-xs ${
+                agent === a
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-background"
+              }`}
+              onClick={() => setAgent(agent === a ? "" : a)}
+            >
+              {a}
             </button>
           ))}
         </div>

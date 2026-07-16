@@ -57,6 +57,12 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
     );
   }
 
+  if (query.agent) {
+    clauses.push(
+      sql`${registryEntries.compatibleAgents} @> ${JSON.stringify([query.agent.toLowerCase()])}::jsonb`,
+    );
+  }
+
   return clauses.length ? and(...clauses) : undefined;
 }
 
@@ -200,6 +206,17 @@ registryRoutes.openapi(registryFacetsRoute, async (c) => {
     }
   }
 
+  const agentRows = await c.var.db
+    .select({ agents: registryEntries.compatibleAgents })
+    .from(registryEntries);
+
+  const agentSet = new Set<string>();
+  for (const row of agentRows) {
+    for (const agent of row.agents ?? []) {
+      if (agent) agentSet.add(agent);
+    }
+  }
+
   return c.json(
     {
       categories: categoryRows
@@ -207,6 +224,7 @@ registryRoutes.openapi(registryFacetsRoute, async (c) => {
         .filter(Boolean)
         .sort(),
       tags: [...tagSet].sort(),
+      agents: [...agentSet].sort(),
     },
     200,
   );
