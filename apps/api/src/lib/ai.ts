@@ -1,6 +1,6 @@
 import type { Env } from "../env";
 import type { WorkerDb } from "./db";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import {
   feedback,
   skillFiles,
@@ -25,10 +25,14 @@ import {
   uploadBundleToR2,
 } from "./r2";
 import { cachePublishedSkill, broadcastPublish } from "./publish";
-import { organizations, skillEvals } from "@skillist/db/schema";
+import { organizations } from "@skillist/db/schema";
 import { evaluatePublishPolicy } from "./publish-policy";
 import { logAudit } from "./audit";
 import { detectSkillRuntime } from "./skill-runtime";
+import {
+  getVersionEvalStatus,
+  queueSkillEval,
+} from "./queue-eval";
 
 export async function runAiJob(
   env: Env,
@@ -208,26 +212,44 @@ export async function publishVersion(
   const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
   const compatibleAgents = extractAgentDiscovery(pluginManifest);
 
-  const [latestEval] = await db
-    .select({
-      status: skillEvals.status,
-      uplift: skillEvals.uplift,
-    })
-    .from(skillEvals)
-    .where(
-      and(
-        eq(skillEvals.versionId, versionId),
-        eq(skillEvals.status, "completed"),
-      ),
-    )
-    .orderBy(desc(skillEvals.completedAt))
-    .limit(1);
+  const policy = org.publishPolicy ?? undefined;
+  const evalNeeded = Boolean(
+    policy?.requireEval || policy?.minEvalUplift != null,
+  );
+  let evalStatus = await getVersionEvalStatus(db, versionId);
+
+  if (evalNeeded) {
+    if (
+      !evalStatus ||
+      evalStatus.status === "failed"
+    ) {
+      const queued = await queueSkillEval(env, db, {
+        skillId: skill.id,
+        versionId,
+        orgSlug: org.slug,
+        skillSlug: skill.slug,
+      });
+      throw new Error(
+        queued.created
+          ? "Eval queued — publish again when complete"
+          : "Eval in progress — publish again when complete",
+      );
+    }
+    if (evalStatus.status === "queued" || evalStatus.status === "running") {
+      throw new Error("Eval in progress — publish again when complete");
+    }
+  }
+
+  const completedEval =
+    evalStatus?.status === "completed"
+      ? { status: evalStatus.status, uplift: evalStatus.uplift }
+      : null;
 
   const policyCheck = evaluatePublishPolicy(
-    org.publishPolicy ?? undefined,
+    policy,
     review,
     security,
-    latestEval ?? null,
+    completedEval,
   );
   if (!policyCheck.allowed) {
     throw new Error(policyCheck.reasons.join("; "));
@@ -330,26 +352,6 @@ export async function publishVersion(
           updatedAt: new Date(),
         },
       });
-  }
-
-  const [evalRow] = await db
-    .insert(skillEvals)
-    .values({
-      skillId: skill.id,
-      versionId: version.id,
-      status: "queued",
-    })
-    .returning();
-
-  if (evalRow) {
-    await env.AI_QUEUE.send({
-      type: "eval",
-      evalId: evalRow.id,
-      skillId: skill.id,
-      versionId: version.id,
-      orgSlug: org.slug,
-      skillSlug: skill.slug,
-    });
   }
 
   await logAudit(db, {

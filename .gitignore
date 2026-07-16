@@ -16,3 +16,5 @@ coverage
 *.tsbuildinfo
 .seed-kv-tmp.json
 .seed-r2-tmp/
+test-results/
+playwright-report/

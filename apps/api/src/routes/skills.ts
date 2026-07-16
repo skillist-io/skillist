@@ -10,7 +10,6 @@ import {
   skillFiles,
   skillVersions,
   skills,
-  skillEvals,
 } from "@skillist/db/schema";
 import {
   createSkillTemplate,
@@ -24,6 +23,7 @@ import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import { requireOrgAccess } from "../lib/org-access";
 import { publishVersion, rollbackVersion } from "../lib/ai";
+import { queueSkillEval } from "../lib/queue-eval";
 import {
   r2Prefix,
   sha256,
@@ -233,39 +233,28 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
   }
 
   const [org] = await c.var.db
-    .select({ publishPolicy: organizations.publishPolicy })
+    .select({
+      publishPolicy: organizations.publishPolicy,
+      slug: organizations.slug,
+    })
     .from(organizations)
     .where(eq(organizations.id, orgId))
     .limit(1);
 
-  if (org?.publishPolicy?.requireEval) {
-    const [evalRow] = await c.var.db
-      .insert(skillEvals)
-      .values({
-        skillId: skill.id,
-        versionId,
-        status: "queued",
-      })
-      .returning();
-    if (evalRow) {
-      const [orgRow] = await c.var.db
-        .select({ slug: organizations.slug })
-        .from(organizations)
-        .where(eq(organizations.id, orgId))
-        .limit(1);
-      await c.env.AI_QUEUE.send({
-        type: "eval",
-        evalId: evalRow.id,
-        skillId: skill.id,
-        versionId,
-        orgSlug: orgRow?.slug ?? orgId,
-        skillSlug: slug,
-      });
-    }
-  }
+  const evalQueue = await queueSkillEval(c.env, c.var.db, {
+    skillId: skill.id,
+    versionId,
+    orgSlug: org?.slug ?? orgId,
+    skillSlug: slug,
+  });
 
   return c.json(
-    { id: version!.id, semver: version!.semver, status: version!.status },
+    {
+      id: version!.id,
+      semver: version!.semver,
+      status: version!.status,
+      eval: evalQueue,
+    },
     201,
   );
 });

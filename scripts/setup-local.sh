@@ -30,20 +30,25 @@ fi
 
 if [ ! -f "$ROOT/apps/api/wrangler.local.jsonc" ]; then
   cp "$ROOT/apps/api/wrangler.local.jsonc.example" "$ROOT/apps/api/wrangler.local.jsonc"
-  if [ -n "$NEON_URL" ]; then
-    python3 -c "
+  echo "Created apps/api/wrangler.local.jsonc"
+fi
+
+if [ -n "$NEON_URL" ]; then
+  python3 -c "
 import json, sys
 path = sys.argv[1]
 url = sys.argv[2]
 with open(path) as f:
     cfg = json.load(f)
+cfg['main'] = 'src/index.ts'
+cfg['compatibility_date'] = '2025-01-15'
+cfg['compatibility_flags'] = ['nodejs_compat']
 cfg['hyperdrive'][0]['localConnectionString'] = url
 with open(path, 'w') as f:
     json.dump(cfg, f, indent=2)
     f.write('\n')
 " "$ROOT/apps/api/wrangler.local.jsonc" "$NEON_URL"
-  fi
-  echo "Created apps/api/wrangler.local.jsonc (Hyperdrive local connection)"
+  echo "Synced Hyperdrive local connection from DATABASE_URL"
 fi
 
 echo "Local setup complete. Run: pnpm db:migrate && pnpm dev"

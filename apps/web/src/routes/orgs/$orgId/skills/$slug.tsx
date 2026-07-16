@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type SkillVersion, type Feedback, type Org, type ReviewPreview, type SkillEval } from "@/lib/api";
+import { api, type SkillVersion, type Feedback, type Org, type ReviewPreview, type SkillEval, type PublishPolicy } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { diffLines, diffStats } from "@/lib/diff";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,47 @@ function SkillEditorPage() {
     queryKey: ["evals", orgId, slug],
     queryFn: () =>
       api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${slug}/evals`),
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? [];
+      const pending = items.some(
+        (ev) =>
+          ev.versionId === latestDraft?.id &&
+          (ev.status === "queued" || ev.status === "running"),
+      );
+      return pending ? 3000 : false;
+    },
   });
+
+  const { data: publishPolicyData } = useQuery({
+    queryKey: ["publish-policy", orgId],
+    queryFn: () =>
+      api<{ publishPolicy: PublishPolicy }>(`/v1/orgs/${orgId}/publish-policy`),
+  });
+
+  const publishPolicy = publishPolicyData?.publishPolicy;
+  const draftEval = evals?.items?.find((ev) => ev.versionId === latestDraft?.id);
+  const evalGateRequired = Boolean(
+    publishPolicy?.requireEval || publishPolicy?.minEvalUplift != null,
+  );
+  const publishBlockedReason = useMemo(() => {
+    if (!latestDraft || !evalGateRequired) return null;
+    if (!draftEval || draftEval.status === "failed") {
+      return "Save draft to queue an eval, then publish when complete.";
+    }
+    if (draftEval.status === "queued" || draftEval.status === "running") {
+      return "Eval in progress — publish unlocks when complete.";
+    }
+    if (publishPolicy?.requireEval && draftEval.status !== "completed") {
+      return "A completed eval is required before publish.";
+    }
+    if (
+      publishPolicy?.minEvalUplift != null &&
+      (draftEval.uplift == null || draftEval.uplift < publishPolicy.minEvalUplift)
+    ) {
+      return `Eval uplift +${draftEval.uplift ?? 0} is below minimum +${publishPolicy.minEvalUplift}.`;
+    }
+    return null;
+  }, [latestDraft, evalGateRequired, draftEval, publishPolicy]);
 
   const { data: files } = useQuery({
     queryKey: ["files", orgId, slug, latestDraft?.id],
@@ -114,8 +154,10 @@ function SkillEditorPage() {
           parentVersionId: latestDraft?.id,
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] });
+      queryClient.invalidateQueries({ queryKey: ["evals", orgId, slug] });
+    },
   });
 
   const runEval = useMutation({
@@ -204,7 +246,8 @@ function SkillEditorPage() {
           {latestDraft && (
             <Button
               onClick={() => publish.mutate(latestDraft.id)}
-              disabled={publish.isPending}
+              disabled={publish.isPending || Boolean(publishBlockedReason)}
+              title={publishBlockedReason ?? undefined}
             >
               Publish
             </Button>
@@ -231,6 +274,15 @@ function SkillEditorPage() {
         </Card>
 
         <div className="space-y-4">
+          {publishBlockedReason && (
+            <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+              <CardContent className="pt-4 text-sm text-amber-900 dark:text-amber-100">
+                <span className="font-medium">Publish gated by eval policy.</span>{" "}
+                {publishBlockedReason}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Quality review</CardTitle>
