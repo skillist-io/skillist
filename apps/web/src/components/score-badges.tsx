@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge";
 import { Shield, Sparkles, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export function ScoreBadges({
   quality,
@@ -45,18 +45,10 @@ export function ScoreBadges({
   );
 }
 
-export function InstallSnippet({
-  command,
-  prefix,
-}: {
-  command: string;
-  prefix?: string;
-}) {
+export function InstallSnippet({ command, prefix }: { command: string; prefix?: string }) {
   return (
     <div className="space-y-1">
-      {prefix && (
-        <p className="text-xs text-muted-foreground">{prefix}</p>
-      )}
+      {prefix && <p className="text-xs text-muted-foreground">{prefix}</p>}
       <code className="block rounded bg-muted px-2 py-1 text-xs">{command}</code>
     </div>
   );

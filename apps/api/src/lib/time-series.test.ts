@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildDayBuckets,
-  incrementDayBucket,
-  toDaySeries,
-} from "./time-series";
+import { buildDayBuckets, incrementDayBucket, toDaySeries } from "./time-series";
 
 describe("time-series", () => {
   it("builds daily buckets and increments counts", () => {

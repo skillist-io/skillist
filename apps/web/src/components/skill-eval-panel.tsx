@@ -1,15 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, type SkillEval } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { api, type SkillEval } from "@/lib/api";
 
 type SkillEvalPanelProps = {
   orgId: string;
@@ -37,23 +31,17 @@ export function SkillEvalPanel({
 
   const { data: evals } = useQuery({
     queryKey: ["evals", orgId, repo],
-    queryFn: () =>
-      api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${repo}/evals`),
+    queryFn: () => api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${repo}/evals`),
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
-      const pending = items.some(
-        (ev) => ev.status === "queued" || ev.status === "running",
-      );
+      const pending = items.some((ev) => ev.status === "queued" || ev.status === "running");
       return pending ? 3000 : false;
     },
   });
 
   const { data: detail } = useQuery({
     queryKey: ["eval", orgId, repo, expandedId],
-    queryFn: () =>
-      api<{ eval: SkillEval }>(
-        `/v1/orgs/${orgId}/skills/${repo}/evals/${expandedId}`,
-      ),
+    queryFn: () => api<{ eval: SkillEval }>(`/v1/orgs/${orgId}/skills/${repo}/evals/${expandedId}`),
     enabled: !!expandedId,
   });
 
@@ -62,17 +50,10 @@ export function SkillEvalPanel({
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle>Evals</CardTitle>
-          <CardDescription>
-            Baseline vs with-skill uplift across scenarios
-          </CardDescription>
+          <CardDescription>Baseline vs with-skill uplift across scenarios</CardDescription>
         </div>
         {versionId && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRunEval}
-            disabled={isRunning}
-          >
+          <Button variant="outline" size="sm" onClick={onRunEval} disabled={isRunning}>
             {isRunning ? "Queuing…" : "Run eval"}
           </Button>
         )}
@@ -99,7 +80,7 @@ export function SkillEvalPanel({
                   <span className="font-mono text-xs">
                     {ev.baselineScore != null && ev.withSkillScore != null
                       ? `${ev.baselineScore} → ${ev.withSkillScore} (+${ev.uplift ?? 0})`
-                      : ev.error ?? "Pending"}
+                      : (ev.error ?? "Pending")}
                   </span>
                 </button>
                 {open && results?.length ? (
@@ -111,8 +92,8 @@ export function SkillEvalPanel({
                       >
                         <span className="font-medium">{scenario.name}</span>
                         <span className="font-mono">
-                          {scenario.baselineScore} → {scenario.withSkillScore}{" "}
-                          ({scenario.uplift >= 0 ? "+" : ""}
+                          {scenario.baselineScore} → {scenario.withSkillScore} (
+                          {scenario.uplift >= 0 ? "+" : ""}
                           {scenario.uplift})
                         </span>
                       </div>

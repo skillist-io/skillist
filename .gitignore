@@ -18,4 +18,5 @@ coverage
 .seed-kv-tmp.json
 .seed-r2-tmp/
 test-results/
-playwright-report/
+lefthook-local.yml
+tests/e2e/.auth/

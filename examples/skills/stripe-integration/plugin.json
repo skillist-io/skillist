@@ -4,8 +4,5 @@
   "description": "Stripe payments integration skill",
   "skills": ["SKILL.md"],
   "agents": ["cursor", "claude", "vscode"],
-  "rules": [
-    "Never log or commit Stripe secret keys",
-    "Always verify webhook signatures"
-  ]
+  "rules": ["Never log or commit Stripe secret keys", "Always verify webhook signatures"]
 }

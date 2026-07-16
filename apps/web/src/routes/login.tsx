@@ -1,14 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { z } from "zod";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { LoginForm } from "@/components/login-form";
+import { sendMagicLink, signInWithGitHub, signInWithGoogle, useSession } from "@/lib/auth-client";
 import { authErrorMessage } from "@/lib/auth-errors";
-import {
-  sendMagicLink,
-  signInWithGitHub,
-  signInWithGoogle,
-  useSession,
-} from "@/lib/auth-client";
 
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({
@@ -20,8 +15,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { redirect, error: authError, error_description: authErrorDescription } =
-    Route.useSearch();
+  const { redirect, error: authError, error_description: authErrorDescription } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);

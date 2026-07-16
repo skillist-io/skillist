@@ -1,18 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { api, type Feedback } from "@/lib/api";
-import { diffLines, diffStats } from "@/lib/diff";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { api, type Feedback } from "@/lib/api";
+import { diffLines, diffStats } from "@/lib/diff";
 
 type FeedbackInboxProps = {
   orgId: string;
@@ -57,9 +51,7 @@ export function FeedbackInbox({
     queryFn: () => api<Feedback[]>(`/v1/orgs/${orgId}/skills/${repo}/feedback`),
     refetchInterval: (query) => {
       const pending = query.state.data?.some(
-        (f) =>
-          f.aiJob?.status === "queued" ||
-          f.aiJob?.status === "running",
+        (f) => f.aiJob?.status === "queued" || f.aiJob?.status === "running",
       );
       return pending ? 3000 : false;
     },
@@ -69,9 +61,7 @@ export function FeedbackInbox({
     <Card>
       <CardHeader>
         <CardTitle>Feedback inbox</CardTitle>
-        <CardDescription>
-          Approve feedback to queue an AI-improved SKILL.md draft
-        </CardDescription>
+        <CardDescription>Approve feedback to queue an AI-improved SKILL.md draft</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -158,9 +148,7 @@ function FeedbackItem({
           {feedback.aiJob && (
             <Badge variant={jobVariant(feedback.aiJob.status)}>
               AI {feedback.aiJob.status}
-              {feedback.aiJob.draftSemver
-                ? ` · v${feedback.aiJob.draftSemver}`
-                : ""}
+              {feedback.aiJob.draftSemver ? ` · v${feedback.aiJob.draftSemver}` : ""}
             </Badge>
           )}
         </div>
@@ -171,12 +159,7 @@ function FeedbackItem({
       <p className="whitespace-pre-wrap">{feedback.body}</p>
 
       {feedback.status === "pending" && (
-        <Button
-          size="sm"
-          className="mt-2"
-          onClick={onApprove}
-          disabled={isApproving}
-        >
+        <Button size="sm" className="mt-2" onClick={onApprove} disabled={isApproving}>
           {isApproving ? "Approving…" : "Approve + AI suggest"}
         </Button>
       )}
@@ -191,9 +174,9 @@ function FeedbackItem({
             AI draft diff (+{stats.added} / −{stats.removed} lines)
           </p>
           <pre className="max-h-48 overflow-auto rounded border bg-background p-2 font-mono text-xs">
-            {diff.slice(0, 80).map((line, i) => (
+            {diff.slice(0, 80).map((line) => (
               <div
-                key={i}
+                key={`${line.type}-${line.line}`}
                 className={
                   line.type === "add"
                     ? "bg-green-100 text-green-900"

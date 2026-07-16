@@ -11,16 +11,11 @@ export function buildDayBuckets(days: number): Record<string, number> {
   return buckets;
 }
 
-export function toDaySeries(
-  buckets: Record<string, number>,
-): DayPoint[] {
+export function toDaySeries(buckets: Record<string, number>): DayPoint[] {
   return Object.entries(buckets).map(([date, count]) => ({ date, count }));
 }
 
-export function incrementDayBucket(
-  buckets: Record<string, number>,
-  date: Date,
-) {
+export function incrementDayBucket(buckets: Record<string, number>, date: Date) {
   const key = date.toISOString().slice(0, 10);
   if (key in buckets) buckets[key]! += 1;
 }

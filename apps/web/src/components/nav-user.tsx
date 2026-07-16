@@ -1,9 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+  BadgeCheck,
+  Bell,
+  ChevronsUpDown,
+  LogOut,
+  Monitor,
+  Moon,
+  Settings2,
+  Sun,
+} from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,18 +26,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  LogOut,
-  Monitor,
-  Moon,
-  Settings2,
-  Sun,
-} from "lucide-react";
 import { signOut } from "@/lib/auth-client";
-import { useTheme } from "@/components/theme-provider";
 
 export function NavUser({
   user,

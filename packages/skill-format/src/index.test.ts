@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   createSkillTemplate,
+  estimateImpactScore,
+  extractAgentDiscovery,
+  extractRegistryDiscovery,
+  parsePluginManifest,
+  reviewSkillBundle,
+  scanSkillSecurity,
   validateSkillBundle,
   validateSkillName,
-  reviewSkillBundle,
-  estimateImpactScore,
-  scanSkillSecurity,
-  parsePluginManifest,
-  extractRegistryDiscovery,
-  extractAgentDiscovery,
 } from "./index";
 
 describe("validateSkillName", () => {
@@ -21,9 +21,7 @@ describe("validateSkillName", () => {
   });
 
   it("rejects slug mismatch", () => {
-    expect(validateSkillName("other", "pdf-processing").length).toBeGreaterThan(
-      0,
-    );
+    expect(validateSkillName("other", "pdf-processing").length).toBeGreaterThan(0);
   });
 });
 
@@ -49,11 +47,11 @@ describe("validateSkillBundle", () => {
   });
 
   it("allows plugin.json at bundle root", () => {
-    const bundle = createSkillTemplate("my-skill", "A skill with plugin manifest for editor integration.");
-    bundle.set(
-      "plugin.json",
-      JSON.stringify({ name: "my-skill", skills: ["SKILL.md"] }),
+    const bundle = createSkillTemplate(
+      "my-skill",
+      "A skill with plugin manifest for editor integration.",
     );
+    bundle.set("plugin.json", JSON.stringify({ name: "my-skill", skills: ["SKILL.md"] }));
     const result = validateSkillBundle(bundle, "my-skill");
     expect(result.valid).toBe(true);
   });
@@ -61,14 +59,20 @@ describe("validateSkillBundle", () => {
 
 describe("reviewSkillBundle", () => {
   it("scores a valid template", () => {
-    const bundle = createSkillTemplate("roll-dice", "Roll dice when asked for random numbers in chat.");
+    const bundle = createSkillTemplate(
+      "roll-dice",
+      "Roll dice when asked for random numbers in chat.",
+    );
     const review = reviewSkillBundle(bundle, "roll-dice");
     expect(review.score).toBeGreaterThan(0);
     expect(review.checks.some((c) => c.id === "valid-bundle" && c.passed)).toBe(true);
   });
 
   it("estimates impact from review", () => {
-    const bundle = createSkillTemplate("roll-dice", "Roll dice when asked for random numbers in chat.");
+    const bundle = createSkillTemplate(
+      "roll-dice",
+      "Roll dice when asked for random numbers in chat.",
+    );
     const review = reviewSkillBundle(bundle, "roll-dice");
     expect(estimateImpactScore(review)).toBeGreaterThan(0);
   });

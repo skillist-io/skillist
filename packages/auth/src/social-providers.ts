@@ -26,8 +26,7 @@ export function buildSocialProviders(env: AuthEnv) {
       clientSecret: env.GITHUB_CLIENT_SECRET,
       mapProfileToUser: (profile: GitHubProfile) => {
         const login = profile.login ?? String(profile.id);
-        const email =
-          profile.email ?? `${login}@users.noreply.github.com`;
+        const email = profile.email ?? `${login}@users.noreply.github.com`;
         return {
           id: String(profile.id),
           name: profile.name ?? login,

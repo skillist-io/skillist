@@ -1,5 +1,5 @@
-import { createMcpAuthClient } from "better-auth/plugins/mcp/client";
 import type { McpSession } from "better-auth/plugins/mcp/client";
+import { createMcpAuthClient } from "better-auth/plugins/mcp/client";
 
 const SESSION_PREFIX = "mcp:session:";
 const SESSION_TTL_SECONDS = 3600;
@@ -32,26 +32,18 @@ export async function verifyOptionalMcpSession(
 
 export async function createMcpSession(kv: KVNamespace): Promise<string> {
   const id = crypto.randomUUID();
-  await kv.put(
-    `${SESSION_PREFIX}${id}`,
-    JSON.stringify({ createdAt: Date.now() }),
-    { expirationTtl: SESSION_TTL_SECONDS },
-  );
+  await kv.put(`${SESSION_PREFIX}${id}`, JSON.stringify({ createdAt: Date.now() }), {
+    expirationTtl: SESSION_TTL_SECONDS,
+  });
   return id;
 }
 
-export async function validateMcpSession(
-  kv: KVNamespace,
-  sessionId: string,
-): Promise<boolean> {
+export async function validateMcpSession(kv: KVNamespace, sessionId: string): Promise<boolean> {
   const value = await kv.get(`${SESSION_PREFIX}${sessionId}`);
   return value !== null;
 }
 
-export async function deleteMcpSession(
-  kv: KVNamespace,
-  sessionId: string,
-): Promise<void> {
+export async function deleteMcpSession(kv: KVNamespace, sessionId: string): Promise<void> {
   await kv.delete(`${SESSION_PREFIX}${sessionId}`);
 }
 
@@ -78,9 +70,7 @@ export function formatSseEvent(data: unknown, event?: string): string {
   return `${lines.join("\n")}\n\n`;
 }
 
-export function jsonRpcToSse(
-  payload: Record<string, unknown> | Record<string, unknown>[],
-): string {
+export function jsonRpcToSse(payload: Record<string, unknown> | Record<string, unknown>[]): string {
   if (Array.isArray(payload)) {
     return payload.map((item) => formatSseEvent(item, "message")).join("");
   }

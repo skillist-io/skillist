@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import type { ReactNode } from "react";
 
 import {
   Table,
@@ -7,15 +7,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
-export function DocTable({
-  columns,
-  rows,
-}: {
-  columns: string[]
-  rows: ReactNode[][]
-}) {
+export function DocTable({ columns, rows }: { columns: string[]; rows: ReactNode[][] }) {
   return (
     <div className="not-content my-6">
       <Table>
@@ -27,15 +21,15 @@ export function DocTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row, index) => (
-            <TableRow key={index}>
+          {rows.map((row) => (
+            <TableRow key={row.map((cell) => String(cell)).join("|")}>
               {row.map((cell, cellIndex) => (
-                <TableCell key={cellIndex}>{cell}</TableCell>
+                <TableCell key={`${columns[cellIndex]}-${String(cell)}`}>{cell}</TableCell>
               ))}
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

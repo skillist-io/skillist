@@ -1,18 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { api, type Org, type ObservabilitySummary } from "@/lib/api";
-import { requireAuth } from "@/lib/require-auth";
-import { Badge } from "@/components/ui/badge";
 import { MiniBarChart } from "@/components/mini-bar-chart";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { api, type ObservabilitySummary, type Org } from "@/lib/api";
+import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/observability")({
   beforeLoad: () => requireAuth(),
@@ -51,8 +45,7 @@ function ObservabilityPage() {
 
   const { data } = useQuery({
     queryKey: ["observability", activeOrgId],
-    queryFn: () =>
-      api<ObservabilitySummary>(`/v1/orgs/${activeOrgId}/observability?days=30`),
+    queryFn: () => api<ObservabilitySummary>(`/v1/orgs/${activeOrgId}/observability?days=30`),
     enabled: !!activeOrgId,
   });
 
@@ -60,9 +53,7 @@ function ObservabilityPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Observability</h1>
-        <p className="text-muted-foreground">
-          Hosted runs, install funnel, and activation trends
-        </p>
+        <p className="text-muted-foreground">Hosted runs, install funnel, and activation trends</p>
       </div>
 
       {orgs && orgs.length > 1 ? (
@@ -93,11 +84,7 @@ function ObservabilityPage() {
             />
             <MetricCard
               title="Run success rate"
-              value={
-                data.runs.successRate != null
-                  ? `${data.runs.successRate}%`
-                  : "—"
-              }
+              value={data.runs.successRate != null ? `${data.runs.successRate}%` : "—"}
               hint={
                 data.runs.avgDurationMs
                   ? `Avg ${data.runs.avgDurationMs}ms`
@@ -221,9 +208,7 @@ function ObservabilityPage() {
                         {run.status}
                       </Badge>
                       <span className="font-medium">{run.skillRepo}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {run.scriptPath}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{run.scriptPath}</span>
                     </div>
                     <span className="font-mono text-xs text-muted-foreground">
                       {run.runtime}

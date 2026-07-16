@@ -8,18 +8,14 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     "We couldn't read an email from your GitHub account. Make sure your GitHub email is public or use magic link instead.",
   account_not_linked:
     "This account is already linked to another sign-in method. Use the original provider or magic link.",
-  auth_unreachable:
-    "We couldn't reach the sign-in service. Check your connection and try again.",
-  session_unavailable:
-    "We couldn't verify your session. Sign in again to continue.",
+  auth_unreachable: "We couldn't reach the sign-in service. Check your connection and try again.",
+  session_unavailable: "We couldn't verify your session. Sign in again to continue.",
 };
 
 export function authErrorMessage(code: string | undefined, fallback?: string) {
   if (!code) return fallback ?? null;
   const normalized = code.toLowerCase().replace(/\s+/g, "_");
   return (
-    AUTH_ERROR_MESSAGES[normalized] ??
-    fallback ??
-    "Sign-in failed. Try again or use magic link."
+    AUTH_ERROR_MESSAGES[normalized] ?? fallback ?? "Sign-in failed. Try again or use magic link."
   );
 }

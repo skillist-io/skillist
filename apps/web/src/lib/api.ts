@@ -1,9 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-export async function api<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
+export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -118,13 +115,15 @@ export type SkillEval = {
   baselineScore: number | null;
   withSkillScore: number | null;
   uplift: number | null;
-  results?: {
-    name: string;
-    prompt: string;
-    baselineScore: number;
-    withSkillScore: number;
-    uplift: number;
-  }[] | null;
+  results?:
+    | {
+        name: string;
+        prompt: string;
+        baselineScore: number;
+        withSkillScore: number;
+        uplift: number;
+      }[]
+    | null;
   error?: string | null;
   createdAt: string;
   completedAt: string | null;

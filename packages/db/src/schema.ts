@@ -12,48 +12,20 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const orgRoleEnum = pgEnum("org_role", ["owner", "editor", "viewer"]);
-export const skillVisibilityEnum = pgEnum("skill_visibility", [
-  "private",
-  "org",
-  "public",
-]);
-export const versionStatusEnum = pgEnum("version_status", [
-  "draft",
-  "published",
-  "archived",
-]);
+export const skillVisibilityEnum = pgEnum("skill_visibility", ["private", "org", "public"]);
+export const versionStatusEnum = pgEnum("version_status", ["draft", "published", "archived"]);
 export const feedbackSourceEnum = pgEnum("feedback_source", ["human", "agent"]);
-export const feedbackStatusEnum = pgEnum("feedback_status", [
-  "pending",
-  "approved",
-  "rejected",
-]);
+export const feedbackStatusEnum = pgEnum("feedback_status", ["pending", "approved", "rejected"]);
 export const aiJobStatusEnum = pgEnum("ai_job_status", [
   "queued",
   "running",
   "completed",
   "failed",
 ]);
-export const securityStatusEnum = pgEnum("security_status", [
-  "pass",
-  "advisory",
-  "fail",
-]);
-export const telemetryEventEnum = pgEnum("telemetry_event", [
-  "install",
-  "activation",
-]);
-export const evalStatusEnum = pgEnum("eval_status", [
-  "queued",
-  "running",
-  "completed",
-  "failed",
-]);
-export const skillRuntimeEnum = pgEnum("skill_runtime", [
-  "local",
-  "sandbox",
-  "container",
-]);
+export const securityStatusEnum = pgEnum("security_status", ["pass", "advisory", "fail"]);
+export const telemetryEventEnum = pgEnum("telemetry_event", ["install", "activation"]);
+export const evalStatusEnum = pgEnum("eval_status", ["queued", "running", "completed", "failed"]);
+export const skillRuntimeEnum = pgEnum("skill_runtime", ["local", "sandbox", "container"]);
 export const skillRunStatusEnum = pgEnum("skill_run_status", [
   "queued",
   "running",
@@ -68,12 +40,8 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const sessions = pgTable("sessions", {
@@ -85,12 +53,8 @@ export const sessions = pgTable("sessions", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const accounts = pgTable("accounts", {
@@ -111,12 +75,8 @@ export const accounts = pgTable("accounts", {
   scope: text("scope"),
   idToken: text("id_token"),
   password: text("password"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const verifications = pgTable("verifications", {
@@ -124,12 +84,8 @@ export const verifications = pgTable("verifications", {
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const passkeys = pgTable("passkeys", {
@@ -144,9 +100,7 @@ export const passkeys = pgTable("passkeys", {
   deviceType: text("device_type"),
   backedUp: boolean("backed_up").notNull().default(false),
   transports: text("transports"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const organizations = pgTable(
@@ -168,12 +122,8 @@ export const organizations = pgTable(
       containerHourlyLimit?: number;
       anonymousHourlyLimit?: number;
     }>(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("organizations_slug_idx").on(t.slug)],
 );
@@ -189,9 +139,7 @@ export const orgMembers = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: orgRoleEnum("role").notNull().default("viewer"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("org_members_org_user_idx").on(t.orgId, t.userId),
@@ -211,12 +159,8 @@ export const skills = pgTable(
     description: text("description"),
     runtime: skillRuntimeEnum("runtime").notNull().default("local"),
     latestPublishedVersionId: uuid("latest_published_version_id"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("skills_org_repo_idx").on(t.orgId, t.repo),
@@ -238,21 +182,19 @@ export const skillVersions = pgTable(
     qualityScore: integer("quality_score"),
     impactScore: integer("impact_score"),
     securityStatus: securityStatusEnum("security_status"),
-    securityIssues: jsonb("security_issues").$type<
-      { severity: string; path: string; message: string }[]
-    >(),
-    reviewChecks: jsonb("review_checks").$type<
-      { id: string; label: string; passed: boolean; message: string }[]
-    >(),
+    securityIssues:
+      jsonb("security_issues").$type<{ severity: string; path: string; message: string }[]>(),
+    reviewChecks:
+      jsonb("review_checks").$type<
+        { id: string; label: string; passed: boolean; message: string }[]
+      >(),
     pluginManifest: jsonb("plugin_manifest"),
     parentVersionId: uuid("parent_version_id"),
     createdBy: text("created_by").references(() => users.id, {
       onDelete: "set null",
     }),
     publishedAt: timestamp("published_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("skill_versions_skill_idx").on(t.skillId),
@@ -270,13 +212,9 @@ export const skillFiles = pgTable(
     path: text("path").notNull(),
     sha256: text("sha256").notNull(),
     size: integer("size").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    uniqueIndex("skill_files_version_path_idx").on(t.versionId, t.path),
-  ],
+  (t) => [uniqueIndex("skill_files_version_path_idx").on(t.versionId, t.path)],
 );
 
 export const feedback = pgTable(
@@ -297,17 +235,10 @@ export const feedback = pgTable(
       onDelete: "set null",
     }),
     apiKeyId: uuid("api_key_id"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    index("feedback_skill_idx").on(t.skillId),
-    index("feedback_status_idx").on(t.status),
-  ],
+  (t) => [index("feedback_skill_idx").on(t.skillId), index("feedback_status_idx").on(t.status)],
 );
 
 export const approvals = pgTable("approvals", {
@@ -319,9 +250,7 @@ export const approvals = pgTable("approvals", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   comment: text("comment"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const registryEntries = pgTable(
@@ -345,14 +274,9 @@ export const registryEntries = pgTable(
     stars: integer("stars").notNull().default(0),
     category: text("category"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
-    compatibleAgents: jsonb("compatible_agents")
-      .$type<string[]>()
-      .notNull()
-      .default([]),
+    compatibleAgents: jsonb("compatible_agents").$type<string[]>().notNull().default([]),
     lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("registry_org_skill_idx").on(t.orgSlug, t.skillRepo),
@@ -371,13 +295,9 @@ export const subscriptions = pgTable(
     skillId: uuid("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    uniqueIndex("subscriptions_user_skill_idx").on(t.userId, t.skillId),
-  ],
+  (t) => [uniqueIndex("subscriptions_user_skill_idx").on(t.userId, t.skillId)],
 );
 
 export const registryStars = pgTable(
@@ -390,13 +310,9 @@ export const registryStars = pgTable(
     skillId: uuid("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    uniqueIndex("registry_stars_user_skill_idx").on(t.userId, t.skillId),
-  ],
+  (t) => [uniqueIndex("registry_stars_user_skill_idx").on(t.userId, t.skillId)],
 );
 
 export const apiKeys = pgTable(
@@ -414,9 +330,7 @@ export const apiKeys = pgTable(
       onDelete: "set null",
     }),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("api_keys_org_idx").on(t.orgId)],
 );
@@ -433,9 +347,7 @@ export const aiJobs = pgTable(
     gatewayId: text("gateway_id"),
     resultDraftVersionId: uuid("result_draft_version_id"),
     error: text("error"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (t) => [index("ai_jobs_feedback_idx").on(t.feedbackId)],
@@ -454,9 +366,7 @@ export const auditEvents = pgTable(
     resourceType: text("resource_type").notNull(),
     resourceId: text("resource_id"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("audit_events_org_idx").on(t.orgId),
@@ -474,9 +384,7 @@ export const telemetryEvents = pgTable(
     projectHash: text("project_hash"),
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     apiKeyId: uuid("api_key_id"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("telemetry_skill_idx").on(t.orgSlug, t.skillRepo),
@@ -499,19 +407,18 @@ export const skillEvals = pgTable(
     baselineScore: integer("baseline_score"),
     withSkillScore: integer("with_skill_score"),
     uplift: integer("uplift"),
-    results: jsonb("results").$type<
-      {
-        name: string;
-        prompt: string;
-        baselineScore: number;
-        withSkillScore: number;
-        uplift: number;
-      }[]
-    >(),
+    results:
+      jsonb("results").$type<
+        {
+          name: string;
+          prompt: string;
+          baselineScore: number;
+          withSkillScore: number;
+          uplift: number;
+        }[]
+      >(),
     error: text("error"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (t) => [index("skill_evals_skill_idx").on(t.skillId)],
@@ -526,13 +433,9 @@ export const orgRequiredSkills = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     orgSlug: text("org_slug").notNull(),
     skillRepo: text("skill_repo").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    uniqueIndex("org_required_skills_idx").on(t.orgId, t.orgSlug, t.skillRepo),
-  ],
+  (t) => [uniqueIndex("org_required_skills_idx").on(t.orgId, t.orgSlug, t.skillRepo)],
 );
 
 export const skillInventory = pgTable(
@@ -548,17 +451,9 @@ export const skillInventory = pgTable(
     managed: boolean("managed").notNull().default(false),
     registryOrgSlug: text("registry_org_slug"),
     registryRepo: text("registry_repo"),
-    scannedAt: timestamp("scanned_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    uniqueIndex("skill_inventory_repo_path_idx").on(
-      t.orgId,
-      t.repoFullName,
-      t.filePath,
-    ),
-  ],
+  (t) => [uniqueIndex("skill_inventory_repo_path_idx").on(t.orgId, t.repoFullName, t.filePath)],
 );
 
 export const skillRuns = pgTable(
@@ -585,9 +480,7 @@ export const skillRuns = pgTable(
     error: text("error"),
     actorId: text("actor_id"),
     actorType: text("actor_type"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (t) => [
@@ -610,12 +503,8 @@ export const oauthApplications = pgTable(
     type: text("type").notNull(),
     disabled: boolean("disabled").notNull().default(false),
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("oauth_application_user_idx").on(t.userId)],
 );
@@ -635,12 +524,8 @@ export const oauthAccessTokens = pgTable(
     clientId: text("client_id").notNull(),
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     scopes: text("scopes").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("oauth_access_token_client_idx").on(t.clientId),
@@ -658,12 +543,8 @@ export const oauthConsents = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     scopes: text("scopes").notNull(),
     consentGiven: boolean("consent_given").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("oauth_consent_client_idx").on(t.clientId),

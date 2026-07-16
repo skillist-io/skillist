@@ -1,24 +1,17 @@
 // @ts-nocheck
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, desc, eq } from "drizzle-orm";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   approveFeedbackSchema,
   rejectFeedbackSchema,
   submitFeedbackSchema,
 } from "@skillist/contracts";
-import {
-  aiJobs,
-  approvals,
-  feedback,
-  skills,
-  skillVersions,
-} from "@skillist/db/schema";
-import type { Env } from "../env";
+import { aiJobs, approvals, feedback, skills, skillVersions } from "@skillist/db/schema";
+import { and, desc, eq } from "drizzle-orm";
+import type { AiJobMessage, Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
-import { requireOrgRole, requireOrgAccess } from "../lib/org-access";
 import type { WorkerDb } from "../lib/db";
+import { requireOrgAccess, requireOrgRole } from "../lib/org-access";
 import { resolveUserId } from "../lib/session";
-import type { AiJobMessage } from "../env";
 
 type AppEnv = {
   Bindings: Env;
@@ -181,26 +174,13 @@ feedbackRoutes.openapi(approveRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  const [item] = await c.var.db
-    .select()
-    .from(feedback)
-    .where(eq(feedback.id, id))
-    .limit(1);
+  const [item] = await c.var.db.select().from(feedback).where(eq(feedback.id, id)).limit(1);
   if (!item) return c.json({ error: "Not found" }, 404);
 
-  const [skill] = await c.var.db
-    .select()
-    .from(skills)
-    .where(eq(skills.id, item.skillId))
-    .limit(1);
+  const [skill] = await c.var.db.select().from(skills).where(eq(skills.id, item.skillId)).limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
-  const access = await requireOrgRole(
-    c.var.db,
-    skill.orgId,
-    userId,
-    "editor",
-  );
+  const access = await requireOrgRole(c.var.db, skill.orgId, userId, "editor");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   await c.var.db
@@ -259,26 +239,13 @@ feedbackRoutes.openapi(rejectRoute, async (c) => {
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
   const { id } = c.req.valid("param");
 
-  const [item] = await c.var.db
-    .select()
-    .from(feedback)
-    .where(eq(feedback.id, id))
-    .limit(1);
+  const [item] = await c.var.db.select().from(feedback).where(eq(feedback.id, id)).limit(1);
   if (!item) return c.json({ error: "Not found" }, 404);
 
-  const [skill] = await c.var.db
-    .select()
-    .from(skills)
-    .where(eq(skills.id, item.skillId))
-    .limit(1);
+  const [skill] = await c.var.db.select().from(skills).where(eq(skills.id, item.skillId)).limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
-  const access = await requireOrgRole(
-    c.var.db,
-    skill.orgId,
-    userId,
-    "editor",
-  );
+  const access = await requireOrgRole(c.var.db, skill.orgId, userId, "editor");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   await c.var.db
@@ -302,11 +269,7 @@ feedbackRoutes.openapi(suggestRoute, async (c) => {
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
   const { id } = c.req.valid("param");
 
-  const [item] = await c.var.db
-    .select()
-    .from(feedback)
-    .where(eq(feedback.id, id))
-    .limit(1);
+  const [item] = await c.var.db.select().from(feedback).where(eq(feedback.id, id)).limit(1);
   if (!item) return c.json({ error: "Not found" }, 404);
 
   const [job] = await c.var.db
@@ -314,19 +277,11 @@ feedbackRoutes.openapi(suggestRoute, async (c) => {
     .values({ feedbackId: id, status: "queued" })
     .returning();
 
-  const [skill] = await c.var.db
-    .select()
-    .from(skills)
-    .where(eq(skills.id, item.skillId))
-    .limit(1);
+  const [skill] = await c.var.db.select().from(skills).where(eq(skills.id, item.skillId)).limit(1);
 
   const { organizations } = await import("@skillist/db/schema");
   const [org] = skill
-    ? await c.var.db
-        .select()
-        .from(organizations)
-        .where(eq(organizations.id, skill.orgId))
-        .limit(1)
+    ? await c.var.db.select().from(organizations).where(eq(organizations.id, skill.orgId)).limit(1)
     : [null];
 
   const message: AiJobMessage = {
@@ -354,11 +309,7 @@ feedbackRoutes.openapi(getAiJobRoute, async (c) => {
   const userId = await resolveUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
   const { id } = c.req.valid("param");
-  const [job] = await c.var.db
-    .select()
-    .from(aiJobs)
-    .where(eq(aiJobs.id, id))
-    .limit(1);
+  const [job] = await c.var.db.select().from(aiJobs).where(eq(aiJobs.id, id)).limit(1);
   if (!job) return c.json({ error: "Not found" }, 404);
   return c.json(job, 200);
 });

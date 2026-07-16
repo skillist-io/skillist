@@ -11,13 +11,7 @@ type StarButtonProps = {
   size?: "sm" | "default";
 };
 
-export function StarButton({
-  org,
-  repo,
-  stars,
-  starred = false,
-  size = "sm",
-}: StarButtonProps) {
+export function StarButton({ org, repo, stars, starred = false, size = "sm" }: StarButtonProps) {
   const queryClient = useQueryClient();
 
   const toggle = useMutation({

@@ -1,5 +1,4 @@
-import type { Ai, DurableObjectNamespace, SendEmail } from "@cloudflare/workers-types";
-import type { Hyperdrive } from "@cloudflare/workers-types";
+import type { Ai, DurableObjectNamespace, Hyperdrive, SendEmail } from "@cloudflare/workers-types";
 
 export type Env = {
   HYPERDRIVE: Hyperdrive;

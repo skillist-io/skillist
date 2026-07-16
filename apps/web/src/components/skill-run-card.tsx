@@ -1,15 +1,15 @@
-import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
-import { apiUrl } from "@/lib/api-url";
-import type { SkillRunResult } from "@/lib/api";
-import { useSession } from "@/lib/auth-client";
+import { useState } from "react";
+import { InstallSnippet } from "@/components/score-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { InstallSnippet } from "@/components/score-badges";
+import type { SkillRunResult } from "@/lib/api";
+import { apiUrl } from "@/lib/api-url";
+import { useSession } from "@/lib/auth-client";
 
 type SkillRunCardProps = {
   org: string;
@@ -135,7 +135,11 @@ export function SkillRunCard({
       <CardContent className="space-y-3">
         {!isLoggedIn && (
           <p className="rounded border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-            <Link to="/login" search={{ redirect: window.location.pathname }} className="font-medium underline">
+            <Link
+              to="/login"
+              search={{ redirect: window.location.pathname }}
+              className="font-medium underline"
+            >
               Sign in
             </Link>{" "}
             to run scripts in the hosted sandbox.

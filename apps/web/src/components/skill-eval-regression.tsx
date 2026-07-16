@@ -1,12 +1,6 @@
 import { useMemo } from "react";
 import { MiniBarChart } from "@/components/mini-bar-chart";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SkillEval } from "@/lib/api";
 
 type SkillEvalRegressionProps = {
@@ -47,9 +41,7 @@ export function SkillEvalRegression({ evals }: SkillEvalRegressionProps) {
   const latest = completed[completed.length - 1]!;
   const previous = completed[completed.length - 2];
   const delta =
-    previous?.uplift != null && latest.uplift != null
-      ? latest.uplift - previous.uplift
-      : null;
+    previous?.uplift != null && latest.uplift != null ? latest.uplift - previous.uplift : null;
 
   return (
     <Card>
@@ -66,11 +58,7 @@ export function SkillEvalRegression({ evals }: SkillEvalRegressionProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <MiniBarChart
-          data={chartData}
-          valueLabel="uplift"
-          className="max-w-full"
-        />
+        <MiniBarChart data={chartData} valueLabel="uplift" className="max-w-full" />
         <div className="space-y-1 text-xs">
           {completed
             .slice()
@@ -80,9 +68,7 @@ export function SkillEvalRegression({ evals }: SkillEvalRegressionProps) {
                 key={ev.id}
                 className="flex items-center justify-between rounded border px-2 py-1"
               >
-                <span>
-                  {ev.semver ? `v${ev.semver}` : ev.versionId?.slice(0, 8)}
-                </span>
+                <span>{ev.semver ? `v${ev.semver}` : ev.versionId?.slice(0, 8)}</span>
                 <span className="font-mono text-muted-foreground">
                   {ev.baselineScore} → {ev.withSkillScore} (+{ev.uplift})
                 </span>

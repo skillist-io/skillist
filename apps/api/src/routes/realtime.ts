@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Env } from "../env";
 
 export const realtimeRoutes = new OpenAPIHono<{ Bindings: Env }>();

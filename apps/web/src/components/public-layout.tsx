@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { apiUrl } from "@/lib/api-url";
 import { Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { apiUrl } from "@/lib/api-url";
 import { signOut, useSession } from "@/lib/auth-client";
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {

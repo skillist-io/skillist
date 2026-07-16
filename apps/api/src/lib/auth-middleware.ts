@@ -1,6 +1,6 @@
-import { createMiddleware } from "hono/factory";
-import { eq } from "drizzle-orm";
 import { apiKeys } from "@skillist/db/schema";
+import { eq } from "drizzle-orm";
+import { createMiddleware } from "hono/factory";
 import type { Env } from "../env";
 import { createWorkerDb } from "./db";
 import { sha256 } from "./r2";
@@ -31,20 +31,13 @@ export const authMiddleware = createMiddleware<{
   if (authHeader?.startsWith("Bearer sk_")) {
     const key = authHeader.slice(7);
     const keyHash = await sha256(key);
-    const [record] = await db
-      .select()
-      .from(apiKeys)
-      .where(eq(apiKeys.keyHash, keyHash))
-      .limit(1);
+    const [record] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash)).limit(1);
     if (record) {
       apiKeyId = record.id;
       apiKeyOrgId = record.orgId;
       apiKeyCreatedBy = record.createdBy;
       apiKeyScopes = (record.scopes as string[]) ?? [];
-      await db
-        .update(apiKeys)
-        .set({ lastUsedAt: new Date() })
-        .where(eq(apiKeys.id, record.id));
+      await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, record.id));
     }
   }
 
