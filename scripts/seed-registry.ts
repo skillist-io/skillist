@@ -33,6 +33,7 @@ import {
   scanSkillSecurity,
   validateSkillBundle,
   extractRegistryDiscovery,
+  extractAgentDiscovery,
 } from "@skillist/skill-format";
 import { detectSkillRuntime } from "../apps/api/src/lib/skill-runtime.ts";
 
@@ -289,6 +290,7 @@ async function seedSkill(
   putKvKey(skillMdKey(org.slug, slug), skillMd);
 
   const discovery = extractRegistryDiscovery(validation.frontmatter);
+  const compatibleAgents = extractAgentDiscovery(pluginManifest);
   await db
     .insert(registryEntries)
     .values({
@@ -303,6 +305,7 @@ async function seedSkill(
       securityStatus: security.status,
       category: discovery.category,
       tags: discovery.tags,
+      compatibleAgents,
       lastReviewedAt: publishedAt,
     })
     .onConflictDoUpdate({
@@ -316,6 +319,7 @@ async function seedSkill(
         securityStatus: security.status,
         category: discovery.category,
         tags: discovery.tags,
+        compatibleAgents,
         lastReviewedAt: publishedAt,
         updatedAt: new Date(),
       },
