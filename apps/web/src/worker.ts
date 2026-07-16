@@ -5,8 +5,7 @@
  *   zone routes cannot use mid-path wildcards)
  * - /runs/*
  */
-const APEX_API_PATH =
-  /^\/[^/]+\/[^/]+\/(SKILL\.md|meta|bundle|scripts|run|runs)(\/.*)?$/;
+const APEX_API_PATH = /^\/[^/]+\/[^/]+\/(SKILL\.md|meta|bundle|scripts|run|runs)(\/.*)?$/;
 
 type ServiceFetcher = {
   fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

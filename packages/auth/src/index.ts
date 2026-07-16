@@ -1,18 +1,18 @@
+import * as schema from "@skillist/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { magicLink } from "better-auth/plugins/magic-link";
-import { emailOTP } from "better-auth/plugins/email-otp";
 import { mcp } from "better-auth/plugins";
-import type { WorkerDb } from "./types";
-import * as schema from "@skillist/db/schema";
+import { emailOTP } from "better-auth/plugins/email-otp";
+import { magicLink } from "better-auth/plugins/magic-link";
 import { buildSocialProviders } from "./social-providers";
+import type { WorkerDb } from "./types";
 
-export type { WorkerDb } from "./types";
 export {
   AUTH_CALLBACK_PATHS,
   authCallbackUrl,
   oauthRedirectUris,
 } from "./social-providers";
+export type { WorkerDb } from "./types";
 
 export type AuthEnv = {
   BETTER_AUTH_SECRET: string;
@@ -39,11 +39,7 @@ export function resolveWebUrl(env: AuthEnv): string {
   return "https://skillist.dev";
 }
 
-export function createAuth(
-  db: WorkerDb,
-  env: AuthEnv,
-  sendEmail?: EmailSender,
-) {
+export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) {
   const socialProviders = buildSocialProviders(env);
   const webUrl = resolveWebUrl(env);
 

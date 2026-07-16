@@ -1,18 +1,5 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import {
-  applyTheme,
-  getStoredTheme,
-  resolveTheme,
-  setStoredTheme,
-  type Theme,
-} from "@/lib/theme";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { applyTheme, getStoredTheme, resolveTheme, setStoredTheme, type Theme } from "@/lib/theme";
 
 type ThemeContextValue = {
   theme: Theme;
@@ -59,9 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [theme, resolvedTheme, setTheme, toggleTheme],
   );
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

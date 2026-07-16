@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatSseEvent,
-  isInitializeRequest,
-  jsonRpcToSse,
-} from "./transport";
+import { formatSseEvent, isInitializeRequest, jsonRpcToSse } from "./transport";
 
 describe("MCP transport helpers", () => {
   it("detects initialize requests", () => {
@@ -26,9 +22,7 @@ describe("MCP transport helpers", () => {
   });
 
   it("formats SSE events", () => {
-    expect(formatSseEvent({ ok: true }, "message")).toBe(
-      'event: message\ndata: {"ok":true}\n\n',
-    );
+    expect(formatSseEvent({ ok: true }, "message")).toBe('event: message\ndata: {"ok":true}\n\n');
   });
 
   it("wraps JSON-RPC responses in SSE", () => {

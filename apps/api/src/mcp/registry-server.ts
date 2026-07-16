@@ -1,10 +1,6 @@
-import type { WorkerDb } from "../lib/db";
 import type { McpSession } from "better-auth/plugins/mcp/client";
-import {
-  getRegistryFacets,
-  getRegistrySkill,
-  listRegistry,
-} from "../lib/registry-service";
+import type { WorkerDb } from "../lib/db";
+import { getRegistryFacets, getRegistrySkill, listRegistry } from "../lib/registry-service";
 
 type JsonRpcRequest = {
   jsonrpc?: string;
@@ -60,14 +56,12 @@ export const REGISTRY_MCP_TOOLS: McpTool[] = [
   },
   {
     name: "registry_facets",
-    description:
-      "List available registry filter facets: categories, tags, and compatible agents.",
+    description: "List available registry filter facets: categories, tags, and compatible agents.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "registry_install_help",
-    description:
-      "Return CLI install commands for a skill and global CLI setup instructions.",
+    description: "Return CLI install commands for a skill and global CLI setup instructions.",
     inputSchema: {
       type: "object",
       properties: {
@@ -85,11 +79,7 @@ function textResult(data: unknown) {
   };
 }
 
-async function callTool(
-  db: WorkerDb,
-  name: string,
-  args: Record<string, unknown>,
-) {
+async function callTool(db: WorkerDb, name: string, args: Record<string, unknown>) {
   switch (name) {
     case "registry_search": {
       const limit = Math.min(Number(args.limit ?? 10) || 10, 20);
@@ -156,11 +146,7 @@ function rpcResult(id: string | number | null | undefined, result: unknown) {
   return { jsonrpc: "2.0", id: id ?? null, result };
 }
 
-function rpcError(
-  id: string | number | null | undefined,
-  code: number,
-  message: string,
-) {
+function rpcError(id: string | number | null | undefined, code: number, message: string) {
   return { jsonrpc: "2.0", id: id ?? null, error: { code, message } };
 }
 
@@ -196,8 +182,7 @@ async function handleSingle(
 
   if (method === "tools/call") {
     const toolName = String(params?.name ?? "");
-    const toolArgs =
-      (params?.arguments as Record<string, unknown> | undefined) ?? {};
+    const toolArgs = (params?.arguments as Record<string, unknown> | undefined) ?? {};
     try {
       const result = await callTool(db, toolName, toolArgs);
       return rpcResult(id, result);
@@ -226,9 +211,10 @@ export async function handleMcpJsonRpc(
     const responses = await Promise.all(
       body.map((item) => handleSingle(db, item as JsonRpcRequest, session)),
     );
-    return responses.filter(
-      (r) => r.id !== null && r.id !== undefined,
-    ) as Record<string, unknown>[];
+    return responses.filter((r) => r.id !== null && r.id !== undefined) as Record<
+      string,
+      unknown
+    >[];
   }
   return handleSingle(db, body as JsonRpcRequest, session);
 }

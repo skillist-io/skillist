@@ -1,21 +1,28 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type SkillVersion, type Org, type ReviewPreview, type SkillEval, type PublishPolicy } from "@/lib/api";
-import { requireAuth } from "@/lib/require-auth";
-import { diffLines, diffStats } from "@/lib/diff";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { useEffect, useMemo, useState } from "react";
+import { FeedbackInbox } from "@/components/feedback-inbox";
 import { ScoreBadges } from "@/components/score-badges";
-import { SkillRunCard } from "@/components/skill-run-card";
-import { SkillRunHistory } from "@/components/skill-run-history";
 import { SkillEvalPanel } from "@/components/skill-eval-panel";
 import { SkillEvalRegression } from "@/components/skill-eval-regression";
-import { FeedbackInbox } from "@/components/feedback-inbox";
+import { SkillRunCard } from "@/components/skill-run-card";
+import { SkillRunHistory } from "@/components/skill-run-history";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
-import { useState, useEffect, useMemo } from "react";
+import {
+  api,
+  type Org,
+  type PublishPolicy,
+  type ReviewPreview,
+  type SkillEval,
+  type SkillVersion,
+} from "@/lib/api";
+import { diffLines, diffStats } from "@/lib/diff";
+import { requireAuth } from "@/lib/require-auth";
 
 type SemverBump = "patch" | "minor" | "major";
 
@@ -48,8 +55,7 @@ function SkillEditorPage() {
 
   const { data: versions } = useQuery({
     queryKey: ["versions", orgId, repo],
-    queryFn: () =>
-      api<SkillVersion[]>(`/v1/orgs/${orgId}/skills/${repo}/versions`),
+    queryFn: () => api<SkillVersion[]>(`/v1/orgs/${orgId}/skills/${repo}/versions`),
   });
 
   const latestDraft = versions?.find((v) => v.status === "draft") ?? versions?.[0];
@@ -57,32 +63,25 @@ function SkillEditorPage() {
 
   const { data: scriptsData } = useQuery({
     queryKey: ["scripts", orgSlug, repo],
-    queryFn: () =>
-      api<{ runtime: string; scripts: string[] }>(
-        `/${orgSlug}/${repo}/scripts`,
-      ),
+    queryFn: () => api<{ runtime: string; scripts: string[] }>(`/${orgSlug}/${repo}/scripts`),
     enabled: !!orgSlug && !!publishedVersion,
   });
 
   const { data: preview } = useQuery({
     queryKey: ["preview", orgId, repo, latestDraft?.id],
     queryFn: () =>
-      api<ReviewPreview>(
-        `/v1/orgs/${orgId}/skills/${repo}/versions/${latestDraft!.id}/preview`,
-      ),
+      api<ReviewPreview>(`/v1/orgs/${orgId}/skills/${repo}/versions/${latestDraft!.id}/preview`),
     enabled: !!latestDraft,
   });
 
   const { data: evals } = useQuery({
     queryKey: ["evals", orgId, repo],
-    queryFn: () =>
-      api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${repo}/evals`),
+    queryFn: () => api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${repo}/evals`),
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       const pending = items.some(
         (ev) =>
-          ev.versionId === latestDraft?.id &&
-          (ev.status === "queued" || ev.status === "running"),
+          ev.versionId === latestDraft?.id && (ev.status === "queued" || ev.status === "running"),
       );
       return pending ? 3000 : false;
     },
@@ -90,8 +89,7 @@ function SkillEditorPage() {
 
   const { data: publishPolicyData } = useQuery({
     queryKey: ["publish-policy", orgId],
-    queryFn: () =>
-      api<{ publishPolicy: PublishPolicy }>(`/v1/orgs/${orgId}/publish-policy`),
+    queryFn: () => api<{ publishPolicy: PublishPolicy }>(`/v1/orgs/${orgId}/publish-policy`),
   });
 
   const publishPolicy = publishPolicyData?.publishPolicy;
@@ -179,8 +177,7 @@ function SkillEditorPage() {
         method: "POST",
         body: JSON.stringify({}),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["evals", orgId, repo] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["evals", orgId, repo] }),
   });
 
   const publish = useMutation({
@@ -199,8 +196,7 @@ function SkillEditorPage() {
       api(`/v1/orgs/${orgId}/skills/${repo}/versions/${versionId}/rollback`, {
         method: "POST",
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["versions", orgId, repo] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["versions", orgId, repo] }),
   });
 
   const setPublic = useMutation({
@@ -232,8 +228,7 @@ function SkillEditorPage() {
         method: "POST",
         body: JSON.stringify({ triggerAi: true }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["feedback", orgId, repo] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["feedback", orgId, repo] }),
   });
 
   const nextDraftSemver = previewNextSemver(
@@ -262,9 +257,18 @@ function SkillEditorPage() {
               value={versionBump}
               onChange={(e) => setVersionBump(e.target.value as SemverBump)}
             >
-              <option value="patch">Patch → v{previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "patch")}</option>
-              <option value="minor">Minor → v{previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "minor")}</option>
-              <option value="major">Major → v{previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "major")}</option>
+              <option value="patch">
+                Patch → v
+                {previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "patch")}
+              </option>
+              <option value="minor">
+                Minor → v
+                {previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "minor")}
+              </option>
+              <option value="major">
+                Major → v
+                {previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "major")}
+              </option>
             </select>
           </div>
           <Button variant="outline" onClick={() => setPublic.mutate()}>
@@ -338,25 +342,23 @@ function SkillEditorPage() {
                   <p className="text-muted-foreground">{check.message}</p>
                 </div>
               ))}
-              {preview?.securityIssues?.map((issue, i) => (
-                <div key={i} className="rounded border border-red-200 px-2 py-1 text-xs">
-                  <span className="font-medium">{issue.severity}</span> {issue.path}: {issue.message}
+              {preview?.securityIssues?.map((issue) => (
+                <div
+                  key={`${issue.severity}-${issue.path}-${issue.message}`}
+                  className="rounded border border-red-200 px-2 py-1 text-xs"
+                >
+                  <span className="font-medium">{issue.severity}</span> {issue.path}:{" "}
+                  {issue.message}
                 </div>
               ))}
             </CardContent>
           </Card>
 
           {(scriptsData?.scripts?.length ?? 0) > 0 && orgSlug && (
-            <SkillRunCard
-              org={orgSlug}
-              repo={repo}
-              scripts={scriptsData!.scripts}
-            />
+            <SkillRunCard org={orgSlug} repo={repo} scripts={scriptsData!.scripts} />
           )}
 
-          {orgSlug && publishedVersion && (
-            <SkillRunHistory org={orgSlug} repo={repo} />
-          )}
+          {orgSlug && publishedVersion && <SkillRunHistory org={orgSlug} repo={repo} />}
 
           <SkillEvalPanel
             orgId={orgId}
@@ -379,13 +381,9 @@ function SkillEditorPage() {
                   <button
                     type="button"
                     className={`text-left hover:underline ${
-                      compareVersionId === v.id
-                        ? "font-semibold text-primary"
-                        : ""
+                      compareVersionId === v.id ? "font-semibold text-primary" : ""
                     }`}
-                    onClick={() =>
-                      setCompareVersionId(compareVersionId === v.id ? null : v.id)
-                    }
+                    onClick={() => setCompareVersionId(compareVersionId === v.id ? null : v.id)}
                   >
                     v{v.semver}
                   </button>
@@ -418,9 +416,9 @@ function SkillEditorPage() {
               </CardHeader>
               <CardContent>
                 <pre className="max-h-64 overflow-auto rounded border bg-muted p-2 font-mono text-xs">
-                  {diff.map((line, i) => (
+                  {diff.map((line) => (
                     <div
-                      key={i}
+                      key={`${line.type}-${line.line}`}
                       className={
                         line.type === "add"
                           ? "bg-green-100 text-green-900"

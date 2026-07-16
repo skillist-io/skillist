@@ -1,4 +1,4 @@
-import { redirect, isRedirect } from "@tanstack/react-router";
+import { isRedirect, redirect } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth-client";
 
 export async function requireAuth() {

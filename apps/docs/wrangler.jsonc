@@ -4,7 +4,5 @@
   "assets": {
     "directory": "./dist"
   },
-  "routes": [
-    { "pattern": "docs.skillist.dev", "custom_domain": true }
-  ]
+  "routes": [{ "pattern": "docs.skillist.dev", "custom_domain": true }]
 }

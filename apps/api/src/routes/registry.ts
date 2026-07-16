@@ -1,6 +1,5 @@
 // @ts-nocheck
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { registryQuerySchema } from "@skillist/contracts";
 import {
   organizations,
@@ -12,15 +11,12 @@ import {
   subscriptions,
   telemetryEvents,
 } from "@skillist/db/schema";
+import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { resolveUserId } from "../lib/session";
-import {
-  buildDayBuckets,
-  incrementDayBucket,
-  toDaySeries,
-} from "../lib/time-series";
+import { buildDayBuckets, incrementDayBucket, toDaySeries } from "../lib/time-series";
 
 const CLI_INSTALL = "npm install -g @skillist/cli";
 
@@ -211,9 +207,7 @@ registryRoutes.openapi(registryFacetsRoute, async (c) => {
     .from(registryEntries)
     .where(sql`${registryEntries.category} IS NOT NULL`);
 
-  const tagRows = await c.var.db
-    .select({ tags: registryEntries.tags })
-    .from(registryEntries);
+  const tagRows = await c.var.db.select({ tags: registryEntries.tags }).from(registryEntries);
 
   const tagSet = new Set<string>();
   for (const row of tagRows) {
@@ -268,12 +262,7 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
     })
     .from(registryEntries)
     .innerJoin(skills, eq(registryEntries.skillId, skills.id))
-    .where(
-      and(
-        eq(registryEntries.orgSlug, org),
-        eq(registryEntries.skillRepo, repo),
-      ),
-    )
+    .where(and(eq(registryEntries.orgSlug, org), eq(registryEntries.skillRepo, repo)))
     .limit(1);
   if (!row) return c.json({ error: "Not found" }, 404);
 
@@ -282,12 +271,7 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
     const [star] = await c.var.db
       .select({ id: registryStars.id })
       .from(registryStars)
-      .where(
-        and(
-          eq(registryStars.userId, userId),
-          eq(registryStars.skillId, row.skillId),
-        ),
-      )
+      .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, row.skillId)))
       .limit(1);
     starred = !!star;
   }
@@ -358,12 +342,7 @@ registryRoutes.openapi(starSkillRoute, async (c) => {
       stars: registryEntries.stars,
     })
     .from(registryEntries)
-    .where(
-      and(
-        eq(registryEntries.orgSlug, org),
-        eq(registryEntries.skillRepo, repo),
-      ),
-    )
+    .where(and(eq(registryEntries.orgSlug, org), eq(registryEntries.skillRepo, repo)))
     .limit(1);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
@@ -404,23 +383,13 @@ registryRoutes.openapi(unstarSkillRoute, async (c) => {
   const [entry] = await c.var.db
     .select({ skillId: registryEntries.skillId })
     .from(registryEntries)
-    .where(
-      and(
-        eq(registryEntries.orgSlug, org),
-        eq(registryEntries.skillRepo, repo),
-      ),
-    )
+    .where(and(eq(registryEntries.orgSlug, org), eq(registryEntries.skillRepo, repo)))
     .limit(1);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
   const removed = await c.var.db
     .delete(registryStars)
-    .where(
-      and(
-        eq(registryStars.userId, userId),
-        eq(registryStars.skillId, entry.skillId),
-      ),
-    )
+    .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, entry.skillId)))
     .returning();
 
   if (removed.length > 0) {
@@ -518,10 +487,7 @@ registryRoutes.openapi(subscribeRoute, async (c) => {
     return c.json({ error: "Not found" }, 404);
   }
 
-  await c.var.db
-    .insert(subscriptions)
-    .values({ userId, skillId: skill.id })
-    .onConflictDoNothing();
+  await c.var.db.insert(subscriptions).values({ userId, skillId: skill.id }).onConflictDoNothing();
 
   return c.json({ ok: true }, 201);
 });
@@ -572,9 +538,7 @@ registryRoutes.openapi(updateVisibilityRoute, async (c) => {
       .where(eq(organizations.id, orgId))
       .limit(1);
     const { getPublishedMeta } = await import("../lib/publish");
-    const meta = orgRow
-      ? await getPublishedMeta(c.env.SKILLS_KV, orgRow.slug, slug)
-      : null;
+    const meta = orgRow ? await getPublishedMeta(c.env.SKILLS_KV, orgRow.slug, slug) : null;
     if (meta && orgRow) {
       await c.var.db
         .insert(registryEntries)

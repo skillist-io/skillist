@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { RegistryFeatured } from "@/components/registry-featured";
+import { RegistryTrending } from "@/components/registry-trending";
+import { InstallSnippet } from "@/components/score-badges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RegistryTrending } from "@/components/registry-trending";
-import { RegistryFeatured } from "@/components/registry-featured";
-import { InstallSnippet } from "@/components/score-badges";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -13,16 +13,11 @@ function HomePage() {
   return (
     <div className="space-y-12">
       <section className="space-y-4 py-12 text-center">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Realtime Agent Skills
-        </h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Realtime Agent Skills</h1>
         <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-          Manage, version, and deliver SKILL.md files with sub-10ms fan-out.
-          Works with Cursor, Claude Code, VS Code, and any{" "}
-          <a
-            href="https://agentskills.io/home"
-            className="text-primary underline"
-          >
+          Manage, version, and deliver SKILL.md files with sub-10ms fan-out. Works with Cursor,
+          Claude Code, VS Code, and any{" "}
+          <a href="https://agentskills.io/home" className="text-primary underline">
             agentskills.io
           </a>{" "}
           client.
@@ -52,12 +47,9 @@ function HomePage() {
               prefix="Cursor .cursor/mcp.json"
             />
             <p className="text-sm text-muted-foreground">
-              Tools: registry_search, registry_get_skill, registry_facets,
-              registry_install_help. Streamable HTTP with OAuth via{" "}
-              <a
-                href="https://docs.skillist.dev/mcp/connect/"
-                className="text-primary underline"
-              >
+              Tools: registry_search, registry_get_skill, registry_facets, registry_install_help.
+              Streamable HTTP with OAuth via{" "}
+              <a href="https://docs.skillist.dev/mcp/connect/" className="text-primary underline">
                 docs
               </a>
               .{" "}
@@ -73,14 +65,8 @@ function HomePage() {
         <h2 className="text-center text-lg font-semibold">Quick start</h2>
         <Card>
           <CardContent className="space-y-3 pt-6">
-            <InstallSnippet
-              command="npm install -g @skillist/cli"
-              prefix="Install the CLI"
-            />
-            <InstallSnippet
-              command="skillist search performance"
-              prefix="Search the registry"
-            />
+            <InstallSnippet command="npm install -g @skillist/cli" prefix="Install the CLI" />
+            <InstallSnippet command="skillist search performance" prefix="Search the registry" />
             <InstallSnippet
               command="skillist install skillist/web-perf-audit"
               prefix="Install a skill"

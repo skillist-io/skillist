@@ -1,3 +1,4 @@
+import { createSkillTemplate, objectToBundle } from "@skillist/skill-format";
 import { describe, expect, it } from "vitest";
 import {
   buildExecCommand,
@@ -6,7 +7,6 @@ import {
   validateScriptPath,
   validateTargetUrl,
 } from "./skill-runtime";
-import { createSkillTemplate, objectToBundle } from "@skillist/skill-format";
 
 describe("validateScriptPath", () => {
   it("allows scripts under scripts/", () => {
@@ -34,9 +34,7 @@ describe("detectSkillRuntime", () => {
 
 describe("buildExecCommand", () => {
   it("wraps shell scripts with bash", () => {
-    expect(buildExecCommand("scripts/a.sh", ["https://example.com"])).toContain(
-      "bash",
-    );
+    expect(buildExecCommand("scripts/a.sh", ["https://example.com"])).toContain("bash");
   });
 });
 
@@ -45,9 +43,7 @@ describe("validateTargetUrl", () => {
     expect(() => validateTargetUrl("http://localhost:3000")).toThrow();
   });
   it("allows public https", () => {
-    expect(validateTargetUrl("https://example.com")).toBe(
-      "https://example.com/",
-    );
+    expect(validateTargetUrl("https://example.com")).toBe("https://example.com/");
   });
 });
 

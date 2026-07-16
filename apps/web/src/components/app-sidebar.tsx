@@ -1,15 +1,15 @@
-import * as React from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
   LayoutDashboard,
+  type LucideIcon,
   PackageSearch,
   Settings2,
   Shield,
   Zap,
-  type LucideIcon,
 } from "lucide-react";
+import * as React from "react";
 import { NavUser } from "@/components/nav-user";
 import { Label } from "@/components/ui/label";
 import {
@@ -175,9 +175,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <Sidebar collapsible="none" className="hidden flex-1 md:flex">
         <SidebarHeader className="gap-3.5 border-b p-4">
           <div className="flex w-full items-center justify-between">
-            <div className="text-base font-medium text-foreground">
-              {activeItem.title}
-            </div>
+            <div className="text-base font-medium text-foreground">{activeItem.title}</div>
             {section === "dashboard" && (
               <Label className="flex items-center gap-2 text-sm">
                 <span>Private only</span>
@@ -282,15 +280,7 @@ function OrgSkillNav({
   );
 }
 
-function OrgSkills({
-  org,
-  filter,
-  pathname,
-}: {
-  org: Org;
-  filter: string;
-  pathname: string;
-}) {
+function OrgSkills({ org, filter, pathname }: { org: Org; filter: string; pathname: string }) {
   const { data: skills } = useQuery({
     queryKey: ["skills", org.id],
     queryFn: () => api<Skill[]>(`/v1/orgs/${org.id}/skills`),
@@ -304,7 +294,12 @@ function OrgSkills({
         org.slug.toLowerCase().includes(filter),
     ) ?? [];
 
-  if (filter && !visibleSkills.length && !org.slug.includes(filter) && !org.name.toLowerCase().includes(filter)) {
+  if (
+    filter &&
+    !visibleSkills.length &&
+    !org.slug.includes(filter) &&
+    !org.name.toLowerCase().includes(filter)
+  ) {
     return null;
   }
 

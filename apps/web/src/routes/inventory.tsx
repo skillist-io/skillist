@@ -1,19 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { api, type Org, type SkillInventoryItem } from "@/lib/api";
-import { requireAuth } from "@/lib/require-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { api, type Org, type SkillInventoryItem } from "@/lib/api";
+import { requireAuth } from "@/lib/require-auth";
 
 const EXAMPLE_SCAN = `{
   "items": [
@@ -50,8 +44,7 @@ function InventoryPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["inventory", activeOrgId],
-    queryFn: () =>
-      api<{ items: SkillInventoryItem[] }>(`/v1/orgs/${activeOrgId}/inventory`),
+    queryFn: () => api<{ items: SkillInventoryItem[] }>(`/v1/orgs/${activeOrgId}/inventory`),
     enabled: !!activeOrgId,
   });
 
@@ -148,11 +141,7 @@ function InventoryPage() {
             >
               {scan.isPending ? "Scanning…" : "Submit scan"}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setScanJson(EXAMPLE_SCAN)}
-            >
+            <Button size="sm" variant="outline" onClick={() => setScanJson(EXAMPLE_SCAN)}>
               Load example
             </Button>
           </div>

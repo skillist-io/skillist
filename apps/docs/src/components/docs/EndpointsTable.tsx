@@ -5,7 +5,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
 const endpoints = [
   { service: "Web app", url: "https://skillist.dev" },
@@ -15,7 +15,7 @@ const endpoints = [
   { service: "API", url: "https://api.skillist.dev" },
   { service: "Registry MCP", url: "https://api.skillist.dev/mcp" },
   { service: "API reference", url: "https://api.skillist.dev/docs" },
-]
+];
 
 export function EndpointsTable() {
   return (
@@ -32,8 +32,7 @@ export function EndpointsTable() {
             <TableRow key={endpoint.service}>
               <TableCell className="font-medium">{endpoint.service}</TableCell>
               <TableCell>
-                {endpoint.url.startsWith("https://") &&
-                !endpoint.url.includes("{") ? (
+                {endpoint.url.startsWith("https://") && !endpoint.url.includes("{") ? (
                   <a
                     href={endpoint.url}
                     className="font-mono text-xs text-primary underline-offset-4 hover:underline"
@@ -53,5 +52,5 @@ export function EndpointsTable() {
         </TableBody>
       </Table>
     </div>
-  )
+  );
 }

@@ -24,7 +24,8 @@
     "run:public-evals": "tsx scripts/run-public-evals.ts",
     "cli": "pnpm --filter @skillist/cli dev",
     "cli:build": "pnpm --filter @skillist/skill-format build && pnpm --filter @skillist/cli build",
-    "publish:packages": "pnpm --filter @skillist/skill-format publish --no-git-checks && pnpm --filter @skillist/cli publish --no-git-checks"
+    "publish:packages": "pnpm --filter @skillist/skill-format publish --no-git-checks && pnpm --filter @skillist/cli publish --no-git-checks",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
@@ -32,6 +33,7 @@
     "@skillist/db": "workspace:*",
     "@skillist/skill-format": "workspace:*",
     "drizzle-orm": "^0.45.2",
+    "lefthook": "2.1.10",
     "tsx": "^4.20.3",
     "turbo": "^2.10.5",
     "typescript": "^7.0.2",

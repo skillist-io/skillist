@@ -27,8 +27,14 @@ for (const e of entries) {
 }
 
 durations.sort((a, b) => b.ms - a.ms);
-console.log(JSON.stringify({
-  requests: entries.length,
-  totalBytes,
-  slowest: durations.slice(0, 5),
-}, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      requests: entries.length,
+      totalBytes,
+      slowest: durations.slice(0, 5),
+    },
+    null,
+    2,
+  ),
+);

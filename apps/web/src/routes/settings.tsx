@@ -1,14 +1,20 @@
+import { oauthRedirectUris } from "@skillist/auth";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { api, type Org, type PublishPolicy, type ExecutionPolicy, type AuditEvent } from "@/lib/api";
+import {
+  type AuditEvent,
+  api,
+  type ExecutionPolicy,
+  type Org,
+  type PublishPolicy,
+} from "@/lib/api";
 import { apiUrl } from "@/lib/api-url";
-import { oauthRedirectUris } from "@skillist/auth";
 import { requireAuth } from "@/lib/require-auth";
 
 const API_SCOPES = [
@@ -29,9 +35,7 @@ type ApiKeyRow = {
   createdAt: string;
 };
 
-const redirects = oauthRedirectUris(
-  import.meta.env.VITE_API_URL ?? "http://localhost:8787",
-);
+const redirects = oauthRedirectUris(import.meta.env.VITE_API_URL ?? "http://localhost:8787");
 
 export const Route = createFileRoute("/settings")({
   beforeLoad: () => requireAuth(),
@@ -52,9 +56,7 @@ function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Passwordless auth, API keys, and org membership
-        </p>
+        <p className="text-muted-foreground">Passwordless auth, API keys, and org membership</p>
       </div>
 
       <Card id="github-oauth">
@@ -158,10 +160,7 @@ function SettingsPage() {
 function ApiKeyManager({ orgId }: { orgId: string }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
-  const [scopes, setScopes] = useState<string[]>([
-    "skills:read",
-    "skills:write",
-  ]);
+  const [scopes, setScopes] = useState<string[]>(["skills:read", "skills:write"]);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
 
   const { data: keys } = useQuery({
@@ -171,13 +170,10 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
 
   const createKey = useMutation({
     mutationFn: () =>
-      api<{ id: string; key: string; prefix: string }>(
-        `/v1/orgs/${orgId}/api-keys`,
-        {
-          method: "POST",
-          body: JSON.stringify({ name, scopes }),
-        },
-      ),
+      api<{ id: string; key: string; prefix: string }>(`/v1/orgs/${orgId}/api-keys`, {
+        method: "POST",
+        body: JSON.stringify({ name, scopes }),
+      }),
     onSuccess: (data) => {
       setCreatedKey(data.key);
       setName("");
@@ -186,17 +182,13 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
   });
 
   const revokeKey = useMutation({
-    mutationFn: (keyId: string) =>
-      api(`/v1/orgs/${orgId}/api-keys/${keyId}`, { method: "DELETE" }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["api-keys", orgId] }),
+    mutationFn: (keyId: string) => api(`/v1/orgs/${orgId}/api-keys/${keyId}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["api-keys", orgId] }),
   });
 
   function toggleScope(scope: string) {
     setScopes((prev) =>
-      prev.includes(scope)
-        ? prev.filter((s) => s !== scope)
-        : [...prev, scope],
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
     );
   }
 
@@ -204,11 +196,7 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
     <div className="space-y-4">
       <div className="space-y-3 rounded-lg border p-4">
         <Label>Create key</Label>
-        <Input
-          placeholder="CI deploy key"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <Input placeholder="CI deploy key" value={name} onChange={(e) => setName(e.target.value)} />
         <div className="flex flex-wrap gap-2">
           {API_SCOPES.map((scope) => (
             <Button
@@ -289,22 +277,17 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
 
   const { data: policyData } = useQuery({
     queryKey: ["publish-policy", orgId],
-    queryFn: () =>
-      api<{ publishPolicy: PublishPolicy }>(`/v1/orgs/${orgId}/publish-policy`),
+    queryFn: () => api<{ publishPolicy: PublishPolicy }>(`/v1/orgs/${orgId}/publish-policy`),
   });
 
   const { data: executionData } = useQuery({
     queryKey: ["execution-policy", orgId],
-    queryFn: () =>
-      api<{ executionPolicy: ExecutionPolicy }>(
-        `/v1/orgs/${orgId}/execution-policy`,
-      ),
+    queryFn: () => api<{ executionPolicy: ExecutionPolicy }>(`/v1/orgs/${orgId}/execution-policy`),
   });
 
   const { data: auditData } = useQuery({
     queryKey: ["audit", orgId],
-    queryFn: () =>
-      api<{ items: AuditEvent[] }>(`/v1/orgs/${orgId}/audit?limit=20`),
+    queryFn: () => api<{ items: AuditEvent[] }>(`/v1/orgs/${orgId}/audit?limit=20`),
   });
 
   const { data: telemetryData } = useQuery({
@@ -359,8 +342,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
           minEvalUplift: minEvalUplift,
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["publish-policy", orgId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["publish-policy", orgId] }),
   });
 
   const saveExecutionPolicy = useMutation({
@@ -374,8 +356,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
           anonymousHourlyLimit: anonymousHourly,
         }),
       }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["execution-policy", orgId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["execution-policy", orgId] }),
   });
 
   const addRequired = useMutation({
@@ -397,8 +378,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   const removeRequired = useMutation({
     mutationFn: (id: string) =>
       api(`/v1/orgs/${orgId}/required-skills/${id}`, { method: "DELETE" }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["required-skills", orgId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["required-skills", orgId] }),
   });
 
   return (
@@ -464,9 +444,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
       <Card>
         <CardHeader>
           <CardTitle>Execution quotas</CardTitle>
-          <CardDescription>
-            Limit hosted script runs per organization
-          </CardDescription>
+          <CardDescription>Limit hosted script runs per organization</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -523,9 +501,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
       <Card>
         <CardHeader>
           <CardTitle>Required skills</CardTitle>
-          <CardDescription>
-            Skills every project in this org should install
-          </CardDescription>
+          <CardDescription>Skills every project in this org should install</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
@@ -554,11 +530,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
               <span>
                 {item.orgSlug}/{item.skillRepo}
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => removeRequired.mutate(item.id)}
-              >
+              <Button size="sm" variant="outline" onClick={() => removeRequired.mutate(item.id)}>
                 Remove
               </Button>
             </div>
@@ -574,8 +546,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         <CardContent className="space-y-2 text-sm">
           <p>{telemetryData?.events ?? 0} events recorded</p>
           <p>
-            {telemetryData?.installs ?? 0} installs ·{" "}
-            {telemetryData?.activations ?? 0} activations
+            {telemetryData?.installs ?? 0} installs · {telemetryData?.activations ?? 0} activations
           </p>
           {telemetryData?.bySkill?.map((s) => (
             <div key={s.skillRepo} className="flex justify-between rounded border px-2 py-1">

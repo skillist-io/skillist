@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { InstallSnippet } from "@/components/docs/InstallSnippet"
+import { InstallSnippet } from "@/components/docs/InstallSnippet";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const steps = [
   {
@@ -18,7 +18,7 @@ const steps = [
     prefix: "Install a skill",
     command: "skillist install skillist/web-perf-audit",
   },
-]
+];
 
 export function QuickStartPanel() {
   return (
@@ -28,13 +28,9 @@ export function QuickStartPanel() {
       </CardHeader>
       <CardContent className="space-y-4">
         {steps.map((step) => (
-          <InstallSnippet
-            key={step.command}
-            prefix={step.prefix}
-            command={step.command}
-          />
+          <InstallSnippet key={step.command} prefix={step.prefix} command={step.command} />
         ))}
       </CardContent>
     </Card>
-  )
+  );
 }

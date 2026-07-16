@@ -1,17 +1,13 @@
 // @ts-nocheck
-import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { eq, and } from "drizzle-orm";
-import {
-  createOrgSchema,
-  inviteMemberSchema,
-  createApiKeySchema,
-} from "@skillist/contracts";
-import { organizations, orgMembers, apiKeys } from "@skillist/db/schema";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createApiKeySchema, createOrgSchema, inviteMemberSchema } from "@skillist/contracts";
+import { apiKeys, organizations, orgMembers } from "@skillist/db/schema";
+import { and, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
+import type { WorkerDb } from "../lib/db";
 import { requireOrgRole } from "../lib/org-access";
 import { sha256 } from "../lib/r2";
-import type { WorkerDb } from "../lib/db";
 import { resolveUserId } from "../lib/session";
 
 type AppEnv = {
@@ -140,11 +136,7 @@ orgRoutes.openapi(inviteRoute, async (c) => {
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
   const body = c.req.valid("json");
   const { users } = await import("@skillist/db/schema");
-  const [user] = await c.var.db
-    .select()
-    .from(users)
-    .where(eq(users.email, body.email))
-    .limit(1);
+  const [user] = await c.var.db.select().from(users).where(eq(users.email, body.email)).limit(1);
   if (!user) return c.json({ error: "User not found" }, 404);
   await c.var.db.insert(orgMembers).values({
     orgId,
@@ -278,9 +270,7 @@ orgRoutes.openapi(revokeApiKeyRoute, async (c) => {
   const access = await requireOrgRole(c.var.db, orgId, userId, "owner");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
-  await c.var.db
-    .delete(apiKeys)
-    .where(and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, orgId)));
+  await c.var.db.delete(apiKeys).where(and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, orgId)));
 
   return c.json({ ok: true }, 200);
 });

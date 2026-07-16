@@ -1,16 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { api, type RegistryItem } from "@/lib/api";
+import { StarButton } from "@/components/registry-star-button";
+import { ScoreBadges } from "@/components/score-badges";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScoreBadges } from "@/components/score-badges";
-import { StarButton } from "@/components/registry-star-button";
+import { api, type RegistryItem } from "@/lib/api";
 
 export function RegistryTrending() {
   const { data, isLoading } = useQuery({
     queryKey: ["registry", "trending"],
-    queryFn: () =>
-      api<{ items: RegistryItem[] }>("/v1/registry?sort=trending&limit=6"),
+    queryFn: () => api<{ items: RegistryItem[] }>("/v1/registry?sort=trending&limit=6"),
   });
 
   if (isLoading) {
@@ -40,11 +39,7 @@ export function RegistryTrending() {
                   {item.orgSlug}/{item.skillRepo}
                 </CardDescription>
               </div>
-              <StarButton
-                org={item.orgSlug}
-                repo={item.skillRepo}
-                stars={item.stars}
-              />
+              <StarButton org={item.orgSlug} repo={item.skillRepo} stars={item.stars} />
             </div>
             <ScoreBadges
               quality={item.qualityScore}
@@ -58,9 +53,7 @@ export function RegistryTrending() {
             ))}
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="line-clamp-2 text-sm text-muted-foreground">
-              {item.description}
-            </p>
+            <p className="line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
             <Link
               to="/$org/$repo"
               params={{ org: item.orgSlug, repo: item.skillRepo }}
