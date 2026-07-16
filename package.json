@@ -15,9 +15,9 @@
     "setup:oauth": "bash scripts/setup-oauth.sh",
     "setup:secrets": "bash scripts/setup-production-secrets.sh",
     "seed:registry": "tsx scripts/seed-registry.ts",
-    "cli": "pnpm --filter skillist dev",
-    "cli:build": "pnpm --filter @skillist/skill-format build && pnpm --filter skillist build",
-    "publish:packages": "pnpm --filter @skillist/skill-format publish --no-git-checks && pnpm --filter skillist publish --no-git-checks"
+    "cli": "pnpm --filter @skillist/cli dev",
+    "cli:build": "pnpm --filter @skillist/skill-format build && pnpm --filter @skillist/cli build",
+    "publish:packages": "pnpm --filter @skillist/skill-format publish --no-git-checks && pnpm --filter @skillist/cli publish --no-git-checks"
   },
   "devDependencies": {
     "@skillist/db": "workspace:*",

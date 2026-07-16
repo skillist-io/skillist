@@ -5,7 +5,7 @@ CLI for the [Skillist](https://skillist.dev) Agent Skills platform — search, i
 ## Install
 
 ```bash
-npm install -g skillist
+npm install -g @skillist/cli
 ```
 
 ## Quick start
