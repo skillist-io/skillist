@@ -1,6 +1,6 @@
 import type { Env } from "../env";
 import type { WorkerDb } from "./db";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   feedback,
   skillFiles,
@@ -15,6 +15,7 @@ import {
   scanSkillSecurity,
   parsePluginManifest,
   extractRegistryDiscovery,
+  extractAgentDiscovery,
 } from "@skillist/skill-format";
 import {
   downloadBundleFromR2,
@@ -205,11 +206,28 @@ export async function publishVersion(
   const security = scanSkillSecurity(bundle);
   const pluginRaw = bundle.get("plugin.json");
   const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
+  const compatibleAgents = extractAgentDiscovery(pluginManifest);
+
+  const [latestEval] = await db
+    .select({
+      status: skillEvals.status,
+      uplift: skillEvals.uplift,
+    })
+    .from(skillEvals)
+    .where(
+      and(
+        eq(skillEvals.versionId, versionId),
+        eq(skillEvals.status, "completed"),
+      ),
+    )
+    .orderBy(desc(skillEvals.completedAt))
+    .limit(1);
 
   const policyCheck = evaluatePublishPolicy(
     org.publishPolicy ?? undefined,
     review,
     security,
+    latestEval ?? null,
   );
   if (!policyCheck.allowed) {
     throw new Error(policyCheck.reasons.join("; "));
@@ -282,6 +300,7 @@ export async function publishVersion(
         securityStatus: security.status,
         category: discovery.category,
         tags: discovery.tags,
+        compatibleAgents,
         lastReviewedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -295,6 +314,7 @@ export async function publishVersion(
           securityStatus: security.status,
           category: discovery.category,
           tags: discovery.tags,
+          compatibleAgents,
           lastReviewedAt: new Date(),
           updatedAt: new Date(),
         },

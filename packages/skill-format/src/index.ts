@@ -1,5 +1,6 @@
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
+import type { PluginManifest } from "./plugin.js";
 
 const SKILL_NAME_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -204,6 +205,31 @@ export function extractRegistryDiscovery(frontmatter: SkillFrontmatter): {
     category: metadata.category?.trim().toLowerCase() ?? null,
     tags: [...tags],
   };
+}
+
+const KNOWN_AGENTS = new Set([
+  "cursor",
+  "claude",
+  "vscode",
+  "windsurf",
+  "cline",
+  "copilot",
+  "generic",
+]);
+
+export function extractAgentDiscovery(
+  manifest: PluginManifest | null | undefined,
+): string[] {
+  if (!manifest) return [];
+  const agents = new Set<string>();
+  for (const agent of manifest.agents ?? []) {
+    const normalized = agent.trim().toLowerCase();
+    if (normalized) agents.add(normalized);
+  }
+  if (manifest.mcp?.servers?.length) {
+    agents.add("mcp");
+  }
+  return [...agents].filter((a) => KNOWN_AGENTS.has(a) || a.length > 1);
 }
 
 export {

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
+import { StarButton } from "@/components/registry-star-button";
 import { SkillRunCard } from "@/components/skill-run-card";
 import { SkillRunHistory } from "@/components/skill-run-history";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
@@ -83,6 +84,12 @@ function RegistrySkillPage() {
           <Button onClick={() => subscribe.mutate()} disabled={subscribe.isPending}>
             Subscribe
           </Button>
+          <StarButton
+            org={org}
+            slug={slug}
+            stars={entry?.stars ?? 0}
+            starred={entry?.starred}
+          />
         </div>
       </div>
 
@@ -121,6 +128,28 @@ function RegistrySkillPage() {
             <span>{entry?.installCount ?? 0} installs</span>
             <span>{entry?.activationCount ?? 0} activations</span>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Agent compatibility</CardTitle>
+          <CardDescription>
+            From plugin.json — which agents can discover this skill
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          {entry?.compatibleAgents?.length ? (
+            entry.compatibleAgents.map((agent) => (
+              <Badge key={agent} variant="secondary">
+                {agent}
+              </Badge>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No agents declared in plugin.json
+            </p>
+          )}
         </CardContent>
       </Card>
 

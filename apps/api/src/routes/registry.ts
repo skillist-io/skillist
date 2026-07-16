@@ -5,6 +5,7 @@ import { registryQuerySchema } from "@skillist/contracts";
 import {
   organizations,
   registryEntries,
+  registryStars,
   skills,
   subscriptions,
 } from "@skillist/db/schema";
@@ -67,6 +68,12 @@ function registryOrderBy(query: z.infer<typeof registryQuerySchema>) {
       return desc(registryEntries.installCount);
     case "activations":
       return desc(registryEntries.activationCount);
+    case "stars":
+      return desc(registryEntries.stars);
+    case "trending":
+      return desc(
+        sql`(${registryEntries.stars} * 3 + ${registryEntries.installCount} + ${registryEntries.activationCount})`,
+      );
     case "recent":
       return desc(registryEntries.updatedAt);
     case "name":
@@ -138,6 +145,7 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
       stars: registryEntries.stars,
       category: registryEntries.category,
       tags: registryEntries.tags,
+      compatibleAgents: registryEntries.compatibleAgents,
       runtime: skills.runtime,
     })
     .from(registryEntries)
@@ -216,10 +224,12 @@ const getRegistrySkillRoute = createRoute({
 
 registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
   const { org, slug } = c.req.valid("param");
+  const userId = await resolveUserId(c);
   const [row] = await c.var.db
     .select({
       entry: registryEntries,
       runtime: skills.runtime,
+      skillId: skills.id,
     })
     .from(registryEntries)
     .innerJoin(skills, eq(registryEntries.skillId, skills.id))
@@ -231,15 +241,131 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
     )
     .limit(1);
   if (!row) return c.json({ error: "Not found" }, 404);
+
+  let starred = false;
+  if (userId) {
+    const [star] = await c.var.db
+      .select({ id: registryStars.id })
+      .from(registryStars)
+      .where(
+        and(
+          eq(registryStars.userId, userId),
+          eq(registryStars.skillId, row.skillId),
+        ),
+      )
+      .limit(1);
+    starred = !!star;
+  }
+
   const entry = row.entry;
   return c.json(
     {
       ...entry,
       runtime: row.runtime,
+      starred,
       installCommand: `skillist install ${entry.orgSlug}/${entry.skillSlug}`,
     },
     200,
   );
+});
+
+const starSkillRoute = createRoute({
+  method: "post",
+  path: "/registry/{org}/{slug}/star",
+  tags: ["Registry"],
+  request: {
+    params: z.object({ org: z.string(), slug: z.string() }),
+  },
+  responses: { 201: { description: "Starred" } },
+});
+
+registryRoutes.openapi(starSkillRoute, async (c) => {
+  const userId = await resolveUserId(c);
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+  const { org, slug } = c.req.valid("param");
+
+  const [entry] = await c.var.db
+    .select({
+      skillId: registryEntries.skillId,
+      stars: registryEntries.stars,
+    })
+    .from(registryEntries)
+    .where(
+      and(
+        eq(registryEntries.orgSlug, org),
+        eq(registryEntries.skillSlug, slug),
+      ),
+    )
+    .limit(1);
+  if (!entry) return c.json({ error: "Not found" }, 404);
+
+  const inserted = await c.var.db
+    .insert(registryStars)
+    .values({ userId, skillId: entry.skillId })
+    .onConflictDoNothing()
+    .returning();
+
+  if (inserted.length > 0) {
+    await c.var.db
+      .update(registryEntries)
+      .set({
+        stars: sql`${registryEntries.stars} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(registryEntries.skillId, entry.skillId));
+  }
+
+  return c.json({ ok: true, starred: true }, 201);
+});
+
+const unstarSkillRoute = createRoute({
+  method: "delete",
+  path: "/registry/{org}/{slug}/star",
+  tags: ["Registry"],
+  request: {
+    params: z.object({ org: z.string(), slug: z.string() }),
+  },
+  responses: { 200: { description: "Unstarred" } },
+});
+
+registryRoutes.openapi(unstarSkillRoute, async (c) => {
+  const userId = await resolveUserId(c);
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+  const { org, slug } = c.req.valid("param");
+
+  const [entry] = await c.var.db
+    .select({ skillId: registryEntries.skillId })
+    .from(registryEntries)
+    .where(
+      and(
+        eq(registryEntries.orgSlug, org),
+        eq(registryEntries.skillSlug, slug),
+      ),
+    )
+    .limit(1);
+  if (!entry) return c.json({ error: "Not found" }, 404);
+
+  const removed = await c.var.db
+    .delete(registryStars)
+    .where(
+      and(
+        eq(registryStars.userId, userId),
+        eq(registryStars.skillId, entry.skillId),
+      ),
+    )
+    .returning();
+
+  if (removed.length > 0) {
+    await c.var.db
+      .update(registryEntries)
+      .set({
+        stars: sql`GREATEST(${registryEntries.stars} - 1, 0)`,
+        updatedAt: new Date(),
+      })
+      .where(eq(registryEntries.skillId, entry.skillId));
+  }
+
+  return c.json({ ok: true, starred: false }, 200);
 });
 
 const subscribeRoute = createRoute({

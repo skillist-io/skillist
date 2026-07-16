@@ -82,7 +82,16 @@ export const registryQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   sort: z
-    .enum(["quality", "impact", "installs", "activations", "recent", "name"])
+    .enum([
+      "quality",
+      "impact",
+      "installs",
+      "activations",
+      "stars",
+      "trending",
+      "recent",
+      "name",
+    ])
     .default("quality"),
   runtime: z.enum(["all", "local", "sandbox", "container"]).default("all"),
   minQuality: z.coerce.number().int().min(0).max(100).optional(),
@@ -127,6 +136,8 @@ export const publishPolicySchema = z.object({
   minQualityScore: z.number().int().min(0).max(100).optional(),
   requireSecurityPass: z.boolean().optional(),
   blockOnAdvisory: z.boolean().optional(),
+  minEvalUplift: z.number().int().min(-100).max(100).optional(),
+  requireEval: z.boolean().optional(),
 });
 
 export const executionPolicySchema = z.object({
