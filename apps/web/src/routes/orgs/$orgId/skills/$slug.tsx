@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { ScoreBadges } from "@/components/score-badges";
+import { SkillRunCard } from "@/components/skill-run-card";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { useState, useEffect, useMemo } from "react";
 
@@ -38,6 +39,15 @@ function SkillEditorPage() {
 
   const latestDraft = versions?.find((v) => v.status === "draft") ?? versions?.[0];
   const publishedVersion = versions?.find((v) => v.status === "published");
+
+  const { data: scriptsData } = useQuery({
+    queryKey: ["scripts", orgSlug, slug],
+    queryFn: () =>
+      api<{ runtime: string; scripts: string[] }>(
+        `/v1/skills/${orgSlug}/${slug}/scripts`,
+      ),
+    enabled: !!orgSlug && !!publishedVersion,
+  });
 
   const { data: preview } = useQuery({
     queryKey: ["preview", orgId, slug, latestDraft?.id],
@@ -250,6 +260,14 @@ function SkillEditorPage() {
               ))}
             </CardContent>
           </Card>
+
+          {(scriptsData?.scripts?.length ?? 0) > 0 && orgSlug && (
+            <SkillRunCard
+              org={orgSlug}
+              slug={slug}
+              scripts={scriptsData!.scripts}
+            />
+          )}
 
           <Card>
             <CardHeader>

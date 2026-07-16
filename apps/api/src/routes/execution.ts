@@ -6,12 +6,13 @@ import { organizations, skillRuns, skills, telemetryEvents } from "@skillist/db/
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { assertSkillRunAccess } from "../lib/skill-execution-access";
+import { checkRunQuota } from "../lib/run-quota";
 import {
   getPublishedBundle,
   getRunnableScriptsFromBundle,
   runSkillScript,
 } from "../lib/skill-runner";
-import { resolveUserId } from "../lib/session";
 
 type AppEnv = {
   Bindings: Env;
@@ -19,6 +20,28 @@ type AppEnv = {
 };
 
 export const executionRoutes = new OpenAPIHono<AppEnv>();
+
+async function loadOrgSkill(
+  db: WorkerDb,
+  orgSlug: string,
+  skillSlug: string,
+) {
+  const [orgRow] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.slug, orgSlug))
+    .limit(1);
+  if (!orgRow) return null;
+
+  const [skill] = await db
+    .select()
+    .from(skills)
+    .where(and(eq(skills.orgId, orgRow.id), eq(skills.slug, skillSlug)))
+    .limit(1);
+  if (!skill) return null;
+
+  return { org: orgRow, skill };
+}
 
 const listScriptsRoute = createRoute({
   method: "get",
@@ -32,6 +55,17 @@ const listScriptsRoute = createRoute({
 
 executionRoutes.openapi(listScriptsRoute, async (c) => {
   const { org, slug } = c.req.valid("param");
+  const loaded = await loadOrgSkill(c.var.db, org, slug);
+  if (!loaded) return c.json({ error: "Not found" }, 404);
+
+  const access = await assertSkillRunAccess(
+    c.var.db,
+    c.var.auth,
+    loaded.org,
+    loaded.skill,
+  );
+  if (!access.ok) return c.json({ error: "Not found" }, access.status === 401 ? 401 : 404);
+
   try {
     const { bundle, skill } = await getPublishedBundle(c.env, c.var.db, org, slug);
     return c.json(
@@ -64,29 +98,36 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
   const { org, slug } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  const [orgRow] = await c.var.db
-    .select()
-    .from(organizations)
-    .where(eq(organizations.slug, org))
-    .limit(1);
-  if (!orgRow) return c.json({ error: "Not found" }, 404);
+  const loaded = await loadOrgSkill(c.var.db, org, slug);
+  if (!loaded) return c.json({ error: "Not found" }, 404);
 
-  const [skill] = await c.var.db
-    .select()
-    .from(skills)
-    .where(and(eq(skills.orgId, orgRow.id), eq(skills.slug, slug)))
-    .limit(1);
-  if (!skill || skill.visibility !== "public") {
-    return c.json({ error: "Not found" }, 404);
+  const access = await assertSkillRunAccess(
+    c.var.db,
+    c.var.auth,
+    loaded.org,
+    loaded.skill,
+  );
+  if (!access.ok) {
+    return c.json(
+      { error: access.status === 401 ? "Authentication required" : "Forbidden" },
+      access.status,
+    );
   }
 
-  const userId = await resolveUserId(c);
-  const actorType = c.var.auth.apiKeyId
-    ? "api_key"
-    : userId
-      ? "user"
-      : "system";
-  const actorId = c.var.auth.apiKeyCreatedBy ?? userId;
+  if (loaded.skill.runtime === "local") {
+    return c.json({ error: "This skill has no hosted runtime" }, 400);
+  }
+
+  const quota = await checkRunQuota(
+    c.var.db,
+    loaded.org.id,
+    loaded.org.executionPolicy,
+    loaded.skill.runtime,
+    access.isAnonymous,
+  );
+  if (!quota.ok) {
+    return c.json({ error: quota.message }, 429);
+  }
 
   try {
     const result = await runSkillScript(c.env, c.var.db, {
@@ -95,16 +136,16 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
       scriptPath: body.scriptPath,
       args: body.args,
       targetUrl: body.targetUrl,
-      actorId,
-      actorType,
+      actorId: access.actorId,
+      actorType: access.actorType,
     });
 
     await c.var.db.insert(telemetryEvents).values({
       orgSlug: org,
       skillSlug: slug,
       eventType: "activation",
-      userId,
-      apiKeyId: c.var.auth.apiKeyId,
+      userId: access.actorType === "user" ? access.actorId : null,
+      apiKeyId: access.actorType === "api_key" ? c.var.auth.apiKeyId : null,
     });
 
     return c.json(result, 200);
@@ -131,24 +172,26 @@ executionRoutes.openapi(listRunsRoute, async (c) => {
   const { org, slug } = c.req.valid("param");
   const { limit } = c.req.valid("query");
 
-  const [orgRow] = await c.var.db
-    .select()
-    .from(organizations)
-    .where(eq(organizations.slug, org))
-    .limit(1);
-  if (!orgRow) return c.json({ error: "Not found" }, 404);
+  const loaded = await loadOrgSkill(c.var.db, org, slug);
+  if (!loaded) return c.json({ error: "Not found" }, 404);
 
-  const [skill] = await c.var.db
-    .select()
-    .from(skills)
-    .where(and(eq(skills.orgId, orgRow.id), eq(skills.slug, slug)))
-    .limit(1);
-  if (!skill) return c.json({ error: "Not found" }, 404);
+  const access = await assertSkillRunAccess(
+    c.var.db,
+    c.var.auth,
+    loaded.org,
+    loaded.skill,
+  );
+  if (!access.ok) {
+    return c.json(
+      { error: access.status === 401 ? "Authentication required" : "Forbidden" },
+      access.status === 401 ? 401 : 403,
+    );
+  }
 
   const items = await c.var.db
     .select()
     .from(skillRuns)
-    .where(eq(skillRuns.skillId, skill.id))
+    .where(eq(skillRuns.skillId, loaded.skill.id))
     .orderBy(desc(skillRuns.createdAt))
     .limit(limit);
 
@@ -171,5 +214,22 @@ executionRoutes.openapi(getRunRoute, async (c) => {
     .where(eq(skillRuns.id, id))
     .limit(1);
   if (!run) return c.json({ error: "Not found" }, 404);
+
+  const loaded = await loadOrgSkill(c.var.db, run.orgSlug, run.skillSlug);
+  if (!loaded) return c.json({ error: "Not found" }, 404);
+
+  const access = await assertSkillRunAccess(
+    c.var.db,
+    c.var.auth,
+    loaded.org,
+    loaded.skill,
+  );
+  if (!access.ok) {
+    return c.json(
+      { error: access.status === 401 ? "Authentication required" : "Forbidden" },
+      access.status === 401 ? 401 : 403,
+    );
+  }
+
   return c.json(run, 200);
 });

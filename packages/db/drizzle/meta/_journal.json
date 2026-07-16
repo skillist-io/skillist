@@ -22,6 +22,13 @@
       "when": 1784153616000,
       "tag": "0002_skill_execution",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784153617000,
+      "tag": "0003_execution_policy",
+      "breakpoints": true
     }
   ]
 }

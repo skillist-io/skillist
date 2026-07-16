@@ -3,6 +3,7 @@ import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import {
   inventoryScanSchema,
+  executionPolicySchema,
   publishPolicySchema,
   requiredSkillSchema,
   runEvalSchema,
@@ -214,6 +215,63 @@ governanceRoutes.openapi(getPublishPolicyRoute, async (c) => {
     .limit(1);
 
   return c.json({ publishPolicy: org?.publishPolicy ?? {} }, 200);
+});
+
+const patchExecutionPolicyRoute = createRoute({
+  method: "patch",
+  path: "/orgs/{orgId}/execution-policy",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: executionPolicySchema } } },
+  },
+  responses: { 200: { description: "Execution policy updated" } },
+});
+
+governanceRoutes.openapi(patchExecutionPolicyRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  await c.var.db
+    .update(organizations)
+    .set({ executionPolicy: body, updatedAt: new Date() })
+    .where(eq(organizations.id, orgId));
+
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: access.actorId,
+    actorType: access.actorType,
+    action: "execution_policy.updated",
+    resourceType: "organization",
+    resourceId: orgId,
+    metadata: body,
+  });
+
+  return c.json({ ok: true, executionPolicy: body }, 200);
+});
+
+const getExecutionPolicyRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/execution-policy",
+  tags: ["Governance"],
+  request: { params: z.object({ orgId: z.string().uuid() }) },
+  responses: { 200: { description: "Execution policy" } },
+});
+
+governanceRoutes.openapi(getExecutionPolicyRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select({ executionPolicy: organizations.executionPolicy })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+
+  return c.json({ executionPolicy: org?.executionPolicy ?? {} }, 200);
 });
 
 const listRequiredSkillsRoute = createRoute({

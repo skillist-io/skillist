@@ -49,6 +49,13 @@ export type SkillRunResult = {
   runtime: string;
 };
 
+export type ExecutionPolicy = {
+  hourlyRunLimit?: number;
+  dailyRunLimit?: number;
+  containerHourlyLimit?: number;
+  anonymousHourlyLimit?: number;
+};
+
 export type PublishPolicy = {
   minQualityScore?: number;
   requireSecurityPass?: boolean;
