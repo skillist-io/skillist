@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-16T00:00:00.000Z",
+  "title": "Design System: Skillist",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Ink",
+        "canonical": "oklch(0.145 0 0)",
+        "tonalRamp": [
+          "oklch(0.145 0 0)",
+          "oklch(0.205 0 0)",
+          "oklch(0.269 0 0)",
+          "oklch(0.371 0 0)",
+          "oklch(0.556 0 0)",
+          "oklch(0.708 0 0)",
+          "oklch(0.87 0 0)",
+          "oklch(0.985 0 0)"
+        ]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "oklch(0.556 0 0)",
+        "tonalRamp": [
+          "oklch(0.205 0 0)",
+          "oklch(0.371 0 0)",
+          "oklch(0.439 0 0)",
+          "oklch(0.556 0 0)",
+          "oklch(0.708 0 0)",
+          "oklch(0.87 0 0)",
+          "oklch(0.922 0 0)",
+          "oklch(0.97 0 0)"
+        ]
+      },
+      "destructive": {
+        "role": "tertiary",
+        "displayName": "Destructive Red",
+        "canonical": "oklch(0.577 0.245 27.325)",
+        "tonalRamp": [
+          "oklch(0.32 0.13 27)",
+          "oklch(0.4 0.17 27)",
+          "oklch(0.48 0.21 27)",
+          "oklch(0.577 0.245 27.325)",
+          "oklch(0.66 0.21 25)",
+          "oklch(0.74 0.16 24)",
+          "oklch(0.84 0.1 24)",
+          "oklch(0.93 0.04 24)"
+        ]
+      },
+      "signal-reserved": {
+        "role": "secondary",
+        "displayName": "Signal Amber (Reserved)",
+        "canonical": "oklch(0.65 0.146 60)",
+        "tonalRamp": [
+          "oklch(0.3 0.07 60)",
+          "oklch(0.4 0.1 60)",
+          "oklch(0.5 0.13 60)",
+          "oklch(0.65 0.146 60)",
+          "oklch(0.74 0.13 62)",
+          "oklch(0.82 0.1 64)",
+          "oklch(0.89 0.06 66)",
+          "oklch(0.95 0.03 68)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page and hero headings only. Capped ~3rem."
+      },
+      "label": {
+        "displayName": "Equipment Label",
+        "purpose": "Uppercase, tracked micro-type for buttons, badges, and control captions. The signature voice."
+      },
+      "mono": {
+        "displayName": "Machine Voice",
+        "purpose": "Skill ids, version hashes, paths, eval values, JSON snippets."
+      }
+    },
+    "shadows": [
+      {
+        "name": "hairline-ring",
+        "value": "0 0 0 1px oklch(0.145 0 0 / 0.05)",
+        "purpose": "Default and near-only elevation device; defines a card edge without weight."
+      },
+      {
+        "name": "shadow-sm",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "Maximum shadow allowed; cards and popovers only. Anything heavier is out of register."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "translateY(1px)",
+        "purpose": "Physical button press on :active."
+      },
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default easing for state and color transitions."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Every animation crossfades or snaps instead of translating."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink-filled primary action. Squared, uppercase, tracked.",
+      "html": "<button class=\"ds-btn-primary\">Publish version</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 2.5rem; padding: 0 1.5rem; border: 1px solid transparent; border-radius: 0; background: oklch(0.205 0 0); color: oklch(0.985 0 0); font-family: 'Inter Variable', system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: background 0.15s cubic-bezier(0.4,0,0.2,1), transform 0.1s; } .ds-btn-primary:hover { background: oklch(0.205 0 0 / 0.8); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; border-color: oklch(0.708 0 0); box-shadow: 0 0 0 2px oklch(0.708 0 0 / 0.3); } @media (prefers-reduced-motion: reduce) { .ds-btn-primary { transition: none; } .ds-btn-primary:active { transform: none; } }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Hairline-bordered secondary action on transparent, hover fills raised.",
+      "html": "<button class=\"ds-btn-outline\">Browse registry</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 2.5rem; padding: 0 1.5rem; border: 1px solid oklch(0.922 0 0); border-radius: 0; background: transparent; color: oklch(0.145 0 0); font-family: 'Inter Variable', system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: background 0.15s cubic-bezier(0.4,0,0.2,1); } .ds-btn-outline:hover { background: oklch(0.97 0 0); } .ds-btn-outline:active { transform: translateY(1px); } .ds-btn-outline:focus-visible { outline: none; border-color: oklch(0.708 0 0); box-shadow: 0 0 0 2px oklch(0.708 0 0 / 0.3); } @media (prefers-reduced-motion: reduce) { .ds-btn-outline { transition: none; } }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-default",
+      "description": "Text-only badge. No fill, no pill. Word plus optional icon carries meaning, never a colored background.",
+      "html": "<span class=\"ds-badge\"><svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M20 6 9 17l-5-5\"/></svg>Published</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 0.375rem; border: 0; border-radius: 0; background: transparent; padding: 0; color: oklch(0.145 0 0); font-family: 'Inter Variable', system-ui, sans-serif; font-size: 0.625rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; } .ds-badge svg { width: 12px; height: 12px; }"
+    },
+    {
+      "name": "Failed Badge",
+      "kind": "chip",
+      "refersTo": "badge-default",
+      "description": "Destructive variant. Red is the single chromatic voice; still text-only, paired with an icon so color is never the only signal.",
+      "html": "<span class=\"ds-badge-danger\"><svg viewBox=\"0 0 24 24\" width=\"12\" height=\"12\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M18 6 6 18M6 6l12 12\"/></svg>Eval failed</span>",
+      "css": ".ds-badge-danger { display: inline-flex; align-items: center; gap: 0.375rem; border: 0; border-radius: 0; background: transparent; padding: 0; color: oklch(0.577 0.245 27.325); font-family: 'Inter Variable', system-ui, sans-serif; font-size: 0.625rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Squared surface with a single hairline ring, roomy 2rem padding, no drop shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">web-perf-audit</div><p class=\"ds-card-body\">Audits Core Web Vitals and flags render-blocking resources. Delivered from KV at the edge.</p><div class=\"ds-card-meta\">v2.4.1 · 1,204 installs</div></div>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 0.75rem; border-radius: 0; background: oklch(1 0 0); padding: 2rem; box-shadow: 0 0 0 1px oklch(0.145 0 0 / 0.05), 0 1px 2px 0 rgb(0 0 0 / 0.05); font-family: 'Inter Variable', system-ui, sans-serif; } .ds-card-title { font-size: 1rem; font-weight: 600; color: oklch(0.145 0 0); } .ds-card-body { font-size: 0.875rem; line-height: 1.55; color: oklch(0.145 0 0); margin: 0; } .ds-card-meta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; color: oklch(0.556 0 0); }"
+    },
+    {
+      "name": "Underline Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Bottom-border-only field. Transparent, no box. Focus shifts the rule to the ring color, no glow.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Search skills\" />",
+      "css": ".ds-input { height: 2.5rem; width: 100%; border: 1px solid transparent; border-bottom-color: oklch(0.922 0 0); border-radius: 0; background: transparent; padding: 0.25rem 0; font-family: 'Inter Variable', system-ui, sans-serif; font-size: 0.875rem; color: oklch(0.145 0 0); outline: none; transition: border-color 0.15s cubic-bezier(0.4,0,0.2,1); } .ds-input::placeholder { color: oklch(0.556 0 0); } .ds-input:focus-visible { border-bottom-color: oklch(0.708 0 0); } @media (prefers-reduced-motion: reduce) { .ds-input { transition: none; } }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Ghost nav link. Active state is a raised wash plus ink text, never an underline or colored bar.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item--active\" href=\"#\">Registry</a><a class=\"ds-nav-item\" href=\"#\">Governance</a><a class=\"ds-nav-item\" href=\"#\">Observability</a></nav>",
+      "css": ".ds-nav { display: inline-flex; gap: 0.25rem; font-family: 'Inter Variable', system-ui, sans-serif; } .ds-nav-item { display: inline-flex; align-items: center; height: 2.25rem; padding: 0 0.75rem; border-radius: 0; color: oklch(0.145 0 0); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; transition: background 0.15s cubic-bezier(0.4,0,0.2,1); } .ds-nav-item:hover { background: oklch(0.97 0 0); } .ds-nav-item--active { background: oklch(0.97 0 0); } @media (prefers-reduced-motion: reduce) { .ds-nav-item { transition: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Surface",
+    "overview": "Skillist is an instrument panel for production agent behavior. It looks the way a well-built piece of engineering hardware looks: monochrome, squared, precisely ruled, nothing on the surface that isn't a control or a readout. The people using it are staking production agents on the skills catalogued here, so the interface earns trust the way an instrument does, by being legible, honest about state, and free of decoration that could be mistaken for meaning. The system is deliberately quiet. Hierarchy comes from scale, weight, and space, not from color or heavy borders. Chrome is treated as a cost: surfaces are flat with a single hairline ring, depth is implied rather than dramatized, and the one chromatic voice on screen (destructive red) means exactly one thing.",
+    "keyCharacteristics": [
+      "Monochrome by default; grayscale ink ramp carries the entire UI.",
+      "Squared geometry everywhere (0px radius on controls, cards, and images).",
+      "Uppercase, wide-tracked micro-labels on buttons and badges.",
+      "Underline inputs, not boxed fields.",
+      "Hairline rings instead of shadows; flat at rest.",
+      "One reserved signal accent, held out of active use until deliberately introduced."
+    ],
+    "rules": [
+      {
+        "name": "The One Chromatic Voice Rule",
+        "body": "In normal operation, destructive red is the only saturated color on screen. Everything else is grayscale. If a second hue appears and it isn't the deliberately-introduced reserved signal, it is a bug (see the stray dark-sidebar purple, oklch(0.488 0.243 264.376), a leftover to be removed).",
+        "section": "colors"
+      },
+      {
+        "name": "The Literal White Rule",
+        "body": "Light surface is exactly oklch(1 0 0). Never warm-tint the background toward cream, sand, or paper. Warmth, if it ever arrives, lives in the reserved accent, never in the canvas.",
+        "section": "colors"
+      },
+      {
+        "name": "The Equipment-Label Rule",
+        "body": "Uppercase + wide tracking is reserved for short labels (<=4 words): buttons, badges, control captions. Never set a sentence or body copy in all caps.",
+        "section": "typography"
+      },
+      {
+        "name": "The Machine-Voice Rule",
+        "body": "Any literal machine value (id, hash, path, JSON) is set in mono. Human prose is never mono; machine output is never proportional. The typeface tells you who is speaking.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces are flat at rest. If you reach for a shadow larger than shadow-sm, stop: the answer is a hairline, a tonal step, or nothing. Floating, lifted, and glowing cards are prohibited.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep geometry squared: 0px radius on buttons, badges, cards, and images.",
+      "Do build hierarchy from scale, weight, and space (400 -> 600 -> 700), then a hairline, then tonal layering. Reach for color last.",
+      "Do set every machine value in mono, and every short control label in uppercase tracked micro-type.",
+      "Do hold the surface at literal white oklch(1 0 0) in light mode and near-black oklch(0.145 0 0) in dark; both themes must pass 4.5:1 for body text.",
+      "Do keep the reserved signal amber out of active use until introduced deliberately, and cap it at <=10% of any screen.",
+      "Do pair every status with a word or shape, and give every animation a prefers-reduced-motion fallback."
+    ],
+    "donts": [
+      "Don't ship the generic shadcn / AI-default look: no soft rounded cards, no decorative purple accent, no gray-on-tinted body text.",
+      "Don't drift playful / consumer / rounded: no bubbly radii, no emoji-forward UI, no illustration where a control belongs.",
+      "Don't become a cluttered enterprise dashboard: no heavy borders, no gray-on-gray tables without hierarchy, no density for its own sake.",
+      "Don't dress up like loud SaaS marketing: no gradient heroes, no gradient-clip text headings, no glassmorphism, no hero-metric template.",
+      "Don't use a shadow larger than shadow-sm, a colored background chip for a badge, or a boxed input.",
+      "Don't encode status in color alone, set body copy in all caps, or introduce a second typeface."
+    ]
+  }
+}

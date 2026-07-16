@@ -50,7 +50,7 @@ export function LoginForm({
         </div>
 
         {error && (
-          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
           </p>
         )}
@@ -101,7 +101,7 @@ export function LoginForm({
             {loading === "magic" ? "Sending…" : "Send magic link"}
           </Button>
           {sent && (
-            <FieldDescription className="text-center text-green-700">
+            <FieldDescription className="text-center font-medium text-foreground">
               Check your email for the sign-in link.
             </FieldDescription>
           )}

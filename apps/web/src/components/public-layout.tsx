@@ -1,12 +1,23 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Zap } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/api-url";
 import { signOut, useSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
+
+// Data-dense surfaces run full-bleed like the app shell; marketing pages stay
+// centered and measure-capped. The registry and skill-detail (/{org}/{repo},
+// the only two-segment public path) are the dense surfaces.
+function isFluidRoute(pathname: string): boolean {
+  if (pathname.startsWith("/registry")) return true;
+  return pathname.split("/").filter(Boolean).length === 2;
+}
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const fluid = isFluidRoute(pathname);
 
   return (
     <div className="min-h-screen">
@@ -50,7 +61,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <main className={cn("px-4 py-8 md:px-6", fluid ? "w-full" : "mx-auto max-w-6xl")}>
+        {children}
+      </main>
     </div>
   );
 }

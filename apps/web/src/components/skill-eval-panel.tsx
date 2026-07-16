@@ -64,7 +64,7 @@ export function SkillEvalPanel({
             const open = expandedId === ev.id;
             const results = open ? detail?.eval?.results : ev.results;
             return (
-              <div key={ev.id} className="rounded border">
+              <div key={ev.id} className="border border-border">
                 <button
                   type="button"
                   className="flex w-full items-center justify-between gap-2 px-2 py-2 text-left hover:bg-muted/50"
@@ -88,7 +88,7 @@ export function SkillEvalPanel({
                     {results.map((scenario) => (
                       <div
                         key={scenario.name}
-                        className="flex items-center justify-between rounded bg-muted/40 px-2 py-1 text-xs"
+                        className="flex items-center justify-between bg-muted/40 px-2 py-1 text-xs"
                       >
                         <span className="font-medium">{scenario.name}</span>
                         <span className="font-mono">

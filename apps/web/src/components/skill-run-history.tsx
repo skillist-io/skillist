@@ -3,9 +3,10 @@ import { History } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api, type SkillRun } from "@/lib/api";
-
 import { useSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 type SkillRunHistoryProps = {
   org: string;
@@ -36,7 +37,11 @@ export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps)
             <History className="h-4 w-4" /> Run history
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Loading…</CardContent>
+        <CardContent className="space-y-2">
+          {["a", "b", "c"].map((k) => (
+            <Skeleton key={k} className="h-11 w-full motion-reduce:animate-none" />
+          ))}
+        </CardContent>
       </Card>
     );
   }
@@ -55,10 +60,11 @@ export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps)
         {items.map((run) => {
           const expanded = expandedId === run.id;
           return (
-            <div key={run.id} className="rounded border text-sm">
+            <div key={run.id} className="border border-border text-sm">
               <button
                 type="button"
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/50"
+                aria-expanded={expanded}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none focus-visible:-outline-offset-2"
                 onClick={() => setExpandedId(expanded ? null : run.id)}
               >
                 <div className="min-w-0 space-y-1">
@@ -72,7 +78,14 @@ export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps)
                     {run.status}
                   </Badge>
                   {run.exitCode != null && (
-                    <span className="text-xs text-muted-foreground">exit {run.exitCode}</span>
+                    <span
+                      className={cn(
+                        "font-mono text-xs tabular-nums",
+                        run.exitCode === 0 ? "text-muted-foreground" : "text-destructive",
+                      )}
+                    >
+                      exit {run.exitCode}
+                    </span>
                   )}
                 </div>
               </button>
@@ -84,16 +97,14 @@ export function SkillRunHistory({ org, repo, limit = 10 }: SkillRunHistoryProps)
                     </p>
                   )}
                   {run.stdout && (
-                    <pre className="max-h-40 overflow-auto rounded bg-muted p-2 text-xs">
-                      {run.stdout}
-                    </pre>
+                    <pre className="max-h-40 overflow-auto bg-muted p-2 text-xs">{run.stdout}</pre>
                   )}
                   {run.stderr && (
-                    <pre className="max-h-40 overflow-auto rounded border border-red-200 bg-red-50 p-2 text-xs text-red-900">
+                    <pre className="max-h-40 overflow-auto border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
                       {run.stderr}
                     </pre>
                   )}
-                  {run.error && <p className="text-xs text-red-600">{run.error}</p>}
+                  {run.error && <p className="text-xs text-destructive">{run.error}</p>}
                 </div>
               )}
             </div>
