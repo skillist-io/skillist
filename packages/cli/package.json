@@ -1,5 +1,5 @@
 {
-  "name": "skillist",
+  "name": "@skillist/cli",
   "version": "0.1.0",
   "description": "CLI for the Skillist Agent Skills platform",
   "license": "MIT",
@@ -37,10 +37,7 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "access": "public",
-    "dependencies": {
-      "@skillist/skill-format": "^0.1.0"
-    }
+    "access": "public"
   },
   "dependencies": {
     "@skillist/skill-format": "workspace:*"

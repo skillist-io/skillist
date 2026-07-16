@@ -26,13 +26,19 @@ jobs:
       - run: pnpm --filter @skillist/skill-format build
 
       - name: Publish @skillist/skill-format
-        run: pnpm --filter @skillist/skill-format publish --no-git-checks --access public
+        run: |
+          published=$(npm view @skillist/skill-format version 2>/dev/null || true)
+          if [ "$published" = "0.1.0" ]; then
+            echo "@skillist/skill-format@0.1.0 already on npm, skipping"
+          else
+            pnpm --filter @skillist/skill-format publish --no-git-checks --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - run: pnpm --filter skillist build
+      - run: pnpm --filter @skillist/cli build
 
-      - name: Publish skillist CLI
-        run: pnpm --filter skillist publish --no-git-checks --access public
+      - name: Publish @skillist/cli
+        run: pnpm --filter @skillist/cli publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
