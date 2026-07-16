@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { and, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { registryQuerySchema } from "@skillist/contracts";
 import {
   organizations,
@@ -19,6 +19,53 @@ type AppEnv = {
 };
 
 export const registryRoutes = new OpenAPIHono<AppEnv>();
+
+function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
+  const clauses = [];
+
+  if (query.q) {
+    clauses.push(
+      or(
+        ilike(registryEntries.name, `%${query.q}%`),
+        ilike(registryEntries.description, `%${query.q}%`),
+        ilike(registryEntries.skillSlug, `%${query.q}%`),
+        ilike(registryEntries.orgSlug, `%${query.q}%`),
+      ),
+    );
+  }
+
+  if (query.minQuality != null) {
+    clauses.push(gte(registryEntries.qualityScore, query.minQuality));
+  }
+
+  if (query.security !== "all") {
+    clauses.push(eq(registryEntries.securityStatus, query.security));
+  }
+
+  if (query.runtime !== "all") {
+    clauses.push(eq(skills.runtime, query.runtime));
+  }
+
+  return clauses.length ? and(...clauses) : undefined;
+}
+
+function registryOrderBy(query: z.infer<typeof registryQuerySchema>) {
+  switch (query.sort) {
+    case "impact":
+      return desc(registryEntries.impactScore);
+    case "installs":
+      return desc(registryEntries.installCount);
+    case "activations":
+      return desc(registryEntries.activationCount);
+    case "recent":
+      return desc(registryEntries.updatedAt);
+    case "name":
+      return asc(registryEntries.name);
+    case "quality":
+    default:
+      return desc(registryEntries.qualityScore);
+  }
+}
 
 const listRegistryRoute = createRoute({
   method: "get",
@@ -58,16 +105,11 @@ const listRegistryRoute = createRoute({
 });
 
 registryRoutes.openapi(listRegistryRoute, async (c) => {
-  const { q, page, limit } = c.req.valid("query");
+  const query = c.req.valid("query");
+  const { page, limit } = query;
   const offset = (page - 1) * limit;
-
-  const where = q
-    ? or(
-        ilike(registryEntries.name, `%${q}%`),
-        ilike(registryEntries.description, `%${q}%`),
-        ilike(registryEntries.skillSlug, `%${q}%`),
-      )
-    : undefined;
+  const where = buildRegistryWhere(query);
+  const orderBy = registryOrderBy(query);
 
   const items = await c.var.db
     .select({
@@ -89,12 +131,14 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
     .from(registryEntries)
     .innerJoin(skills, eq(registryEntries.skillId, skills.id))
     .where(where)
+    .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
 
   const [countRow] = await c.var.db
     .select({ count: sql<number>`count(*)::int` })
     .from(registryEntries)
+    .innerJoin(skills, eq(registryEntries.skillId, skills.id))
     .where(where);
 
   return c.json({

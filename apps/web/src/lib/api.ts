@@ -49,6 +49,20 @@ export type SkillRunResult = {
   runtime: string;
 };
 
+export type SkillRun = {
+  id: string;
+  scriptPath: string;
+  runtime: string;
+  status: string;
+  stdout: string | null;
+  stderr: string | null;
+  exitCode: number | null;
+  durationMs: number | null;
+  error: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
 export type ExecutionPolicy = {
   hourlyRunLimit?: number;
   dailyRunLimit?: number;

@@ -81,6 +81,12 @@ export const registryQuerySchema = z.object({
   q: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  sort: z
+    .enum(["quality", "impact", "installs", "activations", "recent", "name"])
+    .default("quality"),
+  runtime: z.enum(["all", "local", "sandbox", "container"]).default("all"),
+  minQuality: z.coerce.number().int().min(0).max(100).optional(),
+  security: z.enum(["all", "pass", "advisory", "fail"]).default("all"),
 });
 
 export const skillMetaSchema = z.object({
@@ -171,4 +177,5 @@ export const runSkillSchema = z.object({
     .regex(/^scripts\//, "scriptPath must be under scripts/"),
   args: z.array(z.string().max(512)).max(20).optional(),
   targetUrl: z.string().url().max(2048).optional(),
+  stream: z.boolean().optional(),
 });

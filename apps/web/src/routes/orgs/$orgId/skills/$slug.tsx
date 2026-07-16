@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { ScoreBadges } from "@/components/score-badges";
 import { SkillRunCard } from "@/components/skill-run-card";
+import { SkillRunHistory } from "@/components/skill-run-history";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import { useState, useEffect, useMemo } from "react";
 
@@ -267,6 +268,10 @@ function SkillEditorPage() {
               slug={slug}
               scripts={scriptsData!.scripts}
             />
+          )}
+
+          {orgSlug && publishedVersion && (
+            <SkillRunHistory org={orgSlug} slug={slug} />
           )}
 
           <Card>

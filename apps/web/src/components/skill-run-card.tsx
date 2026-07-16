@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Play } from "lucide-react";
-import { api, type SkillRunResult } from "@/lib/api";
+import { apiUrl } from "@/lib/api-url";
+import type { SkillRunResult } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,12 +16,56 @@ type SkillRunCardProps = {
   defaultTargetUrl?: string;
 };
 
+async function parseSseRun(
+  response: Response,
+  onChunk: (stream: "stdout" | "stderr", chunk: string) => void,
+): Promise<SkillRunResult> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: SkillRunResult | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+
+    for (const part of parts) {
+      const lines = part.split("\n");
+      let event = "message";
+      let data = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) event = line.slice(7);
+        if (line.startsWith("data: ")) data = line.slice(6);
+      }
+      if (!data) continue;
+      const payload = JSON.parse(data) as Record<string, unknown>;
+      if (event === "output") {
+        onChunk(payload.stream as "stdout" | "stderr", String(payload.chunk));
+      } else if (event === "done") {
+        result = payload as SkillRunResult;
+      } else if (event === "error") {
+        throw new Error(String(payload.message ?? "Execution failed"));
+      }
+    }
+  }
+
+  if (!result) throw new Error("Stream ended without result");
+  return result;
+}
+
 export function SkillRunCard({
   org,
   slug,
   scripts,
   defaultTargetUrl = "https://example.com",
 }: SkillRunCardProps) {
+  const queryClient = useQueryClient();
   const [targetUrl, setTargetUrl] = useState(defaultTargetUrl);
   const [selectedScript, setSelectedScript] = useState(scripts[0] ?? "");
   const [runOutput, setRunOutput] = useState<string | null>(null);
@@ -28,24 +73,43 @@ export function SkillRunCard({
   const activeScript = selectedScript || scripts[0] || "";
 
   const runScript = useMutation({
-    mutationFn: (scriptPath: string) =>
-      api<SkillRunResult>(`/v1/skills/${org}/${slug}/run`, {
+    mutationFn: async (scriptPath: string) => {
+      setRunOutput("");
+      const response = await fetch(apiUrl(`/v1/skills/${org}/${slug}/run`), {
         method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scriptPath,
           targetUrl: targetUrl || undefined,
+          stream: true,
         }),
-      }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error((err as { error?: string }).error ?? "Run failed");
+      }
+
+      if (response.headers.get("content-type")?.includes("text/event-stream")) {
+        return parseSseRun(response, (stream, chunk) => {
+          setRunOutput((prev) => `${prev ?? ""}${chunk}`);
+        });
+      }
+
+      return response.json() as Promise<SkillRunResult>;
+    },
     onSuccess: (result) => {
-      setRunOutput(
+      setRunOutput((prev) =>
         [
-          result.stdout,
-          result.stderr ? `stderr:\n${result.stderr}` : "",
-          `exit ${result.exitCode} (${result.durationMs}ms) [${result.runtime}]`,
+          prev,
+          result.stderr ? `\nstderr:\n${result.stderr}` : "",
+          `\nexit ${result.exitCode} (${result.durationMs}ms) [${result.runtime}]`,
         ]
           .filter(Boolean)
-          .join("\n"),
+          .join(""),
       );
+      queryClient.invalidateQueries({ queryKey: ["runs", org, slug] });
     },
     onError: (err) => {
       setRunOutput(err instanceof Error ? err.message : "Run failed");
@@ -97,7 +161,7 @@ export function SkillRunCard({
           {runScript.isPending ? "Running…" : "Run script"}
         </Button>
         {runOutput && (
-          <pre className="max-h-64 overflow-auto rounded border bg-muted p-3 text-xs">
+          <pre className="max-h-64 overflow-auto rounded border bg-muted p-3 text-xs whitespace-pre-wrap">
             {runOutput}
           </pre>
         )}

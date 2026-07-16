@@ -4,20 +4,58 @@ import { api, type RegistryItem } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+type RegistryFilters = {
+  q: string;
+  sort: "quality" | "impact" | "installs" | "activations" | "recent" | "name";
+  runtime: "all" | "local" | "sandbox" | "container";
+  minQuality: string;
+  security: "all" | "pass" | "advisory" | "fail";
+};
+
+function buildRegistryQuery(filters: RegistryFilters): string {
+  const params = new URLSearchParams();
+  if (filters.q) params.set("q", filters.q);
+  params.set("sort", filters.sort);
+  params.set("runtime", filters.runtime);
+  if (filters.minQuality) params.set("minQuality", filters.minQuality);
+  params.set("security", filters.security);
+  return params.toString();
+}
 
 export const Route = createFileRoute("/registry/")({
   component: RegistryPage,
 });
 
 function RegistryPage() {
-  const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [sort, setSort] = useState<RegistryFilters["sort"]>("quality");
+  const [runtime, setRuntime] = useState<RegistryFilters["runtime"]>("all");
+  const [minQuality, setMinQuality] = useState("");
+  const [security, setSecurity] = useState<RegistryFilters["security"]>("all");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQ(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const queryString = buildRegistryQuery({
+    q: debouncedQ,
+    sort,
+    runtime,
+    minQuality,
+    security,
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ["registry", q],
+    queryKey: ["registry", queryString],
     queryFn: () =>
       api<{ items: RegistryItem[]; total: number }>(
-        `/v1/registry?q=${encodeURIComponent(q)}`,
+        `/v1/registry?${queryString}`,
       ),
   });
 
@@ -29,12 +67,82 @@ function RegistryPage() {
           Discover Agent Skills with quality, impact, and security scores
         </p>
       </div>
-      <Input
-        placeholder="Search skills..."
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        className="max-w-md"
-      />
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="lg:col-span-2">
+          <Label>Search</Label>
+          <Input
+            placeholder="Name, description, or slug…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label>Sort by</Label>
+          <select
+            className="mt-0 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as RegistryFilters["sort"])}
+          >
+            <option value="quality">Quality</option>
+            <option value="impact">Impact</option>
+            <option value="installs">Installs</option>
+            <option value="activations">Activations</option>
+            <option value="recent">Recently updated</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+        <div>
+          <Label>Runtime</Label>
+          <select
+            className="mt-0 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={runtime}
+            onChange={(e) =>
+              setRuntime(e.target.value as RegistryFilters["runtime"])
+            }
+          >
+            <option value="all">All</option>
+            <option value="sandbox">Sandbox</option>
+            <option value="container">Container</option>
+            <option value="local">Local only</option>
+          </select>
+        </div>
+        <div>
+          <Label>Min quality</Label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            placeholder="Any"
+            value={minQuality}
+            onChange={(e) => setMinQuality(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Label className="text-muted-foreground">Security</Label>
+        {(["all", "pass", "advisory", "fail"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={`rounded-full border px-3 py-1 text-xs capitalize ${
+              security === value
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-background"
+            }`}
+            onClick={() => setSecurity(value)}
+          >
+            {value}
+          </button>
+        ))}
+        {data && (
+          <span className="ml-auto text-sm text-muted-foreground">
+            {data.total} skill{data.total === 1 ? "" : "s"}
+          </span>
+        )}
+      </div>
+
       {isLoading ? (
         <p>Loading...</p>
       ) : (
@@ -89,7 +197,7 @@ function RegistryPage() {
           ))}
           {data?.items.length === 0 && (
             <p className="text-muted-foreground">
-              No public skills yet.
+              No skills match your filters.
             </p>
           )}
         </div>

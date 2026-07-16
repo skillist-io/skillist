@@ -129,17 +129,17 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
     return c.json({ error: quota.message }, 429);
   }
 
-  try {
-    const result = await runSkillScript(c.env, c.var.db, {
-      orgSlug: org,
-      skillSlug: slug,
-      scriptPath: body.scriptPath,
-      args: body.args,
-      targetUrl: body.targetUrl,
-      actorId: access.actorId,
-      actorType: access.actorType,
-    });
+  const runInput = {
+    orgSlug: org,
+    skillSlug: slug,
+    scriptPath: body.scriptPath,
+    args: body.args,
+    targetUrl: body.targetUrl,
+    actorId: access.actorId,
+    actorType: access.actorType,
+  };
 
+  const recordActivation = async () => {
     await c.var.db.insert(telemetryEvents).values({
       orgSlug: org,
       skillSlug: slug,
@@ -147,7 +147,50 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
       userId: access.actorType === "user" ? access.actorId : null,
       apiKeyId: access.actorType === "api_key" ? c.var.auth.apiKeyId : null,
     });
+  };
 
+  if (body.stream) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (event: string, data: unknown) => {
+          controller.enqueue(
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
+          );
+        };
+        try {
+          const result = await runSkillScript(c.env, c.var.db, {
+            ...runInput,
+            onOutput: (outputStream, chunk) => {
+              send("output", { stream: outputStream, chunk });
+            },
+          });
+          await recordActivation();
+          send("done", result);
+        } catch (err) {
+          send("error", {
+            message: err instanceof Error ? err.message : "Execution failed",
+          });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  }
+
+  try {
+    const result = await runSkillScript(c.env, c.var.db, runInput);
+    await recordActivation();
     return c.json(result, 200);
   } catch (err) {
     return c.json(
