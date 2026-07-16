@@ -30,4 +30,16 @@ test.describe("signed-in flows", () => {
     await page.getByRole("button", { name: "Load example" }).click();
     await expect(page.getByText("skillist/cloudflare-deploy")).toBeVisible();
   });
+
+  test("signed-in session authorizes apex /run via skillist.dev proxy", async ({ page }) => {
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/dashboard/);
+
+    const res = await page.request.post("/skillist/cloudflare-deploy/run", {
+      headers: { "Content-Type": "application/json" },
+      data: { scriptPath: "scripts/preflight.sh" },
+    });
+
+    expect(res.status()).not.toBe(401);
+  });
 });
