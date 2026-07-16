@@ -50,6 +50,18 @@ describe("production CLI smoke", () => {
       repo: "registry-mcp",
     });
   });
+
+  it("inventory scan dry-run discovers local skills without API key", () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "skillist-inventory-dry-"));
+    fs.mkdirSync(path.join(dir, ".cursor/skills/demo-skill"), { recursive: true });
+    fs.writeFileSync(path.join(dir, ".cursor/skills/demo-skill/SKILL.md"), "# Demo");
+
+    const out = runCli(["inventory", "scan", "--dry-run"], dir, {
+      GITHUB_REPOSITORY: "skillist/demo-repo",
+    });
+    expect(out).toContain(".cursor/skills/demo-skill/SKILL.md");
+    expect(out).toContain("skillist/demo-repo");
+  });
 });
 
 describe.skipIf(!process.env.SKILLIST_E2E_API_KEY)("authenticated CLI smoke", () => {
@@ -62,6 +74,26 @@ describe.skipIf(!process.env.SKILLIST_E2E_API_KEY)("authenticated CLI smoke", ()
     expect(res.ok).toBe(true);
     const orgs = (await res.json()) as { slug: string }[];
     expect(orgs.length).toBeGreaterThan(0);
+  });
+
+  it("inventory scan posts discovered skills", async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "skillist-inventory-post-"));
+    fs.mkdirSync(path.join(dir, ".vscode/skills/ci-skill"), { recursive: true });
+    fs.writeFileSync(path.join(dir, ".vscode/skills/ci-skill/SKILL.md"), "# CI");
+
+    const orgsRes = await fetch(`${API_URL}/v1/orgs`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const orgs = (await orgsRes.json()) as { slug: string }[];
+    const orgSlug = orgs[0]!.slug;
+
+    const out = runCli(["inventory", "scan", "--org", orgSlug, "--json"], dir, {
+      GITHUB_REPOSITORY: "skillist/ci-scan-test",
+      SKILLIST_API_KEY: apiKey,
+    });
+    const result = JSON.parse(out) as { upserted: number; items: { filePath: string }[] };
+    expect(result.upserted).toBeGreaterThan(0);
+    expect(result.items.some((item) => item.filePath.includes("ci-skill"))).toBe(true);
   });
 
   it("scripts endpoint accepts authenticated requests", async () => {
