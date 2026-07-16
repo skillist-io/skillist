@@ -40,5 +40,6 @@ skillist publish my-org/my-skill ./skills/my-skill
 - `skillist push <org>/<skill> <dir>` — upload draft version
 - `skillist publish <org>/<skill> <dir>` — push and publish
 - `skillist run <org>/<skill> --script <path> [--url <url>] [--stream]` — hosted execution
+- `skillist eval <org>/<skill> [--wait]` — queue skill eval on latest draft
 - `skillist update [org/skill]` — refresh installed skills
 - `skillist list` — show lockfile entries

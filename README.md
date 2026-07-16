@@ -76,6 +76,16 @@ SKILLIST_API_KEY=sk_... pnpm cli push acme/my-skill ./my-skill
 
 Set `SKILLIST_API_URL` (default `http://localhost:8787`) and `SKILLIST_API_KEY` for write operations.
 
+### Publish to npm
+
+```bash
+# Requires NPM_TOKEN secret in GitHub, or local npm login
+pnpm cli:build
+pnpm publish:packages
+```
+
+Or trigger **Publish npm packages** in GitHub Actions after adding the `NPM_TOKEN` repository secret.
+
 ## Project structure
 
 ```
