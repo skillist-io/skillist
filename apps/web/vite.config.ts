@@ -18,6 +18,15 @@ export default defineConfig({
       "/v1": "http://localhost:8787",
       "/docs": "http://localhost:8787",
       "/openapi.json": "http://localhost:8787",
+      // GitHub-style apex API: /{org}/{repo}/SKILL.md|meta|bundle|scripts|run|runs
+      "^/[^/]+/[^/]+/(SKILL\\.md|meta|bundle|scripts|run|runs)(/.*)?$": {
+        target: "http://localhost:8787",
+        changeOrigin: true,
+      },
+      "^/runs/": {
+        target: "http://localhost:8787",
+        changeOrigin: true,
+      },
     },
   },
 });

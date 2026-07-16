@@ -23,7 +23,7 @@ import {
 
 export type RunSkillInput = {
   orgSlug: string;
-  skillSlug: string;
+  skillRepo: string;
   scriptPath: string;
   args?: string[];
   targetUrl?: string;
@@ -95,7 +95,7 @@ export async function getPublishedBundle(
   env: Env,
   db: WorkerDb,
   orgSlug: string,
-  skillSlug: string,
+  skillRepo: string,
 ): Promise<{
   bundle: Map<string, string>;
   skill: typeof skills.$inferSelect;
@@ -111,7 +111,7 @@ export async function getPublishedBundle(
   const [skill] = await db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, org.id), eq(skills.slug, skillSlug)))
+    .where(and(eq(skills.orgId, org.id), eq(skills.repo, skillRepo)))
     .limit(1);
   if (!skill || !skill.latestPublishedVersionId) {
     throw new Error("Published skill not found");
@@ -139,7 +139,7 @@ export async function runSkillScript(
   db: WorkerDb,
   input: RunSkillInput,
 ): Promise<RunSkillResult> {
-  const { orgSlug, skillSlug, scriptPath, args = [], targetUrl } = input;
+  const { orgSlug, skillRepo, scriptPath, args = [], targetUrl } = input;
 
   if (!validateScriptPath(scriptPath)) {
     throw new Error(
@@ -152,7 +152,7 @@ export async function runSkillScript(
     env,
     db,
     orgSlug,
-    skillSlug,
+    skillRepo,
   );
 
   if (!bundle.has(scriptPath)) {
@@ -170,7 +170,7 @@ export async function runSkillScript(
       skillId: skill.id,
       versionId: version.id,
       orgSlug,
-      skillSlug,
+      skillRepo,
       scriptPath,
       runtime,
       status: "running",
@@ -248,7 +248,7 @@ export async function runSkillScript(
       resourceId: runId,
       metadata: {
         orgSlug,
-        skillSlug,
+        skillRepo,
         scriptPath,
         exitCode: result.exitCode,
         runtime,

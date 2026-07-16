@@ -20,7 +20,7 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
       or(
         ilike(registryEntries.name, `%${query.q}%`),
         ilike(registryEntries.description, `%${query.q}%`),
-        ilike(registryEntries.skillSlug, `%${query.q}%`),
+        ilike(registryEntries.skillRepo, `%${query.q}%`),
         ilike(registryEntries.orgSlug, `%${query.q}%`),
       ),
     );
@@ -93,7 +93,7 @@ export async function listRegistry(
   const items = await db
     .select({
       orgSlug: registryEntries.orgSlug,
-      skillSlug: registryEntries.skillSlug,
+      skillRepo: registryEntries.skillRepo,
       name: registryEntries.name,
       description: registryEntries.description,
       latestVersion: registryEntries.latestVersion,
@@ -125,10 +125,10 @@ export async function listRegistry(
     items: items.map((item) => ({
       ...item,
       cliInstall: CLI_INSTALL,
-      installCommand: `skillist install ${item.orgSlug}/${item.skillSlug}`,
+      installCommand: `skillist install ${item.orgSlug}/${item.skillRepo}`,
       runCommand:
         item.runtime && item.runtime !== "local"
-          ? `skillist run ${item.orgSlug}/${item.skillSlug} --script scripts/...`
+          ? `skillist run ${item.orgSlug}/${item.skillRepo} --script scripts/...`
           : null,
     })),
     page,
@@ -191,7 +191,7 @@ export async function getRegistrySkill(
     .where(
       and(
         eq(registryEntries.orgSlug, org),
-        eq(registryEntries.skillSlug, slug),
+        eq(registryEntries.skillRepo, slug),
       ),
     )
     .limit(1);
@@ -248,7 +248,7 @@ export async function getRegistrySkill(
     runtime: row.runtime,
     starred,
     cliInstall: CLI_INSTALL,
-    installCommand: `skillist install ${entry.orgSlug}/${entry.skillSlug}`,
+    installCommand: `skillist install ${entry.orgSlug}/${entry.skillRepo}`,
     pluginManifest,
     eval: evalSummary,
   };

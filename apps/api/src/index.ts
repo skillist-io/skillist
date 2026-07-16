@@ -17,6 +17,7 @@ import { feedbackRoutes } from "./routes/feedback";
 import { realtimeRoutes } from "./routes/realtime";
 import { governanceRoutes } from "./routes/governance";
 import { executionRoutes } from "./routes/execution";
+import { deliveryRoutes } from "./routes/delivery";
 import { rateLimit } from "./lib/rate-limit";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
 import { handleMcpRequest } from "./mcp/handler";
@@ -70,6 +71,21 @@ app.use(
 app.use("/v1/*", rateLimit());
 app.use("/v1/*", authMiddleware);
 
+// Apex execution paths need auth (delivery SKILL.md/meta/bundle stay public)
+app.use("*", async (c, next) => {
+  const path = c.req.path;
+  const needsAuth =
+    /^\/[^/]+\/[^/]+\/(scripts|run|runs)(\/|$)/.test(path) ||
+    path.startsWith("/runs/");
+  if (!needsAuth) {
+    await next();
+    return;
+  }
+  await rateLimit()(c, async () => {
+    await authMiddleware(c as never, next);
+  });
+});
+
 app.get("/health", (c) =>
   c.json({
     status: "ok",
@@ -96,10 +112,13 @@ v1.route("/", skillRoutes);
 v1.route("/", registryRoutes);
 v1.route("/", feedbackRoutes);
 v1.route("/", governanceRoutes);
-v1.route("/", executionRoutes);
 v1.route("/", realtimeRoutes);
 
 app.route("/v1", v1);
+
+// GitHub-style public delivery + execution on apex paths
+app.route("/", deliveryRoutes);
+app.route("/", executionRoutes);
 
 app.doc("/openapi.json", {
   openapi: "3.1.0",

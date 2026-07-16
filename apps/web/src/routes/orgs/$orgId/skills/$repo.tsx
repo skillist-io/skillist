@@ -27,13 +27,13 @@ function previewNextSemver(base: string | undefined, bump: SemverBump): string {
   return `${major}.${minor}.${patch + 1}`;
 }
 
-export const Route = createFileRoute("/orgs/$orgId/skills/$slug")({
+export const Route = createFileRoute("/orgs/$orgId/skills/$repo")({
   beforeLoad: () => requireAuth(),
   component: SkillEditorPage,
 });
 
 function SkillEditorPage() {
-  const { orgId, slug } = Route.useParams();
+  const { orgId, repo } = Route.useParams();
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [feedbackBody, setFeedbackBody] = useState("");
@@ -44,39 +44,39 @@ function SkillEditorPage() {
     queryFn: () => api<Org[]>("/v1/orgs"),
   });
   const orgSlug = orgs?.find((o) => o.id === orgId)?.slug ?? "";
-  const { connected, lastEvent } = useSkillRealtime(orgSlug, slug);
+  const { connected, lastEvent } = useSkillRealtime(orgSlug, repo);
 
   const { data: versions } = useQuery({
-    queryKey: ["versions", orgId, slug],
+    queryKey: ["versions", orgId, repo],
     queryFn: () =>
-      api<SkillVersion[]>(`/v1/orgs/${orgId}/skills/${slug}/versions`),
+      api<SkillVersion[]>(`/v1/orgs/${orgId}/skills/${repo}/versions`),
   });
 
   const latestDraft = versions?.find((v) => v.status === "draft") ?? versions?.[0];
   const publishedVersion = versions?.find((v) => v.status === "published");
 
   const { data: scriptsData } = useQuery({
-    queryKey: ["scripts", orgSlug, slug],
+    queryKey: ["scripts", orgSlug, repo],
     queryFn: () =>
       api<{ runtime: string; scripts: string[] }>(
-        `/v1/skills/${orgSlug}/${slug}/scripts`,
+        `/${orgSlug}/${repo}/scripts`,
       ),
     enabled: !!orgSlug && !!publishedVersion,
   });
 
   const { data: preview } = useQuery({
-    queryKey: ["preview", orgId, slug, latestDraft?.id],
+    queryKey: ["preview", orgId, repo, latestDraft?.id],
     queryFn: () =>
       api<ReviewPreview>(
-        `/v1/orgs/${orgId}/skills/${slug}/versions/${latestDraft!.id}/preview`,
+        `/v1/orgs/${orgId}/skills/${repo}/versions/${latestDraft!.id}/preview`,
       ),
     enabled: !!latestDraft,
   });
 
   const { data: evals } = useQuery({
-    queryKey: ["evals", orgId, slug],
+    queryKey: ["evals", orgId, repo],
     queryFn: () =>
-      api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${slug}/evals`),
+      api<{ items: SkillEval[] }>(`/v1/orgs/${orgId}/skills/${repo}/evals`),
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
       const pending = items.some(
@@ -120,19 +120,19 @@ function SkillEditorPage() {
   }, [latestDraft, evalGateRequired, draftEval, publishPolicy]);
 
   const { data: files } = useQuery({
-    queryKey: ["files", orgId, slug, latestDraft?.id],
+    queryKey: ["files", orgId, repo, latestDraft?.id],
     queryFn: () =>
       api<{ files: Record<string, string> }>(
-        `/v1/orgs/${orgId}/skills/${slug}/versions/${latestDraft!.id}/files`,
+        `/v1/orgs/${orgId}/skills/${repo}/versions/${latestDraft!.id}/files`,
       ),
     enabled: !!latestDraft,
   });
 
   const { data: compareFiles } = useQuery({
-    queryKey: ["files", orgId, slug, compareVersionId],
+    queryKey: ["files", orgId, repo, compareVersionId],
     queryFn: () =>
       api<{ files: Record<string, string> }>(
-        `/v1/orgs/${orgId}/skills/${slug}/versions/${compareVersionId!}/files`,
+        `/v1/orgs/${orgId}/skills/${repo}/versions/${compareVersionId!}/files`,
       ),
     enabled: !!compareVersionId,
   });
@@ -153,13 +153,13 @@ function SkillEditorPage() {
   useEffect(() => {
     if (lastEvent?.skillMd) {
       setContent(lastEvent.skillMd);
-      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] });
+      queryClient.invalidateQueries({ queryKey: ["versions", orgId, repo] });
     }
-  }, [lastEvent, orgId, slug, queryClient]);
+  }, [lastEvent, orgId, repo, queryClient]);
 
   const saveVersion = useMutation({
     mutationFn: () =>
-      api(`/v1/orgs/${orgId}/skills/${slug}/versions`, {
+      api(`/v1/orgs/${orgId}/skills/${repo}/versions`, {
         method: "PUT",
         body: JSON.stringify({
           files: { ...files?.files, "SKILL.md": content },
@@ -168,44 +168,44 @@ function SkillEditorPage() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] });
-      queryClient.invalidateQueries({ queryKey: ["evals", orgId, slug] });
+      queryClient.invalidateQueries({ queryKey: ["versions", orgId, repo] });
+      queryClient.invalidateQueries({ queryKey: ["evals", orgId, repo] });
     },
   });
 
   const runEval = useMutation({
     mutationFn: () =>
-      api(`/v1/orgs/${orgId}/skills/${slug}/versions/${latestDraft!.id}/eval`, {
+      api(`/v1/orgs/${orgId}/skills/${repo}/versions/${latestDraft!.id}/eval`, {
         method: "POST",
         body: JSON.stringify({}),
       }),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["evals", orgId, slug] }),
+      queryClient.invalidateQueries({ queryKey: ["evals", orgId, repo] }),
   });
 
   const publish = useMutation({
     mutationFn: (versionId: string) =>
-      api(`/v1/orgs/${orgId}/skills/${slug}/versions/${versionId}/publish`, {
+      api(`/v1/orgs/${orgId}/skills/${repo}/versions/${versionId}/publish`, {
         method: "POST",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] });
-      queryClient.invalidateQueries({ queryKey: ["evals", orgId, slug] });
+      queryClient.invalidateQueries({ queryKey: ["versions", orgId, repo] });
+      queryClient.invalidateQueries({ queryKey: ["evals", orgId, repo] });
     },
   });
 
   const rollback = useMutation({
     mutationFn: (versionId: string) =>
-      api(`/v1/orgs/${orgId}/skills/${slug}/versions/${versionId}/rollback`, {
+      api(`/v1/orgs/${orgId}/skills/${repo}/versions/${versionId}/rollback`, {
         method: "POST",
       }),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["versions", orgId, slug] }),
+      queryClient.invalidateQueries({ queryKey: ["versions", orgId, repo] }),
   });
 
   const setPublic = useMutation({
     mutationFn: () =>
-      api(`/v1/orgs/${orgId}/skills/${slug}/visibility`, {
+      api(`/v1/orgs/${orgId}/skills/${repo}/visibility`, {
         method: "PATCH",
         body: JSON.stringify({ visibility: "public" }),
       }),
@@ -213,7 +213,7 @@ function SkillEditorPage() {
 
   const submitFeedback = useMutation({
     mutationFn: () =>
-      api(`/v1/orgs/${orgId}/skills/${slug}/feedback`, {
+      api(`/v1/orgs/${orgId}/skills/${repo}/feedback`, {
         method: "POST",
         body: JSON.stringify({
           targetVersionId: latestDraft!.id,
@@ -221,7 +221,7 @@ function SkillEditorPage() {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["feedback", orgId, slug] });
+      queryClient.invalidateQueries({ queryKey: ["feedback", orgId, repo] });
       setFeedbackBody("");
     },
   });
@@ -233,7 +233,7 @@ function SkillEditorPage() {
         body: JSON.stringify({ triggerAi: true }),
       }),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["feedback", orgId, slug] }),
+      queryClient.invalidateQueries({ queryKey: ["feedback", orgId, repo] }),
   });
 
   const nextDraftSemver = previewNextSemver(
@@ -245,7 +245,7 @@ function SkillEditorPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{slug}</h1>
+          <h1 className="text-2xl font-bold">{repo}</h1>
           <p className="text-sm text-muted-foreground">
             {connected ? "Realtime connected" : "Realtime disconnected"}
             {latestDraft ? ` · draft v${latestDraft.semver}` : ""}
@@ -349,18 +349,18 @@ function SkillEditorPage() {
           {(scriptsData?.scripts?.length ?? 0) > 0 && orgSlug && (
             <SkillRunCard
               org={orgSlug}
-              slug={slug}
+              repo={repo}
               scripts={scriptsData!.scripts}
             />
           )}
 
           {orgSlug && publishedVersion && (
-            <SkillRunHistory org={orgSlug} slug={slug} />
+            <SkillRunHistory org={orgSlug} repo={repo} />
           )}
 
           <SkillEvalPanel
             orgId={orgId}
-            slug={slug}
+            repo={repo}
             versionId={latestDraft?.id}
             onRunEval={() => runEval.mutate()}
             isRunning={runEval.isPending}
@@ -440,7 +440,7 @@ function SkillEditorPage() {
 
           <FeedbackInbox
             orgId={orgId}
-            slug={slug}
+            repo={repo}
             latestDraftId={latestDraft?.id}
             editorContent={content}
             feedbackBody={feedbackBody}

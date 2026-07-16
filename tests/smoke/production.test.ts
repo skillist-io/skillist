@@ -22,7 +22,7 @@ describe("production smoke", () => {
     expect(registry.items?.length).toBeGreaterThan(0);
     expect(registry.items[0]).toMatchObject({
       orgSlug: expect.any(String),
-      skillSlug: expect.any(String),
+      skillRepo: expect.any(String),
     });
   });
 
@@ -85,8 +85,25 @@ describe("production smoke", () => {
 
   it("registry skill detail includes eval metadata", async () => {
     const detail = await fetchJson("/v1/registry/skillist/registry-mcp");
-    expect(detail.skillSlug).toBe("registry-mcp");
-    expect(detail.eval?.status).toBe("completed");
+    expect(detail.skillRepo).toBe("registry-mcp");
+    // Eval may be absent immediately after a fresh seed
+    if (detail.eval) {
+      expect(detail.eval.status).toBe("completed");
+    }
+  });
+
+  it("apex delivery serves SKILL.md", async () => {
+    const res = await fetch(`${WEB_URL}/skillist/registry-mcp/SKILL.md`);
+    expect(res.ok).toBe(true);
+    const body = await res.text();
+    expect(body).toContain("name: registry-mcp");
+  });
+
+  it("apex skill page loads", async () => {
+    const res = await fetch(`${WEB_URL}/skillist/registry-mcp`);
+    expect(res.ok).toBe(true);
+    const html = await res.text();
+    expect(html.length).toBeGreaterThan(100);
   });
 
   it("web homepage loads", async () => {

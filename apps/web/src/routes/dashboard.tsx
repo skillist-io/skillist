@@ -143,11 +143,11 @@ function OrgCard({ org }: { org: Org }) {
           {skills?.map((s) => (
             <li key={s.id}>
               <Link
-                to="/orgs/$orgId/skills/$slug"
-                params={{ orgId: org.id, slug: s.slug }}
+                to="/orgs/$orgId/skills/$repo"
+                params={{ orgId: org.id, repo: s.repo }}
                 className="text-primary hover:underline"
               >
-                {s.slug}
+                {s.repo}
               </Link>{" "}
               <Badge className="ml-1">{s.visibility}</Badge>
             </li>

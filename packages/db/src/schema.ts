@@ -206,7 +206,7 @@ export const skills = pgTable(
     orgId: uuid("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    slug: text("slug").notNull(),
+    repo: text("repo").notNull(),
     visibility: skillVisibilityEnum("visibility").notNull().default("private"),
     description: text("description"),
     runtime: skillRuntimeEnum("runtime").notNull().default("local"),
@@ -219,7 +219,7 @@ export const skills = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("skills_org_slug_idx").on(t.orgId, t.slug),
+    uniqueIndex("skills_org_repo_idx").on(t.orgId, t.repo),
     index("skills_visibility_idx").on(t.visibility),
   ],
 );
@@ -333,7 +333,7 @@ export const registryEntries = pgTable(
       .references(() => skills.id, { onDelete: "cascade" })
       .unique(),
     orgSlug: text("org_slug").notNull(),
-    skillSlug: text("skill_slug").notNull(),
+    skillRepo: text("skill_repo").notNull(),
     name: text("name").notNull(),
     description: text("description").notNull(),
     latestVersion: text("latest_version"),
@@ -355,7 +355,7 @@ export const registryEntries = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("registry_org_skill_idx").on(t.orgSlug, t.skillSlug),
+    uniqueIndex("registry_org_skill_idx").on(t.orgSlug, t.skillRepo),
     index("registry_search_idx").on(t.name, t.description),
     index("registry_category_idx").on(t.category),
   ],
@@ -469,7 +469,7 @@ export const telemetryEvents = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     orgSlug: text("org_slug").notNull(),
-    skillSlug: text("skill_slug").notNull(),
+    skillRepo: text("skill_repo").notNull(),
     eventType: telemetryEventEnum("event_type").notNull(),
     projectHash: text("project_hash"),
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
@@ -479,7 +479,7 @@ export const telemetryEvents = pgTable(
       .defaultNow(),
   },
   (t) => [
-    index("telemetry_skill_idx").on(t.orgSlug, t.skillSlug),
+    index("telemetry_skill_idx").on(t.orgSlug, t.skillRepo),
     index("telemetry_type_idx").on(t.eventType),
   ],
 );
@@ -525,13 +525,13 @@ export const orgRequiredSkills = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     orgSlug: text("org_slug").notNull(),
-    skillSlug: text("skill_slug").notNull(),
+    skillRepo: text("skill_repo").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("org_required_skills_idx").on(t.orgId, t.orgSlug, t.skillSlug),
+    uniqueIndex("org_required_skills_idx").on(t.orgId, t.orgSlug, t.skillRepo),
   ],
 );
 
@@ -544,10 +544,10 @@ export const skillInventory = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     repoFullName: text("repo_full_name").notNull(),
     filePath: text("file_path").notNull(),
-    skillSlug: text("skill_slug"),
+    localSlug: text("local_slug"),
     managed: boolean("managed").notNull().default(false),
     registryOrgSlug: text("registry_org_slug"),
-    registrySkillSlug: text("registry_skill_slug"),
+    registryRepo: text("registry_repo"),
     scannedAt: timestamp("scanned_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -572,7 +572,7 @@ export const skillRuns = pgTable(
       .notNull()
       .references(() => skillVersions.id, { onDelete: "cascade" }),
     orgSlug: text("org_slug").notNull(),
-    skillSlug: text("skill_slug").notNull(),
+    skillRepo: text("skill_repo").notNull(),
     scriptPath: text("script_path").notNull(),
     runtime: skillRuntimeEnum("runtime").notNull(),
     status: skillRunStatusEnum("status").notNull().default("queued"),

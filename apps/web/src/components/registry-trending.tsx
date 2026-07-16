@@ -31,18 +31,18 @@ export function RegistryTrending() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {data.items.map((item) => (
-        <Card key={`${item.orgSlug}/${item.skillSlug}`}>
+        <Card key={`${item.orgSlug}/${item.skillRepo}`}>
           <CardHeader className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <CardTitle className="text-base">{item.name}</CardTitle>
                 <CardDescription>
-                  {item.orgSlug}/{item.skillSlug}
+                  {item.orgSlug}/{item.skillRepo}
                 </CardDescription>
               </div>
               <StarButton
                 org={item.orgSlug}
-                slug={item.skillSlug}
+                repo={item.skillRepo}
                 stars={item.stars}
               />
             </div>
@@ -62,8 +62,8 @@ export function RegistryTrending() {
               {item.description}
             </p>
             <Link
-              to="/registry/$org/$slug"
-              params={{ org: item.orgSlug, slug: item.skillSlug }}
+              to="/$org/$repo"
+              params={{ org: item.orgSlug, repo: item.skillRepo }}
               className="text-sm text-primary hover:underline"
             >
               View skill →

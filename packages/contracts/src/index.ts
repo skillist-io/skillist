@@ -47,7 +47,7 @@ export const createOrgSchema = z.object({
 });
 
 export const createSkillSchema = z.object({
-  slug: z
+  repo: z
     .string()
     .min(1)
     .max(64)
@@ -108,13 +108,13 @@ export const skillMetaSchema = z.object({
   version: z.string().optional(),
   etag: z.string().optional(),
   org: z.string(),
-  slug: z.string(),
+  repo: z.string(),
 });
 
 export const skillPublishedEventSchema = z.object({
   type: z.literal("skill.published"),
   org: z.string(),
-  slug: z.string(),
+  repo: z.string(),
   version: z.string(),
   versionId: z.string().uuid(),
   etag: z.string(),
@@ -153,14 +153,14 @@ export type PublishPolicy = z.infer<typeof publishPolicySchema>;
 
 export const telemetryEventSchema = z.object({
   orgSlug: z.string(),
-  skillSlug: z.string(),
+  skillRepo: z.string(),
   eventType: z.enum(["install", "activation"]),
   projectHash: z.string().max(64).optional(),
 });
 
 export const requiredSkillSchema = z.object({
   orgSlug: z.string(),
-  skillSlug: z.string(),
+  skillRepo: z.string(),
 });
 
 export const inventoryScanSchema = z.object({
@@ -168,9 +168,9 @@ export const inventoryScanSchema = z.object({
     z.object({
       repoFullName: z.string(),
       filePath: z.string(),
-      skillSlug: z.string().optional(),
+      localSlug: z.string().optional(),
       registryOrgSlug: z.string().optional(),
-      registrySkillSlug: z.string().optional(),
+      registryRepo: z.string().optional(),
     }),
   ),
 });

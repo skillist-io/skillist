@@ -52,7 +52,7 @@ future user-specific tools.
 | Tool | Purpose |
 |------|---------|
 | `registry_search` | Search skills by query, category, tag, agent, sort |
-| `registry_get_skill` | Full metadata for `org/slug` including eval uplift |
+| `registry_get_skill` | Full metadata for `org/repo` including eval uplift |
 | `registry_facets` | List categories, tags, and compatible agents |
 | `registry_install_help` | CLI install commands and SKILL.md URL |
 
@@ -60,8 +60,8 @@ future user-specific tools.
 
 1. Call `registry_facets` when the user needs browse filters.
 2. Call `registry_search` with `query`, `category`, `tag`, or `agent` as needed.
-3. For a specific skill, call `registry_get_skill` with `org` and `slug`.
-4. Call `registry_install_help` to return `npm install -g @skillist/cli` and `skillist install org/slug`.
+3. For a specific skill, call `registry_get_skill` with `org` and `repo`.
+4. Call `registry_install_help` to return `npm install -g @skillist/cli` and `skillist install org/repo`.
 5. Prefer skills with higher eval uplift and quality scores when multiple matches exist.
 
 ## Output format
@@ -70,9 +70,11 @@ future user-specific tools.
 Found 3 skills:
 - skillist/web-perf-audit (Q95, uplift +21) — hosted sandbox performance audits
   Install: skillist install skillist/web-perf-audit
+  Page: https://skillist.dev/skillist/web-perf-audit
 ```
 
 ## Constraints
 
 - Registry MCP is read-only — publish and run require the Skillist CLI with an API key.
 - Always include the install command when recommending a skill.
+- Skill pages and SKILL.md live at `https://skillist.dev/{org}/{repo}` and `https://skillist.dev/{org}/{repo}/SKILL.md`.

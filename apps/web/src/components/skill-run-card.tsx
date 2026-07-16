@@ -13,7 +13,7 @@ import { InstallSnippet } from "@/components/score-badges";
 
 type SkillRunCardProps = {
   org: string;
-  slug: string;
+  repo: string;
   scripts: string[];
   defaultTargetUrl?: string;
 };
@@ -63,7 +63,7 @@ async function parseSseRun(
 
 export function SkillRunCard({
   org,
-  slug,
+  repo,
   scripts,
   defaultTargetUrl = "https://example.com",
 }: SkillRunCardProps) {
@@ -79,7 +79,7 @@ export function SkillRunCard({
   const runScript = useMutation({
     mutationFn: async (scriptPath: string) => {
       setRunOutput("");
-      const response = await fetch(apiUrl(`/v1/skills/${org}/${slug}/run`), {
+      const response = await fetch(apiUrl(`/${org}/${repo}/run`), {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -113,7 +113,7 @@ export function SkillRunCard({
           .filter(Boolean)
           .join(""),
       );
-      queryClient.invalidateQueries({ queryKey: ["runs", org, slug] });
+      queryClient.invalidateQueries({ queryKey: ["runs", org, repo] });
     },
     onError: (err) => {
       setRunOutput(err instanceof Error ? err.message : "Run failed");
@@ -164,7 +164,7 @@ export function SkillRunCard({
           />
         </div>
         <InstallSnippet
-          command={`skillist run ${org}/${slug} --script ${activeScript}${targetUrl ? ` --url ${targetUrl}` : ""}`}
+          command={`skillist run ${org}/${repo} --script ${activeScript}${targetUrl ? ` --url ${targetUrl}` : ""}`}
         />
         <Button
           onClick={() => runScript.mutate(activeScript)}
