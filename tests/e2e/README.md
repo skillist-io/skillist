@@ -20,6 +20,8 @@ Export for GitHub Actions:
 
 ```bash
 ./scripts/export-e2e-auth-state.sh
+# or push directly:
+./scripts/setup-e2e-secrets.sh
 ```
 
 Add the output as repository secret `E2E_AUTH_STATE_B64`. CI runs authenticated tests when the secret is set.
