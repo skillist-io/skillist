@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type FeedbackInboxProps = {
   orgId: string;
-  slug: string;
+  repo: string;
   latestDraftId?: string;
   editorContent: string;
   feedbackBody: string;
@@ -39,7 +39,7 @@ function jobVariant(status: string) {
 
 export function FeedbackInbox({
   orgId,
-  slug,
+  repo,
   latestDraftId,
   editorContent,
   feedbackBody,
@@ -53,8 +53,8 @@ export function FeedbackInbox({
   isPublishing,
 }: FeedbackInboxProps) {
   const { data: feedbackList } = useQuery({
-    queryKey: ["feedback", orgId, slug],
-    queryFn: () => api<Feedback[]>(`/v1/orgs/${orgId}/skills/${slug}/feedback`),
+    queryKey: ["feedback", orgId, repo],
+    queryFn: () => api<Feedback[]>(`/v1/orgs/${orgId}/skills/${repo}/feedback`),
     refetchInterval: (query) => {
       const pending = query.state.data?.some(
         (f) =>
@@ -96,7 +96,7 @@ export function FeedbackInbox({
             key={f.id}
             feedback={f}
             orgId={orgId}
-            slug={slug}
+            repo={repo}
             editorContent={editorContent}
             onApprove={() => onApprove(f.id)}
             onApplyDraft={onApplyDraft}
@@ -113,7 +113,7 @@ export function FeedbackInbox({
 function FeedbackItem({
   feedback,
   orgId,
-  slug,
+  repo,
   editorContent,
   onApprove,
   onApplyDraft,
@@ -123,7 +123,7 @@ function FeedbackItem({
 }: {
   feedback: Feedback;
   orgId: string;
-  slug: string;
+  repo: string;
   editorContent: string;
   onApprove: () => void;
   onApplyDraft: (skillMd: string) => void;
@@ -134,10 +134,10 @@ function FeedbackItem({
   const draftVersionId = feedback.aiJob?.resultDraftVersionId;
 
   const { data: draftFiles } = useQuery({
-    queryKey: ["files", orgId, slug, draftVersionId],
+    queryKey: ["files", orgId, repo, draftVersionId],
     queryFn: () =>
       api<{ files: Record<string, string> }>(
-        `/v1/orgs/${orgId}/skills/${slug}/versions/${draftVersionId!}/files`,
+        `/v1/orgs/${orgId}/skills/${repo}/versions/${draftVersionId!}/files`,
       ),
     enabled: !!draftVersionId && feedback.aiJob?.status === "completed",
   });

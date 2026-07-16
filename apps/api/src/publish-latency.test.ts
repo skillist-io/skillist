@@ -53,7 +53,7 @@ describe("publish hot-path latency", () => {
       body: JSON.stringify({
         type: "skill.published",
         orgSlug: ORG,
-        skillSlug: SLUG,
+        skillRepo: SLUG,
         version: "1.0.0",
         skillMd: SKILL_MD,
         publishedAt: Date.now(),

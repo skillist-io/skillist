@@ -88,7 +88,7 @@ export function RegistryFeatured() {
               command={item.installCommand ?? `skillist install ${org}/${slug}`}
             />
             <Button variant="outline" size="sm" asChild>
-              <Link to="/registry/$org/$slug" params={{ org, slug }}>
+              <Link to="/$org/$repo" params={{ org, repo: slug }}>
                 View skill
               </Link>
             </Button>

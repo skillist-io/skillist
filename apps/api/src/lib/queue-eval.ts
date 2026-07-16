@@ -7,7 +7,7 @@ export type QueueEvalInput = {
   skillId: string;
   versionId: string;
   orgSlug: string;
-  skillSlug: string;
+  skillRepo: string;
   scenarios?: { name: string; prompt: string }[] | null;
 };
 
@@ -71,7 +71,7 @@ export async function queueSkillEval(
     skillId: input.skillId,
     versionId: input.versionId,
     orgSlug: input.orgSlug,
-    skillSlug: input.skillSlug,
+    skillRepo: input.skillRepo,
   });
 
   return { evalId: evalRow!.id, status: "queued", created: true };

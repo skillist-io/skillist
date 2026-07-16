@@ -28,7 +28,7 @@ export type AiJobMessage =
       feedbackId: string;
       skillId: string;
       orgSlug: string;
-      skillSlug: string;
+      skillRepo: string;
     }
   | {
       type: "eval";
@@ -36,7 +36,7 @@ export type AiJobMessage =
       skillId: string;
       versionId: string;
       orgSlug: string;
-      skillSlug: string;
+      skillRepo: string;
     };
 
 export type { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";

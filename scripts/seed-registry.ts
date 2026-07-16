@@ -89,16 +89,16 @@ function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-function skillMetaKey(orgSlug: string, skillSlug: string) {
-  return `skill:${orgSlug}:${skillSlug}:meta`;
+function skillMetaKey(orgSlug: string, skillRepo: string) {
+  return `skill:${orgSlug}:${skillRepo}:meta`;
 }
 
-function skillMdKey(orgSlug: string, skillSlug: string) {
-  return `skill:${orgSlug}:${skillSlug}:latest`;
+function skillMdKey(orgSlug: string, skillRepo: string) {
+  return `skill:${orgSlug}:${skillRepo}:latest`;
 }
 
-function r2Prefix(orgId: string, skillSlug: string, versionId: string) {
-  return `orgs/${orgId}/skills/${skillSlug}/v/${versionId}`;
+function r2Prefix(orgId: string, skillRepo: string, versionId: string) {
+  return `orgs/${orgId}/skills/${skillRepo}/v/${versionId}`;
 }
 
 function wrangler(cmd: string) {
@@ -207,7 +207,7 @@ async function seedSkill(
   let [skill] = await db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, org.id), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, org.id), eq(skills.repo, slug)))
     .limit(1);
 
   if (!skill) {
@@ -215,7 +215,7 @@ async function seedSkill(
       .insert(skills)
       .values({
         orgId: org.id,
-        slug,
+        repo: slug,
         visibility: "public",
         description: validation.frontmatter.description,
         runtime,
@@ -290,7 +290,7 @@ async function seedSkill(
     versionId,
     etag,
     org: org.slug,
-    slug,
+    repo: slug,
     publishedAt: publishedAt.toISOString(),
   };
 
@@ -304,7 +304,7 @@ async function seedSkill(
     .values({
       skillId: skill!.id,
       orgSlug: org.slug,
-      skillSlug: slug,
+      skillRepo: slug,
       name: validation.frontmatter.name,
       description: validation.frontmatter.description,
       latestVersion: semver,
@@ -360,11 +360,13 @@ async function main() {
   }
 
   console.log("\nDone. Verify:");
+  const delivery = IS_LOCAL ? "http://localhost:8787" : "https://skillist.dev";
   const api = IS_LOCAL
     ? "http://localhost:8787"
     : "https://api.skillist.dev";
   console.log(`  curl ${api}/v1/registry`);
-  console.log(`  curl ${api}/v1/skills/${ORG_SLUG}/roll-dice/SKILL.md`);
+  console.log(`  curl ${delivery}/${ORG_SLUG}/roll-dice/SKILL.md`);
+  console.log(`  open ${delivery}/${ORG_SLUG}/roll-dice`);
 }
 
 main().catch((err) => {

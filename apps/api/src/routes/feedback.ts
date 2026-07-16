@@ -29,10 +29,10 @@ export const feedbackRoutes = new OpenAPIHono<AppEnv>();
 
 const submitFeedbackRoute = createRoute({
   method: "post",
-  path: "/orgs/{orgId}/skills/{slug}/feedback",
+  path: "/orgs/{orgId}/skills/{repo}/feedback",
   tags: ["Feedback"],
   request: {
-    params: z.object({ orgId: z.string().uuid(), slug: z.string() }),
+    params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
     body: {
       content: { "application/json": { schema: submitFeedbackSchema } },
     },
@@ -43,7 +43,7 @@ const submitFeedbackRoute = createRoute({
 feedbackRoutes.openapi(submitFeedbackRoute, async (c) => {
   const userId = await resolveUserId(c);
   const auth = c.var.auth;
-  const { orgId, slug } = c.req.valid("param");
+  const { orgId, repo } = c.req.valid("param");
 
   if (!userId && !auth.apiKeyId) {
     return c.json({ error: "Unauthorized" }, 401);
@@ -64,7 +64,7 @@ feedbackRoutes.openapi(submitFeedbackRoute, async (c) => {
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -87,10 +87,10 @@ feedbackRoutes.openapi(submitFeedbackRoute, async (c) => {
 
 const listFeedbackRoute = createRoute({
   method: "get",
-  path: "/orgs/{orgId}/skills/{slug}/feedback",
+  path: "/orgs/{orgId}/skills/{repo}/feedback",
   tags: ["Feedback"],
   request: {
-    params: z.object({ orgId: z.string().uuid(), slug: z.string() }),
+    params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
     query: z.object({
       status: z.enum(["pending", "approved", "rejected"]).optional(),
     }),
@@ -100,14 +100,14 @@ const listFeedbackRoute = createRoute({
 
 feedbackRoutes.openapi(listFeedbackRoute, async (c) => {
   const userId = await resolveUserId(c);
-  const { orgId, slug } = c.req.valid("param");
+  const { orgId, repo } = c.req.valid("param");
   const access = await requireOrgRole(c.var.db, orgId, userId, "viewer");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const [skill] = await c.var.db
     .select()
     .from(skills)
-    .where(and(eq(skills.orgId, orgId), eq(skills.slug, slug)))
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
     .limit(1);
   if (!skill) return c.json({ error: "Not found" }, 404);
 
@@ -233,7 +233,7 @@ feedbackRoutes.openapi(approveRoute, async (c) => {
       feedbackId: id,
       skillId: skill.id,
       orgSlug: org?.slug ?? "",
-      skillSlug: skill.slug,
+      skillRepo: skill.repo,
     };
     await c.env.AI_QUEUE.send(message);
   }
@@ -335,7 +335,7 @@ feedbackRoutes.openapi(suggestRoute, async (c) => {
     feedbackId: id,
     skillId: item.skillId,
     orgSlug: org?.slug ?? "",
-    skillSlug: skill?.slug ?? "",
+    skillRepo: skill?.slug ?? "",
   };
   await c.env.AI_QUEUE.send(message);
 
