@@ -128,7 +128,7 @@ function RegistrySkillPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Play className="h-4 w-4" /> Run in Cloudflare Sandbox
+              <Play className="h-4 w-4" /> Run in Sandbox
             </CardTitle>
             <CardDescription>
               Execute bundled scripts in an isolated container on Skillist
@@ -213,7 +213,7 @@ function RegistrySkillPage() {
             target="_blank"
             rel="noreferrer"
           >
-            Fetch SKILL.md (KV hot path)
+            Fetch SKILL.md
           </a>
         </CardContent>
       </Card>
