@@ -1,0 +1,108 @@
+---
+title: MCP tools reference
+description: Parameters and examples for each Skillist registry MCP tool.
+---
+
+All tools are invoked via JSON-RPC `tools/call`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "<tool_name>",
+    "arguments": { }
+  }
+}
+```
+
+## registry_search
+
+Search the public registry by name, description, tags, category, or agent compatibility.
+
+### Parameters
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `query` | string | Search term (optional) |
+| `limit` | number | Max results, default 10, max 20 |
+| `category` | string | Filter by category |
+| `tag` | string | Filter by tag |
+| `agent` | string | `cursor`, `claude`, `vscode`, or `mcp` |
+| `sort` | string | `quality`, `trending`, `stars`, `installs`, `recent`, `name` |
+
+### Example
+
+```json
+{
+  "name": "registry_search",
+  "arguments": {
+    "query": "performance",
+    "limit": 5,
+    "sort": "quality"
+  }
+}
+```
+
+## registry_get_skill
+
+Full metadata for a skill including eval uplift, install command, and manifest.
+
+### Parameters
+
+| Field | Type | Required |
+|-------|------|----------|
+| `org` | string | yes — organization slug, e.g. `skillist` |
+| `slug` | string | yes — skill slug |
+
+### Example
+
+```json
+{
+  "name": "registry_get_skill",
+  "arguments": {
+    "org": "skillist",
+    "slug": "registry-mcp"
+  }
+}
+```
+
+## registry_facets
+
+List available filter facets: categories, tags, and compatible agents. No parameters.
+
+```json
+{
+  "name": "registry_facets",
+  "arguments": {}
+}
+```
+
+## registry_install_help
+
+Returns CLI install commands, SKILL.md URL, and registry page for a skill.
+
+### Parameters
+
+| Field | Type | Required |
+|-------|------|----------|
+| `org` | string | yes |
+| `slug` | string | yes |
+
+### Example response fields
+
+- `cliInstall` — global CLI setup (`npm install -g @skillist/cli`)
+- `installCommand` — `skillist install org/slug`
+- `runCommand` — sandbox run hint when applicable
+- `skillMdUrl` — published SKILL.md URL
+- `registryUrl` — web registry detail page
+
+## Agent workflow
+
+1. `registry_facets` — when the user needs browse filters
+2. `registry_search` — find candidates
+3. `registry_get_skill` — inspect eval scores and metadata
+4. `registry_install_help` — return install commands to the user
+
+Prefer skills with higher eval uplift and quality scores when multiple matches exist.

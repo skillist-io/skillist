@@ -1,0 +1,10 @@
+{
+  "name": "skillist-docs",
+  "compatibility_date": "2025-01-15",
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "docs.skillist.dev", "custom_domain": true }
+  ]
+}

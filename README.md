@@ -59,10 +59,13 @@ pnpm dev:api
 
 # Terminal 2 — Web
 pnpm dev:web
+
+# Terminal 3 — Docs (optional)
+pnpm dev:docs
 ```
 
 - API: http://localhost:8787
-- Docs: http://localhost:8787/docs
+- Docs: http://localhost:4321 (user docs) · http://localhost:8787/docs (API reference)
 - Web: http://localhost:5173
 
 Neon project `lively-dew-31540211` is provisioned; migrations run against `DATABASE_URL` in `.env`. Local API dev merges `wrangler.jsonc` with gitignored `wrangler.local.jsonc` (Hyperdrive → Neon). Run `pnpm setup:local` to sync `DATABASE_URL` into the local overlay.

@@ -1,0 +1,34 @@
+---
+title: Registry
+description: Browse, search, and install public agent skills from skillist.dev.
+---
+
+The Skillist registry lists public skills published by organizations. Each entry includes quality scores, eval uplift, compatible agents, tags, and install commands.
+
+## Web UI
+
+Browse at [skillist.dev/registry](https://skillist.dev/registry). Skill detail pages show eval history, MCP server config (when declared in `plugin.json`), and install snippets.
+
+## REST API
+
+```
+GET https://api.skillist.dev/v1/registry
+GET https://api.skillist.dev/v1/registry/{org}/{slug}
+```
+
+OpenAPI reference: [api.skillist.dev/docs](https://api.skillist.dev/docs)
+
+## MCP API
+
+For in-agent discovery, use [Registry MCP](/mcp/) at `https://api.skillist.dev/mcp`.
+
+## Publishing
+
+1. Create an organization on Skillist
+2. Author a skill with `SKILL.md` and `plugin.json` per [agentskills.io](https://agentskills.io/home)
+3. Publish via dashboard or `skillist publish`
+4. Set visibility to `public` for registry listing
+
+## Featured skills
+
+See [skillist.dev](https://skillist.dev) for curated picks and the `registry-mcp` demo skill.

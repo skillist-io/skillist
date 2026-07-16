@@ -1,0 +1,109 @@
+---
+title: Connect your agent
+description: Configure Cursor, Claude Code, VS Code, and other MCP clients to use the Skillist registry server.
+---
+
+## Endpoint
+
+All clients connect to:
+
+```
+https://api.skillist.dev/mcp
+```
+
+## Cursor
+
+Add to `.cursor/mcp.json` in your project (or global Cursor MCP settings):
+
+```json
+{
+  "mcpServers": {
+    "skillist-registry": {
+      "url": "https://api.skillist.dev/mcp"
+    }
+  }
+}
+```
+
+Restart Cursor or reload MCP servers. OAuth-capable Cursor builds discover authorization automatically — see [OAuth authentication](/mcp/oauth/).
+
+### Verify connection
+
+Ask your agent to call `registry_facets` or `registry_search` with query `"performance"`. You should see public skills from the `skillist` org.
+
+## Claude Desktop / Claude Code
+
+Use the remote HTTP transport with the same URL:
+
+```json
+{
+  "mcpServers": {
+    "skillist-registry": {
+      "url": "https://api.skillist.dev/mcp"
+    }
+  }
+}
+```
+
+Consult Anthropic's MCP docs for the config file location on your OS.
+
+## VS Code
+
+If your VS Code MCP extension supports streamable HTTP, point it at:
+
+```
+https://api.skillist.dev/mcp
+```
+
+Use the extension's server registration UI or `settings.json` per the extension's documentation.
+
+## Generic HTTP client
+
+Stateless JSON-RPC (no session):
+
+```bash
+curl -s https://api.skillist.dev/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list",
+    "params": {}
+  }'
+```
+
+Streamable HTTP with session:
+
+```bash
+# initialize — note Mcp-Session-Id response header
+curl -si https://api.skillist.dev/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {},
+      "clientInfo": { "name": "curl", "version": "1.0.0" }
+    }
+  }'
+```
+
+## Demo skill
+
+The [`skillist/registry-mcp`](https://skillist.dev/registry/skillist/registry-mcp) skill documents registry MCP usage for agents. Install it with:
+
+```bash
+skillist install skillist/registry-mcp
+```
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| 401 from MCP client | Complete OAuth sign-in at [skillist.dev/login](https://skillist.dev/login) if your client requires tokens |
+| Session not found | Call `initialize` first or omit `Mcp-Session-Id` for stateless JSON mode |
+| CORS errors | MCP is served with permissive CORS; ensure your client sends `Content-Type: application/json` |
+| OAuth discovery fails | Confirm `/.well-known/oauth-protected-resource` is reachable — see [OAuth](/mcp/oauth/) |

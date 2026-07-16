@@ -41,6 +41,12 @@ Add to `.cursor/mcp.json`:
 }
 ```
 
+OAuth-capable MCP clients (e.g. Cursor) discover authorization via
+`/.well-known/oauth-protected-resource` and sign in at `https://skillist.dev/login`.
+Full setup guide: [docs.skillist.dev/mcp/connect](https://docs.skillist.dev/mcp/connect/).
+Registry read tools work without a token; authenticated sessions are available for
+future user-specific tools.
+
 ## Available tools
 
 | Tool | Purpose |

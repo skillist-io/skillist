@@ -1,0 +1,119 @@
+/* Skillist design tokens — mirrors apps/web/src/index.css */
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --skillist-background: oklch(1 0 0);
+  --skillist-foreground: oklch(0.145 0 0);
+  --skillist-card: oklch(1 0 0);
+  --skillist-primary: oklch(0.205 0 0);
+  --skillist-primary-foreground: oklch(0.985 0 0);
+  --skillist-secondary: oklch(0.97 0 0);
+  --skillist-muted: oklch(0.97 0 0);
+  --skillist-muted-foreground: oklch(0.556 0 0);
+  --skillist-border: oklch(0.922 0 0);
+  --skillist-radius: 0.625rem;
+
+  --sl-font: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  --sl-color-white: var(--skillist-background);
+  --sl-color-black: var(--skillist-foreground);
+  --sl-color-gray-1: var(--skillist-background);
+  --sl-color-gray-2: var(--skillist-secondary);
+  --sl-color-gray-3: var(--skillist-muted);
+  --sl-color-gray-4: var(--skillist-border);
+  --sl-color-gray-5: var(--skillist-muted-foreground);
+  --sl-color-gray-6: var(--skillist-foreground);
+  --sl-color-gray-7: var(--skillist-foreground);
+
+  --sl-color-accent-low: color-mix(in oklch, var(--skillist-primary) 8%, white);
+  --sl-color-accent: var(--skillist-primary);
+  --sl-color-accent-high: var(--skillist-primary-foreground);
+
+  --sl-color-text: var(--skillist-foreground);
+  --sl-color-text-accent: var(--skillist-primary);
+  --sl-color-text-invert: var(--skillist-primary-foreground);
+
+  --sl-color-bg: var(--skillist-background);
+  --sl-color-bg-nav: color-mix(in oklch, var(--skillist-background) 92%, transparent);
+  --sl-color-bg-sidebar: var(--skillist-background);
+  --sl-color-bg-inline-code: var(--skillist-secondary);
+  --sl-color-bg-accent: var(--skillist-secondary);
+  --sl-color-hairline-light: var(--skillist-border);
+  --sl-color-hairline: var(--skillist-border);
+  --sl-color-hairline-shade: color-mix(in oklch, var(--skillist-border) 70%, transparent);
+
+  --sl-nav-height: 3.5rem;
+  --sl-nav-pad-x: 1.25rem;
+  --sl-content-width: 46rem;
+  --sl-sidebar-width: 18rem;
+  --sl-text-h1: 2.25rem;
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.25rem;
+  --sl-text-body: 1rem;
+  --sl-text-body-sm: 0.875rem;
+  --sl-text-code: 0.875rem;
+  --sl-line-height: 1.65;
+  --sl-line-height-headings: 1.2;
+  --sl-border-radius: var(--skillist-radius);
+}
+
+:root[data-theme="dark"] {
+  --skillist-background: oklch(0.145 0 0);
+  --skillist-foreground: oklch(0.985 0 0);
+  --skillist-card: oklch(0.205 0 0);
+  --skillist-primary: oklch(0.922 0 0);
+  --skillist-primary-foreground: oklch(0.205 0 0);
+  --skillist-secondary: oklch(0.269 0 0);
+  --skillist-muted: oklch(0.269 0 0);
+  --skillist-muted-foreground: oklch(0.708 0 0);
+  --skillist-border: oklch(1 0 0 / 10%);
+
+  --sl-color-accent-low: color-mix(in oklch, var(--skillist-primary) 12%, black);
+  --sl-color-accent: var(--skillist-primary);
+  --sl-color-accent-high: var(--skillist-primary-foreground);
+  --sl-color-bg-nav: color-mix(in oklch, var(--skillist-background) 88%, transparent);
+}
+
+body {
+  letter-spacing: -0.01em;
+}
+
+.site-title {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.hero {
+  padding-block: 2rem;
+}
+
+.hero h1 {
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.sl-markdown-content a:not([class]) {
+  text-underline-offset: 3px;
+}
+
+expressive-code {
+  --ec-brdRad: var(--skillist-radius);
+}
+
+.card-grid .card {
+  border-radius: var(--skillist-radius);
+}

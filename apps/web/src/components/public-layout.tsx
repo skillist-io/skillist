@@ -22,6 +22,11 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <Link to="/registry">Registry</Link>
             </Button>
             <Button variant="ghost" asChild>
+              <a href="https://docs.skillist.dev" target="_blank" rel="noreferrer">
+                Docs
+              </a>
+            </Button>
+            <Button variant="ghost" asChild>
               <a href={apiUrl("/docs")} target="_blank" rel="noreferrer">
                 API
               </a>

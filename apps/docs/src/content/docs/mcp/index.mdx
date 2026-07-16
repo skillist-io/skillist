@@ -1,0 +1,52 @@
+---
+title: Registry MCP
+description: Skillist exposes a public Model Context Protocol server for registry discovery and install help.
+---
+
+The **Skillist Registry MCP** server lets agents search, browse, and install skills without leaving the chat. It runs on the same API worker as the REST registry.
+
+## Endpoint
+
+```
+https://api.skillist.dev/mcp
+```
+
+## Transport
+
+| Feature | Value |
+|---------|-------|
+| Protocol | MCP 2024-11-05 |
+| Transport | [Streamable HTTP](https://modelcontextprotocol.io/) |
+| Stateless JSON | `POST` with `Accept: application/json` |
+| SSE sessions | `POST`/`GET` with `Accept: text/event-stream` and `Mcp-Session-Id` |
+| Session teardown | `DELETE` with `Mcp-Session-Id` |
+
+`initialize` returns an `Mcp-Session-Id` header for stateful clients. Plain JSON-RPC POST remains supported for simple clients.
+
+## Server info
+
+```bash
+curl https://api.skillist.dev/mcp
+```
+
+Returns transport metadata, tool names, and OAuth discovery URLs.
+
+## Tools
+
+| Tool | Purpose |
+|------|---------|
+| `registry_search` | Search by query, category, tag, agent, sort |
+| `registry_get_skill` | Full metadata for `org/slug` including eval uplift |
+| `registry_facets` | Categories, tags, and compatible agents |
+| `registry_install_help` | CLI install commands and SKILL.md URL |
+
+See [Tools reference](/mcp/tools/) for parameters and examples.
+
+## Read-only by design
+
+Registry MCP is read-only. Publish, edit, and sandbox **run** require the [CLI](/getting-started/cli/) with an authenticated API key.
+
+## Next steps
+
+- [Connect your agent](/mcp/connect/) — Cursor, Claude, VS Code
+- [OAuth authentication](/mcp/oauth/) — Better Auth MCP for OAuth-capable clients

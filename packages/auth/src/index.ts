@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { mcp } from "better-auth/plugins";
 import type { WorkerDb } from "./types";
 import * as schema from "@skillist/db/schema";
 import { buildSocialProviders } from "./social-providers";
@@ -16,6 +17,7 @@ export {
 export type AuthEnv = {
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
+  WEB_URL?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   GOOGLE_CLIENT_ID?: string;
@@ -29,12 +31,21 @@ export type EmailSender = (params: {
   text: string;
 }) => Promise<void>;
 
+export function resolveWebUrl(env: AuthEnv): string {
+  if (env.WEB_URL) return env.WEB_URL.replace(/\/$/, "");
+  if (env.BETTER_AUTH_URL.includes("localhost")) {
+    return "http://localhost:5173";
+  }
+  return "https://skillist.dev";
+}
+
 export function createAuth(
   db: WorkerDb,
   env: AuthEnv,
   sendEmail?: EmailSender,
 ) {
   const socialProviders = buildSocialProviders(env);
+  const webUrl = resolveWebUrl(env);
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -45,12 +56,16 @@ export function createAuth(
         account: schema.accounts,
         verification: schema.verifications,
         passkey: schema.passkeys,
+        oauthApplication: schema.oauthApplications,
+        oauthAccessToken: schema.oauthAccessTokens,
+        oauthConsent: schema.oauthConsents,
       },
     }),
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [
       env.BETTER_AUTH_URL,
+      webUrl,
       "http://localhost:5173",
       "http://localhost:8787",
       "https://skillist.dev",
@@ -88,6 +103,10 @@ export function createAuth(
             text: `Your Skillist code: ${otp}`,
           });
         },
+      }),
+      mcp({
+        loginPage: `${webUrl}/login`,
+        resource: env.BETTER_AUTH_URL,
       }),
     ],
   });
