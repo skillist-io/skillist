@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { api, type Org, type PublishPolicy, type AuditEvent } from "@/lib/api";
+import { api, type Org, type PublishPolicy, type ExecutionPolicy, type AuditEvent } from "@/lib/api";
 import { apiUrl } from "@/lib/api-url";
 import { oauthRedirectUris } from "@skillist/auth";
 import { requireAuth } from "@/lib/require-auth";
@@ -14,6 +14,7 @@ import { requireAuth } from "@/lib/require-auth";
 const API_SCOPES = [
   "skills:read",
   "skills:write",
+  "skills:run",
   "skills:publish",
   "feedback:submit",
   "feedback:approve",
@@ -271,6 +272,10 @@ function GovernancePanel({ orgId }: { orgId: string }) {
   const [minQuality, setMinQuality] = useState(60);
   const [requirePass, setRequirePass] = useState(false);
   const [blockAdvisory, setBlockAdvisory] = useState(true);
+  const [hourlyRuns, setHourlyRuns] = useState(50);
+  const [dailyRuns, setDailyRuns] = useState(500);
+  const [containerHourly, setContainerHourly] = useState(10);
+  const [anonymousHourly, setAnonymousHourly] = useState(10);
   const [requiredOrgSlug, setRequiredOrgSlug] = useState("");
   const [requiredSkillSlug, setRequiredSkillSlug] = useState("");
 
@@ -278,6 +283,14 @@ function GovernancePanel({ orgId }: { orgId: string }) {
     queryKey: ["publish-policy", orgId],
     queryFn: () =>
       api<{ publishPolicy: PublishPolicy }>(`/v1/orgs/${orgId}/publish-policy`),
+  });
+
+  const { data: executionData } = useQuery({
+    queryKey: ["execution-policy", orgId],
+    queryFn: () =>
+      api<{ executionPolicy: ExecutionPolicy }>(
+        `/v1/orgs/${orgId}/execution-policy`,
+      ),
   });
 
   const { data: auditData } = useQuery({
@@ -314,6 +327,16 @@ function GovernancePanel({ orgId }: { orgId: string }) {
     }
   }, [policyData]);
 
+  useEffect(() => {
+    const p = executionData?.executionPolicy;
+    if (p) {
+      if (p.hourlyRunLimit != null) setHourlyRuns(p.hourlyRunLimit);
+      if (p.dailyRunLimit != null) setDailyRuns(p.dailyRunLimit);
+      if (p.containerHourlyLimit != null) setContainerHourly(p.containerHourlyLimit);
+      if (p.anonymousHourlyLimit != null) setAnonymousHourly(p.anonymousHourlyLimit);
+    }
+  }, [executionData]);
+
   const savePolicy = useMutation({
     mutationFn: () =>
       api(`/v1/orgs/${orgId}/publish-policy`, {
@@ -326,6 +349,21 @@ function GovernancePanel({ orgId }: { orgId: string }) {
       }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["publish-policy", orgId] }),
+  });
+
+  const saveExecutionPolicy = useMutation({
+    mutationFn: () =>
+      api(`/v1/orgs/${orgId}/execution-policy`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          hourlyRunLimit: hourlyRuns,
+          dailyRunLimit: dailyRuns,
+          containerHourlyLimit: containerHourly,
+          anonymousHourlyLimit: anonymousHourly,
+        }),
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["execution-policy", orgId] }),
   });
 
   const addRequired = useMutation({
@@ -389,6 +427,65 @@ function GovernancePanel({ orgId }: { orgId: string }) {
           </label>
           <Button onClick={() => savePolicy.mutate()} disabled={savePolicy.isPending}>
             Save policy
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Execution quotas</CardTitle>
+          <CardDescription>
+            Limit hosted script runs per organization
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Hourly run limit</Label>
+              <Input
+                type="number"
+                min={1}
+                max={10000}
+                value={hourlyRuns}
+                onChange={(e) => setHourlyRuns(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <Label>Daily run limit</Label>
+              <Input
+                type="number"
+                min={1}
+                max={100000}
+                value={dailyRuns}
+                onChange={(e) => setDailyRuns(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <Label>Container runs / hour</Label>
+              <Input
+                type="number"
+                min={1}
+                max={1000}
+                value={containerHourly}
+                onChange={(e) => setContainerHourly(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <Label>Anonymous public runs / hour</Label>
+              <Input
+                type="number"
+                min={0}
+                max={1000}
+                value={anonymousHourly}
+                onChange={(e) => setAnonymousHourly(Number(e.target.value))}
+              />
+            </div>
+          </div>
+          <Button
+            onClick={() => saveExecutionPolicy.mutate()}
+            disabled={saveExecutionPolicy.isPending}
+          >
+            Save quotas
           </Button>
         </CardContent>
       </Card>

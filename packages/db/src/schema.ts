@@ -160,6 +160,12 @@ export const organizations = pgTable(
       requireSecurityPass?: boolean;
       blockOnAdvisory?: boolean;
     }>(),
+    executionPolicy: jsonb("execution_policy").$type<{
+      hourlyRunLimit?: number;
+      dailyRunLimit?: number;
+      containerHourlyLimit?: number;
+      anonymousHourlyLimit?: number;
+    }>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

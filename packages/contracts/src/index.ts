@@ -30,6 +30,7 @@ export type AiJobStatus = z.infer<typeof aiJobStatusSchema>;
 export const apiKeyScopeSchema = z.enum([
   "skills:read",
   "skills:write",
+  "skills:run",
   "feedback:submit",
   "feedback:approve",
   "skills:publish",
@@ -119,6 +120,15 @@ export const publishPolicySchema = z.object({
   requireSecurityPass: z.boolean().optional(),
   blockOnAdvisory: z.boolean().optional(),
 });
+
+export const executionPolicySchema = z.object({
+  hourlyRunLimit: z.number().int().min(1).max(10_000).optional(),
+  dailyRunLimit: z.number().int().min(1).max(100_000).optional(),
+  containerHourlyLimit: z.number().int().min(1).max(1_000).optional(),
+  anonymousHourlyLimit: z.number().int().min(0).max(1_000).optional(),
+});
+export type ExecutionPolicy = z.infer<typeof executionPolicySchema>;
+export type PublishPolicy = z.infer<typeof publishPolicySchema>;
 
 export const telemetryEventSchema = z.object({
   orgSlug: z.string(),

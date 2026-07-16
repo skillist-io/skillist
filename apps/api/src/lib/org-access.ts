@@ -12,6 +12,7 @@ const ROLE_RANK: Record<OrgRole, number> = {
 
 const SCOPE_MIN_ROLE: Record<ApiKeyScope, OrgRole> = {
   "skills:read": "viewer",
+  "skills:run": "viewer",
   "skills:write": "editor",
   "skills:publish": "editor",
   "feedback:submit": "editor",
