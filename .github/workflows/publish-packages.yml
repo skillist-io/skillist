@@ -39,6 +39,13 @@ jobs:
       - run: pnpm --filter @skillist/cli build
 
       - name: Publish @skillist/cli
-        run: pnpm --filter @skillist/cli publish --no-git-checks --access public
+        run: |
+          published=$(npm view @skillist/cli version 2>/dev/null || true)
+          pkg_version=$(node -p "require('./packages/cli/package.json').version")
+          if [ "$published" = "$pkg_version" ]; then
+            echo "@skillist/cli@$pkg_version already on npm, skipping"
+          else
+            pnpm --filter @skillist/cli publish --no-git-checks --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
