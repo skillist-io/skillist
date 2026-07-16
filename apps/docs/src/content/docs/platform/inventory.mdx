@@ -83,7 +83,23 @@ Returns scanned items with `managed`, `registryOrgSlug`, `registryRepo`, and `sc
 
 ## CI integration
 
-Run a scan from CI after detecting skill folders in a monorepo, then POST results to the inventory API with an org API key. The web UI includes a **Load example** payload to test the flow.
+Run a scan from CI after detecting skill folders in a monorepo:
+
+```bash
+export SKILLIST_API_KEY=sk_...
+export GITHUB_REPOSITORY=$GITHUB_REPOSITORY   # set automatically in GitHub Actions
+skillist inventory scan --org my-org
+```
+
+Use `--dry-run` to print the payload without posting, or `--json` for machine-readable output.
+
+List current inventory:
+
+```bash
+skillist inventory list --org my-org
+```
+
+The web UI includes a **Load example** payload to test the flow manually.
 
 ## Related
 

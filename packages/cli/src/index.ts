@@ -2,6 +2,7 @@
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { type SemverBump, validateSkillBundle } from "@skillist/skill-format";
+import { discoverSkillItems, resolveRepoFullName } from "./inventory.js";
 
 const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.dev";
 const DELIVERY_URL = process.env.SKILLIST_DELIVERY_URL ?? "https://skillist.dev";
@@ -41,6 +42,9 @@ Usage:
   skillist rollback <org>/<repo> <semver>     Roll back to a previous published version
   skillist update [org/repo]               Update installed skills from lockfile
   skillist list                            List skills in lockfile
+  skillist inventory scan [--org <slug>]   Discover local skills and POST inventory scan
+                                              [--dry-run] [--json]
+  skillist inventory list [--org <slug>]   List org skill inventory
 
 Environment:
   SKILLIST_API_URL        API base URL (default: https://api.skillist.dev)
@@ -239,13 +243,106 @@ async function readLocalBundle(dir: string): Promise<Map<string, string>> {
 }
 
 async function resolveOrgId(orgSlug: string): Promise<string> {
+  const org = await resolveOrg(orgSlug);
+  return org.id;
+}
+
+async function resolveOrg(explicitSlug?: string): Promise<{ id: string; slug: string }> {
   const orgsRes = await apiFetch("/v1/orgs");
   const orgs = (await orgsRes.json()) as { id: string; slug: string }[];
-  const orgRecord = orgs.find((o) => o.slug === orgSlug);
-  if (!orgRecord) {
-    throw new Error(`Org "${orgSlug}" not found — create it in the dashboard first`);
+  if (orgs.length === 0) {
+    throw new Error("No organizations found — create one in the dashboard first");
   }
-  return orgRecord.id;
+  if (explicitSlug) {
+    const org = orgs.find((o) => o.slug === explicitSlug);
+    if (!org) throw new Error(`Org "${explicitSlug}" not found`);
+    return org;
+  }
+  if (orgs.length === 1) return orgs[0]!;
+  throw new Error(`Multiple orgs — pass --org (${orgs.map((o) => o.slug).join(", ")})`);
+}
+
+type InventoryRecord = {
+  id: string;
+  repoFullName: string;
+  filePath: string;
+  localSlug: string | null;
+  managed: boolean;
+  registryOrgSlug: string | null;
+  registryRepo: string | null;
+  scannedAt: string;
+};
+
+function parseOrgFlag(): string | undefined {
+  const idx = process.argv.indexOf("--org");
+  return idx >= 0 ? process.argv[idx + 1] : undefined;
+}
+
+async function scanInventory(options: { dryRun?: boolean; json?: boolean } = {}) {
+  const repoFullName = await resolveRepoFullName(process.cwd());
+  const items = await discoverSkillItems(process.cwd(), repoFullName);
+
+  if (items.length === 0) {
+    console.log("No skills found under .cursor/skills, .claude/skills, or .vscode/skills");
+    return;
+  }
+
+  if (options.dryRun) {
+    console.log(JSON.stringify({ items }, null, 2));
+    return;
+  }
+
+  if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for inventory scan");
+
+  const org = await resolveOrg(parseOrgFlag());
+
+  const res = await apiFetch(`/v1/orgs/${org.id}/inventory/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  const result = (await res.json()) as { upserted: number };
+
+  if (options.json) {
+    console.log(JSON.stringify({ org: org.slug, repoFullName, upserted: result.upserted, items }));
+    return;
+  }
+
+  console.log(
+    `Scanned ${items.length} skill(s) in ${repoFullName} → ${org.slug} (${result.upserted} upserted)`,
+  );
+  for (const item of items) {
+    console.log(`  ${item.filePath}${item.localSlug ? ` (${item.localSlug})` : ""}`);
+  }
+}
+
+async function listInventory(json = false) {
+  if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for inventory list");
+
+  const org = await resolveOrg(parseOrgFlag());
+  const res = await apiFetch(`/v1/orgs/${org.id}/inventory`);
+  const data = (await res.json()) as { items: InventoryRecord[] };
+
+  if (json) {
+    console.log(JSON.stringify({ org: org.slug, items: data.items }, null, 2));
+    return;
+  }
+
+  if (data.items.length === 0) {
+    console.log(`No inventory items for ${org.slug}`);
+    return;
+  }
+
+  for (const item of data.items) {
+    const link =
+      item.managed && item.registryOrgSlug && item.registryRepo
+        ? `${item.registryOrgSlug}/${item.registryRepo}`
+        : "local";
+    console.log(
+      `${item.repoFullName}  ${item.filePath}  ${link}  (${item.scannedAt.slice(0, 10)})`,
+    );
+  }
+  console.log(`${data.items.length} item(s) for ${org.slug}`);
 }
 
 async function pushDraft(
@@ -605,6 +702,21 @@ async function main() {
       }
       await rollbackSkill(ref, arg);
       return;
+    }
+
+    if (cmd === "inventory") {
+      if (ref === "scan") {
+        await scanInventory({
+          dryRun: process.argv.includes("--dry-run"),
+          json: process.argv.includes("--json"),
+        });
+        return;
+      }
+      if (ref === "list") {
+        await listInventory(process.argv.includes("--json"));
+        return;
+      }
+      throw new Error("Usage: skillist inventory scan|list [--org <slug>]");
     }
 
     usage();
