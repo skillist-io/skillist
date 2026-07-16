@@ -8,6 +8,7 @@ import {
   scanSkillSecurity,
   parsePluginManifest,
   extractRegistryDiscovery,
+  extractAgentDiscovery,
 } from "./index";
 
 describe("validateSkillName", () => {
@@ -93,6 +94,33 @@ describe("parsePluginManifest", () => {
       JSON.stringify({ name: "my-plugin", skills: ["SKILL.md"] }),
     );
     expect(manifest?.name).toBe("my-plugin");
+  });
+});
+
+describe("extractAgentDiscovery", () => {
+  it("extracts declared agents from plugin.json", () => {
+    const manifest = parsePluginManifest(
+      JSON.stringify({
+        name: "my-plugin",
+        skills: ["SKILL.md"],
+        agents: ["cursor", "Claude", "custom-agent"],
+      }),
+    );
+    const agents = extractAgentDiscovery(manifest);
+    expect(agents).toContain("cursor");
+    expect(agents).toContain("claude");
+    expect(agents).toContain("custom-agent");
+  });
+
+  it("adds mcp when servers are declared", () => {
+    const manifest = parsePluginManifest(
+      JSON.stringify({
+        name: "mcp-plugin",
+        skills: ["SKILL.md"],
+        mcp: { servers: [{ name: "tools", url: "https://example.com/mcp" }] },
+      }),
+    );
+    expect(extractAgentDiscovery(manifest)).toContain("mcp");
   });
 });
 

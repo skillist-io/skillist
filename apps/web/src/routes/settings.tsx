@@ -272,6 +272,8 @@ function GovernancePanel({ orgId }: { orgId: string }) {
   const [minQuality, setMinQuality] = useState(60);
   const [requirePass, setRequirePass] = useState(false);
   const [blockAdvisory, setBlockAdvisory] = useState(true);
+  const [requireEval, setRequireEval] = useState(false);
+  const [minEvalUplift, setMinEvalUplift] = useState(0);
   const [hourlyRuns, setHourlyRuns] = useState(50);
   const [dailyRuns, setDailyRuns] = useState(500);
   const [containerHourly, setContainerHourly] = useState(10);
@@ -324,6 +326,8 @@ function GovernancePanel({ orgId }: { orgId: string }) {
       if (p.minQualityScore != null) setMinQuality(p.minQualityScore);
       if (p.requireSecurityPass != null) setRequirePass(p.requireSecurityPass);
       if (p.blockOnAdvisory != null) setBlockAdvisory(p.blockOnAdvisory);
+      if (p.requireEval != null) setRequireEval(p.requireEval);
+      if (p.minEvalUplift != null) setMinEvalUplift(p.minEvalUplift);
     }
   }, [policyData]);
 
@@ -345,6 +349,8 @@ function GovernancePanel({ orgId }: { orgId: string }) {
           minQualityScore: minQuality,
           requireSecurityPass: requirePass,
           blockOnAdvisory: blockAdvisory,
+          requireEval,
+          minEvalUplift: minEvalUplift,
         }),
       }),
     onSuccess: () =>
@@ -425,6 +431,24 @@ function GovernancePanel({ orgId }: { orgId: string }) {
             />
             Block publish on security advisories
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={requireEval}
+              onChange={(e) => setRequireEval(e.target.checked)}
+            />
+            Require completed eval before publish
+          </label>
+          <div>
+            <Label>Minimum eval uplift (-100 to 100)</Label>
+            <Input
+              type="number"
+              min={-100}
+              max={100}
+              value={minEvalUplift}
+              onChange={(e) => setMinEvalUplift(Number(e.target.value))}
+            />
+          </div>
           <Button onClick={() => savePolicy.mutate()} disabled={savePolicy.isPending}>
             Save policy
           </Button>

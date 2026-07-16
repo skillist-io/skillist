@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScoreBadges, InstallSnippet } from "@/components/score-badges";
+import { StarButton } from "@/components/registry-star-button";
 import { useEffect, useState } from "react";
 
 type RegistryFilters = {
   q: string;
-  sort: "quality" | "impact" | "installs" | "activations" | "recent" | "name";
+  sort: "quality" | "impact" | "installs" | "activations" | "stars" | "trending" | "recent" | "name";
   runtime: "all" | "local" | "sandbox" | "container";
   minQuality: string;
   security: "all" | "pass" | "advisory" | "fail";
@@ -102,6 +103,8 @@ function RegistryPage() {
             <option value="impact">Impact</option>
             <option value="installs">Installs</option>
             <option value="activations">Activations</option>
+            <option value="stars">Stars</option>
+            <option value="trending">Trending</option>
             <option value="recent">Recently updated</option>
             <option value="name">Name</option>
           </select>
@@ -218,6 +221,11 @@ function RegistryPage() {
                   {item.latestVersion && (
                     <Badge>v{item.latestVersion}</Badge>
                   )}
+                  <StarButton
+                    org={item.orgSlug}
+                    slug={item.skillSlug}
+                    stars={item.stars}
+                  />
                 </div>
                 <ScoreBadges
                   quality={item.qualityScore}
@@ -232,6 +240,11 @@ function RegistryPage() {
                 {item.tags?.map((t) => (
                   <Badge key={t} variant="outline" className="text-xs">
                     {t}
+                  </Badge>
+                ))}
+                {item.compatibleAgents?.map((agent) => (
+                  <Badge key={agent} variant="secondary" className="text-xs">
+                    {agent}
                   </Badge>
                 ))}
               </CardHeader>

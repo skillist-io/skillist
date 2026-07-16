@@ -5,6 +5,7 @@ export const pluginManifestSchema = z.object({
   version: z.string().optional(),
   description: z.string().optional(),
   skills: z.array(z.string()).default(["SKILL.md"]),
+  agents: z.array(z.string().min(1).max(64)).optional(),
   rules: z.array(z.string()).optional(),
   mcp: z
     .object({

@@ -37,6 +37,8 @@ export type RegistryItem = {
   runtime?: string | null;
   category?: string | null;
   tags?: string[];
+  compatibleAgents?: string[];
+  starred?: boolean;
   installCommand?: string;
   runCommand?: string | null;
 };
@@ -78,6 +80,8 @@ export type PublishPolicy = {
   minQualityScore?: number;
   requireSecurityPass?: boolean;
   blockOnAdvisory?: boolean;
+  minEvalUplift?: number;
+  requireEval?: boolean;
 };
 
 export type AuditEvent = {

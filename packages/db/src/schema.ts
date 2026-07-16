@@ -159,6 +159,8 @@ export const organizations = pgTable(
       minQualityScore?: number;
       requireSecurityPass?: boolean;
       blockOnAdvisory?: boolean;
+      minEvalUplift?: number;
+      requireEval?: boolean;
     }>(),
     executionPolicy: jsonb("execution_policy").$type<{
       hourlyRunLimit?: number;
@@ -343,6 +345,10 @@ export const registryEntries = pgTable(
     stars: integer("stars").notNull().default(0),
     category: text("category"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    compatibleAgents: jsonb("compatible_agents")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -371,6 +377,25 @@ export const subscriptions = pgTable(
   },
   (t) => [
     uniqueIndex("subscriptions_user_skill_idx").on(t.userId, t.skillId),
+  ],
+);
+
+export const registryStars = pgTable(
+  "registry_stars",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("registry_stars_user_skill_idx").on(t.userId, t.skillId),
   ],
 );
 

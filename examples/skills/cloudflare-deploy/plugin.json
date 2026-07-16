@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Cloudflare Workers deploy skill with scripts, references, and templates",
   "skills": ["SKILL.md"],
+  "agents": ["cursor", "claude", "vscode"],
   "rules": [
     "Always run preflight and validate-config before deploy",
     "Never expose secrets in logs or commits"
