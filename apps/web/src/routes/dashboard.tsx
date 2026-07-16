@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Org, type Skill } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
+import { QueryError } from "@/components/query-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ function DashboardPage() {
   const [orgSlug, setOrgSlug] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: orgs } = useQuery({
+  const { data: orgs, isError: orgsError, refetch: refetchOrgs } = useQuery({
     queryKey: ["orgs"],
     queryFn: () => api<Org[]>("/v1/orgs"),
   });
@@ -69,6 +70,10 @@ function DashboardPage() {
         </CardContent>
       </Card>
 
+      {orgsError ? (
+        <QueryError onRetry={() => void refetchOrgs()} />
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2">
         {orgs?.map((org) => (
           <OrgCard key={org.id} org={org} />
@@ -79,13 +84,14 @@ function DashboardPage() {
 }
 
 function OrgCard({ org }: { org: Org }) {
-  const [slug, setSlug] = useState("");
+  const [repo, setRepo] = useState("");
+  const [createSkillError, setCreateSkillError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: skills } = useQuery({
+  const { data: skills, isError: skillsError, refetch: refetchSkills } = useQuery({
     queryKey: ["skills", org.id],
     queryFn: () => api<Skill[]>(`/v1/orgs/${org.id}/skills`),
   });
@@ -94,11 +100,15 @@ function OrgCard({ org }: { org: Org }) {
     mutationFn: () =>
       api(`/v1/orgs/${org.id}/skills`, {
         method: "POST",
-        body: JSON.stringify({ slug, visibility: "private" }),
+        body: JSON.stringify({ repo, visibility: "private" }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["skills", org.id] });
-      setSlug("");
+      setRepo("");
+      setCreateSkillError(null);
+    },
+    onError: (err) => {
+      setCreateSkillError(err instanceof Error ? err.message : "Failed to create skill");
     },
   });
 
@@ -128,17 +138,29 @@ function OrgCard({ org }: { org: Org }) {
       <CardContent className="space-y-3">
         <div className="flex gap-2">
           <Input
-            placeholder="new-skill-slug"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
+            placeholder="new-skill-repo"
+            value={repo}
+            onChange={(e) => setRepo(e.target.value)}
           />
           <Button
-            onClick={() => createSkill.mutate()}
-            disabled={!slug || createSkill.isPending}
+            onClick={() => {
+              setCreateSkillError(null);
+              createSkill.mutate();
+            }}
+            disabled={!repo || createSkill.isPending}
           >
             Add skill
           </Button>
         </div>
+        {createSkillError ? (
+          <p className="text-sm text-destructive">{createSkillError}</p>
+        ) : null}
+        {skillsError ? (
+          <QueryError
+            title="Could not load skills"
+            onRetry={() => void refetchSkills()}
+          />
+        ) : null}
         <ul className="space-y-1 text-sm">
           {skills?.map((s) => (
             <li key={s.id}>

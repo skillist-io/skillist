@@ -1,4 +1,5 @@
 import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router";
+import { RouteErrorFallback } from "@/components/route-error";
 import { AppShell } from "@/components/app-shell";
 import { AuthShell } from "@/components/auth-shell";
 import { PublicLayout } from "@/components/public-layout";
@@ -42,4 +43,5 @@ function RootLayout() {
 
 export const Route = createRootRoute({
   component: RootLayout,
+  errorComponent: RouteErrorFallback,
 });
