@@ -1,12 +1,17 @@
 {
   "name": "@skillist/skill-format",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "agentskills.io bundle validation and review for Skillist",
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist",
     "README.md"
