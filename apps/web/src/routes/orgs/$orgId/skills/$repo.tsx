@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Check, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { FeedbackInbox } from "@/components/feedback-inbox";
 import { ScoreBadges } from "@/components/score-badges";
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import {
@@ -240,7 +242,7 @@ function SkillEditorPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{repo}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{repo}</h1>
           <p className="text-sm text-muted-foreground">
             {connected ? "Realtime connected" : "Realtime disconnected"}
             {latestDraft ? ` · draft v${latestDraft.semver}` : ""}
@@ -251,9 +253,8 @@ function SkillEditorPage() {
             <Label htmlFor="version-bump" className="text-xs">
               Next version
             </Label>
-            <select
+            <NativeSelect
               id="version-bump"
-              className="rounded-md border bg-background px-2 py-1.5 text-sm"
               value={versionBump}
               onChange={(e) => setVersionBump(e.target.value as SemverBump)}
             >
@@ -269,7 +270,7 @@ function SkillEditorPage() {
                 Major → v
                 {previewNextSemver(latestDraft?.semver ?? publishedVersion?.semver, "major")}
               </option>
-            </select>
+            </NativeSelect>
           </div>
           <Button variant="outline" onClick={() => setPublic.mutate()}>
             Make public
@@ -309,10 +310,10 @@ function SkillEditorPage() {
 
         <div className="space-y-4">
           {publishBlockedReason && (
-            <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
-              <CardContent className="pt-4 text-sm text-amber-900 dark:text-amber-100">
+            <Card>
+              <CardContent className="pt-4 text-sm">
                 <span className="font-medium">Publish gated by eval policy.</span>{" "}
-                {publishBlockedReason}
+                <span className="text-muted-foreground">{publishBlockedReason}</span>
               </CardContent>
             </Card>
           )}
@@ -334,21 +335,28 @@ function SkillEditorPage() {
               {preview?.reviewChecks?.map((check) => (
                 <div
                   key={check.id}
-                  className={`rounded border px-2 py-1 text-xs ${
-                    check.passed ? "border-green-200" : "border-amber-200"
+                  className={`border px-2 py-1 text-xs ${
+                    check.passed ? "border-border" : "border-destructive/40"
                   }`}
                 >
-                  <span className="font-medium">{check.label}</span>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    {check.passed ? (
+                      <Check className="size-3.5" aria-hidden />
+                    ) : (
+                      <X className="size-3.5 text-destructive" aria-hidden />
+                    )}
+                    {check.label}
+                  </span>
                   <p className="text-muted-foreground">{check.message}</p>
                 </div>
               ))}
               {preview?.securityIssues?.map((issue) => (
                 <div
                   key={`${issue.severity}-${issue.path}-${issue.message}`}
-                  className="rounded border border-red-200 px-2 py-1 text-xs"
+                  className="border border-destructive/40 px-2 py-1 text-xs"
                 >
-                  <span className="font-medium">{issue.severity}</span> {issue.path}:{" "}
-                  {issue.message}
+                  <span className="font-medium text-destructive uppercase">{issue.severity}</span>{" "}
+                  {issue.path}: {issue.message}
                 </div>
               ))}
             </CardContent>
@@ -415,15 +423,15 @@ function SkillEditorPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <pre className="max-h-64 overflow-auto rounded border bg-muted p-2 font-mono text-xs">
+                <pre className="max-h-64 overflow-auto border border-border bg-muted p-2 font-mono text-xs">
                   {diff.map((line) => (
                     <div
                       key={`${line.type}-${line.line}`}
                       className={
                         line.type === "add"
-                          ? "bg-green-100 text-green-900"
+                          ? "bg-foreground/[0.06] text-foreground"
                           : line.type === "remove"
-                            ? "bg-red-100 text-red-900"
+                            ? "bg-destructive/10 text-destructive"
                             : "text-muted-foreground"
                       }
                     >
