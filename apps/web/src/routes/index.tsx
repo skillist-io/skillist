@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegistryTrending } from "@/components/registry-trending";
+import { RegistryFeatured } from "@/components/registry-featured";
 import { InstallSnippet } from "@/components/score-badges";
 
 export const Route = createFileRoute("/")({
@@ -78,6 +79,16 @@ function HomePage() {
             </CardHeader>
           </Card>
         ))}
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-semibold">Featured skills</h2>
+          <p className="text-muted-foreground">
+            Curated picks to get started — install with one command
+          </p>
+        </div>
+        <RegistryFeatured />
       </section>
 
       <section className="space-y-4">

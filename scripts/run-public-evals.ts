@@ -3,8 +3,9 @@
  * Run evals synchronously for public skillist org skills (latest published versions).
  *
  * Usage:
- *   DATABASE_URL=... pnpm run:public-evals
+ *   DATABASE_URL=... pnpm run:public-evals --all
  *   DATABASE_URL=... pnpm run:public-evals --skills roll-dice,web-perf-audit
+ *   DATABASE_URL=... pnpm run:public-evals --all --force
  */
 import { execSync } from "node:child_process";
 import { unlinkSync, readFileSync } from "node:fs";
@@ -24,7 +25,6 @@ const WRANGLER_DIR = join(ROOT, "apps", "api");
 const R2_BUCKET = "skillist-skills";
 const ORG_SLUG = "skillist";
 const ACCOUNT_ID = "2d19b3b18648f0776ff1435cba466210";
-const DEFAULT_SKILLS = ["roll-dice", "web-perf-audit", "security-audit"];
 
 const SCENARIOS = [
   {
@@ -44,20 +44,37 @@ const SCENARIOS = [
   },
 ];
 
-function parseSkillsArg(): string[] {
+function hasFlag(flag: string): boolean {
+  return process.argv.includes(flag);
+}
+
+function parseSkillsArg(): string[] | null {
   const idx = process.argv.indexOf("--skills");
   if (idx >= 0 && process.argv[idx + 1]) {
     return process.argv[idx + 1]!.split(",").map((s) => s.trim()).filter(Boolean);
   }
-  return DEFAULT_SKILLS;
+  return null;
 }
 
-function wrangler(cmd: string) {
+function wrangler(cmd: string): string {
   return execSync(`pnpm exec wrangler ${cmd}`, {
     cwd: WRANGLER_DIR,
     encoding: "utf8",
     env: process.env,
-  });
+  }).trim();
+}
+
+function getCloudflareToken(): string | null {
+  if (process.env.CLOUDFLARE_API_TOKEN) {
+    return process.env.CLOUDFLARE_API_TOKEN;
+  }
+  try {
+    const out = wrangler("auth token");
+    const line = out.split("\n").find((l) => l.startsWith("cfoat_") || l.length > 40);
+    return line?.trim() ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function getR2Object(key: string): string {
@@ -76,13 +93,31 @@ function parseScore(text: string): number {
   return Math.min(100, Math.max(0, n));
 }
 
+let cfToken: string | null = null;
+
+function extractResponseText(data: unknown): string {
+  const r = data as {
+    result?: {
+      response?: string | number;
+      choices?: { message?: { content?: string } }[];
+    };
+  };
+  if (typeof r.result?.response === "number") {
+    return String(r.result.response);
+  }
+  if (typeof r.result?.response === "string") {
+    return r.result.response;
+  }
+  const content = r.result?.choices?.[0]?.message?.content;
+  return content ?? "50";
+}
+
 async function scorePrompt(prompt: string): Promise<number> {
   if (process.env.SKILLIST_EVAL_HEURISTIC === "1") {
     return 50;
   }
 
-  const token = process.env.CLOUDFLARE_API_TOKEN;
-  if (!token) {
+  if (!cfToken) {
     return 50;
   }
 
@@ -91,18 +126,19 @@ async function scorePrompt(prompt: string): Promise<number> {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${cfToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
     },
   );
   if (!res.ok) {
-    console.warn(`  AI score fallback 50 (${res.status})`);
+    const body = await res.text();
+    console.warn(`  AI score fallback 50 (${res.status}: ${body.slice(0, 80)})`);
     return 50;
   }
-  const data = (await res.json()) as { result?: { response?: string } };
-  return parseScore(data.result?.response ?? "50");
+  const data = await res.json();
+  return parseScore(extractResponseText(data));
 }
 
 async function main() {
@@ -112,8 +148,19 @@ async function main() {
     process.exit(1);
   }
 
-  const targetSlugs = parseSkillsArg();
+  const force = hasFlag("--force");
+  const explicitSkills = parseSkillsArg();
   const db = createDb(connectionString);
+
+  cfToken = getCloudflareToken();
+  const useHeuristic =
+    process.env.SKILLIST_EVAL_HEURISTIC === "1" || !cfToken;
+
+  if (useHeuristic) {
+    console.log("Mode: heuristic (set CLOUDFLARE_API_TOKEN or wrangler login for AI evals)");
+  } else {
+    console.log("Mode: Workers AI via Cloudflare API");
+  }
 
   const [org] = await db
     .select()
@@ -123,6 +170,18 @@ async function main() {
   if (!org) {
     console.error(`Org ${ORG_SLUG} not found`);
     process.exit(1);
+  }
+
+  let targetSlugs = explicitSkills;
+  if (!targetSlugs && hasFlag("--all")) {
+    const rows = await db
+      .select({ slug: skills.slug })
+      .from(skills)
+      .where(eq(skills.orgId, org.id));
+    targetSlugs = rows.map((r) => r.slug).sort();
+  }
+  if (!targetSlugs?.length) {
+    targetSlugs = ["roll-dice", "web-perf-audit", "security-audit"];
   }
 
   console.log(`Running evals for ${targetSlugs.length} skills in org/${ORG_SLUG}`);
@@ -140,21 +199,23 @@ async function main() {
 
     const versionId = skill.latestPublishedVersionId;
 
-    const [existing] = await db
-      .select()
-      .from(skillEvals)
-      .where(
-        and(
-          eq(skillEvals.versionId, versionId),
-          eq(skillEvals.status, "completed"),
-        ),
-      )
-      .orderBy(desc(skillEvals.completedAt))
-      .limit(1);
+    if (!force) {
+      const [existing] = await db
+        .select()
+        .from(skillEvals)
+        .where(
+          and(
+            eq(skillEvals.versionId, versionId),
+            eq(skillEvals.status, "completed"),
+          ),
+        )
+        .orderBy(desc(skillEvals.completedAt))
+        .limit(1);
 
-    if (existing) {
-      console.log(`  skip ${slug}: uplift ${existing.uplift} already recorded`);
-      continue;
+      if (existing) {
+        console.log(`  skip ${slug}: uplift ${existing.uplift} already recorded`);
+        continue;
+      }
     }
 
     const [version] = await db
@@ -166,10 +227,6 @@ async function main() {
 
     console.log(`  ${slug} v${version.semver} — scoring...`);
     const skillMd = getR2Object(`${version.r2Prefix}/SKILL.md`);
-
-    const useHeuristic =
-      process.env.SKILLIST_EVAL_HEURISTIC === "1" ||
-      !process.env.CLOUDFLARE_API_TOKEN;
 
     let baselineScore: number;
     let withSkillScore: number;
@@ -189,7 +246,7 @@ async function main() {
       results = SCENARIOS.map((scenario) => ({
         ...scenario,
         baselineScore: 50,
-        withSkillScore: withSkillScore,
+        withSkillScore,
         uplift,
       }));
       console.log(`  (heuristic from quality score ${withSkillScore})`);
