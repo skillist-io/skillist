@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { apiUrl } from "@/lib/api-url";
 import { Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut, useSession } from "@/lib/auth-client";
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             Skillist
           </Link>
           <nav className="flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="ghost" asChild>
               <Link to="/registry">Registry</Link>
             </Button>

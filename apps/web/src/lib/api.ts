@@ -98,6 +98,8 @@ export type AuditEvent = {
 export type SkillEval = {
   id: string;
   versionId?: string;
+  semver?: string;
+  versionStatus?: string;
   status: string;
   baselineScore: number | null;
   withSkillScore: number | null;
@@ -134,6 +136,12 @@ export type ObservabilitySummary = {
     avgDurationMs: number;
     byRuntime: Record<string, number>;
     recent: SkillRun[];
+  };
+  series: {
+    runs: { date: string; count: number }[];
+    successes: { date: string; count: number }[];
+    installs: { date: string; count: number }[];
+    activations: { date: string; count: number }[];
   };
 };
 

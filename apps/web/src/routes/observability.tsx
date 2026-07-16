@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api, type Org, type ObservabilitySummary } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { Badge } from "@/components/ui/badge";
+import { MiniBarChart } from "@/components/mini-bar-chart";
 import {
   Card,
   CardContent,
@@ -113,6 +114,50 @@ function ObservabilityPage() {
               value={data.telemetry.activations}
               hint="CLI install → first use"
             />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card id="run-metrics-chart">
+              <CardHeader>
+                <CardTitle>Run volume</CardTitle>
+                <CardDescription>Daily hosted runs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MiniBarChart
+                  data={data.series.runs.map((p) => ({
+                    label: p.date,
+                    value: p.count,
+                  }))}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Install funnel trend</CardTitle>
+                <CardDescription>Daily installs and activations</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="mb-2 text-xs text-muted-foreground">Installs</p>
+                  <MiniBarChart
+                    data={data.series.installs.map((p) => ({
+                      label: p.date,
+                      value: p.count,
+                    }))}
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs text-muted-foreground">Activations</p>
+                  <MiniBarChart
+                    data={data.series.activations.map((p) => ({
+                      label: p.date,
+                      value: p.count,
+                    }))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">

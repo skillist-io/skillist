@@ -92,6 +92,7 @@ export function SkillEvalPanel({
                   <div className="flex items-center gap-2">
                     <Badge variant={statusVariant(ev.status)}>{ev.status}</Badge>
                     <span className="text-xs text-muted-foreground">
+                      {ev.semver ? `v${ev.semver} · ` : ""}
                       {new Date(ev.createdAt).toLocaleString()}
                     </span>
                   </div>
