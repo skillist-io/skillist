@@ -3,8 +3,8 @@ import { authClient } from "@/lib/auth-client";
 
 export async function requireAuth() {
   try {
-    const result = await authClient.getSession();
-    if (result.error) {
+    const { data: session, error } = await authClient.getSession();
+    if (error) {
       throw redirect({
         to: "/login",
         search: {
@@ -13,13 +13,13 @@ export async function requireAuth() {
         },
       });
     }
-    if (!result.data?.user) {
+    if (!session?.user) {
       throw redirect({
         to: "/login",
         search: { redirect: window.location.pathname },
       });
     }
-    return result.data;
+    return session;
   } catch (err) {
     if (isRedirect(err)) throw err;
     throw redirect({

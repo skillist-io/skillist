@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SkillRunResult } from "@/lib/api";
-import { apiUrl } from "@/lib/api-url";
+import { fetchApiUrl } from "@/lib/api-url";
 import { useSession } from "@/lib/auth-client";
 
 type SkillRunCardProps = {
@@ -79,7 +79,7 @@ export function SkillRunCard({
   const runScript = useMutation({
     mutationFn: async (scriptPath: string) => {
       setRunOutput("");
-      const response = await fetch(apiUrl(`/${org}/${repo}/run`), {
+      const response = await fetch(fetchApiUrl(`/${org}/${repo}/run`), {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
