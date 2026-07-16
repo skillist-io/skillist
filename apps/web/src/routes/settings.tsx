@@ -2,11 +2,14 @@ import { oauthRedirectUris } from "@skillist/auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { CopyButton } from "@/components/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Switch } from "@/components/ui/switch";
 import {
   type AuditEvent,
   api,
@@ -55,7 +58,7 @@ function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">Passwordless auth, API keys, and org membership</p>
       </div>
 
@@ -75,7 +78,12 @@ function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>Create a GitHub OAuth App and set the callback URL to:</p>
-          <code className="block rounded bg-muted px-2 py-1">{redirects.github}</code>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 overflow-x-auto bg-muted px-2 py-1.5 font-mono text-xs">
+              {redirects.github}
+            </code>
+            <CopyButton value={redirects.github} label="Copy" size="sm" />
+          </div>
         </CardContent>
       </Card>
 
@@ -95,7 +103,12 @@ function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>Add this authorized redirect URI in Google Cloud Console:</p>
-          <code className="block rounded bg-muted px-2 py-1">{redirects.google}</code>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 overflow-x-auto bg-muted px-2 py-1.5 font-mono text-xs">
+              {redirects.google}
+            </code>
+            <CopyButton value={redirects.google} label="Copy" size="sm" />
+          </div>
         </CardContent>
       </Card>
 
@@ -124,8 +137,8 @@ function SettingsPage() {
               {ownerOrgs.length > 1 && (
                 <div>
                   <Label>Organization</Label>
-                  <select
-                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  <NativeSelect
+                    className="mt-1 w-full"
                     value={activeOrgId}
                     onChange={(e) => setSelectedOrgId(e.target.value)}
                   >
@@ -134,7 +147,7 @@ function SettingsPage() {
                         {org.name} ({org.slug})
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
               )}
               {activeOrgId && (
@@ -194,7 +207,7 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 rounded-lg border p-4">
+      <div className="space-y-3 border border-border p-4">
         <Label>Create key</Label>
         <Input placeholder="CI deploy key" value={name} onChange={(e) => setName(e.target.value)} />
         <div className="flex flex-wrap gap-2">
@@ -217,9 +230,14 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
           Create API key
         </Button>
         {createdKey && (
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
-            <p className="font-medium">Copy this key now — it won&apos;t be shown again:</p>
-            <code className="mt-1 block break-all">{createdKey}</code>
+          <div className="space-y-2 border border-border bg-muted/50 p-3 text-sm">
+            <p className="font-medium">Copy this key now. It won&apos;t be shown again.</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 overflow-x-auto bg-background px-2 py-1.5 font-mono text-xs break-all">
+                {createdKey}
+              </code>
+              <CopyButton value={createdKey} label="Copy key" size="sm" />
+            </div>
           </div>
         )}
       </div>
@@ -232,7 +250,7 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
           keys.map((key) => (
             <div
               key={key.id}
-              className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+              className="flex items-center justify-between border border-border px-3 py-2 text-sm"
             >
               <div>
                 <p className="font-medium">{key.name}</p>
@@ -401,30 +419,32 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
               onChange={(e) => setMinQuality(Number(e.target.value))}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2">
+            <Switch
+              id="require-security-pass"
               checked={requirePass}
-              onChange={(e) => setRequirePass(e.target.checked)}
+              onCheckedChange={setRequirePass}
             />
-            Require security pass (no advisories or failures)
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <label htmlFor="require-security-pass" className="text-sm">
+              Require security pass (no advisories or failures)
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="block-advisory"
               checked={blockAdvisory}
-              onChange={(e) => setBlockAdvisory(e.target.checked)}
+              onCheckedChange={setBlockAdvisory}
             />
-            Block publish on security advisories
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={requireEval}
-              onChange={(e) => setRequireEval(e.target.checked)}
-            />
-            Require completed eval before publish
-          </label>
+            <label htmlFor="block-advisory" className="text-sm">
+              Block publish on security advisories
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="require-eval" checked={requireEval} onCheckedChange={setRequireEval} />
+            <label htmlFor="require-eval" className="text-sm">
+              Require completed eval before publish
+            </label>
+          </div>
           <div>
             <Label>Minimum eval uplift (-100 to 100)</Label>
             <Input
@@ -525,7 +545,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
           {requiredData?.items.map((item) => (
             <div
               key={item.id}
-              className="flex items-center justify-between rounded border px-3 py-2 text-sm"
+              className="flex items-center justify-between border border-border px-3 py-2 text-sm"
             >
               <span>
                 {item.orgSlug}/{item.skillRepo}
@@ -549,7 +569,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
             {telemetryData?.installs ?? 0} installs · {telemetryData?.activations ?? 0} activations
           </p>
           {telemetryData?.bySkill?.map((s) => (
-            <div key={s.skillRepo} className="flex justify-between rounded border px-2 py-1">
+            <div key={s.skillRepo} className="flex justify-between border border-border px-2 py-1">
               <span>{s.skillRepo}</span>
               <span className="text-muted-foreground">
                 {s.installCount} / {s.activationCount}
@@ -567,7 +587,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         <CardContent className="space-y-2 text-sm">
           {auditData?.items?.length ? (
             auditData.items.map((e) => (
-              <div key={e.id} className="rounded border px-2 py-1">
+              <div key={e.id} className="border border-border px-2 py-1">
                 <div className="flex justify-between">
                   <span className="font-medium">{e.action}</span>
                   <span className="text-muted-foreground">

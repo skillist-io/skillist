@@ -66,7 +66,7 @@ export function SkillEvalRegression({ evals }: SkillEvalRegressionProps) {
             .map((ev) => (
               <div
                 key={ev.id}
-                className="flex items-center justify-between rounded border px-2 py-1"
+                className="flex items-center justify-between border border-border px-2 py-1"
               >
                 <span>{ev.semver ? `v${ev.semver}` : ev.versionId?.slice(0, 8)}</span>
                 <span className="font-mono text-muted-foreground">

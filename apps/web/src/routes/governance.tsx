@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { api, type Org } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { GovernancePanel } from "@/routes/settings";
@@ -23,7 +24,7 @@ function GovernancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Governance</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Governance</h1>
         <p className="text-muted-foreground">
           Publish policies, execution quotas, required skills, and audit logs
         </p>
@@ -42,8 +43,8 @@ function GovernancePage() {
           {ownerOrgs.length > 1 && (
             <div>
               <Label>Organization</Label>
-              <select
-                className="mt-1 w-full max-w-md rounded-md border bg-background px-3 py-2 text-sm"
+              <NativeSelect
+                className="mt-1 w-full max-w-md"
                 value={activeOrgId}
                 onChange={(e) => setSelectedOrgId(e.target.value)}
               >
@@ -52,7 +53,7 @@ function GovernancePage() {
                     {org.name} ({org.slug})
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
           )}
           {activeOrgId && <GovernancePanel orgId={activeOrgId} />}

@@ -140,7 +140,7 @@ function FeedbackItem({
   const stats = diff ? diffStats(diff) : null;
 
   return (
-    <div className="rounded border p-3 text-sm">
+    <div className="border border-border p-3 text-sm">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
           <Badge>{feedback.source}</Badge>
@@ -169,19 +169,19 @@ function FeedbackItem({
       )}
 
       {draftMd && diff && stats && (
-        <div className="mt-3 space-y-2 rounded border bg-muted/30 p-2">
+        <div className="mt-3 space-y-2 border border-border bg-muted/30 p-2">
           <p className="text-xs font-medium">
             AI draft diff (+{stats.added} / −{stats.removed} lines)
           </p>
-          <pre className="max-h-48 overflow-auto rounded border bg-background p-2 font-mono text-xs">
+          <pre className="max-h-48 overflow-auto border border-border bg-background p-2 font-mono text-xs">
             {diff.slice(0, 80).map((line) => (
               <div
                 key={`${line.type}-${line.line}`}
                 className={
                   line.type === "add"
-                    ? "bg-green-100 text-green-900"
+                    ? "bg-foreground/[0.06] text-foreground"
                     : line.type === "remove"
-                      ? "bg-red-100 text-red-900"
+                      ? "bg-destructive/10 text-destructive"
                       : "text-muted-foreground"
                 }
               >
