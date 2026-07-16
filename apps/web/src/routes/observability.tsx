@@ -5,6 +5,7 @@ import { MiniBarChart } from "@/components/mini-bar-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { api, type ObservabilitySummary, type Org } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -52,16 +53,16 @@ function ObservabilityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Observability</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Observability</h1>
         <p className="text-muted-foreground">Hosted runs, install funnel, and activation trends</p>
       </div>
 
       {orgs && orgs.length > 1 ? (
         <div className="max-w-xs space-y-2">
           <Label htmlFor="obs-org">Organization</Label>
-          <select
+          <NativeSelect
             id="obs-org"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            className="w-full"
             value={activeOrgId}
             onChange={(e) => setSelectedOrgId(e.target.value)}
           >
@@ -70,7 +71,7 @@ function ObservabilityPage() {
                 {org.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
       ) : null}
 
@@ -176,7 +177,7 @@ function ObservabilityPage() {
                   data.telemetry.bySkill.map((row) => (
                     <div
                       key={row.skillRepo}
-                      className="flex items-center justify-between rounded border px-2 py-1"
+                      className="flex items-center justify-between border border-border px-2 py-1"
                     >
                       <span>{row.skillRepo}</span>
                       <span className="font-mono text-xs text-muted-foreground">
@@ -201,7 +202,7 @@ function ObservabilityPage() {
                 data.runs.recent.map((run) => (
                   <div
                     key={run.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded border px-2 py-1"
+                    className="flex flex-wrap items-center justify-between gap-2 border border-border px-2 py-1"
                   >
                     <div className="flex items-center gap-2">
                       <Badge variant={run.exitCode === 0 ? "default" : "destructive"}>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { api, type Org, type SkillInventoryItem } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
@@ -67,7 +68,7 @@ function InventoryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Skill inventory</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Skill inventory</h1>
         <p className="text-muted-foreground">
           Skills discovered across repos — managed registry links vs local-only
         </p>
@@ -76,9 +77,9 @@ function InventoryPage() {
       {orgs && orgs.length > 1 && (
         <div className="max-w-xs">
           <Label htmlFor="inventory-org">Organization</Label>
-          <select
+          <NativeSelect
             id="inventory-org"
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            className="mt-1 w-full"
             value={activeOrgId}
             onChange={(e) => setSelectedOrgId(e.target.value)}
           >
@@ -87,7 +88,7 @@ function InventoryPage() {
                 {org.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
       )}
 
@@ -159,7 +160,7 @@ function InventoryPage() {
             items.map((item) => (
               <div
                 key={item.id}
-                className="flex flex-col gap-2 rounded border p-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <p className="font-medium">{item.repoFullName}</p>
@@ -201,7 +202,7 @@ function InventoryPage() {
           ) : (
             <p className="text-muted-foreground">
               No skills scanned yet. Submit a scan payload or run{" "}
-              <code className="rounded bg-muted px-1">skillist inventory scan</code> from CI.
+              <code className="bg-muted px-1">skillist inventory scan</code> from CI.
             </p>
           )}
         </CardContent>

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 import { useState } from "react";
-import { InstallSnippet } from "@/components/score-badges";
+import { CopyButton } from "@/components/copy-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -96,7 +96,7 @@ export function SkillRunCard({
       }
 
       if (response.headers.get("content-type")?.includes("text/event-stream")) {
-        return parseSseRun(response, (stream, chunk) => {
+        return parseSseRun(response, (_stream, chunk) => {
           setRunOutput((prev) => `${prev ?? ""}${chunk}`);
         });
       }
@@ -134,7 +134,7 @@ export function SkillRunCard({
       </CardHeader>
       <CardContent className="space-y-3">
         {!isLoggedIn && (
-          <p className="rounded border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="border border-border bg-muted/50 px-3 py-2 text-sm text-foreground">
             <Link
               to="/login"
               search={{ redirect: window.location.pathname }}
@@ -145,10 +145,11 @@ export function SkillRunCard({
             to run scripts in the hosted sandbox.
           </p>
         )}
-        <div>
-          <Label>Script</Label>
+        <div className="space-y-1">
+          <Label htmlFor="run-script-select">Script</Label>
           <select
-            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            id="run-script-select"
+            className="h-10 w-full border border-transparent border-b-input bg-transparent px-1 text-sm outline-none transition-[border-color] pointer-coarse:h-11 focus-visible:border-b-ring"
             value={activeScript}
             onChange={(e) => setSelectedScript(e.target.value)}
           >
@@ -159,17 +160,27 @@ export function SkillRunCard({
             ))}
           </select>
         </div>
-        <div>
-          <Label>Target URL (optional)</Label>
+        <div className="space-y-1">
+          <Label htmlFor="run-target-url">Target URL (optional)</Label>
           <Input
+            id="run-target-url"
+            type="url"
+            inputMode="url"
             value={targetUrl}
             onChange={(e) => setTargetUrl(e.target.value)}
             placeholder="https://example.com"
           />
         </div>
-        <InstallSnippet
-          command={`skillist run ${org}/${repo} --script ${activeScript}${targetUrl ? ` --url ${targetUrl}` : ""}`}
-        />
+        <div className="flex items-center gap-2">
+          <code className="flex-1 overflow-x-auto bg-muted px-2 py-1.5 font-mono text-xs">
+            {`skillist run ${org}/${repo} --script ${activeScript}${targetUrl ? ` --url ${targetUrl}` : ""}`}
+          </code>
+          <CopyButton
+            value={`skillist run ${org}/${repo} --script ${activeScript}${targetUrl ? ` --url ${targetUrl}` : ""}`}
+            label="Copy"
+            size="sm"
+          />
+        </div>
         <Button
           onClick={() => runScript.mutate(activeScript)}
           disabled={!isLoggedIn || !activeScript || runScript.isPending}
@@ -177,7 +188,7 @@ export function SkillRunCard({
           {runScript.isPending ? "Running…" : "Run script"}
         </Button>
         {runOutput && (
-          <pre className="max-h-64 overflow-auto rounded border bg-muted p-3 text-xs whitespace-pre-wrap">
+          <pre className="max-h-64 overflow-auto border border-border bg-muted p-3 text-xs whitespace-pre-wrap">
             {runOutput}
           </pre>
         )}

@@ -1,5 +1,4 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/copy-button";
 
 const AGENT_PATHS: Record<string, { label: string; path: string }> = {
   cursor: {
@@ -36,17 +35,17 @@ export function AgentInstallButtons({
       <div className="flex flex-wrap gap-2">
         {known.length ? (
           known.map((agent) => {
-            const info = AGENT_PATHS[agent]!;
+            const info = AGENT_PATHS[agent];
+            if (!info) return null;
             const cmd = `skillist install ${org}/${repo} -o ${info.path}/${repo}`;
             return (
-              <Button
+              <CopyButton
                 key={agent}
-                variant="outline"
+                value={cmd}
+                label={`Add to ${info.label}`}
                 size="sm"
-                onClick={() => navigator.clipboard.writeText(cmd)}
-              >
-                Add to {info.label}
-              </Button>
+                variant="outline"
+              />
             );
           })
         ) : (
@@ -55,16 +54,12 @@ export function AgentInstallButtons({
           </p>
         )}
       </div>
-      <code className="block rounded bg-muted px-2 py-1 text-xs">{installCommand}</code>
-      {agents.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {agents.map((agent) => (
-            <Badge key={agent} variant="secondary">
-              {agent}
-            </Badge>
-          ))}
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        <code className="flex-1 overflow-x-auto bg-muted px-2 py-1.5 font-mono text-xs">
+          {installCommand}
+        </code>
+        <CopyButton value={installCommand} label="Copy" size="sm" />
+      </div>
     </div>
   );
 }

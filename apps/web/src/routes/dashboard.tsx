@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { api, type Org, type Skill } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -45,7 +46,7 @@ function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">Manage organizations and skills</p>
       </div>
 
@@ -185,15 +186,15 @@ function OrgCard({ org }: { org: Org }) {
                 onChange={(e) => setInviteEmail(e.target.value)}
                 className="min-w-[200px] flex-1"
               />
-              <select
-                className="rounded-md border bg-background px-3 py-2 text-sm"
+              <NativeSelect
+                aria-label="Member role"
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
               >
                 <option value="viewer">Viewer</option>
                 <option value="editor">Editor</option>
                 <option value="owner">Owner</option>
-              </select>
+              </NativeSelect>
               <Button
                 variant="outline"
                 onClick={() => inviteMember.mutate()}

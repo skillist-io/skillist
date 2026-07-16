@@ -22,7 +22,7 @@ export function SkillAnalyticsChart({ org, repo }: SkillAnalyticsChartProps) {
       }>(`/v1/registry/${org}/${repo}/analytics?days=30`),
   });
 
-  if (!data) return null;
+  if (!data?.series?.installs || !data.series.activations) return null;
 
   return (
     <Card>
