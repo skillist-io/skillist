@@ -1,6 +1,6 @@
 import type { Env } from "../env";
 import type { WorkerDb } from "./db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import {
   feedback,
   skillFiles,
@@ -260,6 +260,17 @@ export async function publishVersion(
 
   await db
     .update(skillVersions)
+    .set({ status: "archived" })
+    .where(
+      and(
+        eq(skillVersions.skillId, skillId),
+        eq(skillVersions.status, "published"),
+        ne(skillVersions.id, versionId),
+      ),
+    );
+
+  await db
+    .update(skillVersions)
     .set({
       status: "published",
       publishedAt: new Date(),
@@ -354,6 +365,202 @@ export async function publishVersion(
       qualityScore: review.score,
       impactScore,
       securityStatus: security.status,
+    },
+  });
+
+  const event = {
+    type: "skill.published" as const,
+    org: org.slug,
+    slug: skill.slug,
+    version: version.semver,
+    versionId: version.id,
+    etag,
+    publishedAt,
+    skillMd: skillMd.length < 65536 ? skillMd : undefined,
+  };
+
+  await broadcastPublish(env, org.slug, skill.slug, event);
+
+  return {
+    etag,
+    version: version.semver,
+    qualityScore: review.score,
+    impactScore,
+    securityStatus: security.status,
+  };
+}
+
+export async function rollbackVersion(
+  env: Env,
+  db: WorkerDb,
+  skillId: string,
+  versionId: string,
+  userId: string | null,
+  actorType: "user" | "api_key" = "user",
+): Promise<{
+  etag: string;
+  version: string;
+  qualityScore: number;
+  impactScore: number;
+  securityStatus: string;
+}> {
+  const [skill] = await db
+    .select()
+    .from(skills)
+    .where(eq(skills.id, skillId))
+    .limit(1);
+  if (!skill) throw new Error("Skill not found");
+  if (skill.latestPublishedVersionId === versionId) {
+    throw new Error("Version is already live");
+  }
+
+  const [version] = await db
+    .select()
+    .from(skillVersions)
+    .where(eq(skillVersions.id, versionId))
+    .limit(1);
+  if (!version || version.skillId !== skillId) {
+    throw new Error("Version not found");
+  }
+  if (version.status !== "published" && version.status !== "archived") {
+    throw new Error("Only previously published versions can be rolled back to");
+  }
+
+  const [org] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, skill.orgId))
+    .limit(1);
+  if (!org) throw new Error("Org not found");
+
+  const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
+  const bundle = await downloadBundleFromR2(
+    env.SKILLS_R2,
+    version.r2Prefix,
+    paths,
+  );
+  const validation = validateSkillBundle(bundle, skill.slug);
+  if (!validation.valid) {
+    throw new Error(validation.errors.map((e) => e.message).join("; "));
+  }
+
+  const review = reviewSkillBundle(bundle, skill.slug);
+  const impactScore = estimateImpactScore(review);
+  const security = scanSkillSecurity(bundle);
+  const pluginRaw = bundle.get("plugin.json");
+  const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
+  const compatibleAgents = extractAgentDiscovery(pluginManifest);
+
+  const reviewChecks = review.checks.map(({ id, label, passed, message }) => ({
+    id,
+    label,
+    passed,
+    message,
+  }));
+
+  const skillMd = bundle.get("SKILL.md")!;
+  const etag = (await sha256(skillMd)).slice(0, 16);
+  const publishedAt = new Date().toISOString();
+
+  await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.slug, {
+    skillMd,
+    meta: {
+      name: validation.frontmatter.name,
+      description: validation.frontmatter.description,
+      version: version.semver,
+      versionId: version.id,
+      etag,
+      org: org.slug,
+      slug: skill.slug,
+      publishedAt,
+    },
+  });
+
+  await db
+    .update(skillVersions)
+    .set({ status: "archived" })
+    .where(
+      and(
+        eq(skillVersions.skillId, skillId),
+        eq(skillVersions.status, "published"),
+        ne(skillVersions.id, versionId),
+      ),
+    );
+
+  await db
+    .update(skillVersions)
+    .set({
+      status: "published",
+      publishedAt: new Date(),
+      kvEtag: etag,
+      qualityScore: review.score,
+      impactScore,
+      securityStatus: security.status,
+      securityIssues: security.issues,
+      reviewChecks,
+      pluginManifest: pluginManifest ?? null,
+    })
+    .where(eq(skillVersions.id, versionId));
+
+  await db
+    .update(skills)
+    .set({
+      latestPublishedVersionId: versionId,
+      description: validation.frontmatter.description,
+      runtime: detectSkillRuntime(bundle),
+      updatedAt: new Date(),
+    })
+    .where(eq(skills.id, skillId));
+
+  if (skill.visibility === "public") {
+    const { registryEntries } = await import("@skillist/db/schema");
+    const discovery = extractRegistryDiscovery(validation.frontmatter);
+    await db
+      .insert(registryEntries)
+      .values({
+        skillId: skill.id,
+        orgSlug: org.slug,
+        skillSlug: skill.slug,
+        name: validation.frontmatter.name,
+        description: validation.frontmatter.description,
+        latestVersion: version.semver,
+        qualityScore: review.score,
+        impactScore,
+        securityStatus: security.status,
+        category: discovery.category,
+        tags: discovery.tags,
+        compatibleAgents,
+        lastReviewedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: registryEntries.skillId,
+        set: {
+          name: validation.frontmatter.name,
+          description: validation.frontmatter.description,
+          latestVersion: version.semver,
+          qualityScore: review.score,
+          impactScore,
+          securityStatus: security.status,
+          category: discovery.category,
+          tags: discovery.tags,
+          compatibleAgents,
+          lastReviewedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  await logAudit(db, {
+    orgId: org.id,
+    actorId: userId,
+    actorType,
+    action: "skill.rolled_back",
+    resourceType: "skill",
+    resourceId: skill.id,
+    metadata: {
+      slug: skill.slug,
+      version: version.semver,
+      versionId: version.id,
     },
   });
 

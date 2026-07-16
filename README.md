@@ -69,6 +69,16 @@ Neon project `lively-dew-31540211` is provisioned; migrations run against `DATAB
 
 ## Agent CLI
 
+Install from npm:
+
+```bash
+npm install -g @skillist/cli
+skillist search performance
+skillist install skillist/web-perf-audit
+```
+
+Local development:
+
 ```bash
 pnpm cli pull acme/my-skill -o ./my-skill
 SKILLIST_API_KEY=sk_... pnpm cli push acme/my-skill ./my-skill

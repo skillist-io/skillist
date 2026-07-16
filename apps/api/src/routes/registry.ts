@@ -6,13 +6,23 @@ import {
   organizations,
   registryEntries,
   registryStars,
+  skillEvals,
   skills,
+  skillVersions,
   subscriptions,
+  telemetryEvents,
 } from "@skillist/db/schema";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { resolveUserId } from "../lib/session";
+import {
+  buildDayBuckets,
+  incrementDayBucket,
+  toDaySeries,
+} from "../lib/time-series";
+
+const CLI_INSTALL = "npm install -g @skillist/cli";
 
 type AppEnv = {
   Bindings: Env;
@@ -78,7 +88,12 @@ function registryOrderBy(query: z.infer<typeof registryQuerySchema>) {
       return desc(registryEntries.stars);
     case "trending":
       return desc(
-        sql`(${registryEntries.stars} * 3 + ${registryEntries.installCount} + ${registryEntries.activationCount})`,
+        sql`(
+          SELECT count(*)::int FROM ${telemetryEvents}
+          WHERE ${telemetryEvents.orgSlug} = ${registryEntries.orgSlug}
+            AND ${telemetryEvents.skillSlug} = ${registryEntries.skillSlug}
+            AND ${telemetryEvents.createdAt} >= now() - interval '7 days'
+        ) * 2 + ${registryEntries.stars} * 3 + ${registryEntries.installCount}`,
       );
     case "recent":
       return desc(registryEntries.updatedAt);
@@ -170,6 +185,7 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
   return c.json({
     items: items.map((item) => ({
       ...item,
+      cliInstall: CLI_INSTALL,
       installCommand: `skillist install ${item.orgSlug}/${item.skillSlug}`,
       runCommand:
         item.runtime && item.runtime !== "local"
@@ -248,6 +264,7 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
       entry: registryEntries,
       runtime: skills.runtime,
       skillId: skills.id,
+      latestPublishedVersionId: skills.latestPublishedVersionId,
     })
     .from(registryEntries)
     .innerJoin(skills, eq(registryEntries.skillId, skills.id))
@@ -275,13 +292,46 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
     starred = !!star;
   }
 
+  let pluginManifest = null;
+  let evalSummary = null;
+  if (row.latestPublishedVersionId) {
+    const [version] = await c.var.db
+      .select({ pluginManifest: skillVersions.pluginManifest })
+      .from(skillVersions)
+      .where(eq(skillVersions.id, row.latestPublishedVersionId))
+      .limit(1);
+    pluginManifest = version?.pluginManifest ?? null;
+
+    const [evalRow] = await c.var.db
+      .select({
+        status: skillEvals.status,
+        uplift: skillEvals.uplift,
+        baselineScore: skillEvals.baselineScore,
+        withSkillScore: skillEvals.withSkillScore,
+        completedAt: skillEvals.completedAt,
+      })
+      .from(skillEvals)
+      .where(
+        and(
+          eq(skillEvals.versionId, row.latestPublishedVersionId),
+          eq(skillEvals.status, "completed"),
+        ),
+      )
+      .orderBy(desc(skillEvals.completedAt))
+      .limit(1);
+    if (evalRow) evalSummary = evalRow;
+  }
+
   const entry = row.entry;
   return c.json(
     {
       ...entry,
       runtime: row.runtime,
       starred,
+      cliInstall: CLI_INSTALL,
       installCommand: `skillist install ${entry.orgSlug}/${entry.skillSlug}`,
+      pluginManifest,
+      eval: evalSummary,
     },
     200,
   );
@@ -384,6 +434,57 @@ registryRoutes.openapi(unstarSkillRoute, async (c) => {
   }
 
   return c.json({ ok: true, starred: false }, 200);
+});
+
+const registryAnalyticsRoute = createRoute({
+  method: "get",
+  path: "/registry/{org}/{slug}/analytics",
+  tags: ["Registry"],
+  request: {
+    params: z.object({ org: z.string(), slug: z.string() }),
+    query: z.object({ days: z.coerce.number().min(1).max(90).default(30) }),
+  },
+  responses: { 200: { description: "Per-skill telemetry time series" } },
+});
+
+registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
+  const { org, slug } = c.req.valid("param");
+  const { days } = c.req.valid("query");
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const events = await c.var.db
+    .select()
+    .from(telemetryEvents)
+    .where(
+      and(
+        eq(telemetryEvents.orgSlug, org),
+        eq(telemetryEvents.skillSlug, slug),
+        gte(telemetryEvents.createdAt, since),
+      ),
+    )
+    .orderBy(desc(telemetryEvents.createdAt));
+
+  const installBuckets = buildDayBuckets(days);
+  const activationBuckets = buildDayBuckets(days);
+  for (const event of events) {
+    if (event.eventType === "install") {
+      incrementDayBucket(installBuckets, event.createdAt);
+    } else if (event.eventType === "activation") {
+      incrementDayBucket(activationBuckets, event.createdAt);
+    }
+  }
+
+  return c.json(
+    {
+      installs: events.filter((e) => e.eventType === "install").length,
+      activations: events.filter((e) => e.eventType === "activation").length,
+      series: {
+        installs: toDaySeries(installBuckets),
+        activations: toDaySeries(activationBuckets),
+      },
+    },
+    200,
+  );
 });
 
 const subscribeRoute = createRoute({
