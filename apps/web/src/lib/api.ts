@@ -1,9 +1,9 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { clientFetchBase } from "./client-api-base";
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    res = await fetch(`${clientFetchBase()}${path}`, {
       ...init,
       credentials: "include",
       headers: {
