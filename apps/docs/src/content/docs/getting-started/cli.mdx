@@ -3,6 +3,9 @@ title: CLI
 description: Skillist command-line interface for registry search, install, publish, and sandbox runs.
 ---
 
+import { DocTable } from "@/components/docs/DocTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
+
 ## Install
 
 ```bash
@@ -21,10 +24,19 @@ skillist whoami
 
 ## Registry
 
+Skills are referenced as `org/repo` (GitHub-style):
+
 ```bash
 skillist search <query> [--category <cat>] [--tag <tag>]
-skillist install <org>/<slug>
+skillist install <org>/<repo>
+skillist pull <org>/<repo>
 skillist list
+```
+
+Public delivery URLs default to `https://skillist.dev/{org}/{repo}`:
+
+```bash
+curl https://skillist.dev/skillist/web-perf-audit/SKILL.md
 ```
 
 ## Publishing
@@ -32,7 +44,8 @@ skillist list
 From a skill directory with `plugin.json` and `SKILL.md`:
 
 ```bash
-skillist publish [--bump major|minor|patch]
+skillist push <org>/<repo> <dir>
+skillist publish <org>/<repo> <dir> [--bump major|minor|patch]
 ```
 
 Publishing queues an eval run. Your org policy may require a passing eval before the version goes live.
@@ -42,19 +55,38 @@ Publishing queues an eval run. Your org policy may require a passing eval before
 For skills with hosted runtime scripts:
 
 ```bash
-skillist run <org>/<slug> --script scripts/<name>
+skillist run <org>/<repo> --script scripts/<name> [--stream]
 ```
 
-Requires a signed-in session. Anonymous sandbox runs are not permitted.
+Requires a signed-in session. Anonymous sandbox runs are not permitted. See [Sandbox execution](/platform/sandbox/).
 
 ## Environment
 
-| Variable | Description |
-|----------|-------------|
-| `SKILLIST_API_URL` | API base URL (default `https://api.skillist.dev`) |
+<DocTable
+  client:load
+  columns={["Variable", "Default", "Description"]}
+  rows={[
+    ["SKILLIST_API_URL", "https://api.skillist.dev", "REST API and auth base URL"],
+    ["SKILLIST_DELIVERY_URL", "https://skillist.dev", "Public skill pages and SKILL.md delivery"],
+    ["SKILLIST_API_KEY", "—", "Bearer token (sk_...) for push, publish, and private runs"],
+  ]}
+/>
 
 Local development:
 
 ```bash
 export SKILLIST_API_URL=http://localhost:8787
+export SKILLIST_DELIVERY_URL=http://localhost:5173
 ```
+
+<SectionHeading title="Commands" client:load />
+
+- `skillist search [query]` — search registry with filters
+- `skillist install <org>/<repo>` — download and record in `.skillist.lock`
+- `skillist pull <org>/<repo>` — download without lockfile
+- `skillist push <org>/<repo> <dir>` — upload draft version
+- `skillist publish <org>/<repo> <dir>` — push and publish
+- `skillist run <org>/<repo> --script <path>` — hosted execution
+- `skillist eval <org>/<repo> [--wait]` — queue skill eval on latest draft
+- `skillist rollback <org>/<repo> <semver>` — roll back to a previous version
+- `skillist update [org/repo]` — refresh installed skills

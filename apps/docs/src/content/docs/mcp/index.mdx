@@ -44,7 +44,7 @@ Returns transport metadata, tool names, and OAuth discovery URLs.
   columns={["Tool", "Purpose"]}
   rows={[
     ["registry_search", "Search by query, category, tag, agent, sort"],
-    ["registry_get_skill", "Full metadata for org/slug including eval uplift"],
+    ["registry_get_skill", "Full metadata for org/repo including eval uplift"],
     ["registry_facets", "Categories, tags, and compatible agents"],
     ["registry_install_help", "CLI install commands and SKILL.md URL"],
   ]}
@@ -60,3 +60,4 @@ Registry MCP is read-only. Publish, edit, and sandbox **run** require the [CLI](
 
 - [Connect your agent](/mcp/connect/) — Cursor, Claude, VS Code
 - [OAuth authentication](/mcp/oauth/) — Better Auth MCP for OAuth-capable clients
+- [Delivery URLs](/platform/delivery/) — apex `skillist.dev/{org}/{repo}` paths returned by install help
