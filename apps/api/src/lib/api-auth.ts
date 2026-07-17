@@ -6,6 +6,7 @@ export function authEnvFromBindings(env: Env): AuthEnv {
   return {
     BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: env.BETTER_AUTH_URL,
+    WEB_URL: env.WEB_URL,
     GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET,
     GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,

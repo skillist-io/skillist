@@ -39,9 +39,23 @@ export function resolveWebUrl(env: AuthEnv): string {
   return "https://skillist.dev";
 }
 
+function resolveAuthBaseURL(env: AuthEnv) {
+  if (env.BETTER_AUTH_URL.includes("localhost")) {
+    return env.BETTER_AUTH_URL;
+  }
+
+  // Auth is served on both skillist.dev/api/* (SPA proxy) and api.skillist.dev.
+  return {
+    allowedHosts: ["skillist.dev", "api.skillist.dev"],
+    fallback: env.BETTER_AUTH_URL,
+    protocol: "https" as const,
+  };
+}
+
 export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) {
   const socialProviders = buildSocialProviders(env);
   const webUrl = resolveWebUrl(env);
+  const isLocal = env.BETTER_AUTH_URL.includes("localhost");
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -58,7 +72,7 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
       },
     }),
     secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
+    baseURL: resolveAuthBaseURL(env),
     trustedOrigins: [
       env.BETTER_AUTH_URL,
       webUrl,
@@ -67,12 +81,16 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
       "https://skillist.dev",
       "https://api.skillist.dev",
     ],
-    advanced: env.BETTER_AUTH_URL.includes("localhost")
+    advanced: isLocal
       ? undefined
       : {
           crossSubDomainCookies: {
             enabled: true,
             domain: ".skillist.dev",
+          },
+          defaultCookieAttributes: {
+            secure: true,
+            sameSite: "lax",
           },
         },
     emailAndPassword: {
