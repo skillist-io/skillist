@@ -6,6 +6,7 @@ import {
   sendMagicLink,
   signInWithGitHub,
   signInWithGoogle,
+  signInWithPasskey,
   signInWithSso,
   useSession,
 } from "@/lib/auth-client";
@@ -96,6 +97,17 @@ function LoginPage() {
     }
   }
 
+  async function handlePasskey() {
+    setError(null);
+    setLoading("passkey");
+    try {
+      await signInWithPasskey(redirect ?? "/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Passkey sign-in failed");
+      setLoading(null);
+    }
+  }
+
   return (
     <>
       <LoginForm
@@ -104,6 +116,7 @@ function LoginPage() {
         onGitHub={handleGitHub}
         onGoogle={handleGoogle}
         onSso={handleSso}
+        onPasskey={handlePasskey}
         onMagicLink={handleMagicLink}
         loading={loading}
         error={error}

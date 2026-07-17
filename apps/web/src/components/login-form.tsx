@@ -15,6 +15,7 @@ type LoginFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
   onGitHub: () => void;
   onGoogle: () => void;
   onSso?: () => void;
+  onPasskey?: () => void;
   onMagicLink: () => void;
   loading: string | null;
   error: string | null;
@@ -28,6 +29,7 @@ export function LoginForm({
   onGitHub,
   onGoogle,
   onSso,
+  onPasskey,
   onMagicLink,
   loading,
   error,
@@ -47,7 +49,7 @@ export function LoginForm({
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Sign in to Skillist</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            Passwordless — GitHub, Google, SSO, or magic link
+            Passwordless — GitHub, Google, SSO, passkey, or magic link
           </p>
         </div>
 
@@ -93,6 +95,20 @@ export function LoginForm({
               disabled={loading !== null}
             >
               {loading === "sso" ? "Redirecting…" : "Enterprise SSO"}
+            </Button>
+          </Field>
+        ) : null}
+
+        {onPasskey ? (
+          <Field>
+            <Button
+              variant="outline"
+              type="button"
+              className="w-full"
+              onClick={onPasskey}
+              disabled={loading !== null}
+            >
+              {loading === "passkey" ? "Waiting for passkey…" : "Passkey"}
             </Button>
           </Field>
         ) : null}

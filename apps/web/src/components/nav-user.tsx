@@ -1,14 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  LogOut,
-  Monitor,
-  Moon,
-  Settings2,
-  Sun,
-} from "lucide-react";
+import { BadgeCheck, ChevronsUpDown, LogOut, Monitor, Moon, Settings2, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -87,18 +78,16 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
+                <Link to="/account">
+                  <BadgeCheck />
+                  Account
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link to="/settings">
                   <Settings2 />
                   Settings
                 </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Bell />
-                Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

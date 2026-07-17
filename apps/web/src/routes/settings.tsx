@@ -1,6 +1,6 @@
 import { oauthRedirectUris } from "@skillist/auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +60,13 @@ function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Passwordless auth, API keys, and org membership</p>
+        <p className="text-muted-foreground">
+          Org OAuth setup and agent API keys. Personal profile and passkeys are on{" "}
+          <Link to="/account" className="text-primary underline">
+            Account
+          </Link>
+          .
+        </p>
       </div>
 
       <Card id="github-oauth">

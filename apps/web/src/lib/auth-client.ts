@@ -1,3 +1,4 @@
+import { passkeyClient } from "@better-auth/passkey/client";
 import { magicLinkClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { clientFetchBase } from "./client-api-base";
@@ -6,7 +7,7 @@ export const DEFAULT_SIGN_OUT_REDIRECT = "/login";
 
 export const authClient = createAuthClient({
   baseURL: clientFetchBase(),
-  plugins: [magicLinkClient()],
+  plugins: [magicLinkClient(), passkeyClient()],
   fetchOptions: {
     credentials: "include",
   },
@@ -89,6 +90,34 @@ export async function sendMagicLink(email: string, callbackURL = "/dashboard") {
     email,
     callbackURL: `${window.location.origin}${callbackURL}`,
   });
+}
+
+export async function signInWithPasskey(callbackURL = "/dashboard") {
+  const result = await signIn.passkey({
+    fetchOptions: {
+      onSuccess: () => {
+        window.location.assign(resolveClientRedirect(callbackURL));
+      },
+    },
+  });
+  if (result.error) {
+    throw new Error(result.error.message ?? "Passkey sign-in failed");
+  }
+  return result;
+}
+
+export async function linkSocialProvider(provider: "github" | "google", callbackURL = "/account") {
+  const result = await authClient.linkSocial({
+    provider,
+    callbackURL: `${window.location.origin}${callbackURL}`,
+  });
+  if (result.error) {
+    throw new Error(result.error.message ?? `Failed to link ${provider}`);
+  }
+  if (result.data?.url) {
+    window.location.assign(result.data.url);
+  }
+  return result;
 }
 
 /** Enterprise OIDC / SSO via Better Auth generic OAuth (`SSO_PROVIDER_ID`, default `sso`). */
