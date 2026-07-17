@@ -28,8 +28,9 @@ jobs:
       - name: Publish @skillist/skill-format
         run: |
           published=$(npm view @skillist/skill-format version 2>/dev/null || true)
-          if [ "$published" = "0.1.0" ]; then
-            echo "@skillist/skill-format@0.1.0 already on npm, skipping"
+          pkg_version=$(node -p "require('./packages/skill-format/package.json').version")
+          if [ "$published" = "$pkg_version" ]; then
+            echo "@skillist/skill-format@$pkg_version already on npm, skipping"
           else
             pnpm --filter @skillist/skill-format publish --no-git-checks --access public
           fi
