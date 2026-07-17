@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  GitBranch,
   LayoutDashboard,
   type LucideIcon,
   PackageSearch,
@@ -33,7 +34,7 @@ type NavItem = {
   title: string;
   to: string;
   icon: LucideIcon;
-  section: "dashboard" | "inventory" | "observability" | "governance" | "settings";
+  section: "dashboard" | "inventory" | "observability" | "governance" | "mirrors" | "settings";
 };
 
 const navMain: NavItem[] = [
@@ -62,6 +63,12 @@ const navMain: NavItem[] = [
     section: "governance",
   },
   {
+    title: "Mirrors",
+    to: "/admin/mirrors",
+    icon: GitBranch,
+    section: "mirrors",
+  },
+  {
     title: "Settings",
     to: "/settings",
     icon: Settings2,
@@ -72,6 +79,7 @@ const navMain: NavItem[] = [
 function activeSection(pathname: string): NavItem["section"] {
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/governance")) return "governance";
+  if (pathname.startsWith("/admin/mirrors")) return "mirrors";
   if (pathname.startsWith("/observability")) return "observability";
   if (pathname.startsWith("/inventory")) return "inventory";
   return "dashboard";

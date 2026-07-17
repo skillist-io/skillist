@@ -17,6 +17,7 @@ import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
+import { Route as AdminMirrorsRouteImport } from './routes/admin/mirrors'
 import { Route as OrgRepoRouteImport } from './routes/$org/$repo'
 import { Route as OrgsOrgIdSkillsRepoRouteImport } from './routes/orgs/$orgId/skills/$repo'
 
@@ -60,6 +61,11 @@ const RegistryIndexRoute = RegistryIndexRouteImport.update({
   path: '/registry/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminMirrorsRoute = AdminMirrorsRouteImport.update({
+  id: '/admin/mirrors',
+  path: '/admin/mirrors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgRepoRoute = OrgRepoRouteImport.update({
   id: '/$org/$repo',
   path: '/$org/$repo',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/$org/$repo': typeof OrgRepoRoute
+  '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry/': typeof RegistryIndexRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/$org/$repo': typeof OrgRepoRoute
+  '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry': typeof RegistryIndexRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/$org/$repo': typeof OrgRepoRoute
+  '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry/': typeof RegistryIndexRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/settings'
     | '/$org/$repo'
+    | '/admin/mirrors'
     | '/registry/'
     | '/orgs/$orgId/skills/$repo'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/settings'
     | '/$org/$repo'
+    | '/admin/mirrors'
     | '/registry'
     | '/orgs/$orgId/skills/$repo'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/settings'
     | '/$org/$repo'
+    | '/admin/mirrors'
     | '/registry/'
     | '/orgs/$orgId/skills/$repo'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   ObservabilityRoute: typeof ObservabilityRoute
   SettingsRoute: typeof SettingsRoute
   OrgRepoRoute: typeof OrgRepoRoute
+  AdminMirrorsRoute: typeof AdminMirrorsRoute
   RegistryIndexRoute: typeof RegistryIndexRoute
   OrgsOrgIdSkillsRepoRoute: typeof OrgsOrgIdSkillsRepoRoute
 }
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/mirrors': {
+      id: '/admin/mirrors'
+      path: '/admin/mirrors'
+      fullPath: '/admin/mirrors'
+      preLoaderRoute: typeof AdminMirrorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$org/$repo': {
       id: '/$org/$repo'
       path: '/$org/$repo'
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   ObservabilityRoute: ObservabilityRoute,
   SettingsRoute: SettingsRoute,
   OrgRepoRoute: OrgRepoRoute,
+  AdminMirrorsRoute: AdminMirrorsRoute,
   RegistryIndexRoute: RegistryIndexRoute,
   OrgsOrgIdSkillsRepoRoute: OrgsOrgIdSkillsRepoRoute,
 }
