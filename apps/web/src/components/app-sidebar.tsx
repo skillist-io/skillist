@@ -8,10 +8,10 @@ import {
   PackageSearch,
   Settings2,
   Shield,
-  Zap,
 } from "lucide-react";
 import * as React from "react";
 import { NavUser } from "@/components/nav-user";
+import { SkillistLogo } from "@/components/skillist-logo";
 import { Label } from "@/components/ui/label";
 import {
   Sidebar,
@@ -118,11 +118,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenuButton size="lg" asChild className="md:h-8 md:p-0">
                 <Link to="/dashboard">
                   <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                    <Zap className="size-4" />
+                    <span className="text-sm font-bold tracking-[-0.04em]">S</span>
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">Skillist</span>
-                    <span className="truncate text-xs">Agent Skills</span>
+                    <SkillistLogo className="truncate text-sm" />
+                    <span className="truncate text-xs text-muted-foreground">Agent Skills</span>
                   </div>
                 </Link>
               </SidebarMenuButton>

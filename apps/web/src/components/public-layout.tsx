@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Zap } from "lucide-react";
+import { SkillistLogo } from "@/components/skillist-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/api-url";
@@ -23,9 +23,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
-            <Zap className="h-5 w-5 text-primary" />
-            Skillist
+          <Link to="/" className="flex items-center">
+            <SkillistLogo />
           </Link>
           <nav className="flex items-center gap-2">
             <ThemeToggle />
