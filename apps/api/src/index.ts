@@ -144,7 +144,7 @@ export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     // Daily 06:00 UTC → sync_all; weekly Sunday 07:00 UTC → discover
     const cron = controller.cron;
-    if (cron === "0 7 * * 0") {
+    if (cron === "0 7 * * sun") {
       ctx.waitUntil(env.SYNC_QUEUE.send({ type: "discover_sources" }));
       return;
     }
