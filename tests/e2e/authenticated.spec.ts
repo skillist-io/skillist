@@ -95,4 +95,17 @@ test.describe("signed-in flows", () => {
     await toggle.click();
     await expect(page.getByText("Private only")).toBeVisible();
   });
+
+  test("logout from sidebar redirects to login and clears session", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+
+    await page.locator('[data-slot="sidebar-footer"] [data-sidebar="menu-button"]').click();
+    await page.getByRole("menuitem", { name: "Log out" }).click();
+
+    await expect(page).toHaveURL(/\/login(\?.*)?$/);
+    await expect(page.getByRole("heading", { name: "Sign in to Skillist" })).toBeVisible();
+
+    await page.goto("/dashboard", { waitUntil: "networkidle" });
+    await expect(page).toHaveURL(/\/login(\?.*)?$/);
+  });
 });
