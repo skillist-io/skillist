@@ -5,7 +5,12 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export const AGENT_SKILL_ROOTS = [".cursor/skills", ".claude/skills", ".vscode/skills"] as const;
+export const AGENT_SKILL_ROOTS = [
+  ".cursor/skills",
+  ".claude/skills",
+  ".vscode/skills",
+  "skills",
+] as const;
 
 export type InventoryScanItem = {
   repoFullName: string;

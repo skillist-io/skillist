@@ -19,6 +19,10 @@ export type SkillKvMeta = {
   org: string;
   repo: string;
   publishedAt: string;
+  /** Origin type for badges/filters: native or mirror. */
+  sourceType?: "native" | "mirror";
+  upstreamRepo?: string;
+  upstreamUrl?: string;
 };
 
 export type SkillKvContent = {

@@ -1,0 +1,32 @@
+---
+title: Official mirrors
+description: How Skillist mirrors curated GitHub skill repos without claiming official hosting.
+---
+
+Skillist can **mirror** skills from curated official vendor repositories (for example [cloudflare/skills](https://github.com/cloudflare/skills) or [anthropics/skills](https://github.com/anthropics/skills)).
+
+Mirrored skills appear in the public registry with:
+
+- `sourceType: "mirror"` — used for badges and the **Origin → Mirror** filter on `/registry`
+- An upstream GitHub link to the source folder
+- Skillist delivery at `https://skillist.dev/{owner}/{skill-slug}`
+
+Skillist does **not** officially host or endorse vendor skills. We keep a delivery copy, run our own security scan and evals, and attribute the upstream repo.
+
+## Identity
+
+Monorepo skills map to one registry entry per skill folder:
+
+| Upstream | Skillist |
+|----------|----------|
+| `github.com/cloudflare/skills/skills/agents-sdk` | `skillist.dev/cloudflare/agents-sdk` |
+| `github.com/anthropics/skills/skills/docx` | `skillist.dev/anthropics/docx` |
+
+## API
+
+```http
+GET /v1/registry?sourceType=mirror
+GET /v1/registry/{org}/{repo}
+```
+
+Registry items include `sourceType`, `upstreamRepo`, and `upstreamUrl`.

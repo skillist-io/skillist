@@ -72,6 +72,9 @@ export const rejectFeedbackSchema = z.object({
   comment: z.string().max(2000).optional(),
 });
 
+export const skillSourceTypeSchema = z.enum(["native", "mirror"]);
+export type SkillSourceType = z.infer<typeof skillSourceTypeSchema>;
+
 export const registryQuerySchema = z.object({
   q: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -85,7 +88,23 @@ export const registryQuerySchema = z.object({
   category: z.string().max(64).optional(),
   tag: z.string().max(64).optional(),
   agent: z.string().max(64).optional(),
+  /** Filter by origin: native (published on Skillist) or mirror (synced from GitHub). */
+  sourceType: z.enum(["all", "native", "mirror"]).default("all"),
 });
+
+export const syncQueueMessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("sync_source"), sourceId: z.string().uuid() }),
+  z.object({ type: z.literal("sync_all") }),
+  z.object({ type: z.literal("discover_sources") }),
+  z.object({
+    type: z.literal("publish_skill"),
+    sourceId: z.string().uuid(),
+    skillSlug: z.string().min(1),
+    sourcePath: z.string().min(1),
+    commitSha: z.string().min(1),
+  }),
+]);
+export type SyncQueueMessage = z.infer<typeof syncQueueMessageSchema>;
 
 export const skillMetaSchema = z.object({
   name: z.string(),
