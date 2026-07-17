@@ -235,13 +235,17 @@ export {
 export {
   estimateImpactScore,
   type ReviewCheck,
+  type ReviewRubricConfig,
   reviewSkillBundle,
   type SkillReviewResult,
 } from "./review.js";
 export {
+  runSecurityScan,
   type SecurityIssue,
   type SecurityScanResult,
+  type SecurityScorer,
   scanSkillSecurity,
+  setSecurityScorer,
 } from "./security.js";
 export {
   bumpSemver,

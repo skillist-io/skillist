@@ -90,3 +90,29 @@ export async function sendMagicLink(email: string, callbackURL = "/dashboard") {
     callbackURL: `${window.location.origin}${callbackURL}`,
   });
 }
+
+/** Enterprise OIDC / SSO via Better Auth generic OAuth (`SSO_PROVIDER_ID`, default `sso`). */
+export async function signInWithSso(
+  callbackURL = "/dashboard",
+  providerId = import.meta.env.VITE_SSO_PROVIDER_ID || "sso",
+) {
+  const base = clientFetchBase();
+  const res = await fetch(`${base}/api/auth/sign-in/oauth2`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      providerId,
+      callbackURL: `${window.location.origin}${callbackURL}`,
+    }),
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(err.message ?? "SSO sign-in is not configured");
+  }
+  const data = (await res.json()) as { url?: string; redirect?: boolean };
+  if (data.url) {
+    window.location.assign(data.url);
+  }
+  return data;
+}

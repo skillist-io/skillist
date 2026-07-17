@@ -1,0 +1,40 @@
+# Example workflow — copy into repos that author skills.
+# name: Skillist skill review
+#
+# on:
+#   pull_request:
+#     paths:
+#       - "skills/**"
+#       - "**/SKILL.md"
+#
+# jobs:
+#   review:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: blakebauman/skillist/.github/actions/skillist-review@main
+#         with:
+#           path: skills/my-skill
+#           threshold: "80"
+#           fail-on: high
+#           api-key: ${{ secrets.SKILLIST_API_KEY }}
+#           org: my-org
+
+name: skillist-review-example
+on:
+  workflow_dispatch:
+    inputs:
+      path:
+        description: Skill directory
+        required: true
+        default: examples/skills/roll-dice
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/skillist-review
+        with:
+          path: ${{ inputs.path }}
+          threshold: "60"
+          fail-on: high

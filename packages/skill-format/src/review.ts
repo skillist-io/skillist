@@ -14,9 +14,27 @@ export type SkillReviewResult = {
   checks: ReviewCheck[];
 };
 
-export function reviewSkillBundle(files: SkillBundle, expectedSlug?: string): SkillReviewResult {
+export type ReviewRubricConfig = {
+  validationWeight?: number;
+  checks?: { id: string; weight: number; enabled?: boolean }[];
+};
+
+export function reviewSkillBundle(
+  files: SkillBundle,
+  expectedSlug?: string,
+  rubric?: ReviewRubricConfig | null,
+): SkillReviewResult {
   const checks: ReviewCheck[] = [];
   const validation = validateSkillBundle(files, expectedSlug);
+  const weightOverrides = new Map((rubric?.checks ?? []).map((c) => [c.id, c]));
+  const disabled = new Set(
+    (rubric?.checks ?? []).filter((c) => c.enabled === false).map((c) => c.id),
+  );
+
+  const validationWeight =
+    rubric?.validationWeight != null
+      ? Math.round(rubric.validationWeight * 100)
+      : (weightOverrides.get("valid-bundle")?.weight ?? 30);
 
   checks.push({
     id: "valid-bundle",
@@ -25,7 +43,7 @@ export function reviewSkillBundle(files: SkillBundle, expectedSlug?: string): Sk
     message: validation.valid
       ? "Bundle passes agentskills.io validation"
       : validation.errors.map((e: { message: string }) => e.message).join("; "),
-    weight: 30,
+    weight: validationWeight,
   });
 
   if (!validation.valid) {
@@ -37,11 +55,18 @@ export function reviewSkillBundle(files: SkillBundle, expectedSlug?: string): Sk
   checks.push(...reviewBody(body));
   checks.push(...reviewStructure(files));
 
-  const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
-  const earned = checks.filter((c) => c.passed).reduce((s, c) => s + c.weight, 0);
+  const weighted = checks
+    .filter((c) => !disabled.has(c.id))
+    .map((c) => {
+      const override = weightOverrides.get(c.id);
+      return override ? { ...c, weight: override.weight } : c;
+    });
+
+  const totalWeight = weighted.reduce((s, c) => s + c.weight, 0);
+  const earned = weighted.filter((c) => c.passed).reduce((s, c) => s + c.weight, 0);
   const score = totalWeight > 0 ? Math.round((earned / totalWeight) * 100) : 0;
 
-  return { score, checks };
+  return { score, checks: weighted };
 }
 
 function reviewFrontmatter(fm: SkillFrontmatter): ReviewCheck[] {

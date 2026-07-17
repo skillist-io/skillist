@@ -470,7 +470,12 @@ skillRoutes.openapi(previewVersionRoute, async (c) => {
 
   const paths = await listBundlePaths(c.env.SKILLS_R2, version.r2Prefix);
   const bundle = await downloadBundleFromR2(c.env.SKILLS_R2, version.r2Prefix, paths);
-  const review = reviewSkillBundle(bundle, repo);
+  const [org] = await c.var.db
+    .select({ reviewRubric: organizations.reviewRubric })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  const review = reviewSkillBundle(bundle, repo, org?.reviewRubric);
   const impactScore = estimateImpactScore(review);
   const security = scanSkillSecurity(bundle);
 

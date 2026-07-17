@@ -99,6 +99,14 @@ export type PublishPolicy = {
   requireEval?: boolean;
 };
 
+export type InstallPolicy = {
+  warnSeverity?: "low" | "medium" | "high" | "critical";
+  blockSeverity?: "low" | "medium" | "high" | "critical";
+  allowedSources?: "registry_org_only" | "registry_any" | "registry_plus_git";
+  gitAllowlist?: string[];
+  minReleaseAgeDays?: number;
+};
+
 export type AuditEvent = {
   id: string;
   action: string;
@@ -226,6 +234,15 @@ export type SkillInventoryItem = {
   managed: boolean;
   registryOrgSlug: string | null;
   registryRepo: string | null;
+  sourceType?: string | null;
+  scope?: string | null;
+  marketplace?: string | null;
+  pluginName?: string | null;
+  isSymlink?: boolean;
+  conformanceStatus?: string | null;
+  contentHash?: string | null;
+  securityStatus?: string | null;
+  securityIssues?: { severity: string; path: string; message: string }[] | null;
   scannedAt: string;
 };
 

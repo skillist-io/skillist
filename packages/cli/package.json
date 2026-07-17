@@ -14,6 +14,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "dev": "tsx src/index.ts",
     "prepublishOnly": "pnpm run build"
   },
@@ -46,6 +47,7 @@
     "@skillist/tsconfig": "workspace:*",
     "@types/node": "^22.15.29",
     "tsx": "^4.20.3",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }

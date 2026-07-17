@@ -28,6 +28,16 @@ MCP clients use a separate OAuth flow — see [OAuth authentication](/mcp/oauth/
 
 Hosted sandbox **runs** require authentication. Anonymous users can browse public skill scripts but cannot execute them.
 
+## Enterprise SSO (OIDC)
+
+Configure Better Auth generic OAuth on the API worker with:
+
+- `SSO_CLIENT_ID` / `SSO_CLIENT_SECRET`
+- `SSO_DISCOVERY_URL` **or** `SSO_AUTHORIZATION_URL` + `SSO_TOKEN_URL` (+ optional `SSO_USERINFO_URL`)
+- Optional `SSO_PROVIDER_ID` (default `sso`) and `SSO_SCOPES`
+
+The web login page exposes **Enterprise SSO**, which calls `/api/auth/sign-in/oauth2`.
+
 ## Local OAuth redirects
 
 | Provider | Redirect URI |

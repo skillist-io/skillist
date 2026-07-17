@@ -2,7 +2,13 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { LoginForm } from "@/components/login-form";
-import { sendMagicLink, signInWithGitHub, signInWithGoogle, useSession } from "@/lib/auth-client";
+import {
+  sendMagicLink,
+  signInWithGitHub,
+  signInWithGoogle,
+  signInWithSso,
+  useSession,
+} from "@/lib/auth-client";
 import { authErrorMessage } from "@/lib/auth-errors";
 
 export const Route = createFileRoute("/login")({
@@ -79,6 +85,17 @@ function LoginPage() {
     }
   }
 
+  async function handleSso() {
+    setError(null);
+    setLoading("sso");
+    try {
+      await signInWithSso(redirect ?? "/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "SSO sign-in failed");
+      setLoading(null);
+    }
+  }
+
   return (
     <>
       <LoginForm
@@ -86,6 +103,7 @@ function LoginPage() {
         onEmailChange={setEmail}
         onGitHub={handleGitHub}
         onGoogle={handleGoogle}
+        onSso={handleSso}
         onMagicLink={handleMagicLink}
         loading={loading}
         error={error}

@@ -69,6 +69,7 @@ export default defineConfig({
             { label: "Registry", slug: "platform/registry" },
             { label: "Official mirrors", slug: "platform/official-mirrors" },
             { label: "Skill inventory", slug: "platform/inventory" },
+            { label: "Install policy", slug: "platform/install-policy" },
             { label: "Authentication", slug: "platform/authentication" },
             { label: "Sandbox execution", slug: "platform/sandbox" },
           ],

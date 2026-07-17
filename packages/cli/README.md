@@ -52,5 +52,9 @@ https://skillist.dev/{org}/{repo}/SKILL.md
 - `skillist rollback <org>/<repo> <semver>` — roll back to a previous published version
 - `skillist update [org/repo]` — refresh installed skills
 - `skillist list` — show lockfile entries
-- `skillist inventory scan [--org <slug>]` — discover local agent skills and POST scan
+- `skillist review <dir> [--threshold N] [--fail-on sev] [--json]` — quality + security CI gate
+- `skillist required-skills check [--org <slug>]` — verify lockfile against org required skills
+- `skillist inventory scan [--org <slug>]` — BFS-discover local agent skills and POST scan
+- `skillist inventory import --github-org <org>` — scan GitHub org via `gh` and POST inventory
 - `skillist inventory list [--org <slug>]` — list org inventory from the API
+- `skillist mcp proxy <org>/<name>` — stdio proxy to an org MCP gateway server
