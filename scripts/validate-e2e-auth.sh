@@ -13,7 +13,7 @@ cd "$ROOT"
 pnpm exec playwright test \
   --config tests/e2e/playwright.config.ts \
   --project=authenticated \
-  -g "dashboard loads for authenticated user" \
+  tests/e2e/auth-health.spec.ts \
   --reporter=line
 
 echo "✓ Auth state is valid for signed-in e2e"
