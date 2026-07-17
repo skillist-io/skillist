@@ -28,7 +28,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { api, type Org, type Skill } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
 
 type NavItem = {
   title: string;
@@ -78,30 +77,18 @@ function activeSection(pathname: string): NavItem["section"] {
   return "dashboard";
 }
 
-export function showSidebarExplorer(pathname: string): boolean {
-  return pathname.startsWith("/dashboard") || pathname.startsWith("/orgs/");
-}
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const section = activeSection(pathname);
-  const explorerOpen = showSidebarExplorer(pathname);
   const activeItem = navMain.find((item) => item.section === section) ?? navMain[0]!;
-  const { open, setOpen } = useSidebar();
+  const { open } = useSidebar();
   const { data: session } = useSession();
   const [filter, setFilter] = React.useState("");
   const [privateOnly, setPrivateOnly] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!explorerOpen) {
-      setOpen(false);
-    }
-  }, [explorerOpen, setOpen]);
-
   const { data: orgs } = useQuery({
     queryKey: ["orgs"],
     queryFn: () => api<Org[]>("/v1/orgs"),
-    enabled: explorerOpen,
   });
 
   const user = {
@@ -112,8 +99,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar
-      collapsible={explorerOpen ? "icon" : "none"}
-      className={cn("overflow-hidden *:data-[sidebar=sidebar]:flex-row", !explorerOpen && "w-fit!")}
+      collapsible="icon"
+      className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
       {...props}
     >
       <Sidebar collapsible="none" className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r">
@@ -145,13 +132,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       asChild
                       isActive={activeItem.title === item.title}
                       className="px-2.5 md:px-2"
-                      onClick={() => {
-                        if (item.section === "dashboard") {
-                          setOpen(true);
-                        } else {
-                          setOpen(false);
-                        }
-                      }}
                     >
                       <Link to={item.to}>
                         <item.icon className="size-4" />
@@ -169,7 +149,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarFooter>
       </Sidebar>
 
-      {explorerOpen && open ? (
+      {open ? (
         <Sidebar collapsible="none" className="hidden flex-1 md:flex">
           <SidebarHeader className="gap-3.5 border-b p-4">
             <div className="flex w-full items-center justify-between">

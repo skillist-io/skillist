@@ -76,11 +76,10 @@ test.describe("signed-in flows", () => {
     }
   });
 
-  test("inventory hides org/skill explorer panel", async ({ page }, testInfo) => {
+  test("inventory shows sidebar explorer toggle", async ({ page }, testInfo) => {
     await skipIfSignedOut(page, testInfo, "/inventory");
     await expect(page.getByRole("heading", { name: "Skill inventory" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Toggle Sidebar" })).toHaveCount(0);
-    await expect(page.getByText("Private only")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Toggle Sidebar" })).toBeVisible();
   });
 
   test("sidebar open state persists after refresh on dashboard", async ({ page }) => {
