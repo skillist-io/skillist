@@ -69,28 +69,6 @@ const navMain: NavItem[] = [
   },
 ];
 
-const settingsLinks = [
-  { title: "OAuth setup", href: "#github-oauth" },
-  { title: "API keys", href: "#api-keys" },
-];
-
-const governanceLinks = [
-  { title: "Publish policies", href: "#governance" },
-  { title: "Execution quotas", href: "#governance" },
-  { title: "Audit log", href: "#governance" },
-];
-
-const observabilityLinks = [
-  { title: "Run metrics", href: "#run-metrics" },
-  { title: "Install funnel", href: "#install-funnel" },
-  { title: "Recent runs", href: "#recent-runs" },
-];
-
-const inventoryLinks = [
-  { title: "Discovered skills", href: "#discovered" },
-  { title: "Submit scan", href: "#scan" },
-];
-
 function activeSection(pathname: string): NavItem["section"] {
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/governance")) return "governance";
@@ -99,18 +77,30 @@ function activeSection(pathname: string): NavItem["section"] {
   return "dashboard";
 }
 
+export function showSidebarExplorer(pathname: string): boolean {
+  return pathname.startsWith("/dashboard") || pathname.startsWith("/orgs/");
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const section = activeSection(pathname);
+  const explorerOpen = showSidebarExplorer(pathname);
   const activeItem = navMain.find((item) => item.section === section) ?? navMain[0]!;
-  const { setOpen } = useSidebar();
+  const { open, setOpen } = useSidebar();
   const { data: session } = useSession();
   const [filter, setFilter] = React.useState("");
+  const [privateOnly, setPrivateOnly] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!explorerOpen) {
+      setOpen(false);
+    }
+  }, [explorerOpen, setOpen]);
 
   const { data: orgs } = useQuery({
     queryKey: ["orgs"],
     queryFn: () => api<Org[]>("/v1/orgs"),
-    enabled: section === "dashboard",
+    enabled: explorerOpen,
   });
 
   const user = {
@@ -121,7 +111,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar
-      collapsible="icon"
+      collapsible={explorerOpen ? "icon" : "none"}
       className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
       {...props}
     >
@@ -154,7 +144,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       asChild
                       isActive={activeItem.title === item.title}
                       className="px-2.5 md:px-2"
-                      onClick={() => setOpen(true)}
+                      onClick={() => {
+                        if (item.section === "dashboard") {
+                          setOpen(true);
+                        } else {
+                          setOpen(false);
+                        }
+                      }}
                     >
                       <Link to={item.to}>
                         <item.icon className="size-4" />
@@ -172,75 +168,41 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarFooter>
       </Sidebar>
 
-      <Sidebar collapsible="none" className="hidden flex-1 md:flex">
-        <SidebarHeader className="gap-3.5 border-b p-4">
-          <div className="flex w-full items-center justify-between">
-            <div className="text-base font-medium text-foreground">{activeItem.title}</div>
-            {section === "dashboard" && (
-              <Label className="flex items-center gap-2 text-sm">
+      {explorerOpen && open ? (
+        <Sidebar collapsible="none" className="hidden flex-1 md:flex">
+          <SidebarHeader className="gap-3.5 border-b p-4">
+            <div className="flex w-full items-center justify-between">
+              <div className="text-base font-medium text-foreground">{activeItem.title}</div>
+              <Label htmlFor="sidebar-private-only" className="flex items-center gap-2 text-sm">
                 <span>Private only</span>
-                <Switch className="shadow-none" />
+                <Switch
+                  id="sidebar-private-only"
+                  className="shadow-none"
+                  checked={privateOnly}
+                  onCheckedChange={setPrivateOnly}
+                />
               </Label>
-            )}
-          </div>
-          {section === "dashboard" && (
+            </div>
             <SidebarInput
               placeholder="Filter orgs and skills..."
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
-          )}
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup className="px-0">
-            <SidebarGroupContent>
-              {section === "dashboard" ? (
-                <OrgSkillNav orgs={orgs ?? []} filter={filter} pathname={pathname} />
-              ) : section === "observability" ? (
-                observabilityLinks.map((link) => (
-                  <a
-                    key={link.title}
-                    href={link.href}
-                    className="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  >
-                    <span className="font-medium">{link.title}</span>
-                  </a>
-                ))
-              ) : section === "governance" ? (
-                governanceLinks.map((link) => (
-                  <a
-                    key={link.title}
-                    href={link.href}
-                    className="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  >
-                    <span className="font-medium">{link.title}</span>
-                  </a>
-                ))
-              ) : section === "inventory" ? (
-                inventoryLinks.map((link) => (
-                  <a
-                    key={link.title}
-                    href={link.href}
-                    className="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  >
-                    <span className="font-medium">{link.title}</span>
-                  </a>
-                ))
-              ) : (
-                settingsLinks.map((link) => (
-                  <a
-                    key={link.title}
-                    href={link.href}
-                    className="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  >
-                    <span className="font-medium">{link.title}</span>
-                  </a>
-                ))
-              )}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-      </Sidebar>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup className="px-0">
+              <SidebarGroupContent>
+                <OrgSkillNav
+                  orgs={orgs ?? []}
+                  filter={filter}
+                  privateOnly={privateOnly}
+                  pathname={pathname}
+                />
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+      ) : null}
     </Sidebar>
   );
 }
@@ -248,10 +210,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 function OrgSkillNav({
   orgs,
   filter,
+  privateOnly,
   pathname,
 }: {
   orgs: Org[];
   filter: string;
+  privateOnly: boolean;
   pathname: string;
 }) {
   const needle = filter.trim().toLowerCase();
@@ -264,43 +228,73 @@ function OrgSkillNav({
     );
   }
 
-  return (
-    <>
-      {orgs
-        .filter(
-          (org) =>
-            !needle ||
-            org.name.toLowerCase().includes(needle) ||
-            org.slug.toLowerCase().includes(needle),
-        )
-        .map((org) => (
-          <OrgSkills key={org.id} org={org} filter={needle} pathname={pathname} />
-        ))}
-    </>
-  );
+  const orgBlocks = orgs
+    .filter(
+      (org) =>
+        !needle ||
+        org.name.toLowerCase().includes(needle) ||
+        org.slug.toLowerCase().includes(needle),
+    )
+    .map((org) => (
+      <OrgSkills
+        key={org.id}
+        org={org}
+        filter={needle}
+        privateOnly={privateOnly}
+        pathname={pathname}
+      />
+    ))
+    .filter(Boolean);
+
+  if (!orgBlocks.length) {
+    return (
+      <p className="p-4 text-sm text-muted-foreground">
+        {privateOnly ? "No private skills match your filters." : "No skills match your filters."}
+      </p>
+    );
+  }
+
+  return <>{orgBlocks}</>;
 }
 
-function OrgSkills({ org, filter, pathname }: { org: Org; filter: string; pathname: string }) {
+function OrgSkills({
+  org,
+  filter,
+  privateOnly,
+  pathname,
+}: {
+  org: Org;
+  filter: string;
+  privateOnly: boolean;
+  pathname: string;
+}) {
   const { data: skills } = useQuery({
     queryKey: ["skills", org.id],
     queryFn: () => api<Skill[]>(`/v1/orgs/${org.id}/skills`),
   });
 
   const visibleSkills =
-    skills?.filter(
-      (skill) =>
-        !filter ||
-        skill.repo.toLowerCase().includes(filter) ||
-        org.slug.toLowerCase().includes(filter),
-    ) ?? [];
+    skills?.filter((skill) => {
+      if (privateOnly && skill.visibility !== "private") return false;
+      if (
+        filter &&
+        !skill.repo.toLowerCase().includes(filter) &&
+        !org.slug.toLowerCase().includes(filter)
+      ) {
+        return false;
+      }
+      return true;
+    }) ?? [];
 
-  if (
-    filter &&
-    !visibleSkills.length &&
-    !org.slug.includes(filter) &&
-    !org.name.toLowerCase().includes(filter)
-  ) {
-    return null;
+  if (!visibleSkills.length) {
+    if (privateOnly) return null;
+    if (
+      filter &&
+      !org.slug.toLowerCase().includes(filter) &&
+      !org.name.toLowerCase().includes(filter)
+    ) {
+      return null;
+    }
   }
 
   return (
