@@ -26,6 +26,14 @@ if [[ ! -f "$AUTH_FILE" ]]; then
   exit 1
 fi
 
+echo "Validating auth state against production..."
+if ! "$ROOT/scripts/validate-e2e-auth.sh"; then
+  echo ""
+  echo "Auth state is missing or expired. Sign in again:"
+  echo "  pnpm exec playwright open --save-storage=$AUTH_FILE https://skillist.dev/login"
+  exit 1
+fi
+
 echo "Setting E2E_AUTH_STATE_B64..."
 base64 < "$AUTH_FILE" | tr -d '\n' | gh secret set E2E_AUTH_STATE_B64
 echo "✓ E2E_AUTH_STATE_B64"
