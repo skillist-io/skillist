@@ -35,4 +35,24 @@ POST  /v1/orgs/{orgId}/install-check
 skillist review ./my-skill --threshold 80 --fail-on high --json
 ```
 
-Or use the composite action at `.github/actions/skillist-review`.
+Or use the composite action at `.github/actions/skillist-review`:
+
+```yaml
+# .github/workflows/skill-review.yml
+name: Skill review
+on:
+  pull_request:
+    paths: ["skills/**"]
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: blakebauman/skillist/.github/actions/skillist-review@main
+        with:
+          path: skills/my-skill
+          threshold: "80"
+          fail-on: high
+```
+
+Optional `api-url`, `api-key`, and `org` inputs load the org review rubric from the API.

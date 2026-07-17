@@ -1,6 +1,6 @@
 ---
 title: Authentication
-description: Sign in to Skillist with GitHub, Google, magic link, or email OTP — no passwords.
+description: Sign in to Skillist with GitHub, Google, passkey, magic link, or SSO — no passwords.
 ---
 
 Skillist supports passwordless authentication — no passwords stored.
@@ -11,8 +11,21 @@ Skillist supports passwordless authentication — no passwords stored.
 |--------|-------|
 | GitHub OAuth | [skillist.dev/login](https://skillist.dev/login) |
 | Google OAuth | [skillist.dev/login](https://skillist.dev/login) |
+| Passkey | Login page or [Account](https://skillist.dev/account) |
 | Magic link | Email link via API |
 | Email OTP | One-time code via email |
+| Enterprise SSO | Login page (when configured) |
+
+## Account
+
+Signed-in users manage personal auth at [skillist.dev/account](https://skillist.dev/account):
+
+- Display name
+- Linked GitHub / Google providers
+- Passkey registration and removal
+- Active session revoke
+
+Org API keys and OAuth app redirect docs stay under **Settings**.
 
 ## API auth
 

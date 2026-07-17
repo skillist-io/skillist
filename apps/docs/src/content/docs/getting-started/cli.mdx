@@ -60,6 +60,25 @@ skillist run <org>/<repo> --script scripts/<name> [--stream]
 
 Requires a signed-in session. Anonymous sandbox runs are not permitted. See [Sandbox execution](/platform/sandbox/).
 
+## Review & inventory
+
+Quality/security gate for CI (see [Install policy](/platform/install-policy/)):
+
+```bash
+skillist review ./my-skill --threshold 80 --fail-on high --json
+```
+
+Discover local agent skills and sync estate inventory (see [Skill inventory](/platform/inventory/)):
+
+```bash
+export SKILLIST_API_KEY=sk_...
+skillist inventory scan --org my-org
+skillist inventory import --github-org my-github-org --org my-org
+skillist inventory list --org my-org
+```
+
+Installs and updates respect org install policy when `SKILLIST_API_KEY` is set.
+
 ## Environment
 
 <DocTable
