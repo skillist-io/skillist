@@ -26,16 +26,16 @@ import { broadcastPublish, cachePublishedSkill } from "../publish";
 import { queueSkillEval } from "../queue-eval";
 import { r2Prefix, sha256, uploadBundleToR2 } from "../r2";
 import { detectSkillRuntime } from "../skill-runtime";
-import { hashSkillTreeSnapshot, loadMirrorSkillBundle } from "./bundle";
+import { hashSkillTreeSnapshot, loadMirrorSkillBundle, sanitizeMirrorBundle } from "./bundle";
 import { getCachedTree, putCachedTree } from "./cache";
 import { discoverSkillsFromTree } from "./discover";
 import {
+  assertMirrorLicenseAllowed,
   cacheTarballToR2,
   fetchCommitSha,
   fetchRepoMetadata,
   fetchRepoTree,
   type GithubTreeEntry,
-  isCompatibleLicense,
 } from "./fetch";
 import { archiveRemovedMirrorSkills } from "./mirror-archive";
 
@@ -134,11 +134,7 @@ export async function syncSource(
 
   try {
     const meta = await fetchRepoMetadata(source.githubOwner, source.githubRepo, env.GITHUB_TOKEN);
-    if (!isCompatibleLicense(meta.license)) {
-      throw new Error(
-        `Incompatible or missing license for ${source.githubOwner}/${source.githubRepo}: ${meta.license ?? "none"}`,
-      );
-    }
+    assertMirrorLicenseAllowed(meta.license, source.trustTier);
 
     const branch = source.defaultBranch || meta.defaultBranch;
     const commitSha = await fetchCommitSha(
@@ -180,13 +176,24 @@ export async function syncSource(
       };
     }
 
-    await cacheTarballToR2(
-      env.SKILLS_R2,
-      source.githubOwner,
-      source.githubRepo,
-      commitSha,
-      env.GITHUB_TOKEN,
-    );
+    try {
+      await cacheTarballToR2(
+        env.SKILLS_R2,
+        source.githubOwner,
+        source.githubRepo,
+        commitSha,
+        env.GITHUB_TOKEN,
+      );
+    } catch (err) {
+      // Tarball cache is an optimization; tree/blob fetch still works.
+      console.warn(
+        JSON.stringify({
+          msg: "tarball_cache_failed",
+          repo: `${source.githubOwner}/${source.githubRepo}`,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }
 
     const tree = await loadTree(env, source.githubOwner, source.githubRepo, commitSha);
     const discovered = discoverSkillsFromTree(tree, source.discoveryRoots ?? ["skills"]);
@@ -358,7 +365,7 @@ export async function mirrorPublishSkill(
 
   const org = await ensureMirrorOrg(db, source.githubOwner);
   const tree = await loadTree(env, source.githubOwner, source.githubRepo, input.commitSha);
-  const bundle = await loadMirrorSkillBundle(
+  const rawBundle = await loadMirrorSkillBundle(
     env.SKILLS_R2,
     source.githubOwner,
     source.githubRepo,
@@ -367,6 +374,7 @@ export async function mirrorPublishSkill(
     tree,
     env.GITHUB_TOKEN,
   );
+  const bundle = sanitizeMirrorBundle(rawBundle);
 
   const validation = validateSkillBundle(bundle, input.skillSlug);
   if (!validation.valid) {

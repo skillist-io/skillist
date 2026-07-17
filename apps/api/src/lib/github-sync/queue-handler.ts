@@ -45,17 +45,24 @@ export async function handleSyncQueueMessage(env: Env, message: SyncQueueMessage
           sourcePath: message.sourcePath,
           commitSha: message.commitSha,
         });
-        const readyToFinalize = await recordPublishJobSuccess(
-          db,
-          message.sourceId,
-          message.commitSha,
-        );
-        if (readyToFinalize) {
-          await finalizeSourceSync(db, message.sourceId, message.commitSha);
-        }
       } catch (err) {
-        await recordPublishJobFailure(db, message.sourceId, message.commitSha, err);
-        throw err;
+        // One bad vendor skill must not poison the whole source sync batch.
+        console.warn(
+          JSON.stringify({
+            msg: "mirror_publish_skipped",
+            sourceId: message.sourceId,
+            skillSlug: message.skillSlug,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
+      }
+      const readyToFinalize = await recordPublishJobSuccess(
+        db,
+        message.sourceId,
+        message.commitSha,
+      );
+      if (readyToFinalize) {
+        await finalizeSourceSync(db, message.sourceId, message.commitSha);
       }
       return;
     }

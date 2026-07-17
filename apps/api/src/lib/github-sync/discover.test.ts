@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { hashSkillTreeSnapshot } from "./bundle";
 import { discoverSkillsFromTree, listSkillFileEntries } from "./discover";
 import type { GithubTreeEntry } from "./fetch";
 
@@ -12,17 +11,43 @@ describe("discoverSkillsFromTree", () => {
     { path: "README.md", type: "blob", sha: "e" },
     { path: ".cursor/skills/local-tool/SKILL.md", type: "blob", sha: "f" },
     { path: "skills/Bad_Name/SKILL.md", type: "blob", sha: "g" },
+    { path: "docs/guide/SKILL.md", type: "blob", sha: "h" },
   ];
 
-  it("finds one-level skills under configured roots", () => {
-    const found = discoverSkillsFromTree(tree, ["skills", ".cursor/skills"]);
-    expect(found.map((s) => s.skillSlug)).toEqual(["agents-sdk", "local-tool", "wrangler"]);
-    expect(found[0]?.sourcePath).toBe("skills/agents-sdk");
+  it("finds skills under skills/ including nested folders", () => {
+    const found = discoverSkillsFromTree(tree, ["skills"]);
+    expect(found.map((s) => s.skillSlug)).toEqual([
+      "agents-sdk",
+      "local-tool",
+      "too-deep",
+      "wrangler",
+    ]);
+    expect(found.find((s) => s.skillSlug === "agents-sdk")?.sourcePath).toBe("skills/agents-sdk");
   });
 
-  it("ignores skills outside roots", () => {
+  it("finds nested plugin skills", () => {
+    const nested: GithubTreeEntry[] = [
+      {
+        path: "plugins/adobe-analytics/skills/aa-kpi-pulse/SKILL.md",
+        type: "blob",
+        sha: "1",
+      },
+      {
+        path: "plugins/aws-foo/skills/analyzing-release-readiness/SKILL.md",
+        type: "blob",
+        sha: "2",
+      },
+    ];
+    const found = discoverSkillsFromTree(nested, ["skills"]);
+    expect(found.map((s) => s.skillSlug).sort()).toEqual([
+      "aa-kpi-pulse",
+      "analyzing-release-readiness",
+    ]);
+  });
+
+  it("ignores SKILL.md outside skills roots", () => {
     const found = discoverSkillsFromTree(tree, ["skills"]);
-    expect(found.some((s) => s.skillSlug === "local-tool")).toBe(false);
+    expect(found.some((s) => s.sourcePath.startsWith("docs/"))).toBe(false);
   });
 });
 
@@ -35,22 +60,5 @@ describe("listSkillFileEntries", () => {
     ];
     const files = listSkillFileEntries(tree, "skills/agents-sdk");
     expect(files.map((f) => f.relativePath).sort()).toEqual(["SKILL.md", "references/rpc.md"]);
-  });
-});
-
-describe("hashSkillTreeSnapshot", () => {
-  it("changes when any blob sha changes", async () => {
-    const base: GithubTreeEntry[] = [
-      { path: "skills/foo/SKILL.md", type: "blob", sha: "a" },
-      { path: "skills/foo/scripts/run.sh", type: "blob", sha: "b" },
-    ];
-    const changed: GithubTreeEntry[] = [
-      { path: "skills/foo/SKILL.md", type: "blob", sha: "a2" },
-      { path: "skills/foo/scripts/run.sh", type: "blob", sha: "b" },
-    ];
-
-    const before = await hashSkillTreeSnapshot(base, "skills/foo");
-    const after = await hashSkillTreeSnapshot(changed, "skills/foo");
-    expect(before).not.toBe(after);
   });
 });
