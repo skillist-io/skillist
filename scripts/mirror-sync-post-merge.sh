@@ -17,11 +17,12 @@ else
   echo "skip secrets (.dev.vars missing)"
 fi
 
-echo "==> Enqueue sync_all via Cloudflare Queue (requires wrangler auth)"
-if command -v pnpm >/dev/null; then
-  (cd "$ROOT/apps/api" && pnpm exec wrangler queues send skillist-sync-jobs \
-    '{"type":"sync_all"}' \
-    --config wrangler.production.jsonc) || echo "queue send failed — trigger manually from /admin/mirrors"
+echo "==> Enqueue sync_all (Cloudflare Queues HTTP API or /admin/mirrors)"
+if [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+  node "$ROOT/scripts/enqueue-sync-job.mjs" '{"type":"sync_all"}' || \
+    echo "queue publish failed — trigger from /admin/mirrors after login"
+else
+  echo "skip queue publish (set CLOUDFLARE_API_TOKEN) — use /admin/mirrors → Sync all sources"
 fi
 
 echo "==> Verify registry mirror filter"
