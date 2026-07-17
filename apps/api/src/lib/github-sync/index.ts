@@ -1,4 +1,9 @@
-export { hashSkillBundle, hashSkillTreeSnapshot, loadSkillBundleFromTree } from "./bundle";
+export {
+  hashSkillBundle,
+  hashSkillTreeSnapshot,
+  loadMirrorSkillBundle,
+  loadSkillBundleFromTree,
+} from "./bundle";
 export { getCachedTree, putCachedTree, tarballCacheKey, treeCacheKey } from "./cache";
 export {
   discoverSkillsFromTree,
@@ -15,6 +20,7 @@ export {
   type GithubTreeEntry,
   isCompatibleLicense,
 } from "./fetch";
+export { archiveRemovedMirrorSkills } from "./mirror-archive";
 export {
   beginSourcePublishBatch,
   finalizeSourceSync,
@@ -27,3 +33,8 @@ export {
   syncSource,
 } from "./mirror-publish";
 export { enqueueSyncForGithubRepo, handleSyncQueueMessage } from "./queue-handler";
+export {
+  extractSkillBundleFromTarEntries,
+  loadSkillBundleFromTarball,
+  parseTarEntries,
+} from "./tarball";

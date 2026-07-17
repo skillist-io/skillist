@@ -26,7 +26,7 @@ import { broadcastPublish, cachePublishedSkill } from "../publish";
 import { queueSkillEval } from "../queue-eval";
 import { r2Prefix, sha256, uploadBundleToR2 } from "../r2";
 import { detectSkillRuntime } from "../skill-runtime";
-import { hashSkillTreeSnapshot, loadSkillBundleFromTree } from "./bundle";
+import { hashSkillTreeSnapshot, loadMirrorSkillBundle } from "./bundle";
 import { getCachedTree, putCachedTree } from "./cache";
 import { discoverSkillsFromTree } from "./discover";
 import {
@@ -37,6 +37,7 @@ import {
   type GithubTreeEntry,
   isCompatibleLicense,
 } from "./fetch";
+import { archiveRemovedMirrorSkills } from "./mirror-archive";
 
 const MIRROR_ORG_POLICY = {
   minQualityScore: 0,
@@ -225,6 +226,13 @@ export async function syncSource(
       });
     }
 
+    await archiveRemovedMirrorSkills(
+      db,
+      sourceId,
+      org.id,
+      new Set(discovered.map((skill) => skill.skillSlug)),
+    );
+
     return {
       sourceId,
       commitSha,
@@ -350,11 +358,13 @@ export async function mirrorPublishSkill(
 
   const org = await ensureMirrorOrg(db, source.githubOwner);
   const tree = await loadTree(env, source.githubOwner, source.githubRepo, input.commitSha);
-  const bundle = await loadSkillBundleFromTree(
+  const bundle = await loadMirrorSkillBundle(
+    env.SKILLS_R2,
     source.githubOwner,
     source.githubRepo,
-    tree,
+    input.commitSha,
     input.sourcePath,
+    tree,
     env.GITHUB_TOKEN,
   );
 

@@ -20,6 +20,7 @@
     "setup:local": "bash scripts/setup-local.sh",
     "setup:oauth": "bash scripts/setup-oauth.sh",
     "setup:secrets": "bash scripts/setup-production-secrets.sh",
+    "mirror-sync:post-merge": "bash scripts/mirror-sync-post-merge.sh",
     "seed:registry": "tsx scripts/seed-registry.ts",
     "run:public-evals": "tsx scripts/run-public-evals.ts",
     "cli": "pnpm --filter @skillist/cli dev",

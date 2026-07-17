@@ -2,6 +2,7 @@ import type { SkillBundle } from "@skillist/skill-format";
 import { sha256 } from "../r2";
 import { listSkillFileEntries } from "./discover";
 import { fetchBlobText, type GithubTreeEntry } from "./fetch";
+import { loadSkillBundleFromTarball } from "./tarball";
 
 export async function hashSkillTreeSnapshot(
   tree: GithubTreeEntry[],
@@ -33,6 +34,21 @@ export async function loadSkillBundleFromTree(
   );
 
   return bundle;
+}
+
+/** Prefer R2 tarball (one download); fall back to per-blob GitHub tree fetches. */
+export async function loadMirrorSkillBundle(
+  bucket: R2Bucket,
+  owner: string,
+  repo: string,
+  commitSha: string,
+  sourcePath: string,
+  tree: GithubTreeEntry[],
+  token?: string,
+): Promise<SkillBundle> {
+  const fromTarball = await loadSkillBundleFromTarball(bucket, owner, repo, commitSha, sourcePath);
+  if (fromTarball) return fromTarball;
+  return loadSkillBundleFromTree(owner, repo, tree, sourcePath, token);
 }
 
 export async function hashSkillBundle(bundle: SkillBundle): Promise<string> {
