@@ -28,8 +28,14 @@ function LoginPage() {
     if (message) setError(message);
   }, [authError, authErrorDescription]);
 
+  useEffect(() => {
+    if (session?.user) {
+      void navigate({ to: redirect ?? "/dashboard", replace: true });
+    }
+  }, [session?.user, redirect, navigate]);
+
   if (session?.user) {
-    void navigate({ to: redirect ?? "/dashboard" });
+    return null;
   }
 
   async function handleGitHub() {

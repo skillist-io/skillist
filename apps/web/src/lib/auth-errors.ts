@@ -10,6 +10,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     "This account is already linked to another sign-in method. Use the original provider or magic link.",
   auth_unreachable: "We couldn't reach the sign-in service. Check your connection and try again.",
   session_unavailable: "We couldn't verify your session. Sign in again to continue.",
+  sign_out_failed: "We couldn't sign you out cleanly. Try again or clear site cookies.",
 };
 
 export function authErrorMessage(code: string | undefined, fallback?: string) {

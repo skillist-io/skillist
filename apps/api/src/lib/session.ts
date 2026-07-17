@@ -15,6 +15,7 @@ export async function resolveUserId(c: SessionContext): Promise<string | null> {
   const auth = createAuth(c.var.db, {
     BETTER_AUTH_SECRET: c.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: c.env.BETTER_AUTH_URL,
+    WEB_URL: c.env.WEB_URL,
     GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: c.env.GITHUB_CLIENT_SECRET,
     GOOGLE_CLIENT_ID: c.env.GOOGLE_CLIENT_ID,
@@ -32,6 +33,7 @@ export async function resolveSessionUserId(
   const auth = createAuth(db, {
     BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: env.BETTER_AUTH_URL,
+    WEB_URL: env.WEB_URL,
     GITHUB_CLIENT_ID: env.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: env.GITHUB_CLIENT_SECRET,
     GOOGLE_CLIENT_ID: env.GOOGLE_CLIENT_ID,

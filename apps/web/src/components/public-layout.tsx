@@ -3,7 +3,7 @@ import { Zap } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { apiUrl } from "@/lib/api-url";
-import { signOut, useSession } from "@/lib/auth-client";
+import { signOutAndRedirect, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 // Data-dense surfaces run full-bleed like the app shell; marketing pages stay
@@ -47,7 +47,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <Button variant="ghost" asChild>
                   <Link to="/dashboard">Dashboard</Link>
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => signOut()}>
+                <Button variant="outline" size="sm" onClick={() => void signOutAndRedirect()}>
                   Sign out
                 </Button>
               </>

@@ -12,6 +12,7 @@ export type Env = {
   AI_QUEUE: Queue<AiJobMessage>;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
+  WEB_URL?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   GOOGLE_CLIENT_ID?: string;
