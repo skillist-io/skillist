@@ -54,6 +54,10 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
     );
   }
 
+  if (query.sourceType && query.sourceType !== "all") {
+    clauses.push(eq(registryEntries.sourceType, query.sourceType));
+  }
+
   return clauses.length ? and(...clauses) : undefined;
 }
 
@@ -103,6 +107,9 @@ export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQ
       category: registryEntries.category,
       tags: registryEntries.tags,
       compatibleAgents: registryEntries.compatibleAgents,
+      sourceType: registryEntries.sourceType,
+      upstreamRepo: registryEntries.upstreamRepo,
+      upstreamUrl: registryEntries.upstreamUrl,
       runtime: skills.runtime,
     })
     .from(registryEntries)
@@ -167,6 +174,7 @@ export async function getRegistryFacets(db: WorkerDb) {
       .sort(),
     tags: [...tagSet].sort(),
     agents: [...agentSet].sort(),
+    sourceTypes: ["native", "mirror"] as const,
   };
 }
 

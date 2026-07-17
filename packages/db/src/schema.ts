@@ -32,6 +32,19 @@ export const skillRunStatusEnum = pgEnum("skill_run_status", [
   "completed",
   "failed",
 ]);
+export const skillSourceTypeEnum = pgEnum("skill_source_type", ["native", "mirror"]);
+export const skillTrustTierEnum = pgEnum("skill_trust_tier", ["official_mirror"]);
+export const skillSyncStatusEnum = pgEnum("skill_sync_status", [
+  "idle",
+  "running",
+  "success",
+  "failed",
+]);
+export const skillSourceSuggestionStatusEnum = pgEnum("skill_source_suggestion_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
 
 // Better Auth tables
 export const users = pgTable("users", {
@@ -275,6 +288,9 @@ export const registryEntries = pgTable(
     category: text("category"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     compatibleAgents: jsonb("compatible_agents").$type<string[]>().notNull().default([]),
+    sourceType: skillSourceTypeEnum("source_type").notNull().default("native"),
+    upstreamRepo: text("upstream_repo"),
+    upstreamUrl: text("upstream_url"),
     lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -282,6 +298,7 @@ export const registryEntries = pgTable(
     uniqueIndex("registry_org_skill_idx").on(t.orgSlug, t.skillRepo),
     index("registry_search_idx").on(t.name, t.description),
     index("registry_category_idx").on(t.category),
+    index("registry_source_type_idx").on(t.sourceType),
   ],
 );
 
@@ -487,6 +504,73 @@ export const skillRuns = pgTable(
     index("skill_runs_skill_idx").on(t.skillId),
     index("skill_runs_created_idx").on(t.createdAt),
   ],
+);
+
+export const skillSources = pgTable(
+  "skill_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    githubOwner: text("github_owner").notNull(),
+    githubRepo: text("github_repo").notNull(),
+    defaultBranch: text("default_branch").notNull().default("main"),
+    discoveryRoots: jsonb("discovery_roots").$type<string[]>().notNull().default(["skills"]),
+    trustTier: skillTrustTierEnum("trust_tier").notNull().default("official_mirror"),
+    syncEnabled: boolean("sync_enabled").notNull().default(true),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    lastCommitSha: text("last_commit_sha"),
+    lastSyncStatus: skillSyncStatusEnum("last_sync_status").notNull().default("idle"),
+    lastSyncError: text("last_sync_error"),
+    pendingCommitSha: text("pending_commit_sha"),
+    pendingPublishCount: integer("pending_publish_count").notNull().default(0),
+    license: text("license"),
+    homepageUrl: text("homepage_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("skill_sources_owner_repo_idx").on(t.githubOwner, t.githubRepo),
+    index("skill_sources_sync_enabled_idx").on(t.syncEnabled),
+  ],
+);
+
+export const skillSourceSuggestions = pgTable(
+  "skill_source_suggestions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    githubOwner: text("github_owner").notNull(),
+    githubRepo: text("github_repo").notNull(),
+    discoveredVia: text("discovered_via").notNull(),
+    stars: integer("stars").notNull().default(0),
+    license: text("license"),
+    matchScore: integer("match_score").notNull().default(0),
+    status: skillSourceSuggestionStatusEnum("status").notNull().default("pending"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("skill_source_suggestions_owner_repo_idx").on(t.githubOwner, t.githubRepo),
+    index("skill_source_suggestions_status_idx").on(t.status),
+  ],
+);
+
+export const skillProvenance = pgTable(
+  "skill_provenance",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" })
+      .unique(),
+    sourceId: uuid("source_id").references(() => skillSources.id, { onDelete: "set null" }),
+    sourcePath: text("source_path").notNull(),
+    sourceCommitSha: text("source_commit_sha"),
+    sourceUrl: text("source_url"),
+    contentHash: text("content_hash").notNull(),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("skill_provenance_source_idx").on(t.sourceId)],
 );
 
 // Better Auth MCP / OIDC provider tables

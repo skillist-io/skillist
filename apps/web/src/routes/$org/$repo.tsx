@@ -122,9 +122,25 @@ function SkillRepoPage() {
               security={entry?.securityStatus}
             />
             <PublicEvalBadge eval={entry?.eval} />
+            {entry?.sourceType === "mirror" && <Badge variant="outline">Mirror</Badge>}
             {hosted && <Badge variant="secondary">Hosted {entry?.runtime}</Badge>}
             {entry?.category && <Badge variant="outline">{entry.category}</Badge>}
           </div>
+
+          {entry?.sourceType === "mirror" && entry.upstreamUrl && (
+            <p className="max-w-prose border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground text-pretty">
+              Mirrored from{" "}
+              <a
+                href={entry.upstreamUrl}
+                className="text-foreground underline-offset-2 hover:underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {entry.upstreamRepo ?? "upstream"}
+              </a>
+              . Not officially hosted by Skillist — we run our own evals and security scans.
+            </p>
+          )}
 
           {description && (
             <p className="max-w-prose text-sm text-muted-foreground text-pretty">{description}</p>
@@ -259,9 +275,27 @@ function SkillRepoPage() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 font-mono text-xs">
+                  <dt className="text-muted-foreground">type</dt>
+                  <dd>{entry?.sourceType === "mirror" ? "mirror" : "native"}</dd>
                   <dt className="text-muted-foreground">version</dt>
                   <dd className="tabular-nums">{version}</dd>
+                  {entry?.upstreamRepo && (
+                    <>
+                      <dt className="text-muted-foreground">upstream</dt>
+                      <dd className="truncate">{entry.upstreamRepo}</dd>
+                    </>
+                  )}
                 </dl>
+                {entry?.upstreamUrl && (
+                  <a
+                    href={entry.upstreamUrl}
+                    className="inline-flex rounded-none text-primary hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View on GitHub →
+                  </a>
+                )}
                 <a
                   href={`/${org}/${repo}/SKILL.md`}
                   className="inline-flex rounded-none text-primary hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"

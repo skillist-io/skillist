@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { apiReference } from "@scalar/hono-api-reference";
+import type { SyncQueueMessage } from "@skillist/contracts";
 import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import { cors } from "hono/cors";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
@@ -8,6 +9,7 @@ import { runAiJob } from "./lib/ai";
 import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
 import { createWorkerDb } from "./lib/db";
+import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
 import { rateLimit } from "./lib/rate-limit";
 import { handleMcpRequest } from "./mcp/handler";
 import { mcpServerInfo } from "./mcp/registry-server";
@@ -19,9 +21,12 @@ import { orgRoutes } from "./routes/orgs";
 import { realtimeRoutes } from "./routes/realtime";
 import { registryRoutes } from "./routes/registry";
 import { skillRoutes } from "./routes/skills";
+import { sourcesRoutes } from "./routes/sources";
+import { webhookRoutes } from "./routes/webhooks";
 
 export { Sandbox } from "@cloudflare/sandbox";
 export { SandboxHeavy } from "./durable-objects/sandbox-heavy";
+export { SyncSourceWorkflow } from "./workflows/sync-source";
 export { SkillRealtimeHub };
 
 const app = new OpenAPIHono<{ Bindings: Env }>();
@@ -100,6 +105,8 @@ v1.route("/", registryRoutes);
 v1.route("/", feedbackRoutes);
 v1.route("/", governanceRoutes);
 v1.route("/", realtimeRoutes);
+v1.route("/", sourcesRoutes);
+v1.route("/", webhookRoutes);
 
 app.route("/v1", v1);
 
@@ -129,12 +136,44 @@ app.get(
   }),
 );
 
+const SYNC_QUEUE_NAME = "skillist-sync-jobs";
+
 export default {
   fetch: app.fetch,
-  async queue(batch: MessageBatch<AiJobMessage>, env: Env): Promise<void> {
+
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // Daily 06:00 UTC → sync_all; weekly Sunday 07:00 UTC → discover
+    const cron = controller.cron;
+    if (cron === "0 7 * * 0") {
+      ctx.waitUntil(env.SYNC_QUEUE.send({ type: "discover_sources" }));
+      return;
+    }
+    ctx.waitUntil(env.SYNC_QUEUE.send({ type: "sync_all" }));
+  },
+
+  async queue(batch: MessageBatch<AiJobMessage | SyncQueueMessage>, env: Env): Promise<void> {
+    if (batch.queue === SYNC_QUEUE_NAME) {
+      for (const message of batch.messages) {
+        try {
+          await handleSyncQueueMessage(env, message.body as SyncQueueMessage);
+          message.ack();
+        } catch (err) {
+          console.error(
+            JSON.stringify({
+              msg: "sync_queue_error",
+              error: err instanceof Error ? err.message : String(err),
+              body: message.body,
+            }),
+          );
+          message.retry();
+        }
+      }
+      return;
+    }
+
     const db = createWorkerDb(env);
     for (const message of batch.messages) {
-      const body = message.body;
+      const body = message.body as AiJobMessage;
       if (body.type === "eval") {
         const { skillEvals } = await import("@skillist/db/schema");
         const { eq } = await import("drizzle-orm");

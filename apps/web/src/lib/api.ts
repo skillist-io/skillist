@@ -40,6 +40,10 @@ export type RegistryItem = {
   category?: string | null;
   tags?: string[];
   compatibleAgents?: string[];
+  /** Origin: native (published on Skillist) or mirror (synced from GitHub). */
+  sourceType?: "native" | "mirror";
+  upstreamRepo?: string | null;
+  upstreamUrl?: string | null;
   starred?: boolean;
   installCommand?: string;
   cliInstall?: string;
