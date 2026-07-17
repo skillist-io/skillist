@@ -37,6 +37,7 @@ type Sort =
   | "name";
 type Runtime = "all" | "local" | "sandbox" | "container";
 type Security = "all" | "pass" | "advisory" | "fail";
+type SourceType = "all" | "native" | "mirror";
 
 type RegistryFilters = {
   q: string;
@@ -47,6 +48,7 @@ type RegistryFilters = {
   category: string;
   tag: string;
   agent: string;
+  sourceType: SourceType;
 };
 
 const SORT_OPTIONS: { value: Sort; label: string }[] = [
@@ -74,6 +76,12 @@ const SECURITY_OPTIONS: { value: Security; label: string }[] = [
   { value: "fail", label: "Fail" },
 ];
 
+const SOURCE_TYPE_OPTIONS: { value: SourceType; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "native", label: "Native" },
+  { value: "mirror", label: "Mirror" },
+];
+
 const QUALITY_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Any" },
   { value: "60", label: "60+" },
@@ -91,6 +99,7 @@ function buildRegistryQuery(filters: RegistryFilters): string {
   if (filters.category) params.set("category", filters.category);
   if (filters.tag) params.set("tag", filters.tag);
   if (filters.agent) params.set("agent", filters.agent);
+  if (filters.sourceType !== "all") params.set("sourceType", filters.sourceType);
   return params.toString();
 }
 
@@ -107,6 +116,7 @@ const INITIAL: RegistryFilters = {
   category: "",
   tag: "",
   agent: "",
+  sourceType: "all",
 };
 
 function RegistryPage() {
@@ -119,6 +129,7 @@ function RegistryPage() {
   const [category, setCategory] = useState(INITIAL.category);
   const [tag, setTag] = useState(INITIAL.tag);
   const [agent, setAgent] = useState(INITIAL.agent);
+  const [sourceType, setSourceType] = useState<SourceType>(INITIAL.sourceType);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
@@ -135,12 +146,15 @@ function RegistryPage() {
     category,
     tag,
     agent,
+    sourceType,
   });
 
   const { data: facets } = useQuery({
     queryKey: ["registry-facets"],
     queryFn: () =>
-      api<{ categories: string[]; tags: string[]; agents: string[] }>("/v1/registry/facets"),
+      api<{ categories: string[]; tags: string[]; agents: string[]; sourceTypes?: string[] }>(
+        "/v1/registry/facets",
+      ),
   });
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
@@ -156,9 +170,10 @@ function RegistryPage() {
     if (category) n++;
     if (tag) n++;
     if (agent) n++;
+    if (sourceType !== "all") n++;
     if (debouncedQ) n++;
     return n;
-  }, [runtime, security, minQuality, category, tag, agent, debouncedQ]);
+  }, [runtime, security, minQuality, category, tag, agent, sourceType, debouncedQ]);
 
   function clearFilters() {
     setSearch("");
@@ -169,6 +184,7 @@ function RegistryPage() {
     setCategory(INITIAL.category);
     setTag(INITIAL.tag);
     setAgent(INITIAL.agent);
+    setSourceType(INITIAL.sourceType);
   }
 
   const railProps = {
@@ -184,6 +200,8 @@ function RegistryPage() {
     setTag,
     agent,
     setAgent,
+    sourceType,
+    setSourceType,
     facets,
     activeFilterCount,
     onClear: clearFilters,
@@ -550,7 +568,9 @@ function MetaTags({ item }: { item: RegistryItem }) {
   const agents = item.compatibleAgents ?? [];
   const shownTags = tags.slice(0, 3);
   const extraTags = tags.length - shownTags.length;
+  const isMirror = item.sourceType === "mirror";
   if (
+    !isMirror &&
     (!item.runtime || item.runtime === "local") &&
     shownTags.length === 0 &&
     agents.length === 0
@@ -559,6 +579,7 @@ function MetaTags({ item }: { item: RegistryItem }) {
   }
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
+      {isMirror && <Badge variant="outline">Mirror</Badge>}
       {item.runtime && item.runtime !== "local" && (
         <Badge variant="secondary">{item.runtime}</Badge>
       )}
@@ -595,6 +616,8 @@ function FilterRail({
   setTag,
   agent,
   setAgent,
+  sourceType,
+  setSourceType,
   facets,
   activeFilterCount,
   onClear,
@@ -612,7 +635,11 @@ function FilterRail({
   setTag: (v: string) => void;
   agent: string;
   setAgent: (v: string) => void;
-  facets: { categories: string[]; tags: string[]; agents: string[] } | undefined;
+  sourceType: SourceType;
+  setSourceType: (v: SourceType) => void;
+  facets:
+    | { categories: string[]; tags: string[]; agents: string[]; sourceTypes?: string[] }
+    | undefined;
   activeFilterCount: number;
   onClear: () => void;
   showHeader?: boolean;
@@ -630,6 +657,14 @@ function FilterRail({
           )}
         </div>
       )}
+
+      <FilterGroup label="Origin">
+        <ToggleRow
+          options={SOURCE_TYPE_OPTIONS}
+          value={sourceType}
+          onChange={(v) => setSourceType(v as SourceType)}
+        />
+      </FilterGroup>
 
       <FilterGroup label="Runtime">
         <ToggleRow

@@ -4,13 +4,21 @@
   "compatibility_date": "2025-01-15",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "BETTER_AUTH_URL": "https://api.skillist.dev"
+    "BETTER_AUTH_URL": "https://api.skillist.dev",
+    "WEB_URL": "https://skillist.dev"
   },
   "routes": [
     { "pattern": "api.skillist.dev", "custom_domain": true },
     { "pattern": "skillist.dev/api/*", "zone_name": "skillist.dev" },
     { "pattern": "skillist.dev/v1/*", "zone_name": "skillist.dev" }
   ],
+  "triggers": {
+    "crons": ["0 6 * * *", "0 7 * * 0"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
@@ -86,6 +94,10 @@
       {
         "binding": "AI_QUEUE",
         "queue": "skillist-ai-jobs"
+      },
+      {
+        "binding": "SYNC_QUEUE",
+        "queue": "skillist-sync-jobs"
       }
     ],
     "consumers": [
@@ -93,7 +105,19 @@
         "queue": "skillist-ai-jobs",
         "max_batch_size": 1,
         "max_retries": 3
+      },
+      {
+        "queue": "skillist-sync-jobs",
+        "max_batch_size": 5,
+        "max_retries": 5
       }
     ]
-  }
+  },
+  "workflows": [
+    {
+      "binding": "SYNC_WORKFLOW",
+      "name": "sync-source-workflow",
+      "class_name": "SyncSourceWorkflow"
+    }
+  ]
 }

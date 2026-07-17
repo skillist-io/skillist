@@ -1,4 +1,5 @@
 import type { Ai, DurableObjectNamespace, Hyperdrive, SendEmail } from "@cloudflare/workers-types";
+import type { SyncQueueMessage } from "@skillist/contracts";
 
 export type Env = {
   HYPERDRIVE: Hyperdrive;
@@ -10,6 +11,8 @@ export type Env = {
   AI: Ai;
   EMAIL: SendEmail;
   AI_QUEUE: Queue<AiJobMessage>;
+  SYNC_QUEUE: Queue<SyncQueueMessage>;
+  SYNC_WORKFLOW: Workflow;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
   WEB_URL?: string;
@@ -19,6 +22,10 @@ export type Env = {
   GOOGLE_CLIENT_SECRET?: string;
   AI_GATEWAY_ACCOUNT_ID?: string;
   AI_GATEWAY_TOKEN?: string;
+  GITHUB_TOKEN?: string;
+  GITHUB_WEBHOOK_SECRET?: string;
+  /** Comma-separated Better Auth user IDs allowed to manage mirrors. */
+  SKILLIST_ADMIN_USER_IDS?: string;
 };
 
 export type AiJobMessage =
@@ -40,3 +47,4 @@ export type AiJobMessage =
     };
 
 export type { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
+export type { SyncQueueMessage };

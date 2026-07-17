@@ -67,6 +67,7 @@ export default defineConfig({
           items: [
             { label: "Delivery URLs", slug: "platform/delivery" },
             { label: "Registry", slug: "platform/registry" },
+            { label: "Official mirrors", slug: "platform/official-mirrors" },
             { label: "Skill inventory", slug: "platform/inventory" },
             { label: "Authentication", slug: "platform/authentication" },
             { label: "Sandbox execution", slug: "platform/sandbox" },

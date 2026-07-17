@@ -69,6 +69,10 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
     );
   }
 
+  if (query.sourceType && query.sourceType !== "all") {
+    clauses.push(eq(registryEntries.sourceType, query.sourceType));
+  }
+
   return clauses.length ? and(...clauses) : undefined;
 }
 
@@ -163,6 +167,9 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
       category: registryEntries.category,
       tags: registryEntries.tags,
       compatibleAgents: registryEntries.compatibleAgents,
+      sourceType: registryEntries.sourceType,
+      upstreamRepo: registryEntries.upstreamRepo,
+      upstreamUrl: registryEntries.upstreamUrl,
       runtime: skills.runtime,
     })
     .from(registryEntries)
@@ -235,6 +242,7 @@ registryRoutes.openapi(registryFacetsRoute, async (c) => {
         .sort(),
       tags: [...tagSet].sort(),
       agents: [...agentSet].sort(),
+      sourceTypes: ["native", "mirror"],
     },
     200,
   );

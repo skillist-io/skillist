@@ -34,6 +34,10 @@ export const REGISTRY_MCP_TOOLS: McpTool[] = [
           type: "string",
           description: "Filter by compatible agent (cursor, claude, vscode, mcp)",
         },
+        sourceType: {
+          type: "string",
+          description: "Filter by origin: native or mirror",
+        },
         sort: {
           type: "string",
           description: "quality, trending, stars, installs, recent, name",
@@ -44,7 +48,7 @@ export const REGISTRY_MCP_TOOLS: McpTool[] = [
   {
     name: "registry_get_skill",
     description:
-      "Get full registry metadata for a skill including eval uplift, install command, and plugin.json manifest.",
+      "Get full registry metadata for a skill including eval uplift, install command, plugin.json, and mirror upstream URL when sourceType is mirror.",
     inputSchema: {
       type: "object",
       properties: {
@@ -56,7 +60,8 @@ export const REGISTRY_MCP_TOOLS: McpTool[] = [
   },
   {
     name: "registry_facets",
-    description: "List available registry filter facets: categories, tags, and compatible agents.",
+    description:
+      "List available registry filter facets: categories, tags, compatible agents, and sourceTypes (native|mirror).",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -102,6 +107,10 @@ async function callTool(db: WorkerDb, name: string, args: Record<string, unknown
         category: typeof args.category === "string" ? args.category : undefined,
         tag: typeof args.tag === "string" ? args.tag : undefined,
         agent: typeof args.agent === "string" ? args.agent : undefined,
+        sourceType:
+          args.sourceType === "native" || args.sourceType === "mirror" || args.sourceType === "all"
+            ? args.sourceType
+            : "all",
       });
       return textResult(result);
     }
@@ -135,6 +144,9 @@ async function callTool(db: WorkerDb, name: string, args: Record<string, unknown
             : null,
         skillMdUrl: `https://skillist.dev/${org}/${repo}/SKILL.md`,
         registryUrl: `https://skillist.dev/${org}/${repo}`,
+        sourceType: skill.sourceType ?? "native",
+        upstreamRepo: skill.upstreamRepo ?? null,
+        upstreamUrl: skill.upstreamUrl ?? null,
       });
     }
     default:
