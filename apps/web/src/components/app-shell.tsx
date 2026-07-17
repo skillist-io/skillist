@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar, showSidebarExplorer } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Breadcrumb,
@@ -44,22 +44,28 @@ function useBreadcrumbs() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const crumbs = useBreadcrumbs();
+  const showExplorer = showSidebarExplorer(pathname);
 
   return (
     <TooltipProvider>
       <SidebarProvider
         style={
-          {
-            "--sidebar-width": "350px",
-          } as React.CSSProperties
+          showExplorer
+            ? ({
+                "--sidebar-width": "350px",
+              } as React.CSSProperties)
+            : undefined
         }
       >
         <AppSidebar />
         <SidebarInset>
           <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+            {showExplorer ? <SidebarTrigger className="-ml-1" /> : null}
+            {showExplorer ? (
+              <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+            ) : null}
             <Breadcrumb>
               <BreadcrumbList>
                 {crumbs.map((crumb, index) => (
