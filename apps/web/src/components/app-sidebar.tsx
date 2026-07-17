@@ -28,6 +28,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { api, type Org, type Skill } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 type NavItem = {
   title: string;
@@ -112,7 +113,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar
       collapsible={explorerOpen ? "icon" : "none"}
-      className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
+      className={cn("overflow-hidden *:data-[sidebar=sidebar]:flex-row", !explorerOpen && "w-fit!")}
       {...props}
     >
       <Sidebar collapsible="none" className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r">
