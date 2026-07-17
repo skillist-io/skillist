@@ -89,6 +89,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { open, setOpen } = useSidebar();
   const { data: session } = useSession();
   const [filter, setFilter] = React.useState("");
+  const [privateOnly, setPrivateOnly] = React.useState(false);
 
   React.useEffect(() => {
     if (!explorerOpen) {
@@ -172,9 +173,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarHeader className="gap-3.5 border-b p-4">
             <div className="flex w-full items-center justify-between">
               <div className="text-base font-medium text-foreground">{activeItem.title}</div>
-              <Label className="flex items-center gap-2 text-sm">
+              <Label htmlFor="sidebar-private-only" className="flex items-center gap-2 text-sm">
                 <span>Private only</span>
-                <Switch className="shadow-none" />
+                <Switch
+                  id="sidebar-private-only"
+                  className="shadow-none"
+                  checked={privateOnly}
+                  onCheckedChange={setPrivateOnly}
+                />
               </Label>
             </div>
             <SidebarInput
@@ -186,7 +192,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarContent>
             <SidebarGroup className="px-0">
               <SidebarGroupContent>
-                <OrgSkillNav orgs={orgs ?? []} filter={filter} pathname={pathname} />
+                <OrgSkillNav
+                  orgs={orgs ?? []}
+                  filter={filter}
+                  privateOnly={privateOnly}
+                  pathname={pathname}
+                />
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
@@ -199,10 +210,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 function OrgSkillNav({
   orgs,
   filter,
+  privateOnly,
   pathname,
 }: {
   orgs: Org[];
   filter: string;
+  privateOnly: boolean;
   pathname: string;
 }) {
   const needle = filter.trim().toLowerCase();
@@ -215,43 +228,73 @@ function OrgSkillNav({
     );
   }
 
-  return (
-    <>
-      {orgs
-        .filter(
-          (org) =>
-            !needle ||
-            org.name.toLowerCase().includes(needle) ||
-            org.slug.toLowerCase().includes(needle),
-        )
-        .map((org) => (
-          <OrgSkills key={org.id} org={org} filter={needle} pathname={pathname} />
-        ))}
-    </>
-  );
+  const orgBlocks = orgs
+    .filter(
+      (org) =>
+        !needle ||
+        org.name.toLowerCase().includes(needle) ||
+        org.slug.toLowerCase().includes(needle),
+    )
+    .map((org) => (
+      <OrgSkills
+        key={org.id}
+        org={org}
+        filter={needle}
+        privateOnly={privateOnly}
+        pathname={pathname}
+      />
+    ))
+    .filter(Boolean);
+
+  if (!orgBlocks.length) {
+    return (
+      <p className="p-4 text-sm text-muted-foreground">
+        {privateOnly ? "No private skills match your filters." : "No skills match your filters."}
+      </p>
+    );
+  }
+
+  return <>{orgBlocks}</>;
 }
 
-function OrgSkills({ org, filter, pathname }: { org: Org; filter: string; pathname: string }) {
+function OrgSkills({
+  org,
+  filter,
+  privateOnly,
+  pathname,
+}: {
+  org: Org;
+  filter: string;
+  privateOnly: boolean;
+  pathname: string;
+}) {
   const { data: skills } = useQuery({
     queryKey: ["skills", org.id],
     queryFn: () => api<Skill[]>(`/v1/orgs/${org.id}/skills`),
   });
 
   const visibleSkills =
-    skills?.filter(
-      (skill) =>
-        !filter ||
-        skill.repo.toLowerCase().includes(filter) ||
-        org.slug.toLowerCase().includes(filter),
-    ) ?? [];
+    skills?.filter((skill) => {
+      if (privateOnly && skill.visibility !== "private") return false;
+      if (
+        filter &&
+        !skill.repo.toLowerCase().includes(filter) &&
+        !org.slug.toLowerCase().includes(filter)
+      ) {
+        return false;
+      }
+      return true;
+    }) ?? [];
 
-  if (
-    filter &&
-    !visibleSkills.length &&
-    !org.slug.includes(filter) &&
-    !org.name.toLowerCase().includes(filter)
-  ) {
-    return null;
+  if (!visibleSkills.length) {
+    if (privateOnly) return null;
+    if (
+      filter &&
+      !org.slug.toLowerCase().includes(filter) &&
+      !org.name.toLowerCase().includes(filter)
+    ) {
+      return null;
+    }
   }
 
   return (
