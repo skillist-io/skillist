@@ -20,3 +20,5 @@ coverage
 test-results/
 lefthook-local.yml
 tests/e2e/.auth/
+.cursor/
+.impeccable/critique/
