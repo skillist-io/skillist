@@ -1,7 +1,7 @@
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
 import type { Env } from "../env";
 import { createWorkerDb } from "../lib/db";
-import { finalizeSourceSync, syncSource } from "../lib/github-sync";
+import { beginSourcePublishBatch, finalizeSourceSync, syncSource } from "../lib/github-sync";
 
 export type SyncSourceParams = {
   sourceId: string;
@@ -26,8 +26,20 @@ export class SyncSourceWorkflow extends WorkflowEntrypoint<Env, SyncSourceParams
 
     const commitSha = result.commitSha;
 
+    if (result.changedSkills.length === 0) {
+      await step.do("finalize", async () => {
+        await finalizeSourceSync(db, sourceId, commitSha);
+        return { ok: true };
+      });
+      return result;
+    }
+
+    await step.do("begin-publish-batch", async () => {
+      await beginSourcePublishBatch(db, sourceId, commitSha, result.changedSkills.length);
+      return { pending: result.changedSkills.length };
+    });
+
     await step.do("enqueue-publish-jobs", async () => {
-      if (result.changedSkills.length === 0) return { enqueued: 0 };
       await this.env.SYNC_QUEUE.sendBatch(
         result.changedSkills.map((skill) => ({
           body: {
@@ -40,11 +52,6 @@ export class SyncSourceWorkflow extends WorkflowEntrypoint<Env, SyncSourceParams
         })),
       );
       return { enqueued: result.changedSkills.length };
-    });
-
-    await step.do("finalize", async () => {
-      await finalizeSourceSync(db, sourceId, commitSha);
-      return { ok: true };
     });
 
     return result;

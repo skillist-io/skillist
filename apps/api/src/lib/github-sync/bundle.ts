@@ -3,6 +3,16 @@ import { sha256 } from "../r2";
 import { listSkillFileEntries } from "./discover";
 import { fetchBlobText, type GithubTreeEntry } from "./fetch";
 
+export async function hashSkillTreeSnapshot(
+  tree: GithubTreeEntry[],
+  sourcePath: string,
+): Promise<string> {
+  const parts = listSkillFileEntries(tree, sourcePath)
+    .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+    .map(({ relativePath, sha }) => `${relativePath}\0${sha}`);
+  return sha256(parts.join("\n"));
+}
+
 export async function loadSkillBundleFromTree(
   owner: string,
   repo: string,

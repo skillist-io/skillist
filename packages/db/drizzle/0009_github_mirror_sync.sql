@@ -18,6 +18,8 @@ CREATE TABLE "skill_sources" (
 	"last_commit_sha" text,
 	"last_sync_status" "skill_sync_status" DEFAULT 'idle' NOT NULL,
 	"last_sync_error" text,
+	"pending_commit_sha" text,
+	"pending_publish_count" integer DEFAULT 0 NOT NULL,
 	"license" text,
 	"homepage_url" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,

@@ -520,6 +520,8 @@ export const skillSources = pgTable(
     lastCommitSha: text("last_commit_sha"),
     lastSyncStatus: skillSyncStatusEnum("last_sync_status").notNull().default("idle"),
     lastSyncError: text("last_sync_error"),
+    pendingCommitSha: text("pending_commit_sha"),
+    pendingPublishCount: integer("pending_publish_count").notNull().default(0),
     license: text("license"),
     homepageUrl: text("homepage_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -18,7 +18,7 @@ import {
   scanSkillSecurity,
   validateSkillBundle,
 } from "@skillist/skill-format";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Env } from "../../env";
 import { logAudit } from "../audit";
 import type { WorkerDb } from "../db";
@@ -26,7 +26,7 @@ import { broadcastPublish, cachePublishedSkill } from "../publish";
 import { queueSkillEval } from "../queue-eval";
 import { r2Prefix, sha256, uploadBundleToR2 } from "../r2";
 import { detectSkillRuntime } from "../skill-runtime";
-import { hashSkillBundle, loadSkillBundleFromTree } from "./bundle";
+import { hashSkillTreeSnapshot, loadSkillBundleFromTree } from "./bundle";
 import { getCachedTree, putCachedTree } from "./cache";
 import { discoverSkillsFromTree } from "./discover";
 import {
@@ -156,7 +156,11 @@ export async function syncSource(
       })
       .where(eq(skillSources.id, sourceId));
 
-    if (source.lastCommitSha === commitSha && source.lastSyncStatus === "success") {
+    if (
+      source.lastCommitSha === commitSha &&
+      source.lastSyncStatus === "success" &&
+      source.pendingPublishCount === 0
+    ) {
       await db
         .update(skillSources)
         .set({
@@ -185,40 +189,33 @@ export async function syncSource(
 
     const tree = await loadTree(env, source.githubOwner, source.githubRepo, commitSha);
     const discovered = discoverSkillsFromTree(tree, source.discoveryRoots ?? ["skills"]);
-    await ensureMirrorOrg(db, source.githubOwner);
+    const org = await ensureMirrorOrg(db, source.githubOwner);
+
+    const existingSkills = await db
+      .select({ id: skills.id, repo: skills.repo })
+      .from(skills)
+      .where(eq(skills.orgId, org.id));
+    const skillIdByRepo = new Map(existingSkills.map((row) => [row.repo, row.id]));
+    const skillIds = existingSkills.map((row) => row.id);
+
+    const provenanceBySkillId = new Map<string, string>();
+    if (skillIds.length > 0) {
+      const provenanceRows = await db
+        .select({ skillId: skillProvenance.skillId, contentHash: skillProvenance.contentHash })
+        .from(skillProvenance)
+        .where(inArray(skillProvenance.skillId, skillIds));
+      for (const row of provenanceRows) {
+        provenanceBySkillId.set(row.skillId, row.contentHash);
+      }
+    }
 
     const changedSkills: SyncSourceResult["changedSkills"] = [];
 
     for (const skill of discovered) {
-      const bundle = await loadSkillBundleFromTree(
-        source.githubOwner,
-        source.githubRepo,
-        tree,
-        skill.sourcePath,
-        env.GITHUB_TOKEN,
-      );
-      const contentHash = await hashSkillBundle(bundle);
-
-      const [org] = await db
-        .select()
-        .from(organizations)
-        .where(eq(organizations.slug, source.githubOwner))
-        .limit(1);
-      if (!org) continue;
-
-      const [existingSkill] = await db
-        .select()
-        .from(skills)
-        .where(and(eq(skills.orgId, org.id), eq(skills.repo, skill.skillSlug)))
-        .limit(1);
-
-      if (existingSkill) {
-        const [prov] = await db
-          .select()
-          .from(skillProvenance)
-          .where(eq(skillProvenance.skillId, existingSkill.id))
-          .limit(1);
-        if (prov?.contentHash === contentHash) continue;
+      const contentHash = await hashSkillTreeSnapshot(tree, skill.sourcePath);
+      const existingSkillId = skillIdByRepo.get(skill.skillSlug);
+      if (existingSkillId && provenanceBySkillId.get(existingSkillId) === contentHash) {
+        continue;
       }
 
       changedSkills.push({
@@ -261,9 +258,73 @@ export async function finalizeSourceSync(
       lastCommitSha: commitSha,
       lastSyncStatus: "success",
       lastSyncError: null,
+      pendingCommitSha: null,
+      pendingPublishCount: 0,
       updatedAt: new Date(),
     })
     .where(eq(skillSources.id, sourceId));
+}
+
+export async function beginSourcePublishBatch(
+  db: WorkerDb,
+  sourceId: string,
+  commitSha: string,
+  publishCount: number,
+): Promise<void> {
+  await db
+    .update(skillSources)
+    .set({
+      pendingCommitSha: commitSha,
+      pendingPublishCount: publishCount,
+      lastSyncStatus: "running",
+      lastSyncError: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(skillSources.id, sourceId));
+}
+
+export async function recordPublishJobSuccess(
+  db: WorkerDb,
+  sourceId: string,
+  commitSha: string,
+): Promise<boolean> {
+  const [row] = await db
+    .update(skillSources)
+    .set({
+      pendingPublishCount: sql`${skillSources.pendingPublishCount} - 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(skillSources.id, sourceId),
+        eq(skillSources.pendingCommitSha, commitSha),
+        sql`${skillSources.pendingPublishCount} > 0`,
+      ),
+    )
+    .returning({
+      pendingPublishCount: skillSources.pendingPublishCount,
+    });
+
+  return row?.pendingPublishCount === 0;
+}
+
+export async function recordPublishJobFailure(
+  db: WorkerDb,
+  sourceId: string,
+  commitSha: string,
+  error: unknown,
+): Promise<void> {
+  const message = error instanceof Error ? error.message : "Publish failed";
+  await db
+    .update(skillSources)
+    .set({
+      lastSyncStatus: "failed",
+      lastSyncError: message,
+      pendingCommitSha: null,
+      pendingPublishCount: 0,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(skillSources.id, sourceId), eq(skillSources.pendingCommitSha, commitSha)));
 }
 
 /**
@@ -315,7 +376,7 @@ export async function mirrorPublishSkill(
   const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
   const compatibleAgents = extractAgentDiscovery(pluginManifest);
   const discovery = extractRegistryDiscovery(validation.frontmatter);
-  const contentHash = await hashSkillBundle(bundle);
+  const contentHash = await hashSkillTreeSnapshot(tree, input.sourcePath);
   const upstreamRepo = `${source.githubOwner}/${source.githubRepo}`;
   const upstreamUrl = `https://github.com/${upstreamRepo}/tree/${input.commitSha}/${input.sourcePath}`;
 

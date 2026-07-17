@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hashSkillTreeSnapshot } from "./bundle";
 import { discoverSkillsFromTree, listSkillFileEntries } from "./discover";
 import type { GithubTreeEntry } from "./fetch";
 
@@ -34,5 +35,22 @@ describe("listSkillFileEntries", () => {
     ];
     const files = listSkillFileEntries(tree, "skills/agents-sdk");
     expect(files.map((f) => f.relativePath).sort()).toEqual(["SKILL.md", "references/rpc.md"]);
+  });
+});
+
+describe("hashSkillTreeSnapshot", () => {
+  it("changes when any blob sha changes", async () => {
+    const base: GithubTreeEntry[] = [
+      { path: "skills/foo/SKILL.md", type: "blob", sha: "a" },
+      { path: "skills/foo/scripts/run.sh", type: "blob", sha: "b" },
+    ];
+    const changed: GithubTreeEntry[] = [
+      { path: "skills/foo/SKILL.md", type: "blob", sha: "a2" },
+      { path: "skills/foo/scripts/run.sh", type: "blob", sha: "b" },
+    ];
+
+    const before = await hashSkillTreeSnapshot(base, "skills/foo");
+    const after = await hashSkillTreeSnapshot(changed, "skills/foo");
+    expect(before).not.toBe(after);
   });
 });

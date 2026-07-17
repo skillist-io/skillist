@@ -1,4 +1,4 @@
-export { hashSkillBundle, loadSkillBundleFromTree } from "./bundle";
+export { hashSkillBundle, hashSkillTreeSnapshot, loadSkillBundleFromTree } from "./bundle";
 export { getCachedTree, putCachedTree, tarballCacheKey, treeCacheKey } from "./cache";
 export {
   discoverSkillsFromTree,
@@ -16,10 +16,13 @@ export {
   isCompatibleLicense,
 } from "./fetch";
 export {
+  beginSourcePublishBatch,
   finalizeSourceSync,
   listEnabledSourceIds,
   type MirrorPublishInput,
   mirrorPublishSkill,
+  recordPublishJobFailure,
+  recordPublishJobSuccess,
   type SyncSourceResult,
   syncSource,
 } from "./mirror-publish";

@@ -4,7 +4,13 @@ import { and, eq } from "drizzle-orm";
 import type { Env } from "../../env";
 import { createWorkerDb } from "../db";
 import { discoverOfficialSources } from "../github-discover";
-import { listEnabledSourceIds, mirrorPublishSkill } from "./mirror-publish";
+import {
+  finalizeSourceSync,
+  listEnabledSourceIds,
+  mirrorPublishSkill,
+  recordPublishJobFailure,
+  recordPublishJobSuccess,
+} from "./mirror-publish";
 
 export async function handleSyncQueueMessage(env: Env, message: SyncQueueMessage): Promise<void> {
   const db = createWorkerDb(env);
@@ -32,12 +38,25 @@ export async function handleSyncQueueMessage(env: Env, message: SyncQueueMessage
       return;
     }
     case "publish_skill": {
-      await mirrorPublishSkill(env, db, {
-        sourceId: message.sourceId,
-        skillSlug: message.skillSlug,
-        sourcePath: message.sourcePath,
-        commitSha: message.commitSha,
-      });
+      try {
+        await mirrorPublishSkill(env, db, {
+          sourceId: message.sourceId,
+          skillSlug: message.skillSlug,
+          sourcePath: message.sourcePath,
+          commitSha: message.commitSha,
+        });
+        const readyToFinalize = await recordPublishJobSuccess(
+          db,
+          message.sourceId,
+          message.commitSha,
+        );
+        if (readyToFinalize) {
+          await finalizeSourceSync(db, message.sourceId, message.commitSha);
+        }
+      } catch (err) {
+        await recordPublishJobFailure(db, message.sourceId, message.commitSha, err);
+        throw err;
+      }
       return;
     }
     default: {
