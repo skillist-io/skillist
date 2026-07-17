@@ -90,5 +90,9 @@ export SKILLIST_DELIVERY_URL=http://localhost:5173
 - `skillist eval <org>/<repo> [--wait]` — queue skill eval on latest draft
 - `skillist rollback <org>/<repo> <semver>` — roll back to a previous version
 - `skillist update [org/repo]` — refresh installed skills
-- `skillist inventory scan [--org <slug>]` — discover local skills and POST inventory scan
+- `skillist review <dir> [--threshold N] [--fail-on sev] [--json]` — quality + security CI gate
+- `skillist required-skills check [--org <slug>]` — verify lockfile against required skills
+- `skillist inventory scan [--org <slug>]` — BFS-discover local skills and POST inventory scan
+- `skillist inventory import --github-org <org>` — scan a GitHub org via `gh` and POST inventory
 - `skillist inventory list [--org <slug>]` — list org skill inventory
+- `skillist mcp proxy <org>/<name>` — stdio proxy to an org MCP gateway

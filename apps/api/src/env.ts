@@ -20,6 +20,14 @@ export type Env = {
   GITHUB_CLIENT_SECRET?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  SSO_PROVIDER_ID?: string;
+  SSO_CLIENT_ID?: string;
+  SSO_CLIENT_SECRET?: string;
+  SSO_DISCOVERY_URL?: string;
+  SSO_AUTHORIZATION_URL?: string;
+  SSO_TOKEN_URL?: string;
+  SSO_USERINFO_URL?: string;
+  SSO_SCOPES?: string;
   AI_GATEWAY_ACCOUNT_ID?: string;
   AI_GATEWAY_TOKEN?: string;
   GITHUB_TOKEN?: string;

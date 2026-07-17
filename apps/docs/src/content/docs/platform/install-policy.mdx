@@ -1,0 +1,38 @@
+---
+title: Install policy
+description: Warn or block skill installs that fail org security and source rules.
+---
+
+Org owners can set an **install policy** that the CLI evaluates on `skillist install` and `skillist update` when `SKILLIST_API_KEY` is present.
+
+## Rules
+
+- **Warn / block severity** — mapped from registry security status (`pass` → low, `advisory` → medium, `fail` → high) and issue severities.
+- **Allowed sources** — `registry_org_only`, `registry_any`, or `registry_plus_git` with an optional git host allowlist.
+- **Minimum release age** — reject installs of releases younger than N days.
+
+## CLI
+
+```bash
+# Enforce against your org policy (requires API key)
+export SKILLIST_API_KEY=sk_...
+skillist install other/skill --org my-org
+
+# Skip warn prompts in CI (blocks still fail)
+skillist install other/skill --org my-org --accept-warnings
+```
+
+Configure the policy in the app under **Governance → Install policies**, or via:
+
+```
+PATCH /v1/orgs/{orgId}/install-policy
+POST  /v1/orgs/{orgId}/install-check
+```
+
+## CI review gate
+
+```bash
+skillist review ./my-skill --threshold 80 --fail-on high --json
+```
+
+Or use the composite action at `.github/actions/skillist-review`.

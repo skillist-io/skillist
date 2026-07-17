@@ -1,7 +1,10 @@
 import { z } from "zod";
 
-export const orgRoleSchema = z.enum(["owner", "editor", "viewer"]);
+export const orgRoleSchema = z.enum(["owner", "editor", "publisher", "viewer"]);
 export type OrgRole = z.infer<typeof orgRoleSchema>;
+
+export const securitySeveritySchema = z.enum(["low", "medium", "high", "critical"]);
+export type SecuritySeverity = z.infer<typeof securitySeveritySchema>;
 
 export const skillVisibilitySchema = z.enum(["private", "org", "public"]);
 export type SkillVisibility = z.infer<typeof skillVisibilitySchema>;
@@ -146,6 +149,40 @@ export const publishPolicySchema = z.object({
   requireEval: z.boolean().optional(),
 });
 
+export const installPolicySchema = z.object({
+  warnSeverity: securitySeveritySchema.optional(),
+  blockSeverity: securitySeveritySchema.optional(),
+  allowedSources: z.enum(["registry_org_only", "registry_any", "registry_plus_git"]).optional(),
+  gitAllowlist: z.array(z.string().min(1).max(256)).max(100).optional(),
+  minReleaseAgeDays: z.number().int().min(0).max(365).optional(),
+});
+export type InstallPolicy = z.infer<typeof installPolicySchema>;
+
+export const reviewRubricSchema = z.object({
+  validationWeight: z.number().min(0).max(1).optional(),
+  checks: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(64),
+        weight: z.number().min(0).max(100),
+        enabled: z.boolean().optional(),
+      }),
+    )
+    .optional(),
+  llmJudges: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(64),
+        weight: z.number().min(0).max(1),
+        prompt: z.string().min(1).max(4000),
+        evaluationTarget: z.string().max(128).optional(),
+      }),
+    )
+    .max(10)
+    .optional(),
+});
+export type ReviewRubric = z.infer<typeof reviewRubricSchema>;
+
 export const executionPolicySchema = z.object({
   hourlyRunLimit: z.number().int().min(1).max(10_000).optional(),
   dailyRunLimit: z.number().int().min(1).max(100_000).optional(),
@@ -154,6 +191,14 @@ export const executionPolicySchema = z.object({
 });
 export type ExecutionPolicy = z.infer<typeof executionPolicySchema>;
 export type PublishPolicy = z.infer<typeof publishPolicySchema>;
+
+export const installCheckSchema = z.object({
+  orgSlug: z.string().min(1),
+  skillRepo: z.string().min(1),
+  source: z.enum(["registry", "git"]).default("registry"),
+  gitHost: z.string().max(256).optional(),
+  publishedAt: z.string().datetime().optional(),
+});
 
 export const telemetryEventSchema = z.object({
   orgSlug: z.string(),
@@ -175,8 +220,50 @@ export const inventoryScanSchema = z.object({
       localSlug: z.string().optional(),
       registryOrgSlug: z.string().optional(),
       registryRepo: z.string().optional(),
+      sourceType: z.string().optional(),
+      scope: z.string().optional(),
+      marketplace: z.string().optional(),
+      pluginName: z.string().optional(),
+      isSymlink: z.boolean().optional(),
+      conformanceStatus: z.string().optional(),
+      conformanceIssues: z
+        .array(
+          z.object({
+            level: z.string(),
+            field: z.string().optional(),
+            message: z.string(),
+          }),
+        )
+        .optional(),
+      contentHash: z.string().optional(),
+      securityStatus: z.enum(["pass", "advisory", "fail"]).optional(),
+      securityIssues: z
+        .array(
+          z.object({
+            severity: z.string(),
+            path: z.string(),
+            message: z.string(),
+          }),
+        )
+        .optional(),
+      skillMd: z.string().max(500_000).optional(),
     }),
   ),
+});
+
+export const mcpServerSchema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(63)
+    .regex(/^[a-zA-Z0-9_-]+$/),
+  upstreamUrl: z.string().url().max(2048),
+  transport: z.enum(["http", "sse"]).default("http"),
+  oauthClientId: z.string().max(256).optional(),
+  oauthClientSecret: z.string().max(512).optional(),
+  oauthScope: z.string().max(512).optional(),
+  oauthResourceUrl: z.string().url().max(2048).optional(),
+  oauthAuthorizationServerUrl: z.string().url().max(2048).optional(),
 });
 
 export const runEvalSchema = z.object({
@@ -188,6 +275,8 @@ export const runEvalSchema = z.object({
       }),
     )
     .optional(),
+  generateScenarios: z.boolean().optional(),
+  scenarioCount: z.number().int().min(1).max(10).optional(),
 });
 
 export const runSkillSchema = z.object({

@@ -14,6 +14,7 @@ import {
   type AuditEvent,
   api,
   type ExecutionPolicy,
+  type InstallPolicy,
   type Org,
   type PublishPolicy,
 } from "@/lib/api";
@@ -286,6 +287,17 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   const [blockAdvisory, setBlockAdvisory] = useState(true);
   const [requireEval, setRequireEval] = useState(false);
   const [minEvalUplift, setMinEvalUplift] = useState(0);
+  const [warnSeverity, setWarnSeverity] = useState<"low" | "medium" | "high" | "critical">(
+    "medium",
+  );
+  const [blockSeverity, setBlockSeverity] = useState<"low" | "medium" | "high" | "critical">(
+    "high",
+  );
+  const [allowedSources, setAllowedSources] = useState<
+    "registry_org_only" | "registry_any" | "registry_plus_git"
+  >("registry_any");
+  const [gitAllowlist, setGitAllowlist] = useState("");
+  const [minReleaseAgeDays, setMinReleaseAgeDays] = useState(0);
   const [hourlyRuns, setHourlyRuns] = useState(50);
   const [dailyRuns, setDailyRuns] = useState(500);
   const [containerHourly, setContainerHourly] = useState(10);
@@ -301,6 +313,11 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   const { data: executionData } = useQuery({
     queryKey: ["execution-policy", orgId],
     queryFn: () => api<{ executionPolicy: ExecutionPolicy }>(`/v1/orgs/${orgId}/execution-policy`),
+  });
+
+  const { data: installData } = useQuery({
+    queryKey: ["install-policy", orgId],
+    queryFn: () => api<{ installPolicy: InstallPolicy }>(`/v1/orgs/${orgId}/install-policy`),
   });
 
   const { data: auditData } = useQuery({
@@ -348,6 +365,17 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
     }
   }, [executionData]);
 
+  useEffect(() => {
+    const p = installData?.installPolicy;
+    if (p) {
+      if (p.warnSeverity) setWarnSeverity(p.warnSeverity);
+      if (p.blockSeverity) setBlockSeverity(p.blockSeverity);
+      if (p.allowedSources) setAllowedSources(p.allowedSources);
+      if (p.gitAllowlist) setGitAllowlist(p.gitAllowlist.join(", "));
+      if (p.minReleaseAgeDays != null) setMinReleaseAgeDays(p.minReleaseAgeDays);
+    }
+  }, [installData]);
+
   const savePolicy = useMutation({
     mutationFn: () =>
       api(`/v1/orgs/${orgId}/publish-policy`, {
@@ -375,6 +403,24 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["execution-policy", orgId] }),
+  });
+
+  const saveInstallPolicy = useMutation({
+    mutationFn: () =>
+      api(`/v1/orgs/${orgId}/install-policy`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          warnSeverity,
+          blockSeverity,
+          allowedSources,
+          gitAllowlist: gitAllowlist
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+          minReleaseAgeDays: minReleaseAgeDays || undefined,
+        }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["install-policy", orgId] }),
   });
 
   const addRequired = useMutation({
@@ -457,6 +503,78 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
           </div>
           <Button onClick={() => savePolicy.mutate()} disabled={savePolicy.isPending}>
             Save policy
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card id="install-policy">
+        <CardHeader>
+          <CardTitle>Install policies</CardTitle>
+          <CardDescription>
+            Warn or block CLI installs that fail security or source rules
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Warn severity</Label>
+              <NativeSelect
+                className="mt-1 w-full"
+                value={warnSeverity}
+                onChange={(e) => setWarnSeverity(e.target.value as typeof warnSeverity)}
+              >
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="critical">critical</option>
+              </NativeSelect>
+            </div>
+            <div>
+              <Label>Block severity</Label>
+              <NativeSelect
+                className="mt-1 w-full"
+                value={blockSeverity}
+                onChange={(e) => setBlockSeverity(e.target.value as typeof blockSeverity)}
+              >
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="critical">critical</option>
+              </NativeSelect>
+            </div>
+          </div>
+          <div>
+            <Label>Allowed sources</Label>
+            <NativeSelect
+              className="mt-1 w-full"
+              value={allowedSources}
+              onChange={(e) => setAllowedSources(e.target.value as typeof allowedSources)}
+            >
+              <option value="registry_org_only">Registry — this org only</option>
+              <option value="registry_any">Registry — any org</option>
+              <option value="registry_plus_git">Registry + git allowlist</option>
+            </NativeSelect>
+          </div>
+          <div>
+            <Label>Git allowlist (comma-separated hosts/orgs)</Label>
+            <Input
+              value={gitAllowlist}
+              onChange={(e) => setGitAllowlist(e.target.value)}
+              placeholder="github.com/acme"
+            />
+          </div>
+          <div>
+            <Label>Minimum release age (days)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={365}
+              value={minReleaseAgeDays}
+              onChange={(e) => setMinReleaseAgeDays(Number(e.target.value))}
+            />
+          </div>
+          <Button onClick={() => saveInstallPolicy.mutate()} disabled={saveInstallPolicy.isPending}>
+            Save install policy
           </Button>
         </CardContent>
       </Card>
