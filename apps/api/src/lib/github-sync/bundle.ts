@@ -57,3 +57,57 @@ export async function hashSkillBundle(bundle: SkillBundle): Promise<string> {
     .map(([path, content]) => `${path}\0${content}`);
   return sha256(parts.join("\n"));
 }
+
+const MIRROR_OPTIONAL_DIRS = ["scripts", "references", "assets"] as const;
+const MIRROR_ROOT_FILES = new Set(["SKILL.md", "plugin.json"]);
+
+/**
+ * Official vendor skills often include extra files (examples/, tests/, LICENSE).
+ * Keep agentskills.io-valid paths only so validateSkillBundle can pass.
+ */
+export function sanitizeMirrorBundle(bundle: SkillBundle): SkillBundle {
+  const out: SkillBundle = new Map();
+  for (const [path, content] of bundle) {
+    if (MIRROR_ROOT_FILES.has(path)) {
+      out.set(path, content);
+      continue;
+    }
+    const top = path.split("/")[0];
+    if (top && (MIRROR_OPTIONAL_DIRS as readonly string[]).includes(top)) {
+      out.set(path, content);
+    }
+  }
+
+  const skillMd = out.get("SKILL.md");
+  if (skillMd) {
+    out.set("SKILL.md", truncateFrontmatterDescription(skillMd, 1024));
+  }
+  return out;
+}
+
+/** Clamp YAML description to agentskills.io max length without full re-parse. */
+export function truncateFrontmatterDescription(skillMd: string, maxLen: number): string {
+  const match = skillMd.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n[\s\S]*)$/);
+  if (!match) return skillMd;
+  const fm = match[1]!;
+  const body = match[2]!;
+  const descMatch = fm.match(/^description:\s*(.*)$/m);
+  if (!descMatch) return skillMd;
+  let value = descMatch[1] ?? "";
+  // quoted block
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    const q = value[0]!;
+    const inner = value.slice(1, -1);
+    if (inner.length <= maxLen) return skillMd;
+    value = `${q}${inner.slice(0, maxLen - 1)}…${q}`;
+  } else if (value.length > maxLen) {
+    value = `${value.slice(0, maxLen - 1)}…`;
+  } else {
+    return skillMd;
+  }
+  const newFm = fm.replace(/^description:\s*.*$/m, `description: ${value}`);
+  return `---\n${newFm}\n---${body}`;
+}

@@ -2,6 +2,11 @@ import type { DiscoveredSkill, GithubTreeEntry } from "./fetch";
 
 const DEFAULT_ROOTS = ["skills", ".cursor/skills", ".claude/skills", ".vscode/skills"];
 
+/**
+ * Find directories containing SKILL.md under configured roots.
+ * Supports flat (`skills/{slug}/SKILL.md`) and nested plugin layouts
+ * (`plugins/{plugin}/skills/{slug}/SKILL.md`).
+ */
 export function discoverSkillsFromTree(
   tree: GithubTreeEntry[],
   discoveryRoots: string[] = DEFAULT_ROOTS,
@@ -11,21 +16,25 @@ export function discoverSkillsFromTree(
     .map((e) => e.path);
 
   const discovered: DiscoveredSkill[] = [];
-  const seen = new Set<string>();
+  const seenSlugs = new Set<string>();
 
   for (const skillMdPath of skillMdPaths) {
     const sourcePath = skillMdPath.slice(0, -"/SKILL.md".length);
     const root = discoveryRoots.find((r) => sourcePath === r || sourcePath.startsWith(`${r}/`));
-    if (!root) continue;
+    if (!root) {
+      // Also match nested .../skills/{slug} even when root is just "skills"
+      // by allowing any path segment named in discoveryRoots as an ancestor.
+      const matched = discoveryRoots.some((r) => {
+        const marker = `/${r}/`;
+        return sourcePath.includes(marker) || sourcePath.startsWith(`${r}/`);
+      });
+      if (!matched) continue;
+    }
 
-    // Only accept one level under the root: skills/{slug}/SKILL.md
-    const relative = sourcePath.slice(root.length).replace(/^\//, "");
-    if (!relative || relative.includes("/")) continue;
-
-    const skillSlug = relative;
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillSlug)) continue;
-    if (seen.has(skillSlug)) continue;
-    seen.add(skillSlug);
+    const skillSlug = sourcePath.split("/").pop();
+    if (!skillSlug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skillSlug)) continue;
+    if (seenSlugs.has(skillSlug)) continue;
+    seenSlugs.add(skillSlug);
 
     discovered.push({
       skillSlug,

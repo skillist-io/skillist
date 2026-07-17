@@ -147,11 +147,13 @@ export async function cacheTarballToR2(
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/tarball/${commitSha}`, {
     headers: githubHeaders(token),
   });
-  if (!res.ok || !res.body) {
+  if (!res.ok) {
     throw new Error(`Failed to download tarball ${owner}/${repo}@${commitSha}: ${res.status}`);
   }
 
-  await bucket.put(key, res.body, {
+  // R2 requires a known-length body; GitHub tarball streams omit Content-Length.
+  const bytes = await res.arrayBuffer();
+  await bucket.put(key, bytes, {
     httpMetadata: { contentType: "application/gzip" },
     customMetadata: { owner, repo, commitSha },
   });
@@ -161,4 +163,21 @@ export async function cacheTarballToR2(
 export function isCompatibleLicense(license: string | null | undefined): boolean {
   if (!license) return false;
   return COMPATIBLE_LICENSES.has(license.toLowerCase());
+}
+
+/**
+ * Curated allowlist sources may omit GitHub SPDX metadata (e.g. anthropics/skills).
+ * Still reject clearly incompatible SPDX when present.
+ */
+export function assertMirrorLicenseAllowed(
+  license: string | null | undefined,
+  trustTier: string,
+): void {
+  if (!license) {
+    if (trustTier === "official_mirror") return;
+    throw new Error("Missing license");
+  }
+  if (!isCompatibleLicense(license)) {
+    throw new Error(`Incompatible license: ${license}`);
+  }
 }

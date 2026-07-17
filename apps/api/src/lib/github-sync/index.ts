@@ -3,6 +3,7 @@ export {
   hashSkillTreeSnapshot,
   loadMirrorSkillBundle,
   loadSkillBundleFromTree,
+  sanitizeMirrorBundle,
 } from "./bundle";
 export { getCachedTree, putCachedTree, tarballCacheKey, treeCacheKey } from "./cache";
 export {
@@ -10,6 +11,7 @@ export {
   listSkillFileEntries,
 } from "./discover";
 export {
+  assertMirrorLicenseAllowed,
   COMPATIBLE_LICENSES,
   cacheTarballToR2,
   type DiscoveredSkill,
