@@ -21,6 +21,10 @@ function useBreadcrumbs() {
     return [{ label: "Dashboard", href: "/dashboard", current: true }];
   }
 
+  if (segments[0] === "account") {
+    return [{ label: "Account", href: "/account", current: true }];
+  }
+
   if (segments[0] === "settings") {
     return [{ label: "Settings", href: "/settings", current: true }];
   }

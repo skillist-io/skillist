@@ -1,3 +1,4 @@
+import { passkey } from "@better-auth/passkey";
 import * as schema from "@skillist/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -147,6 +148,12 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
     emailAndPassword: {
       enabled: false,
     },
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["github", "google"],
+      },
+    },
     socialProviders,
     plugins: [
       magicLink({
@@ -176,6 +183,13 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
             text: `Your Skillist code: ${otp}`,
           });
         },
+      }),
+      passkey({
+        rpID: isLocal ? "localhost" : "skillist.dev",
+        rpName: "Skillist",
+        origin: isLocal
+          ? ["http://localhost:5173", "http://localhost:8787"]
+          : ["https://skillist.dev", "https://api.skillist.dev"],
       }),
       mcp({
         loginPage: `${webUrl}/login`,

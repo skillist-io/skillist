@@ -113,6 +113,7 @@ export const passkeys = pgTable("passkeys", {
   deviceType: text("device_type"),
   backedUp: boolean("backed_up").notNull().default(false),
   transports: text("transports"),
+  aaguid: text("aaguid"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

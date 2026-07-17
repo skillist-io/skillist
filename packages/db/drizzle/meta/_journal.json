@@ -64,6 +64,13 @@
       "when": 1784300000000,
       "tag": "0010_install_policy_inventory_rbac",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784400000000,
+      "tag": "0011_passkey_aaguid",
+      "breakpoints": true
     }
   ]
 }

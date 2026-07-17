@@ -7,6 +7,7 @@ import { RouteErrorFallback } from "@/components/route-error";
 function isAppRoute(pathname: string) {
   return (
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/account") ||
     pathname.startsWith("/settings") ||
     pathname.startsWith("/governance") ||
     pathname.startsWith("/inventory") ||
