@@ -1,6 +1,6 @@
 # skillist
 
-CLI for the [Skillist](https://skillist.dev) Agent Skills platform — search, install, publish, and run skills from the public registry.
+CLI for the [Skillist](https://skillist.dev) Agent Skills platform — search, install, publish, review, inventory, and run skills from the public registry.
 
 ## Install
 
@@ -14,8 +14,11 @@ npm install -g @skillist/cli
 # Search the public registry
 skillist search performance
 
-# Install a skill into your project
+# Install a skill into your project (org install policy applies when SKILLIST_API_KEY is set)
 skillist install skillist/web-perf-audit
+
+# CI quality + security gate
+skillist review ./skills/my-skill --threshold 80 --fail-on high --json
 
 # Run a hosted script (public skills)
 skillist run skillist/web-perf-audit --script scripts/collect-metrics.sh --url https://example.com
