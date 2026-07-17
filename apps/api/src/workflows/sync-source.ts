@@ -40,18 +40,21 @@ export class SyncSourceWorkflow extends WorkflowEntrypoint<Env, SyncSourceParams
     });
 
     await step.do("enqueue-publish-jobs", async () => {
-      await this.env.SYNC_QUEUE.sendBatch(
-        result.changedSkills.map((skill) => ({
-          body: {
-            type: "publish_skill" as const,
-            sourceId,
-            skillSlug: skill.skillSlug,
-            sourcePath: skill.sourcePath,
-            commitSha,
-          },
-        })),
-      );
-      return { enqueued: result.changedSkills.length };
+      // Queues sendBatch allows at most 100 messages per call.
+      const BATCH = 100;
+      const messages = result.changedSkills.map((skill) => ({
+        body: {
+          type: "publish_skill" as const,
+          sourceId,
+          skillSlug: skill.skillSlug,
+          sourcePath: skill.sourcePath,
+          commitSha,
+        },
+      }));
+      for (let i = 0; i < messages.length; i += BATCH) {
+        await this.env.SYNC_QUEUE.sendBatch(messages.slice(i, i + BATCH));
+      }
+      return { enqueued: messages.length };
     });
 
     return result;
