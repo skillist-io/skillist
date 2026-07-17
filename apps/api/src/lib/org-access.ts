@@ -6,16 +6,17 @@ import type { WorkerDb } from "./db";
 
 const ROLE_RANK: Record<OrgRole, number> = {
   viewer: 1,
-  editor: 2,
-  owner: 3,
+  publisher: 2,
+  editor: 3,
+  owner: 4,
 };
 
 const SCOPE_MIN_ROLE: Record<ApiKeyScope, OrgRole> = {
   "skills:read": "viewer",
   "skills:run": "viewer",
   "skills:write": "editor",
-  "skills:publish": "editor",
-  "feedback:submit": "editor",
+  "skills:publish": "publisher",
+  "feedback:submit": "publisher",
   "feedback:approve": "owner",
 };
 

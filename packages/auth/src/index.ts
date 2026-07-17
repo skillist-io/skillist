@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { mcp } from "better-auth/plugins";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { buildSocialProviders } from "./social-providers";
 import type { WorkerDb } from "./types";
@@ -22,6 +23,15 @@ export type AuthEnv = {
   GITHUB_CLIENT_SECRET?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** Enterprise OIDC / SSO (generic OAuth) */
+  SSO_PROVIDER_ID?: string;
+  SSO_CLIENT_ID?: string;
+  SSO_CLIENT_SECRET?: string;
+  SSO_DISCOVERY_URL?: string;
+  SSO_AUTHORIZATION_URL?: string;
+  SSO_TOKEN_URL?: string;
+  SSO_USERINFO_URL?: string;
+  SSO_SCOPES?: string;
 };
 
 export type EmailSender = (params: {
@@ -52,10 +62,51 @@ function resolveAuthBaseURL(env: AuthEnv) {
   };
 }
 
+function buildSsoPlugin(env: AuthEnv) {
+  if (!env.SSO_CLIENT_ID || !env.SSO_CLIENT_SECRET) return null;
+  const providerId = env.SSO_PROVIDER_ID?.trim() || "sso";
+  const scopes = (env.SSO_SCOPES ?? "openid email profile").split(/\s+/).filter(Boolean);
+
+  if (env.SSO_DISCOVERY_URL) {
+    return genericOAuth({
+      config: [
+        {
+          providerId,
+          clientId: env.SSO_CLIENT_ID,
+          clientSecret: env.SSO_CLIENT_SECRET,
+          discoveryUrl: env.SSO_DISCOVERY_URL,
+          scopes,
+          pkce: true,
+        },
+      ],
+    });
+  }
+
+  if (env.SSO_AUTHORIZATION_URL && env.SSO_TOKEN_URL) {
+    return genericOAuth({
+      config: [
+        {
+          providerId,
+          clientId: env.SSO_CLIENT_ID,
+          clientSecret: env.SSO_CLIENT_SECRET,
+          authorizationUrl: env.SSO_AUTHORIZATION_URL,
+          tokenUrl: env.SSO_TOKEN_URL,
+          userInfoUrl: env.SSO_USERINFO_URL,
+          scopes,
+          pkce: true,
+        },
+      ],
+    });
+  }
+
+  return null;
+}
+
 export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) {
   const socialProviders = buildSocialProviders(env);
   const webUrl = resolveWebUrl(env);
   const isLocal = env.BETTER_AUTH_URL.includes("localhost");
+  const ssoPlugin = buildSsoPlugin(env);
 
   return betterAuth({
     database: drizzleAdapter(db, {
@@ -130,6 +181,7 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
         loginPage: `${webUrl}/login`,
         resource: env.BETTER_AUTH_URL,
       }),
+      ...(ssoPlugin ? [ssoPlugin] : []),
     ],
   });
 }

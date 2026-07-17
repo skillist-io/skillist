@@ -11,7 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const orgRoleEnum = pgEnum("org_role", ["owner", "editor", "viewer"]);
+export const orgRoleEnum = pgEnum("org_role", ["owner", "editor", "publisher", "viewer"]);
 export const skillVisibilityEnum = pgEnum("skill_visibility", ["private", "org", "public"]);
 export const versionStatusEnum = pgEnum("version_status", ["draft", "published", "archived"]);
 export const feedbackSourceEnum = pgEnum("feedback_source", ["human", "agent"]);
@@ -128,6 +128,23 @@ export const organizations = pgTable(
       blockOnAdvisory?: boolean;
       minEvalUplift?: number;
       requireEval?: boolean;
+    }>(),
+    installPolicy: jsonb("install_policy").$type<{
+      warnSeverity?: "low" | "medium" | "high" | "critical";
+      blockSeverity?: "low" | "medium" | "high" | "critical";
+      allowedSources?: "registry_org_only" | "registry_any" | "registry_plus_git";
+      gitAllowlist?: string[];
+      minReleaseAgeDays?: number;
+    }>(),
+    reviewRubric: jsonb("review_rubric").$type<{
+      validationWeight?: number;
+      checks?: { id: string; weight: number; enabled?: boolean }[];
+      llmJudges?: {
+        id: string;
+        weight: number;
+        prompt: string;
+        evaluationTarget?: string;
+      }[];
     }>(),
     executionPolicy: jsonb("execution_policy").$type<{
       hourlyRunLimit?: number;
@@ -468,9 +485,45 @@ export const skillInventory = pgTable(
     managed: boolean("managed").notNull().default(false),
     registryOrgSlug: text("registry_org_slug"),
     registryRepo: text("registry_repo"),
+    sourceType: text("source_type"),
+    scope: text("scope"),
+    marketplace: text("marketplace"),
+    pluginName: text("plugin_name"),
+    isSymlink: boolean("is_symlink").notNull().default(false),
+    conformanceStatus: text("conformance_status"),
+    conformanceIssues:
+      jsonb("conformance_issues").$type<{ level: string; field?: string; message: string }[]>(),
+    contentHash: text("content_hash"),
+    securityStatus: securityStatusEnum("security_status"),
+    securityIssues:
+      jsonb("security_issues").$type<{ severity: string; path: string; message: string }[]>(),
     scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("skill_inventory_repo_path_idx").on(t.orgId, t.repoFullName, t.filePath)],
+);
+
+export const orgMcpServers = pgTable(
+  "org_mcp_servers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    upstreamUrl: text("upstream_url").notNull(),
+    transport: text("transport").notNull().default("http"),
+    oauthClientId: text("oauth_client_id"),
+    oauthClientSecret: text("oauth_client_secret"),
+    oauthScope: text("oauth_scope"),
+    oauthResourceUrl: text("oauth_resource_url"),
+    oauthAuthorizationServerUrl: text("oauth_authorization_server_url"),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    status: text("status").notNull().default("unauthorized"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("org_mcp_servers_org_name_idx").on(t.orgId, t.name)],
 );
 
 export const skillRuns = pgTable(

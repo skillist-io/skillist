@@ -93,6 +93,20 @@ skillist inventory scan --org my-org
 
 Use `--dry-run` to print the payload without posting, or `--json` for machine-readable output.
 
+GitHub org estate import (requires authenticated `gh`):
+
+```bash
+skillist inventory import --github-org my-github-org --org my-org --limit 100
+```
+
+The local scanner BFS-walks Cursor/Claude/Agents/Gemini/Codex/VS Code skill roots (plus Claude marketplaces), recording source type, conformance, content hash, and security status.
+
+Promote an unmanaged inventory row into a private org skill:
+
+```
+POST /v1/orgs/{orgId}/inventory/{itemId}/promote
+```
+
 List current inventory:
 
 ```bash

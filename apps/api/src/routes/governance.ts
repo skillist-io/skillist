@@ -2,15 +2,20 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   executionPolicySchema,
+  installCheckSchema,
+  installPolicySchema,
   inventoryScanSchema,
+  mcpServerSchema,
   publishPolicySchema,
   requiredSkillSchema,
+  reviewRubricSchema,
   runEvalSchema,
   telemetryEventSchema,
 } from "@skillist/contracts";
 import {
   auditEvents,
   organizations,
+  orgMcpServers,
   orgRequiredSkills,
   registryEntries,
   skillEvals,
@@ -20,11 +25,13 @@ import {
   skillVersions,
   telemetryEvents,
 } from "@skillist/db/schema";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { scanSkillSecurity } from "@skillist/skill-format";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { evaluateInstallPolicy } from "../lib/install-policy";
 import { requireOrgAccess } from "../lib/org-access";
 import { queueSkillEval } from "../lib/queue-eval";
 import { resolveUserId } from "../lib/session";
@@ -211,6 +218,183 @@ governanceRoutes.openapi(getPublishPolicyRoute, async (c) => {
   return c.json({ publishPolicy: org?.publishPolicy ?? {} }, 200);
 });
 
+const patchInstallPolicyRoute = createRoute({
+  method: "patch",
+  path: "/orgs/{orgId}/install-policy",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: installPolicySchema } } },
+  },
+  responses: { 200: { description: "Install policy updated" } },
+});
+
+governanceRoutes.openapi(patchInstallPolicyRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  await c.var.db
+    .update(organizations)
+    .set({ installPolicy: body, updatedAt: new Date() })
+    .where(eq(organizations.id, orgId));
+
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: access.actorId,
+    actorType: access.actorType,
+    action: "install_policy.updated",
+    resourceType: "organization",
+    resourceId: orgId,
+    metadata: body,
+  });
+
+  return c.json({ ok: true, installPolicy: body }, 200);
+});
+
+const getInstallPolicyRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/install-policy",
+  tags: ["Governance"],
+  request: { params: z.object({ orgId: z.string().uuid() }) },
+  responses: { 200: { description: "Install policy" } },
+});
+
+governanceRoutes.openapi(getInstallPolicyRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select({ installPolicy: organizations.installPolicy, slug: organizations.slug })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+
+  return c.json({ installPolicy: org?.installPolicy ?? {}, orgSlug: org?.slug }, 200);
+});
+
+const installCheckRoute = createRoute({
+  method: "post",
+  path: "/orgs/{orgId}/install-check",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: installCheckSchema } } },
+  },
+  responses: { 200: { description: "Install policy evaluation" } },
+});
+
+governanceRoutes.openapi(installCheckRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select({
+      installPolicy: organizations.installPolicy,
+      slug: organizations.slug,
+    })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+
+  const [entry] = await c.var.db
+    .select({
+      securityStatus: registryEntries.securityStatus,
+      skillId: registryEntries.skillId,
+      updatedAt: registryEntries.updatedAt,
+      latestPublishedVersionId: skills.latestPublishedVersionId,
+    })
+    .from(registryEntries)
+    .innerJoin(skills, eq(skills.id, registryEntries.skillId))
+    .where(
+      and(eq(registryEntries.orgSlug, body.orgSlug), eq(registryEntries.skillRepo, body.skillRepo)),
+    )
+    .limit(1);
+
+  let securityIssues: { severity: string; path: string; message: string }[] | undefined;
+  if (entry?.latestPublishedVersionId) {
+    const [version] = await c.var.db
+      .select({ securityIssues: skillVersions.securityIssues })
+      .from(skillVersions)
+      .where(eq(skillVersions.id, entry.latestPublishedVersionId))
+      .limit(1);
+    securityIssues = version?.securityIssues ?? undefined;
+  }
+
+  const result = evaluateInstallPolicy(org?.installPolicy, {
+    skillOrgSlug: body.orgSlug,
+    policyOrgSlug: org?.slug ?? "",
+    source: body.source,
+    gitHost: body.gitHost,
+    publishedAt: body.publishedAt ? new Date(body.publishedAt) : (entry?.updatedAt ?? null),
+    securityStatus: entry?.securityStatus,
+    securityIssues,
+  });
+
+  return c.json({ ...result, securityStatus: entry?.securityStatus ?? null }, 200);
+});
+
+const patchReviewRubricRoute = createRoute({
+  method: "patch",
+  path: "/orgs/{orgId}/review-rubric",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: reviewRubricSchema } } },
+  },
+  responses: { 200: { description: "Review rubric updated" } },
+});
+
+governanceRoutes.openapi(patchReviewRubricRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  await c.var.db
+    .update(organizations)
+    .set({ reviewRubric: body, updatedAt: new Date() })
+    .where(eq(organizations.id, orgId));
+
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: access.actorId,
+    actorType: access.actorType,
+    action: "review_rubric.updated",
+    resourceType: "organization",
+    resourceId: orgId,
+    metadata: body,
+  });
+
+  return c.json({ ok: true, reviewRubric: body }, 200);
+});
+
+const getReviewRubricRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/review-rubric",
+  tags: ["Governance"],
+  request: { params: z.object({ orgId: z.string().uuid() }) },
+  responses: { 200: { description: "Review rubric" } },
+});
+
+governanceRoutes.openapi(getReviewRubricRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select({ reviewRubric: organizations.reviewRubric })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+
+  return c.json({ reviewRubric: org?.reviewRubric ?? {} }, 200);
+});
+
 const patchExecutionPolicyRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/execution-policy",
@@ -364,7 +548,7 @@ const runEvalRoute = createRoute({
 governanceRoutes.openapi(runEvalRoute, async (c) => {
   const { orgId, repo, versionId } = c.req.valid("param");
   const body = c.req.valid("json") ?? {};
-  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "publisher");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const [skill] = await c.var.db
@@ -613,13 +797,40 @@ const inventoryScanRoute = createRoute({
 governanceRoutes.openapi(inventoryScanRoute, async (c) => {
   const { orgId } = c.req.valid("param");
   const body = c.req.valid("json");
-  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "publisher");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const { resolveGithubToRegistry } = await import("../lib/github-registry-map");
 
+  const scannedRepos = [...new Set(body.items.map((i) => i.repoFullName))];
+  const previous =
+    scannedRepos.length > 0
+      ? await c.var.db
+          .select({
+            repoFullName: skillInventory.repoFullName,
+            filePath: skillInventory.filePath,
+          })
+          .from(skillInventory)
+          .where(
+            and(
+              eq(skillInventory.orgId, orgId),
+              inArray(skillInventory.repoFullName, scannedRepos),
+            ),
+          )
+      : [];
+  const previousKeys = new Set(previous.map((p) => `${p.repoFullName}\0${p.filePath}`));
+  const seenKeys = new Set<string>();
+
   let upserted = 0;
+  let created = 0;
+  let updated = 0;
   for (const item of body.items) {
+    const key = `${item.repoFullName}\0${item.filePath}`;
+    seenKeys.add(key);
+    const isNew = !previousKeys.has(key);
+    if (isNew) created++;
+    else updated++;
+
     const resolved = await resolveGithubToRegistry(c.var.db, {
       repoFullName: item.repoFullName,
       localSlug: item.localSlug,
@@ -628,6 +839,14 @@ governanceRoutes.openapi(inventoryScanRoute, async (c) => {
     });
     const registryOrgSlug = resolved?.registryOrgSlug ?? item.registryOrgSlug ?? null;
     const registryRepo = resolved?.registryRepo ?? item.registryRepo ?? null;
+
+    let securityStatus = item.securityStatus ?? null;
+    let securityIssues = item.securityIssues ?? null;
+    if (item.skillMd && !securityStatus) {
+      const scan = scanSkillSecurity(new Map([["SKILL.md", item.skillMd]]));
+      securityStatus = scan.status;
+      securityIssues = scan.issues;
+    }
 
     await c.var.db
       .insert(skillInventory)
@@ -639,6 +858,16 @@ governanceRoutes.openapi(inventoryScanRoute, async (c) => {
         managed: Boolean(registryOrgSlug && registryRepo),
         registryOrgSlug,
         registryRepo,
+        sourceType: item.sourceType ?? null,
+        scope: item.scope ?? null,
+        marketplace: item.marketplace ?? null,
+        pluginName: item.pluginName ?? null,
+        isSymlink: item.isSymlink ?? false,
+        conformanceStatus: item.conformanceStatus ?? null,
+        conformanceIssues: item.conformanceIssues ?? null,
+        contentHash: item.contentHash ?? null,
+        securityStatus,
+        securityIssues,
         scannedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -648,11 +877,42 @@ governanceRoutes.openapi(inventoryScanRoute, async (c) => {
           managed: Boolean(registryOrgSlug && registryRepo),
           registryOrgSlug,
           registryRepo,
+          sourceType: item.sourceType ?? null,
+          scope: item.scope ?? null,
+          marketplace: item.marketplace ?? null,
+          pluginName: item.pluginName ?? null,
+          isSymlink: item.isSymlink ?? false,
+          conformanceStatus: item.conformanceStatus ?? null,
+          conformanceIssues: item.conformanceIssues ?? null,
+          contentHash: item.contentHash ?? null,
+          securityStatus,
+          securityIssues,
           scannedAt: new Date(),
         },
       });
     upserted++;
   }
+
+  const removed = previous.filter((p) => !seenKeys.has(`${p.repoFullName}\0${p.filePath}`)).length;
+
+  // Near-duplicate groups by localSlug / contentHash
+  const allItems = await c.var.db
+    .select({
+      localSlug: skillInventory.localSlug,
+      contentHash: skillInventory.contentHash,
+      filePath: skillInventory.filePath,
+      repoFullName: skillInventory.repoFullName,
+    })
+    .from(skillInventory)
+    .where(eq(skillInventory.orgId, orgId));
+  const bySlug = new Map<string, number>();
+  const byHash = new Map<string, number>();
+  for (const row of allItems) {
+    if (row.localSlug) bySlug.set(row.localSlug, (bySlug.get(row.localSlug) ?? 0) + 1);
+    if (row.contentHash) byHash.set(row.contentHash, (byHash.get(row.contentHash) ?? 0) + 1);
+  }
+  const duplicateSlugs = [...bySlug.entries()].filter(([, n]) => n > 1).map(([slug]) => slug);
+  const duplicateHashes = [...byHash.entries()].filter(([, n]) => n > 1).map(([hash]) => hash);
 
   await logAudit(c.var.db, {
     orgId,
@@ -661,10 +921,17 @@ governanceRoutes.openapi(inventoryScanRoute, async (c) => {
     action: "inventory.scanned",
     resourceType: "organization",
     resourceId: orgId,
-    metadata: { count: upserted },
+    metadata: { count: upserted, created, updated, removed },
   });
 
-  return c.json({ upserted }, 200);
+  return c.json(
+    {
+      upserted,
+      diff: { created, updated, removed },
+      duplicates: { slugs: duplicateSlugs, contentHashes: duplicateHashes },
+    },
+    200,
+  );
 });
 
 const listInventoryRoute = createRoute({
@@ -686,5 +953,387 @@ governanceRoutes.openapi(listInventoryRoute, async (c) => {
     .where(eq(skillInventory.orgId, orgId))
     .orderBy(desc(skillInventory.scannedAt));
 
+  const bySlug = new Map<string, typeof items>();
+  const byHash = new Map<string, typeof items>();
+  for (const item of items) {
+    if (item.localSlug) {
+      const list = bySlug.get(item.localSlug) ?? [];
+      list.push(item);
+      bySlug.set(item.localSlug, list);
+    }
+    if (item.contentHash) {
+      const list = byHash.get(item.contentHash) ?? [];
+      list.push(item);
+      byHash.set(item.contentHash, list);
+    }
+  }
+
+  return c.json(
+    {
+      items,
+      duplicates: {
+        slugs: [...bySlug.entries()]
+          .filter(([, rows]) => rows.length > 1)
+          .map(([slug, rows]) => ({ slug, count: rows.length })),
+        contentHashes: [...byHash.entries()]
+          .filter(([, rows]) => rows.length > 1)
+          .map(([hash, rows]) => ({ hash, count: rows.length })),
+      },
+    },
+    200,
+  );
+});
+
+const listMcpServersRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/mcp-servers",
+  tags: ["MCP Gateway"],
+  request: { params: z.object({ orgId: z.string().uuid() }) },
+  responses: { 200: { description: "Org MCP gateway servers" } },
+});
+
+governanceRoutes.openapi(listMcpServersRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const items = await c.var.db
+    .select({
+      id: orgMcpServers.id,
+      name: orgMcpServers.name,
+      upstreamUrl: orgMcpServers.upstreamUrl,
+      transport: orgMcpServers.transport,
+      status: orgMcpServers.status,
+      createdAt: orgMcpServers.createdAt,
+    })
+    .from(orgMcpServers)
+    .where(eq(orgMcpServers.orgId, orgId));
+
   return c.json({ items }, 200);
+});
+
+const createMcpServerRoute = createRoute({
+  method: "post",
+  path: "/orgs/{orgId}/mcp-servers",
+  tags: ["MCP Gateway"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: mcpServerSchema } } },
+  },
+  responses: { 201: { description: "MCP server registered" } },
+});
+
+governanceRoutes.openapi(createMcpServerRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [row] = await c.var.db
+    .insert(orgMcpServers)
+    .values({
+      orgId,
+      name: body.name,
+      upstreamUrl: body.upstreamUrl,
+      transport: body.transport,
+      oauthClientId: body.oauthClientId ?? null,
+      oauthClientSecret: body.oauthClientSecret ?? null,
+      oauthScope: body.oauthScope ?? null,
+      oauthResourceUrl: body.oauthResourceUrl ?? null,
+      oauthAuthorizationServerUrl: body.oauthAuthorizationServerUrl ?? null,
+      status: "unauthorized",
+    })
+    .returning({
+      id: orgMcpServers.id,
+      name: orgMcpServers.name,
+      upstreamUrl: orgMcpServers.upstreamUrl,
+      transport: orgMcpServers.transport,
+      status: orgMcpServers.status,
+    });
+
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: access.actorId,
+    actorType: access.actorType,
+    action: "mcp_server.created",
+    resourceType: "mcp_server",
+    resourceId: row?.id ?? null,
+    metadata: { name: body.name },
+  });
+
+  return c.json(row, 201);
+});
+
+const authorizeMcpServerRoute = createRoute({
+  method: "post",
+  path: "/orgs/{orgId}/mcp-servers/{name}/authorize",
+  tags: ["MCP Gateway"],
+  request: {
+    params: z.object({ orgId: z.string().uuid(), name: z.string() }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            accessToken: z.string().min(1),
+            refreshToken: z.string().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: { 200: { description: "MCP server authorized" } },
+});
+
+governanceRoutes.openapi(authorizeMcpServerRoute, async (c) => {
+  const { orgId, name } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [row] = await c.var.db
+    .update(orgMcpServers)
+    .set({
+      accessToken: body.accessToken,
+      refreshToken: body.refreshToken ?? null,
+      status: "authorized",
+      updatedAt: new Date(),
+    })
+    .where(and(eq(orgMcpServers.orgId, orgId), eq(orgMcpServers.name, name)))
+    .returning({ id: orgMcpServers.id, name: orgMcpServers.name, status: orgMcpServers.status });
+
+  if (!row) return c.json({ error: "Not found" }, 404);
+  return c.json(row, 200);
+});
+
+const getMcpProxyConfigRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/mcp-servers/{name}/proxy",
+  tags: ["MCP Gateway"],
+  request: { params: z.object({ orgId: z.string().uuid(), name: z.string() }) },
+  responses: { 200: { description: "MCP proxy connection config" } },
+});
+
+governanceRoutes.openapi(getMcpProxyConfigRoute, async (c) => {
+  const { orgId, name } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [row] = await c.var.db
+    .select()
+    .from(orgMcpServers)
+    .where(and(eq(orgMcpServers.orgId, orgId), eq(orgMcpServers.name, name)))
+    .limit(1);
+
+  if (!row) return c.json({ error: "Not found" }, 404);
+  if (row.status !== "authorized" || !row.accessToken) {
+    return c.json({ error: "MCP server is not authorized" }, 409);
+  }
+
+  return c.json(
+    {
+      name: row.name,
+      upstreamUrl: row.upstreamUrl,
+      transport: row.transport,
+      accessToken: row.accessToken,
+      orgSlug: (
+        await c.var.db
+          .select({ slug: organizations.slug })
+          .from(organizations)
+          .where(eq(organizations.id, orgId))
+          .limit(1)
+      )[0]?.slug,
+    },
+    200,
+  );
+});
+
+const promoteInventoryRoute = createRoute({
+  method: "post",
+  path: "/orgs/{orgId}/inventory/{itemId}/promote",
+  tags: ["Inventory"],
+  request: {
+    params: z.object({ orgId: z.string().uuid(), itemId: z.string().uuid() }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            repo: z
+              .string()
+              .min(1)
+              .max(64)
+              .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+              .optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: { 201: { description: "Skill created from inventory item" } },
+});
+
+governanceRoutes.openapi(promoteInventoryRoute, async (c) => {
+  const { orgId, itemId } = c.req.valid("param");
+  const body = c.req.valid("json") ?? {};
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "publisher");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [item] = await c.var.db
+    .select()
+    .from(skillInventory)
+    .where(and(eq(skillInventory.id, itemId), eq(skillInventory.orgId, orgId)))
+    .limit(1);
+  if (!item) return c.json({ error: "Not found" }, 404);
+
+  const repo =
+    body.repo ??
+    item.localSlug ??
+    item.filePath.split("/").filter(Boolean).at(-2) ??
+    "imported-skill";
+
+  const [existing] = await c.var.db
+    .select({ id: skills.id })
+    .from(skills)
+    .where(and(eq(skills.orgId, orgId), eq(skills.repo, repo)))
+    .limit(1);
+  if (existing) {
+    return c.json({ error: `Skill ${repo} already exists`, skillId: existing.id }, 409);
+  }
+
+  const [skill] = await c.var.db
+    .insert(skills)
+    .values({
+      orgId,
+      repo,
+      visibility: "private",
+      description: `Promoted from inventory ${item.repoFullName}:${item.filePath}`,
+    })
+    .returning();
+
+  await c.var.db
+    .update(skillInventory)
+    .set({
+      managed: true,
+      registryOrgSlug:
+        (
+          await c.var.db
+            .select({ slug: organizations.slug })
+            .from(organizations)
+            .where(eq(organizations.id, orgId))
+            .limit(1)
+        )[0]?.slug ?? null,
+      registryRepo: repo,
+    })
+    .where(eq(skillInventory.id, itemId));
+
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: access.actorId,
+    actorType: access.actorType,
+    action: "inventory.promoted",
+    resourceType: "skill",
+    resourceId: skill?.id ?? null,
+    metadata: { itemId, repo, from: item.repoFullName },
+  });
+
+  return c.json({ skill }, 201);
+});
+
+const requiredSkillsCheckRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/required-skills/check",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    query: z.object({
+      installed: z.string().optional().describe("Comma-separated org/repo refs"),
+    }),
+  },
+  responses: { 200: { description: "Required skills compliance" } },
+});
+
+governanceRoutes.openapi(requiredSkillsCheckRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const { installed } = c.req.valid("query");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const required = await c.var.db
+    .select()
+    .from(orgRequiredSkills)
+    .where(eq(orgRequiredSkills.orgId, orgId));
+
+  const installedSet = new Set(
+    (installed ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+
+  const missing = required
+    .filter((r) => !installedSet.has(`${r.orgSlug}/${r.skillRepo}`))
+    .map((r) => `${r.orgSlug}/${r.skillRepo}`);
+
+  return c.json(
+    {
+      required: required.map((r) => `${r.orgSlug}/${r.skillRepo}`),
+      installed: [...installedSet],
+      missing,
+      compliant: missing.length === 0,
+    },
+    200,
+  );
+});
+
+const requiredSkillsWorkflowRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/required-skills/workflow",
+  tags: ["Governance"],
+  request: { params: z.object({ orgId: z.string().uuid() }) },
+  responses: { 200: { description: "Suggested GitHub Actions workflow for required skills" } },
+});
+
+governanceRoutes.openapi(requiredSkillsWorkflowRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select({ slug: organizations.slug })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  const required = await c.var.db
+    .select()
+    .from(orgRequiredSkills)
+    .where(eq(orgRequiredSkills.orgId, orgId));
+
+  const installs = required
+    .map((r) => `        skillist install ${r.orgSlug}/${r.skillRepo}`)
+    .join("\n");
+
+  const yaml = `name: skillist-required-skills
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install -g @skillist/cli
+      - name: Install required skills
+        env:
+          SKILLIST_API_KEY: \${{ secrets.SKILLIST_API_KEY }}
+        run: |
+${installs || "        echo 'No required skills configured'"}
+      - name: Verify required skills
+        env:
+          SKILLIST_API_KEY: \${{ secrets.SKILLIST_API_KEY }}
+        run: skillist required-skills check --org ${org?.slug ?? "ORG_SLUG"}
+`;
+
+  return c.json({ orgSlug: org?.slug, requiredCount: required.length, workflow: yaml }, 200);
 });

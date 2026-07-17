@@ -159,7 +159,7 @@ export async function publishVersion(
     throw new Error(validation.errors.map((e) => e.message).join("; "));
   }
 
-  const review = reviewSkillBundle(bundle, skill.repo);
+  const review = reviewSkillBundle(bundle, skill.repo, org.reviewRubric);
   const impactScore = estimateImpactScore(review);
   const security = scanSkillSecurity(bundle);
   const pluginRaw = bundle.get("plugin.json");
@@ -382,7 +382,7 @@ export async function rollbackVersion(
     throw new Error(validation.errors.map((e) => e.message).join("; "));
   }
 
-  const review = reviewSkillBundle(bundle, skill.repo);
+  const review = reviewSkillBundle(bundle, skill.repo, org.reviewRubric);
   const impactScore = estimateImpactScore(review);
   const security = scanSkillSecurity(bundle);
   const pluginRaw = bundle.get("plugin.json");

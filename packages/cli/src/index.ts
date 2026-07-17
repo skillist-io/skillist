@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
+import { createInterface } from "node:readline";
 import { type SemverBump, validateSkillBundle } from "@skillist/skill-format";
-import { discoverSkillItems, resolveRepoFullName } from "./inventory.js";
+import { discoverSkillItems, importGithubOrgInventory, resolveRepoFullName } from "./inventory.js";
+import { reviewLocalSkill } from "./review.js";
 
 const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.dev";
 const DELIVERY_URL = process.env.SKILLIST_DELIVERY_URL ?? "https://skillist.dev";
@@ -30,11 +32,15 @@ Usage:
                                               [--category <cat>] [--tag <tag>]
                                               [--agent <name>] [--sort ...]
   skillist install <org>/<repo> [-o dir]   Download and record in lockfile
+                                              [--org <policy-org>] [--accept-warnings]
   skillist pull <org>/<repo> [-o dir]      Download published skill bundle
   skillist push <org>/<repo> <dir>         Upload local skill as new draft
                                               [--bump major|minor|patch]
   skillist publish <org>/<repo> <dir>        Push + publish to registry
                                               [--bump major|minor|patch]
+  skillist review <dir>                    Review local skill quality + security
+                                              [--json] [--threshold N] [--fail-on sev]
+                                              [--slug <name>] [--org <slug>]
   skillist run <org>/<repo> --script <path>    Run script in hosted sandbox
                                               [--url <url>] [--stream] [-- ...args]
   skillist eval <org>/<repo>                  Queue skill eval on latest draft
@@ -42,9 +48,13 @@ Usage:
   skillist rollback <org>/<repo> <semver>     Roll back to a previous published version
   skillist update [org/repo]               Update installed skills from lockfile
   skillist list                            List skills in lockfile
+  skillist required-skills check [--org]   Check lockfile against org required skills
   skillist inventory scan [--org <slug>]   Discover local skills and POST inventory scan
                                               [--dry-run] [--json]
+  skillist inventory import --github-org   Scan GitHub org via gh CLI and POST inventory
+     <org> [--org <slug>] [--limit N] [--repo a --repo b] [--dry-run] [--json]
   skillist inventory list [--org <slug>]   List org skill inventory
+  skillist mcp proxy <org>/<name>          Stdio proxy to org MCP gateway server
 
 Environment:
   SKILLIST_API_URL        API base URL (default: https://api.skillist.dev)
@@ -188,8 +198,67 @@ async function search(
   console.log(`${data.total} total matches`);
 }
 
-async function pull(ref: string, outDir: string, recordLock = false) {
+async function confirmWarn(message: string): Promise<boolean> {
+  if (!process.stdin.isTTY) return false;
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  const answer = await new Promise<string>((resolve) => {
+    rl.question(`${message} Continue? [y/N] `, resolve);
+  });
+  rl.close();
+  return /^y(es)?$/i.test(answer.trim());
+}
+
+async function enforceInstallPolicy(
+  ref: string,
+  options: { acceptWarnings?: boolean; policyOrg?: string } = {},
+): Promise<void> {
+  if (!API_KEY) return;
   const { org, repo } = parseRef(ref);
+  try {
+    const policyOrg = await resolveOrg(options.policyOrg ?? parseOrgFlag());
+    const res = await apiFetch(`/v1/orgs/${policyOrg.id}/install-check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orgSlug: org, skillRepo: repo, source: "registry" }),
+    });
+    const check = (await res.json()) as {
+      allowed: boolean;
+      decision: "allow" | "warn" | "block";
+      reasons: string[];
+      headline: string;
+      severity: string;
+    };
+
+    if (check.decision === "allow") return;
+
+    const detail = check.reasons.join("; ") || check.headline;
+    if (check.decision === "block") {
+      throw new Error(
+        `Blocked by install policy (${check.headline} / ${check.severity}): ${detail}`,
+      );
+    }
+
+    console.error(`Install policy warning (${check.headline}): ${detail}`);
+    if (options.acceptWarnings) return;
+    const ok = await confirmWarn("Proceed with install despite warnings?");
+    if (!ok) throw new Error("Install cancelled due to policy warnings");
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("Blocked by install policy")) throw err;
+    if (err instanceof Error && err.message.startsWith("Install cancelled")) throw err;
+    // No org / policy configured — allow install
+  }
+}
+
+async function pull(
+  ref: string,
+  outDir: string,
+  recordLock = false,
+  options: { acceptWarnings?: boolean; policyOrg?: string } = {},
+) {
+  const { org, repo } = parseRef(ref);
+  if (recordLock) {
+    await enforceInstallPolicy(ref, options);
+  }
   const res = await deliveryFetch(`/${org}/${repo}/bundle`);
   const bundle = (await res.json()) as { files: Record<string, string>; version: string };
 
@@ -283,12 +352,14 @@ async function scanInventory(options: { dryRun?: boolean; json?: boolean } = {})
   const items = await discoverSkillItems(process.cwd(), repoFullName);
 
   if (items.length === 0) {
-    console.log("No skills found under .cursor/skills, .claude/skills, or .vscode/skills");
+    console.log(
+      "No skills found under .cursor/skills, .claude/skills, .agents/skills, .gemini/skills, .codex/skills, .vscode/skills, or skills/",
+    );
     return;
   }
 
   if (options.dryRun) {
-    console.log(JSON.stringify({ items }, null, 2));
+    console.log(JSON.stringify({ items: items.map(({ skillMd: _, ...rest }) => rest) }, null, 2));
     return;
   }
 
@@ -301,18 +372,195 @@ async function scanInventory(options: { dryRun?: boolean; json?: boolean } = {})
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ items }),
   });
-  const result = (await res.json()) as { upserted: number };
+  const result = (await res.json()) as {
+    upserted: number;
+    diff?: { created: number; updated: number; removed: number };
+    duplicates?: { slugs: string[]; contentHashes: string[] };
+  };
 
   if (options.json) {
-    console.log(JSON.stringify({ org: org.slug, repoFullName, upserted: result.upserted, items }));
+    console.log(
+      JSON.stringify({
+        org: org.slug,
+        repoFullName,
+        upserted: result.upserted,
+        diff: result.diff,
+        duplicates: result.duplicates,
+        items: items.map(({ skillMd: _, ...rest }) => rest),
+      }),
+    );
     return;
   }
 
   console.log(
     `Scanned ${items.length} skill(s) in ${repoFullName} → ${org.slug} (${result.upserted} upserted)`,
   );
+  if (result.diff) {
+    console.log(`  diff: +${result.diff.created} ~${result.diff.updated} -${result.diff.removed}`);
+  }
   for (const item of items) {
-    console.log(`  ${item.filePath}${item.localSlug ? ` (${item.localSlug})` : ""}`);
+    const meta = [item.sourceType, item.conformanceStatus].filter(Boolean).join(" · ");
+    console.log(
+      `  ${item.filePath}${item.localSlug ? ` (${item.localSlug})` : ""}${meta ? ` [${meta}]` : ""}`,
+    );
+  }
+}
+
+async function importInventory(options: {
+  githubOrg: string;
+  limit?: number;
+  repos?: string[];
+  dryRun?: boolean;
+  json?: boolean;
+}) {
+  if (!options.dryRun && !API_KEY) {
+    throw new Error("SKILLIST_API_KEY is required for inventory import");
+  }
+
+  const items = await importGithubOrgInventory({
+    githubOrg: options.githubOrg,
+    limit: options.limit,
+    repos: options.repos,
+  });
+
+  if (options.dryRun) {
+    console.log(JSON.stringify({ items: items.map(({ skillMd: _, ...rest }) => rest) }, null, 2));
+    return;
+  }
+
+  const org = await resolveOrg(parseOrgFlag());
+  const res = await apiFetch(`/v1/orgs/${org.id}/inventory/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  const result = (await res.json()) as {
+    upserted: number;
+    diff?: { created: number; updated: number; removed: number };
+    duplicates?: { slugs: string[]; contentHashes: string[] };
+  };
+
+  if (options.json) {
+    console.log(JSON.stringify({ org: org.slug, ...result, count: items.length }));
+    return;
+  }
+
+  console.log(
+    `Imported ${items.length} skill(s) from github:${options.githubOrg} → ${org.slug} (${result.upserted} upserted)`,
+  );
+  if (result.diff) {
+    console.log(`  diff: +${result.diff.created} ~${result.diff.updated} -${result.diff.removed}`);
+  }
+  if (result.duplicates?.slugs?.length) {
+    console.log(`  duplicate slugs: ${result.duplicates.slugs.join(", ")}`);
+  }
+}
+
+async function runReview(dir: string) {
+  const thresholdIdx = process.argv.indexOf("--threshold");
+  const failOnIdx = process.argv.indexOf("--fail-on");
+  const slugIdx = process.argv.indexOf("--slug");
+  const threshold = thresholdIdx >= 0 ? Number(process.argv[thresholdIdx + 1]) : undefined;
+  const failOn =
+    failOnIdx >= 0
+      ? (process.argv[failOnIdx + 1] as "low" | "medium" | "high" | "critical")
+      : undefined;
+  const expectedSlug = slugIdx >= 0 ? process.argv[slugIdx + 1] : undefined;
+
+  let rubric = null;
+  const orgFlag = parseOrgFlag();
+  if (API_KEY && orgFlag) {
+    try {
+      const org = await resolveOrg(orgFlag);
+      const res = await apiFetch(`/v1/orgs/${org.id}/review-rubric`);
+      const data = (await res.json()) as { reviewRubric: Record<string, unknown> };
+      rubric = data.reviewRubric;
+    } catch {
+      // use default rubric
+    }
+  }
+
+  const result = await reviewLocalSkill(dir, {
+    expectedSlug,
+    threshold,
+    failOn,
+    rubric,
+  });
+
+  if (process.argv.includes("--json")) {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log(`Quality score: ${result.score}`);
+    for (const check of result.checks) {
+      console.log(`  ${check.passed ? "✓" : "✗"} ${check.label}: ${check.message}`);
+    }
+    console.log(`Security: ${result.security.status} (score ${result.security.score})`);
+    for (const issue of result.security.issues) {
+      console.log(`  [${issue.severity}] ${issue.path}: ${issue.message}`);
+    }
+  }
+
+  if (!result.ok) process.exit(result.exitCode);
+}
+
+async function checkRequiredSkills() {
+  if (!API_KEY) throw new Error("SKILLIST_API_KEY is required");
+  const org = await resolveOrg(parseOrgFlag());
+  const lock = await readLockfile();
+  const installed = lock.skills.map((s) => `${s.org}/${s.repo}`).join(",");
+  const res = await apiFetch(
+    `/v1/orgs/${org.id}/required-skills/check?installed=${encodeURIComponent(installed)}`,
+  );
+  const data = (await res.json()) as {
+    required: string[];
+    missing: string[];
+    compliant: boolean;
+  };
+  if (process.argv.includes("--json")) {
+    console.log(JSON.stringify(data, null, 2));
+  } else if (data.compliant) {
+    console.log(`All ${data.required.length} required skill(s) are installed`);
+  } else {
+    console.error(`Missing required skills: ${data.missing.join(", ")}`);
+    process.exit(1);
+  }
+}
+
+async function mcpProxy(ref: string) {
+  if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for mcp proxy");
+  const [orgSlug, name] = ref.split("/");
+  if (!orgSlug || !name) throw new Error("Usage: skillist mcp proxy <org>/<name>");
+  const org = await resolveOrg(orgSlug);
+  const res = await apiFetch(`/v1/orgs/${org.id}/mcp-servers/${name}/proxy`);
+  const cfg = (await res.json()) as {
+    upstreamUrl: string;
+    transport: string;
+    accessToken: string;
+  };
+
+  // Minimal JSON-RPC stdio ↔ HTTP bridge
+  const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+    const upstream = await fetch(cfg.upstreamUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cfg.accessToken}`,
+        Accept: "application/json, text/event-stream",
+      },
+      body: line,
+    });
+    const text = await upstream.text();
+    if (cfg.transport === "sse") {
+      for (const chunk of text.split("\n")) {
+        if (chunk.startsWith("data: ")) {
+          process.stdout.write(`${chunk.slice(6)}\n`);
+        }
+      }
+    } else {
+      process.stdout.write(`${text}\n`);
+    }
   }
 }
 
@@ -426,8 +674,12 @@ async function update(ref?: string) {
     return;
   }
 
+  const acceptWarnings = process.argv.includes("--accept-warnings");
   for (const entry of targets) {
-    await pull(`${entry.org}/${entry.repo}`, entry.path, true);
+    await pull(`${entry.org}/${entry.repo}`, entry.path, true, {
+      acceptWarnings,
+      policyOrg: parseOrgFlag(),
+    });
   }
 }
 
@@ -639,7 +891,28 @@ async function main() {
       const outIdx = process.argv.indexOf("-o");
       const outDir = outIdx >= 0 ? process.argv[outIdx + 1]! : `./${ref?.split("/")[1] ?? "skill"}`;
       if (!ref) throw new Error("Missing org/repo ref");
-      await pull(ref, outDir, true);
+      await pull(ref, outDir, true, {
+        acceptWarnings: process.argv.includes("--accept-warnings"),
+        policyOrg: parseOrgFlag(),
+      });
+      return;
+    }
+
+    if (cmd === "review") {
+      if (!ref) throw new Error("Usage: skillist review <dir> [--threshold N] [--fail-on sev]");
+      await runReview(ref);
+      return;
+    }
+
+    if (cmd === "required-skills") {
+      if (ref !== "check") throw new Error("Usage: skillist required-skills check [--org <slug>]");
+      await checkRequiredSkills();
+      return;
+    }
+
+    if (cmd === "mcp") {
+      if (ref !== "proxy" || !arg) throw new Error("Usage: skillist mcp proxy <org>/<name>");
+      await mcpProxy(arg);
       return;
     }
 
@@ -712,11 +985,33 @@ async function main() {
         });
         return;
       }
+      if (ref === "import") {
+        const ghIdx = process.argv.indexOf("--github-org");
+        const githubOrg = ghIdx >= 0 ? process.argv[ghIdx + 1] : undefined;
+        if (!githubOrg) {
+          throw new Error("Usage: skillist inventory import --github-org <org> [--org <slug>]");
+        }
+        const limitIdx = process.argv.indexOf("--limit");
+        const repos: string[] = [];
+        for (let i = 0; i < process.argv.length; i++) {
+          if (process.argv[i] === "--repo" && process.argv[i + 1]) {
+            repos.push(process.argv[i + 1]!);
+          }
+        }
+        await importInventory({
+          githubOrg,
+          limit: limitIdx >= 0 ? Number(process.argv[limitIdx + 1]) : undefined,
+          repos: repos.length ? repos : undefined,
+          dryRun: process.argv.includes("--dry-run"),
+          json: process.argv.includes("--json"),
+        });
+        return;
+      }
       if (ref === "list") {
         await listInventory(process.argv.includes("--json"));
         return;
       }
-      throw new Error("Usage: skillist inventory scan|list [--org <slug>]");
+      throw new Error("Usage: skillist inventory scan|import|list [--org <slug>]");
     }
 
     usage();
