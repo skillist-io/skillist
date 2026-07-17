@@ -12,6 +12,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@better-auth/passkey": "1.6.23",
     "@skillist/db": "workspace:*",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2"
