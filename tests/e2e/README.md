@@ -20,9 +20,11 @@ Export for GitHub Actions:
 
 ```bash
 ./scripts/export-e2e-auth-state.sh
-# or push directly:
+# validate, then push:
 ./scripts/setup-e2e-secrets.sh
 ```
+
+`setup-e2e-secrets.sh` validates the session against production before uploading. Re-export if auth expires.
 
 Add the output as repository secret `E2E_AUTH_STATE_B64`. CI runs authenticated tests when the secret is set.
 
