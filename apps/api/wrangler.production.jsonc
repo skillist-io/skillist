@@ -13,7 +13,8 @@
     { "pattern": "skillist.dev/v1/*", "zone_name": "skillist.dev" }
   ],
   "triggers": {
-    "crons": ["0 6 * * *", "0 7 * * 0"]
+    // Daily 06:00 UTC sync; weekly Sunday 07:00 UTC discover (CF: 1=Sun…7=Sat, not 0=Sun)
+    "crons": ["0 6 * * *", "0 7 * * sun"]
   },
   "observability": {
     "enabled": true,
