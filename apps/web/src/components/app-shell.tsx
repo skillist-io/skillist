@@ -33,6 +33,14 @@ function useBreadcrumbs() {
     return [{ label: "Observability", href: "/observability", current: true }];
   }
 
+  if (segments[0] === "admin" && segments[1] === "mirrors") {
+    return [{ label: "Official mirrors", href: "/admin/mirrors", current: true }];
+  }
+
+  if (segments[0] === "governance") {
+    return [{ label: "Governance", href: "/governance", current: true }];
+  }
+
   if (segments[0] === "orgs" && segments.length >= 4) {
     return [
       { label: "Dashboard", href: "/dashboard" },

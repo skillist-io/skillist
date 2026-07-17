@@ -228,3 +228,34 @@ export type SkillInventoryItem = {
   registryRepo: string | null;
   scannedAt: string;
 };
+
+export type SkillSource = {
+  id: string;
+  githubOwner: string;
+  githubRepo: string;
+  defaultBranch: string;
+  discoveryRoots: string[];
+  trustTier: string;
+  syncEnabled: boolean;
+  lastSyncedAt: string | null;
+  lastCommitSha: string | null;
+  lastSyncStatus: string;
+  lastSyncError: string | null;
+  pendingCommitSha: string | null;
+  pendingPublishCount: number;
+  license: string | null;
+  homepageUrl: string | null;
+  updatedAt: string;
+};
+
+export type SkillSourceSuggestion = {
+  id: string;
+  githubOwner: string;
+  githubRepo: string;
+  discoveredVia: string;
+  stars: number;
+  license: string | null;
+  matchScore: number;
+  status: string;
+  createdAt: string;
+};

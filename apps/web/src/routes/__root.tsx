@@ -11,6 +11,7 @@ function isAppRoute(pathname: string) {
     pathname.startsWith("/governance") ||
     pathname.startsWith("/inventory") ||
     pathname.startsWith("/observability") ||
+    pathname.startsWith("/admin/mirrors") ||
     pathname.startsWith("/orgs/")
   );
 }
