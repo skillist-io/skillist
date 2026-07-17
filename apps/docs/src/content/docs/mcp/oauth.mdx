@@ -1,9 +1,9 @@
 ---
 title: OAuth authentication
-description: Skillist uses the Better Auth MCP plugin so OAuth-capable MCP clients can sign in with your Skillist account.
+description: OAuth-capable MCP clients can sign in with your Skillist account.
 ---
 
-Skillist acts as an OAuth provider for MCP clients using the [Better Auth MCP plugin](https://better-auth.com/docs/plugins/mcp). This lets Cursor and other OAuth-aware clients obtain Bearer tokens tied to your Skillist user.
+Skillist acts as an OAuth provider for MCP clients. Cursor and other OAuth-aware clients can obtain Bearer tokens tied to your Skillist user.
 
 ## Discovery URLs
 
@@ -14,7 +14,7 @@ MCP clients discover authorization metadata from the API origin:
 | Protected resource | `https://api.skillist.dev/.well-known/oauth-protected-resource` |
 | Authorization server | `https://api.skillist.dev/.well-known/oauth-authorization-server` |
 
-Better Auth also serves metadata under `/api/auth/.well-known/…` for clients that follow the auth server path.
+Skillist also serves metadata under `/api/auth/.well-known/…` for clients that follow the auth server path.
 
 ## Sign-in flow
 
@@ -50,7 +50,7 @@ Run `pnpm dev:api` and `pnpm dev:web` together for end-to-end OAuth testing.
 
 ## Implementation notes
 
-- OAuth tables: `oauth_application`, `oauth_access_token`, `oauth_consent` (Better Auth OIDC schema)
+- OAuth tables: `oauth_application`, `oauth_access_token`, `oauth_consent`
 - Token verification: `GET /api/auth/mcp/get-session` with Bearer token
 - MCP transport: streamable HTTP with optional `Mcp-Session-Id` (separate from OAuth access tokens)
 

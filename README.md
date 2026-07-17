@@ -33,7 +33,7 @@ All packages use latest stable versions (updated via `pnpm up -r --latest`). Key
 
 ## OAuth setup
 
-Configure GitHub and Google per [Better Auth docs](https://better-auth.com/docs/authentication/github):
+Configure GitHub and Google OAuth apps with the redirect URIs below. See the [GitHub OAuth app guide](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app) and [Google OAuth client guide](https://developers.google.com/identity/protocols/oauth2/web-server#creatingcred).
 
 | Provider | Local redirect URI | Production redirect URI |
 |----------|-------------------|-------------------------|

@@ -67,12 +67,12 @@ function SettingsPage() {
           <CardTitle>GitHub OAuth</CardTitle>
           <CardDescription>
             <a
-              href="https://better-auth.com/docs/authentication/github"
+              href="https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app"
               className="text-primary underline"
               target="_blank"
               rel="noreferrer"
             >
-              Better Auth GitHub guide
+              GitHub OAuth setup guide
             </a>
           </CardDescription>
         </CardHeader>
@@ -92,12 +92,12 @@ function SettingsPage() {
           <CardTitle>Google OAuth</CardTitle>
           <CardDescription>
             <a
-              href="https://better-auth.com/docs/authentication/google"
+              href="https://developers.google.com/identity/protocols/oauth2/web-server#creatingcred"
               className="text-primary underline"
               target="_blank"
               rel="noreferrer"
             >
-              Better Auth Google guide
+              Google OAuth setup guide
             </a>
           </CardDescription>
         </CardHeader>
