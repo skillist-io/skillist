@@ -1,5 +1,11 @@
 import type { Env } from "../env";
-import { type SkillKvContent, skillMdKey, skillMetaKey } from "./kv";
+import {
+  type SkillKvContent,
+  type SkillMdKvMetadata,
+  skillMdKey,
+  skillMdKvMetadata,
+  skillMetaKey,
+} from "./kv";
 
 export async function cachePublishedSkill(
   kv: KVNamespace,
@@ -9,7 +15,9 @@ export async function cachePublishedSkill(
 ): Promise<void> {
   await Promise.all([
     kv.put(skillMetaKey(orgSlug, skillRepo), JSON.stringify(content.meta)),
-    kv.put(skillMdKey(orgSlug, skillRepo), content.skillMd),
+    kv.put(skillMdKey(orgSlug, skillRepo), content.skillMd, {
+      metadata: skillMdKvMetadata(content.meta),
+    }),
   ]);
 }
 
@@ -33,12 +41,18 @@ export async function getPublishedSkillMd(
   kv: KVNamespace,
   orgSlug: string,
   skillRepo: string,
-): Promise<{ skillMd: string; meta: SkillKvContent["meta"] } | null> {
-  const [skillMd, metaRaw] = await Promise.all([
-    kv.get(skillMdKey(orgSlug, skillRepo)),
-    kv.get(skillMetaKey(orgSlug, skillRepo)),
-  ]);
-  if (!skillMd || !metaRaw) return null;
+): Promise<{ skillMd: string; meta: SkillMdKvMetadata } | null> {
+  const { value: skillMd, metadata } = await kv.getWithMetadata<SkillMdKvMetadata>(
+    skillMdKey(orgSlug, skillRepo),
+  );
+  if (!skillMd) return null;
+  if (metadata?.etag) {
+    return { skillMd, meta: metadata };
+  }
+  // Pre-metadata cache entry: fall back to the separate meta key until the
+  // skill is republished (which writes per-key metadata).
+  const metaRaw = await kv.get(skillMetaKey(orgSlug, skillRepo));
+  if (!metaRaw) return null;
   return { skillMd, meta: JSON.parse(metaRaw) };
 }
 

@@ -477,7 +477,8 @@ export async function mirrorPublishSkill(
   }
 
   const skillMd = bundle.get("SKILL.md")!;
-  const etag = (await sha256(skillMd)).slice(0, 16);
+  const contentSha256 = await sha256(skillMd);
+  const etag = contentSha256.slice(0, 16);
   const publishedAt = new Date().toISOString();
 
   await cachePublishedSkill(env.SKILLS_KV, org.slug, input.skillSlug, {
@@ -491,9 +492,13 @@ export async function mirrorPublishSkill(
       org: org.slug,
       repo: input.skillSlug,
       publishedAt,
+      // Mirror skills are always public (enforced on the skills row above);
+      // the delivery path fails closed without this.
+      visibility: "public",
       sourceType: "mirror",
       upstreamRepo,
       upstreamUrl,
+      contentSha256,
     },
   });
 

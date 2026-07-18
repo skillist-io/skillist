@@ -30,7 +30,28 @@ export type SkillKvMeta = {
   sourceType?: "native" | "mirror";
   upstreamRepo?: string;
   upstreamUrl?: string;
+  /** Full (untruncated) sha256 of SKILL.md, for client-side integrity checks. */
+  contentSha256?: string;
 };
+
+/**
+ * KV per-key metadata stored alongside the SKILL.md value, so the delivery
+ * path can serve SKILL.md (headers included) from a single KV read instead of
+ * a second read of the meta key. Must stay under KV's 1024-byte metadata cap.
+ */
+export type SkillMdKvMetadata = Pick<
+  SkillKvMeta,
+  "etag" | "version" | "visibility" | "contentSha256"
+>;
+
+export function skillMdKvMetadata(meta: SkillKvMeta): SkillMdKvMetadata {
+  return {
+    etag: meta.etag,
+    version: meta.version,
+    visibility: meta.visibility,
+    contentSha256: meta.contentSha256,
+  };
+}
 
 export type SkillKvContent = {
   skillMd: string;

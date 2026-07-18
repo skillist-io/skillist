@@ -27,7 +27,7 @@ const getSkillMdRoute = createRoute({
 
 deliveryRoutes.openapi(getSkillMdRoute, async (c) => {
   const { org, repo } = c.req.valid("param");
-  return serveSkillMd(c.env.SKILLS_KV, org, repo);
+  return serveSkillMd(c.env.SKILLS_KV, org, repo, c.req.header("If-None-Match") ?? null);
 });
 
 const getSkillMetaRoute = createRoute({
@@ -40,7 +40,7 @@ const getSkillMetaRoute = createRoute({
 
 deliveryRoutes.openapi(getSkillMetaRoute, async (c) => {
   const { org, repo } = c.req.valid("param");
-  return serveSkillMeta(c.env.SKILLS_KV, org, repo);
+  return serveSkillMeta(c.env.SKILLS_KV, org, repo, c.req.header("If-None-Match") ?? null);
 });
 
 const getBundleRoute = createRoute({
@@ -54,5 +54,5 @@ const getBundleRoute = createRoute({
 deliveryRoutes.openapi(getBundleRoute, async (c) => {
   const { org, repo } = c.req.valid("param");
   const db = c.var.db ?? createWorkerDb(c.env);
-  return serveSkillBundle(c.env, db, org, repo);
+  return serveSkillBundle(c.env, db, org, repo, c.req.header("If-None-Match") ?? null);
 });

@@ -182,7 +182,8 @@ async function commitPublishedVersion(params: {
     message,
   }));
   const skillMd = bundle.get("SKILL.md") ?? "";
-  const etag = (await sha256(skillMd)).slice(0, 16);
+  const contentSha256 = await sha256(skillMd);
+  const etag = contentSha256.slice(0, 16);
   const publishedAt = new Date().toISOString();
   const runtime = detectSkillRuntime(bundle);
   const discovery = extractRegistryDiscovery(frontmatter);
@@ -277,6 +278,7 @@ async function commitPublishedVersion(params: {
         repo: skill.repo,
         publishedAt,
         visibility: "public",
+        contentSha256,
       },
     });
   } else {
@@ -352,7 +354,8 @@ export async function syncSkillEdge(env: Env, db: WorkerDb, skillId: string): Pr
   const parsed = validateSkillBundle(bundle, skill.repo);
   const name = parsed.valid ? parsed.frontmatter.name : skill.repo;
   const description = parsed.valid ? parsed.frontmatter.description : (skill.description ?? "");
-  const etag = version.kvEtag ?? (await sha256(skillMd)).slice(0, 16);
+  const contentSha256 = await sha256(skillMd);
+  const etag = version.kvEtag ?? contentSha256.slice(0, 16);
 
   await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
     skillMd,
@@ -366,6 +369,7 @@ export async function syncSkillEdge(env: Env, db: WorkerDb, skillId: string): Pr
       repo: skill.repo,
       publishedAt: (version.publishedAt ?? new Date()).toISOString(),
       visibility: "public",
+      contentSha256,
     },
   });
 }

@@ -40,6 +40,30 @@ https://skillist.io/skillist/web-perf-audit/SKILL.md
 https://skillist.io/skillist/web-perf-audit/meta
 ```
 
+## Caching and integrity
+
+Delivery responses are edge-cached and support conditional requests:
+
+<DocTable
+  client:load
+  columns={["Header", "Meaning"]}
+  rows={[
+    ["ETag", "Version identifier for the response. Send it back as If-None-Match to get a 304 with no body when the skill is unchanged."],
+    ["Cache-Control", "SKILL.md and meta are fresh for 60s; bundles for 300s. Caches may serve stale while revalidating, and for up to a day on origin errors."],
+    ["X-Skillist-Version", "The published semver this response resolved to."],
+    ["X-Skillist-Content-Sha256", "Full sha256 of SKILL.md — verify the content you fetched matches what was published. Also returned as contentSha256 in /meta."],
+  ]}
+/>
+
+Poll cheaply with a conditional request:
+
+```bash
+curl -H 'If-None-Match: "<etag>"' https://skillist.io/skillist/web-perf-audit/SKILL.md
+# → 304 Not Modified (empty body) until a new version is published
+```
+
+For push instead of polling, use the [realtime feed](/platform/registry/).
+
 ## REST equivalents
 
 Registry metadata and mutations still use the API worker under `/v1`:
