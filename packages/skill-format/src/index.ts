@@ -1,5 +1,11 @@
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { z } from "zod";
+import {
+  base64DecodedSize,
+  isBinaryAssetPath,
+  isValidBase64,
+  MAX_BINARY_ASSET_BYTES,
+} from "./binary.js";
 import type { PluginManifest } from "./plugin.js";
 
 const SKILL_NAME_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -170,8 +176,14 @@ export function validateSkillBundle(files: SkillBundle, expectedSlug?: string): 
   const name = fmResult.success ? fmResult.data.name : "";
   errors.push(...validateSkillName(name, expectedSlug));
 
-  for (const filePath of files.keys()) {
+  for (const [filePath, content] of files.entries()) {
     if (filePath === "SKILL.md") continue;
+    if (isBinaryAssetPath(filePath) && !filePath.startsWith("assets/")) {
+      errors.push({
+        path: filePath,
+        message: "binary assets (images, PDFs, archives) must live under assets/",
+      });
+    }
     if (
       filePath.includes("..") ||
       filePath.startsWith("/") ||
@@ -189,6 +201,16 @@ export function validateSkillBundle(files: SkillBundle, expectedSlug?: string): 
         errors.push({
           path: filePath,
           message: `unexpected file path; use scripts/, references/, or assets/`,
+        });
+      }
+    }
+    if (filePath.startsWith("assets/") && isBinaryAssetPath(filePath)) {
+      if (!isValidBase64(content)) {
+        errors.push({ path: filePath, message: "binary asset content must be valid base64" });
+      } else if (base64DecodedSize(content) > MAX_BINARY_ASSET_BYTES) {
+        errors.push({
+          path: filePath,
+          message: `binary asset exceeds the ${MAX_BINARY_ASSET_BYTES / (1024 * 1024)}MB limit`,
         });
       }
     }
@@ -282,6 +304,16 @@ export function extractAgentDiscovery(manifest: PluginManifest | null | undefine
   return [...agents].filter((a) => KNOWN_AGENTS.has(a) || a.length > 1);
 }
 
+export {
+  BINARY_ASSET_EXTENSIONS,
+  base64DecodedSize,
+  binaryAssetMimeType,
+  decodeBase64,
+  encodeBase64,
+  isBinaryAssetPath,
+  isValidBase64,
+  MAX_BINARY_ASSET_BYTES,
+} from "./binary.js";
 export {
   type PluginManifest,
   parsePluginManifest,

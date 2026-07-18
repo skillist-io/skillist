@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildTree, isAllowedPath, isProtectedPath, isTextPath, pathsUnder } from "./paths";
+import {
+  buildTree,
+  isAllowedPath,
+  isBinaryAssetPath,
+  isProtectedPath,
+  isTextPath,
+  pathsUnder,
+  sanitizeAssetFileName,
+} from "./paths";
 
 describe("isAllowedPath", () => {
   it("allows spec root files", () => {
@@ -36,6 +44,25 @@ describe("isProtectedPath / isTextPath", () => {
   it("recognizes text extensions", () => {
     expect(isTextPath("scripts/run.py")).toBe(true);
     expect(isTextPath("assets/logo.png")).toBe(false);
+  });
+});
+
+describe("isBinaryAssetPath", () => {
+  it("recognizes known binary extensions", () => {
+    expect(isBinaryAssetPath("assets/logo.png")).toBe(true);
+    expect(isBinaryAssetPath("assets/data.json")).toBe(false);
+  });
+});
+
+describe("sanitizeAssetFileName", () => {
+  it("replaces disallowed characters and trims dashes", () => {
+    expect(sanitizeAssetFileName("my logo (final).png")).toBe("my-logo-final-.png");
+    expect(sanitizeAssetFileName("já é.png")).toBe("j-.png");
+    expect(sanitizeAssetFileName("valid-name.png")).toBe("valid-name.png");
+  });
+
+  it("never returns an empty string", () => {
+    expect(sanitizeAssetFileName("///")).toBe("asset");
   });
 });
 
