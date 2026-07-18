@@ -405,8 +405,8 @@ function SkillEditorPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-          <Card>
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          <Card className="flex flex-col">
             <CardHeader>
               <CardTitle>Spec validation</CardTitle>
               <CardDescription>agentskills.io conformance, checked as you type</CardDescription>
@@ -424,7 +424,7 @@ function SkillEditorPage() {
             </CardContent>
           </Card>
           {publishBlockedReason && (
-            <Card>
+            <Card className="flex flex-col">
               <CardContent className="pt-4 text-sm">
                 <span className="font-medium">Publish gated by eval policy.</span>{" "}
                 <span className="text-muted-foreground">{publishBlockedReason}</span>
@@ -432,7 +432,7 @@ function SkillEditorPage() {
             </Card>
           )}
 
-          <Card>
+          <Card className="flex flex-col">
             <CardHeader>
               <CardTitle>Quality review</CardTitle>
               <CardDescription>
@@ -492,7 +492,7 @@ function SkillEditorPage() {
 
           <SkillEvalRegression evals={evals?.items ?? []} />
 
-          <Card>
+          <Card className="flex flex-col">
             <CardHeader>
               <CardTitle>Versions</CardTitle>
               <CardDescription>Compare a version against the current editor</CardDescription>
@@ -529,7 +529,7 @@ function SkillEditorPage() {
           </Card>
 
           {diff && stats && (
-            <Card>
+            <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle>Version diff</CardTitle>
                 <CardDescription>

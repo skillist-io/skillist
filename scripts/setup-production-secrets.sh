@@ -16,7 +16,12 @@ cd "$API_DIR"
 put_secret() {
   local name="$1"
   local value
-  value="$(grep -E "^${name}=" "$DEV_VARS" | cut -d= -f2- || true)"
+  # Prefer a ${name}_PROD override — .dev.vars may hold dev-only OAuth creds
+  # (e.g. a localhost GitHub OAuth app) that must never reach production.
+  value="$(grep -E "^${name}_PROD=" "$DEV_VARS" | cut -d= -f2- || true)"
+  if [[ -z "$value" ]]; then
+    value="$(grep -E "^${name}=" "$DEV_VARS" | cut -d= -f2- || true)"
+  fi
   if [[ -z "$value" ]]; then
     echo "skip $name (empty in .dev.vars)"
     return 0
