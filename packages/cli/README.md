@@ -46,8 +46,8 @@ https://skillist.io/{org}/{repo}/SKILL.md
 ## Commands
 
 - `skillist search [query]` — search registry with filters
-- `skillist install <org>/<repo>` — download and record in `.skillist.lock`
-- `skillist pull <org>/<repo>` — download without lockfile
+- `skillist install <org>/<repo>[@version]` — download, verify the published sha256, and record in `.skillist.lock`
+- `skillist pull <org>/<repo>[@version]` — download without lockfile
 - `skillist push <org>/<repo> <dir>` — upload draft version
 - `skillist publish <org>/<repo> <dir>` — push and publish
 - `skillist run <org>/<repo> --script <path> [--url <url>] [--stream]` — hosted execution

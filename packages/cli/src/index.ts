@@ -1,9 +1,11 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { createInterface } from "node:readline";
 import { isBinaryAssetPath, type SemverBump, validateSkillBundle } from "@skillist/skill-format";
 import { discoverSkillItems, importGithubOrgInventory, resolveRepoFullName } from "./inventory.js";
+import { deliveryRef, parseRef } from "./refs.js";
 import { reviewLocalSkill } from "./review.js";
 
 const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.io";
@@ -17,6 +19,8 @@ type LockEntry = {
   version: string;
   installedAt: string;
   path: string;
+  /** Full sha256 of the installed SKILL.md, verified against delivery meta. */
+  contentSha256?: string;
 };
 
 type Lockfile = {
@@ -31,9 +35,12 @@ Usage:
   skillist search [query]                  Search public registry
                                               [--category <cat>] [--tag <tag>]
                                               [--agent <name>] [--sort ...]
-  skillist install <org>/<repo> [-o dir]   Download and record in lockfile
+  skillist install <org>/<repo>[@version] [-o dir]
+                                           Download and record in lockfile; verifies
+                                           the published sha256 when available
                                               [--org <policy-org>] [--accept-warnings]
-  skillist pull <org>/<repo> [-o dir]      Download published skill bundle
+  skillist pull <org>/<repo>[@version] [-o dir]
+                                           Download published skill bundle
   skillist push <org>/<repo> <dir>         Upload local skill as new draft
                                               [--bump major|minor|patch]
   skillist publish <org>/<repo> <dir>        Push + publish to registry
@@ -63,12 +70,8 @@ Environment:
 `);
 }
 
-function parseRef(ref: string): { org: string; repo: string } {
-  const [org, repo] = ref.split("/");
-  if (!org || !repo) {
-    throw new Error(`Invalid ref "${ref}" — use org/repo`);
-  }
-  return { org, repo };
+function sha256Hex(content: string): string {
+  return createHash("sha256").update(content, "utf8").digest("hex");
 }
 
 async function apiFetch(path: string, init?: RequestInit) {
@@ -249,18 +252,52 @@ async function enforceInstallPolicy(
   }
 }
 
+async function fetchDeliveryMeta(
+  refPath: string,
+): Promise<{ version: string; contentSha256?: string } | null> {
+  try {
+    const res = await deliveryFetch(`/${refPath}/meta`);
+    return (await res.json()) as { version: string; contentSha256?: string };
+  } catch {
+    return null;
+  }
+}
+
 async function pull(
   ref: string,
   outDir: string,
   recordLock = false,
   options: { acceptWarnings?: boolean; policyOrg?: string } = {},
 ) {
-  const { org, repo } = parseRef(ref);
+  const parsed = parseRef(ref);
+  const { org, repo } = parsed;
   if (recordLock) {
-    await enforceInstallPolicy(ref, options);
+    await enforceInstallPolicy(`${org}/${repo}`, options);
   }
-  const res = await deliveryFetch(`/${org}/${repo}/bundle`);
+
+  // Resolve to an exact version so the download hits the immutable pinned
+  // URL, and use the version's published content hash for verification.
+  let pinned = parsed.version;
+  let meta = await fetchDeliveryMeta(deliveryRef(parsed));
+  if (!pinned && meta?.version) {
+    pinned = meta.version;
+    meta = (await fetchDeliveryMeta(deliveryRef({ org, repo, version: pinned }))) ?? meta;
+  }
+
+  const res = await deliveryFetch(`/${deliveryRef({ org, repo, version: pinned })}/bundle`);
   const bundle = (await res.json()) as { files: Record<string, string>; version: string };
+
+  const skillMd = bundle.files["SKILL.md"];
+  const contentSha256 = typeof skillMd === "string" ? sha256Hex(skillMd) : undefined;
+  let integrity = "hash not published; verification skipped";
+  if (meta?.contentSha256 && contentSha256) {
+    if (meta.contentSha256 !== contentSha256) {
+      throw new Error(
+        `Integrity check failed for ${org}/${repo} v${bundle.version}: downloaded SKILL.md sha256 ${contentSha256} does not match published ${meta.contentSha256}`,
+      );
+    }
+    integrity = "sha256 verified";
+  }
 
   await mkdir(outDir, { recursive: true });
   for (const [path, content] of Object.entries(bundle.files)) {
@@ -282,6 +319,7 @@ async function pull(
       version: bundle.version,
       installedAt: new Date().toISOString(),
       path: outDir,
+      contentSha256,
     };
     if (existing >= 0) lock.skills[existing] = entry;
     else lock.skills.push(entry);
@@ -290,7 +328,7 @@ async function pull(
   }
 
   console.log(
-    `Pulled ${org}/${repo} → ${outDir} (${Object.keys(bundle.files).length} files, v${bundle.version})`,
+    `Pulled ${org}/${repo} → ${outDir} (${Object.keys(bundle.files).length} files, v${bundle.version}, ${integrity})`,
   );
 }
 
@@ -682,6 +720,12 @@ async function update(ref?: string) {
 
   const acceptWarnings = process.argv.includes("--accept-warnings");
   for (const entry of targets) {
+    // Cheap freshness check against the mutable meta before downloading.
+    const meta = await fetchDeliveryMeta(`${entry.org}/${entry.repo}`);
+    if (meta?.version && meta.version === entry.version) {
+      console.log(`${entry.org}/${entry.repo} v${entry.version} — up to date`);
+      continue;
+    }
     await pull(`${entry.org}/${entry.repo}`, entry.path, true, {
       acceptWarnings,
       policyOrg: parseOrgFlag(),
@@ -894,9 +938,9 @@ async function main() {
     }
 
     if (cmd === "install") {
-      const outIdx = process.argv.indexOf("-o");
-      const outDir = outIdx >= 0 ? process.argv[outIdx + 1]! : `./${ref?.split("/")[1] ?? "skill"}`;
       if (!ref) throw new Error("Missing org/repo ref");
+      const outIdx = process.argv.indexOf("-o");
+      const outDir = outIdx >= 0 ? process.argv[outIdx + 1]! : `./${parseRef(ref).repo}`;
       await pull(ref, outDir, true, {
         acceptWarnings: process.argv.includes("--accept-warnings"),
         policyOrg: parseOrgFlag(),
@@ -923,9 +967,9 @@ async function main() {
     }
 
     if (cmd === "pull") {
-      const outIdx = process.argv.indexOf("-o");
-      const outDir = outIdx >= 0 ? process.argv[outIdx + 1]! : `./${ref?.split("/")[1] ?? "skill"}`;
       if (!ref) throw new Error("Missing org/repo ref");
+      const outIdx = process.argv.indexOf("-o");
+      const outDir = outIdx >= 0 ? process.argv[outIdx + 1]! : `./${parseRef(ref).repo}`;
       await pull(ref, outDir);
       return;
     }
