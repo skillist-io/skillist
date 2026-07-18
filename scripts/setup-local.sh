@@ -48,6 +48,11 @@ with open(path, 'w') as f:
     json.dump(cfg, f, indent=2)
     f.write('\n')
 " "$ROOT/apps/api/wrangler.local.jsonc" "$NEON_URL"
+  # wrangler dev does not merge multiple -c configs, so localConnectionString in
+  # the overlay is ignored — the process-level env var (read from apps/api/.env)
+  # is what actually overrides the Hyperdrive binding locally.
+  printf 'WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=%s\n' "$NEON_URL" \
+    > "$ROOT/apps/api/.env"
   echo "Synced Hyperdrive local connection from DATABASE_URL"
 fi
 

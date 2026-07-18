@@ -24,6 +24,9 @@ export function buildSocialProviders(env: AuthEnv) {
     providers.github = {
       clientId: env.GITHUB_CLIENT_ID,
       clientSecret: env.GITHUB_CLIENT_SECRET,
+      // Pin to BETTER_AUTH_URL — the OAuth app registers exactly one callback
+      // host, so the request-host-derived default breaks sign-in from skillist.dev.
+      redirectURI: authCallbackUrl(env.BETTER_AUTH_URL, "github"),
       scope: ["read:user", "user:email"],
       mapProfileToUser: (profile: GitHubProfile) => {
         const login = profile.login ?? String(profile.id);
@@ -43,6 +46,7 @@ export function buildSocialProviders(env: AuthEnv) {
     providers.google = {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
+      redirectURI: authCallbackUrl(env.BETTER_AUTH_URL, "google"),
       // https://better-auth.com/docs/authentication/google
       prompt: "select_account",
     };

@@ -3,17 +3,30 @@ import { Link } from "@tanstack/react-router";
 import { StarButton } from "@/components/registry-star-button";
 import { ScoreBadges } from "@/components/score-badges";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api, type RegistryItem } from "@/lib/api";
 
 export function RegistryTrending() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["registry", "trending"],
-    queryFn: () => api<{ items: RegistryItem[] }>("/v1/registry?sort=trending&limit=6"),
+    queryFn: ({ signal }) =>
+      api<{ items: RegistryItem[] }>("/v1/registry?sort=trending&limit=6", { signal }),
   });
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading trending skills…</p>;
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center gap-3 text-sm text-destructive">
+        <p>Could not load trending skills.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   if (!data?.items.length) {
@@ -30,7 +43,7 @@ export function RegistryTrending() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {data.items.map((item) => (
-        <Card key={`${item.orgSlug}/${item.skillRepo}`}>
+        <Card key={`${item.orgSlug}/${item.skillRepo}`} className="flex flex-col">
           <CardHeader className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -52,14 +65,14 @@ export function RegistryTrending() {
               </Badge>
             ))}
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="mt-auto space-y-2">
             <p className="line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
             <Link
               to="/$org/$repo"
               params={{ org: item.orgSlug, repo: item.skillRepo }}
               className="text-sm text-primary hover:underline"
             >
-              View skill →
+              View skill <span aria-hidden="true">→</span>
             </Link>
           </CardContent>
         </Card>

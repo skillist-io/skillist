@@ -1,5 +1,5 @@
 {
-  "files": ["apps/web/index.html"],
+  "files": ["apps/web/index.html", "stardust/prototypes/*-proposed.html"],
   "insertBefore": "</body>",
   "commentSyntax": "html",
   "cspChecked": true
