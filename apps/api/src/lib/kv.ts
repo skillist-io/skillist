@@ -41,6 +41,11 @@ export type SkillKvMeta = {
   upstreamUrl?: string;
   /** Full (untruncated) sha256 of SKILL.md, for client-side integrity checks. */
   contentSha256?: string;
+  /**
+   * R2 key of the materialized bundle JSON for this version. Internal storage
+   * pointer (contains the org uuid) — the /meta response strips it.
+   */
+  bundleKey?: string;
 };
 
 /**

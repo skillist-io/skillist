@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WorkerDb } from "./db";
 import {
   parseRepoSpecifier,
+  serveSkillBundle,
   serveSkillMd,
   serveSkillMdAtVersion,
   serveSkillMeta,
@@ -286,6 +287,74 @@ describe("versioned delivery backfill", () => {
     // Backfill must never touch the mutable latest keys.
     expect(puts.has("skill:acme:widget:latest")).toBe(false);
     expect(puts.has("skill:acme:widget:meta")).toBe(false);
+  });
+
+  it("strips bundleKey from meta responses", async () => {
+    const kv = stubKv({
+      "skill:acme:widget:meta": JSON.stringify({
+        ...JSON.parse(metaJson("public")),
+        bundleKey: "orgs/org-1/skills/widget/v/v1.bundle.json",
+      }),
+    });
+    const res = await serveSkillMeta(kv, "acme", "widget");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.bundleKey).toBeUndefined();
+    expect(body.etag).toBe("etag123");
+  });
+
+  it("streams a materialized bundle from KV meta + R2 without the DB", async () => {
+    const bundleJson = JSON.stringify({ files: { "SKILL.md": SKILL_MD }, version: "1.0.0" });
+    const kv = stubKv({
+      "skill:acme:widget:meta": JSON.stringify({
+        ...JSON.parse(metaJson("public")),
+        bundleKey: "orgs/org-1/skills/widget/v/v1.bundle.json",
+      }),
+    });
+    const r2 = {
+      get: async (key: string) =>
+        key === "orgs/org-1/skills/widget/v/v1.bundle.json"
+          ? { body: new Response(bundleJson).body }
+          : null,
+    } as unknown as R2Bucket;
+    const res = await serveSkillBundle(
+      { SKILLS_KV: kv, SKILLS_R2: r2 },
+      () => {
+        throw new Error("bundle KV fast path must not touch the DB");
+      },
+      "acme",
+      "widget",
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ files: { "SKILL.md": SKILL_MD }, version: "1.0.0" });
+    expect(res.headers.get("ETag")).toBe('"v1"');
+    expect(res.headers.get("Content-Type")).toBe("application/json");
+  });
+
+  it("returns 304 for a bundle without touching R2 or the DB", async () => {
+    const kv = stubKv({
+      "skill:acme:widget:meta": JSON.stringify({
+        ...JSON.parse(metaJson("public")),
+        bundleKey: "orgs/org-1/skills/widget/v/v1.bundle.json",
+      }),
+    });
+    const res = await serveSkillBundle(
+      {
+        SKILLS_KV: kv,
+        SKILLS_R2: {
+          get: () => {
+            throw new Error("304 must not touch R2");
+          },
+        } as unknown as R2Bucket,
+      },
+      () => {
+        throw new Error("must not touch the DB");
+      },
+      "acme",
+      "widget",
+      '"v1"',
+    );
+    expect(res.status).toBe(304);
   });
 
   it("404s a version pin for a non-public skill without touching R2", async () => {

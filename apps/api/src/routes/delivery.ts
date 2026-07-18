@@ -86,10 +86,10 @@ deliveryRoutes.openapi(getBundleRoute, async (c) => {
   const { org, repo } = c.req.valid("param");
   const spec = parseRepoSpecifier(repo);
   if (!spec) return badSpecifier();
-  const db = c.var.db ?? createWorkerDb(c.env);
+  const getDb = () => c.var.db ?? createWorkerDb(c.env);
   return serveSkillBundle(
     c.env,
-    db,
+    getDb,
     org,
     spec.repo,
     c.req.header("If-None-Match") ?? null,

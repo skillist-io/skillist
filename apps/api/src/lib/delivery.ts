@@ -10,7 +10,13 @@ import {
   getVersionMeta,
   getVersionSkillMd,
 } from "./publish";
-import { downloadBundleFromR2, listBundlePaths, sha256 } from "./r2";
+import {
+  bundleObjectKey,
+  downloadBundleFromR2,
+  listBundlePaths,
+  putBundleObject,
+  sha256,
+} from "./r2";
 
 // Mutable "latest" URLs: short freshness window, but let caches revalidate in
 // the background and serve stale on origin errors rather than failing reads.
@@ -102,7 +108,9 @@ function metaResponse(
   if (etagMatches(ifNoneMatch, meta.etag)) {
     return new Response(null, { status: 304, headers });
   }
-  return Response.json(meta, { headers });
+  // bundleKey is an internal storage pointer, not part of the public contract.
+  const { bundleKey: _bundleKey, ...publicMeta } = meta;
+  return Response.json(publicMeta, { headers });
 }
 
 export async function serveSkillMd(
@@ -241,19 +249,50 @@ async function backfillVersionSnapshot(
     publishedAt: (version.publishedAt ?? version.createdAt).toISOString(),
     visibility: "public",
     contentSha256,
+    // Deterministic from r2Prefix; the object itself is materialized lazily by
+    // the bundle route if it doesn't exist yet.
+    bundleKey: bundleObjectKey(version.r2Prefix),
   };
   await cacheVersionSnapshot(env.SKILLS_KV, org, repo, { skillMd, meta });
   return { skillMd, meta };
 }
 
 export async function serveSkillBundle(
-  env: { SKILLS_R2: R2Bucket },
-  db: WorkerDb,
+  env: DeliveryEnv,
+  getDb: () => WorkerDb,
   org: string,
   repo: string,
   ifNoneMatch: string | null = null,
   pinnedVersion?: string,
 ): Promise<Response> {
+  const cacheControl = pinnedVersion ? IMMUTABLE_CACHE_CONTROL : BUNDLE_CACHE_CONTROL;
+
+  // Hot path: KV meta points at the bundle JSON materialized at publish time —
+  // one KV read plus one R2 stream, no DB, no list, no re-encoding.
+  const kvMeta = pinnedVersion
+    ? await getVersionMeta(env.SKILLS_KV, org, repo, pinnedVersion)
+    : await getPublishedMeta(env.SKILLS_KV, org, repo);
+  if (kvMeta) {
+    if (kvMeta.visibility !== "public") {
+      return notFound();
+    }
+    const headers = conditionalHeaders(kvMeta.versionId, kvMeta.version, cacheControl);
+    if (etagMatches(ifNoneMatch, kvMeta.versionId)) {
+      return new Response(null, { status: 304, headers });
+    }
+    if (kvMeta.bundleKey) {
+      const obj = await env.SKILLS_R2.get(kvMeta.bundleKey);
+      if (obj) {
+        return new Response(obj.body, {
+          headers: { ...headers, "Content-Type": "application/json" },
+        });
+      }
+      // Object missing (pre-materialization version): fall through to the DB
+      // path below, which rebuilds and writes it.
+    }
+  }
+
+  const db = getDb();
   const [orgRow] = await db
     .select()
     .from(organizations)
@@ -303,14 +342,23 @@ export async function serveSkillBundle(
   // The version id uniquely identifies the bundle contents (kvEtag only covers
   // SKILL.md), so it is the correct ETag here. A match short-circuits before
   // any R2 traffic.
-  const cacheControl = pinnedVersion ? IMMUTABLE_CACHE_CONTROL : BUNDLE_CACHE_CONTROL;
   const headers = conditionalHeaders(version.id, version.semver, cacheControl);
   if (etagMatches(ifNoneMatch, version.id)) {
     return new Response(null, { status: 304, headers });
   }
 
+  // Serve the materialized object if it exists; otherwise assemble it once
+  // from the per-file tree and write it through so the next request streams.
+  const key = bundleObjectKey(version.r2Prefix);
+  const existing = await env.SKILLS_R2.get(key);
+  if (existing) {
+    return new Response(existing.body, {
+      headers: { ...headers, "Content-Type": "application/json" },
+    });
+  }
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
   const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
+  await putBundleObject(env.SKILLS_R2, version.r2Prefix, bundle, version.semver);
   const files: Record<string, string> = {};
   for (const [path, content] of bundle.entries()) {
     files[path] = content;

@@ -32,7 +32,14 @@ import { runModel } from "./model";
 import { broadcastPublish, cachePublishedSkill, purgePublishedSkill } from "./publish";
 import { evaluatePublishPolicy } from "./publish-policy";
 import { getVersionEvalStatus, queueSkillEval } from "./queue-eval";
-import { downloadBundleFromR2, listBundlePaths, r2Prefix, sha256, uploadBundleToR2 } from "./r2";
+import {
+  downloadBundleFromR2,
+  listBundlePaths,
+  putBundleObject,
+  r2Prefix,
+  sha256,
+  uploadBundleToR2,
+} from "./r2";
 import { detectSkillRuntime } from "./skill-runtime";
 
 export async function runAiJob(
@@ -266,6 +273,13 @@ async function commitPublishedVersion(params: {
   // commit — otherwise a rolled-back transaction would leave the edge serving a
   // version the DB no longer considers published.
   if (isPublic) {
+    // Materialize the bundle object before KV points at it.
+    const bundleKey = await putBundleObject(
+      env.SKILLS_R2,
+      version.r2Prefix,
+      bundle,
+      version.semver,
+    );
     await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
       skillMd,
       meta: {
@@ -279,6 +293,7 @@ async function commitPublishedVersion(params: {
         publishedAt,
         visibility: "public",
         contentSha256,
+        bundleKey,
       },
     });
   } else {
@@ -356,6 +371,7 @@ export async function syncSkillEdge(env: Env, db: WorkerDb, skillId: string): Pr
   const description = parsed.valid ? parsed.frontmatter.description : (skill.description ?? "");
   const contentSha256 = await sha256(skillMd);
   const etag = version.kvEtag ?? contentSha256.slice(0, 16);
+  const bundleKey = await putBundleObject(env.SKILLS_R2, version.r2Prefix, bundle, version.semver);
 
   await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
     skillMd,
@@ -370,6 +386,7 @@ export async function syncSkillEdge(env: Env, db: WorkerDb, skillId: string): Pr
       publishedAt: (version.publishedAt ?? new Date()).toISOString(),
       visibility: "public",
       contentSha256,
+      bundleKey,
     },
   });
 }

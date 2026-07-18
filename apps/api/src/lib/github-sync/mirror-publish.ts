@@ -24,7 +24,7 @@ import { logAudit } from "../audit";
 import type { WorkerDb } from "../db";
 import { broadcastPublish, cachePublishedSkill } from "../publish";
 import { queueSkillEval } from "../queue-eval";
-import { r2Prefix, sha256, uploadBundleToR2 } from "../r2";
+import { putBundleObject, r2Prefix, sha256, uploadBundleToR2 } from "../r2";
 import { detectSkillRuntime } from "../skill-runtime";
 import { hashSkillTreeSnapshot, loadMirrorSkillBundle, sanitizeMirrorBundle } from "./bundle";
 import { getCachedTree, putCachedTree } from "./cache";
@@ -480,6 +480,7 @@ export async function mirrorPublishSkill(
   const contentSha256 = await sha256(skillMd);
   const etag = contentSha256.slice(0, 16);
   const publishedAt = new Date().toISOString();
+  const bundleKey = await putBundleObject(env.SKILLS_R2, prefix, bundle, semver);
 
   await cachePublishedSkill(env.SKILLS_KV, org.slug, input.skillSlug, {
     skillMd,
@@ -499,6 +500,7 @@ export async function mirrorPublishSkill(
       upstreamRepo,
       upstreamUrl,
       contentSha256,
+      bundleKey,
     },
   });
 
