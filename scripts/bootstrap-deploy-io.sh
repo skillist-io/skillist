@@ -42,16 +42,17 @@ if [ "${YES:-0}" != "1" ]; then
 fi
 
 # --- Deploy ------------------------------------------------------------------
+# wrangler is a workspace dependency, not global — invoke via `pnpm exec`.
 step "Deploying API (api.skillist.io + skillist.io/api|v1 routes)"
-(cd apps/api && wrangler deploy --config wrangler.production.jsonc)
+(cd apps/api && pnpm exec wrangler deploy --config wrangler.production.jsonc)
 
 step "Building web (VITE_API_URL from apps/web/.env.production) + deploying (skillist.io)"
 pnpm --filter @skillist/web build
-(cd apps/web && wrangler deploy)
+(cd apps/web && pnpm exec wrangler deploy)
 
 step "Building docs + deploying (docs.skillist.io)"
 pnpm --filter @skillist/docs build
-(cd apps/docs && wrangler deploy)
+(cd apps/docs && pnpm exec wrangler deploy)
 
 # --- Health check ------------------------------------------------------------
 step "Health checks (custom domains can take a minute to provision)"
