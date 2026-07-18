@@ -34,6 +34,10 @@ export async function signOutAndRedirect(redirectTo = DEFAULT_SIGN_OUT_REDIRECT)
   const target = resolveClientRedirect(redirectTo);
   let redirected = false;
 
+  // Drop the persisted query cache so org data never outlives the session.
+  const { clearPersistedQueryCache } = await import("./query-cache");
+  clearPersistedQueryCache();
+
   const redirect = () => {
     if (redirected || typeof window === "undefined") return;
     redirected = true;

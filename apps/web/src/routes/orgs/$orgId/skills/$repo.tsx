@@ -1,5 +1,5 @@
 import { objectToBundle, validateSkillBundle } from "@skillist/skill-format";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { Check, X } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -62,6 +62,7 @@ function SkillEditorPage() {
   const { data: versions } = useQuery({
     queryKey: ["versions", orgId, repo],
     queryFn: () => api<SkillVersion[]>(`/v1/orgs/${orgId}/skills/${repo}/versions`),
+    placeholderData: keepPreviousData,
   });
 
   const latestDraft = versions?.find((v) => v.status === "draft") ?? versions?.[0];
@@ -78,6 +79,7 @@ function SkillEditorPage() {
     queryFn: () =>
       api<ReviewPreview>(`/v1/orgs/${orgId}/skills/${repo}/versions/${latestDraft!.id}/preview`),
     enabled: !!latestDraft,
+    placeholderData: keepPreviousData,
   });
 
   const { data: evals } = useQuery({

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { WifiOff } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
@@ -47,6 +47,7 @@ function SkillRepoPage() {
   } = useQuery({
     queryKey: ["registry", org, repo],
     queryFn: () => api<RegistryItem>(`/v1/registry/${org}/${repo}`),
+    placeholderData: keepPreviousData,
   });
 
   const { data: scriptsData } = useQuery({
@@ -58,6 +59,7 @@ function SkillRepoPage() {
   const { data: meta } = useQuery({
     queryKey: ["skill-meta", org, repo, lastEvent?.etag],
     queryFn: () => api<Record<string, unknown>>(`/${org}/${repo}/meta`),
+    placeholderData: keepPreviousData,
   });
 
   const subscribe = useMutation({

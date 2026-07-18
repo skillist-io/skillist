@@ -1,5 +1,5 @@
 import { parseSkillMd } from "@skillist/skill-format";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { FrontmatterCard } from "@/components/skill-editor/frontmatter-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,8 @@ export function usePublicBundle(org: string, repo: string, etag?: string) {
     queryKey: ["public-bundle", org, repo, etag],
     queryFn: () => api<PublicBundle>(`/${org}/${repo}/bundle`),
     retry: false,
+    // Keeps the readme rendered across etag bumps (realtime publishes).
+    placeholderData: keepPreviousData,
   });
 }
 
