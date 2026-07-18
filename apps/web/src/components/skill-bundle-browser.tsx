@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
+import { AssetPreview } from "@/components/skill-editor/asset-preview";
 import { FileTree } from "@/components/skill-editor/file-tree";
-import { isTextPath } from "@/components/skill-editor/paths";
+import { isBinaryAssetPath, isTextPath } from "@/components/skill-editor/paths";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePublicBundle } from "./skill-readme";
@@ -44,9 +45,13 @@ export default function SkillBundleBrowser({
               </Button>
               <span className="truncate font-mono text-xs text-muted-foreground">{viewedPath}</span>
             </div>
-            <pre className="max-h-80 overflow-auto p-3 font-mono text-xs leading-5 whitespace-pre">
-              {viewedContent}
-            </pre>
+            {isBinaryAssetPath(viewedPath) ? (
+              <AssetPreview path={viewedPath} base64Content={viewedContent} />
+            ) : (
+              <pre className="max-h-80 overflow-auto p-3 font-mono text-xs leading-5 whitespace-pre">
+                {viewedContent}
+              </pre>
+            )}
           </div>
         ) : (
           <FileTree
@@ -54,7 +59,9 @@ export default function SkillBundleBrowser({
             activePath={viewedPath ?? ""}
             readOnly
             onSelect={(path) => {
-              if (isTextPath(path) || path === "SKILL.md") onViewPath(path);
+              if (isTextPath(path) || isBinaryAssetPath(path) || path === "SKILL.md") {
+                onViewPath(path);
+              }
             }}
           />
         )}

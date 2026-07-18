@@ -1,14 +1,25 @@
 import * as Tabs from "@radix-ui/react-tabs";
-import type { ValidationError } from "@skillist/skill-format";
+import {
+  base64DecodedSize,
+  encodeBase64,
+  MAX_BINARY_ASSET_BYTES,
+  type ValidationError,
+} from "@skillist/skill-format";
 import { Columns2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AssetPreview, formatBytes } from "./asset-preview";
 import { CodeEditor, type CodeEditorHandle } from "./code-editor";
 import { FileTree } from "./file-tree";
 import { FrontmatterForm } from "./frontmatter-form";
 import { languageForPath } from "./highlight";
-import { isTextPath } from "./paths";
+import {
+  BINARY_ASSET_EXTENSIONS,
+  isBinaryAssetPath,
+  isTextPath,
+  sanitizeAssetFileName,
+} from "./paths";
 import { PreviewPane } from "./preview-pane";
 import type { SkillBundleState } from "./use-skill-bundle";
 
@@ -29,15 +40,41 @@ export function SkillBundleEditor({
   editorRef?: React.Ref<CodeEditorHandle>;
 }) {
   const fallbackEditorRef = useRef<CodeEditorHandle>(null);
+  const assetInputRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(true);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const activeContent = bundle.files[bundle.activePath];
   const isSkillMd = bundle.activePath === "SKILL.md";
   const activeIsText = isTextPath(bundle.activePath) || isSkillMd;
+  const activeIsBinary = isBinaryAssetPath(bundle.activePath);
   const previewable = languageForPath(bundle.activePath) === "markdown";
+
+  const uploadAsset = async (file: File): Promise<string | null> => {
+    if (!isBinaryAssetPath(file.name)) {
+      return "Unsupported file type — use png, jpg, gif, webp, ico, pdf, or zip.";
+    }
+    if (file.size > MAX_BINARY_ASSET_BYTES) {
+      return `File exceeds the ${MAX_BINARY_ASSET_BYTES / (1024 * 1024)}MB limit.`;
+    }
+    const path = `assets/${sanitizeAssetFileName(file.name)}`;
+    const base64 = encodeBase64(new Uint8Array(await file.arrayBuffer()));
+    if (bundle.files[path] === undefined && !bundle.createFile(path)) {
+      return "Could not create that file.";
+    }
+    bundle.setFileContent(path, base64);
+    bundle.setActivePath(path);
+    return null;
+  };
 
   const editor =
     activeContent === undefined ? (
       <p className="p-4 text-sm text-muted-foreground">Select a file to edit.</p>
+    ) : activeIsBinary ? (
+      <AssetPreview
+        path={bundle.activePath}
+        base64Content={activeContent}
+        onReplace={() => assetInputRef.current?.click()}
+      />
     ) : activeIsText ? (
       <CodeEditor
         ref={editorRef ?? fallbackEditorRef}
@@ -62,7 +99,25 @@ export function SkillBundleEditor({
           onCreateDir={bundle.createDir}
           onRename={bundle.renamePath}
           onDelete={bundle.deletePath}
+          onRequestUpload={() => assetInputRef.current?.click()}
         />
+        <input
+          ref={assetInputRef}
+          type="file"
+          accept={BINARY_ASSET_EXTENSIONS.join(",")}
+          className="sr-only"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file) return;
+            setUploadError(await uploadAsset(file));
+          }}
+        />
+        {uploadError && (
+          <p className="border-t border-border px-2 py-1.5 text-xs text-destructive">
+            {uploadError}
+          </p>
+        )}
       </div>
       <div className="min-w-0">
         <div
@@ -123,8 +178,9 @@ export function SkillBundleEditor({
                 {bundle.dirty && <span className="sr-only">(unsaved changes)</span>}
               </span>
               <span>
-                {(activeContent ?? "").split("\n").length} lines · {(activeContent ?? "").length}{" "}
-                chars
+                {activeIsBinary
+                  ? formatBytes(base64DecodedSize(activeContent ?? ""))
+                  : `${(activeContent ?? "").split("\n").length} lines · ${(activeContent ?? "").length} chars`}
               </span>
             </div>
           </div>

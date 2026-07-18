@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeBase64 } from "./binary";
 import {
   createSkillTemplate,
   estimateImpactScore,
@@ -66,6 +67,46 @@ describe("validateSkillBundle", () => {
     bundle.set("plugin.json", JSON.stringify({ name: "my-skill", skills: ["SKILL.md"] }));
     const result = validateSkillBundle(bundle, "my-skill");
     expect(result.valid).toBe(true);
+  });
+
+  it("allows a valid binary asset under assets/", () => {
+    const bundle = createSkillTemplate("my-skill", "A skill with a logo asset.");
+    bundle.set("assets/logo.png", encodeBase64(new Uint8Array([137, 80, 78, 71])));
+    const result = validateSkillBundle(bundle, "my-skill");
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects a binary asset outside assets/", () => {
+    const bundle = createSkillTemplate("my-skill", "A skill with a misplaced asset.");
+    bundle.set("scripts/logo.png", encodeBase64(new Uint8Array([1, 2, 3])));
+    const result = validateSkillBundle(bundle, "my-skill");
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors).toContainEqual({
+        path: "scripts/logo.png",
+        message: "binary assets (images, PDFs, archives) must live under assets/",
+      });
+    }
+  });
+
+  it("rejects invalid base64 content for a binary asset", () => {
+    const bundle = createSkillTemplate("my-skill", "A skill with a corrupt asset.");
+    bundle.set("assets/logo.png", "not valid base64!!");
+    const result = validateSkillBundle(bundle, "my-skill");
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some((e) => e.message.includes("valid base64"))).toBe(true);
+    }
+  });
+
+  it("rejects a binary asset over the size limit", () => {
+    const bundle = createSkillTemplate("my-skill", "A skill with an oversized asset.");
+    bundle.set("assets/huge.png", encodeBase64(new Uint8Array(6 * 1024 * 1024)));
+    const result = validateSkillBundle(bundle, "my-skill");
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some((e) => e.message.includes("exceeds the 5MB limit"))).toBe(true);
+    }
   });
 });
 

@@ -1,3 +1,11 @@
+import {
+  BINARY_ASSET_EXTENSIONS,
+  isBinaryAssetPath,
+  MAX_BINARY_ASSET_BYTES,
+} from "@skillist/skill-format";
+
+export { BINARY_ASSET_EXTENSIONS, isBinaryAssetPath, MAX_BINARY_ASSET_BYTES };
+
 const BUNDLE_DIRS = ["scripts", "references", "assets"] as const;
 const ROOT_FILES = ["SKILL.md", "plugin.json"] as const;
 const SEGMENT_REGEX = /^[A-Za-z0-9._-]+$/;
@@ -34,6 +42,11 @@ export function isProtectedPath(path: string): boolean {
 export function isTextPath(path: string): boolean {
   const lower = path.toLowerCase();
   return TEXT_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+/** Maps an arbitrary uploaded filename into a valid bundle path segment. */
+export function sanitizeAssetFileName(name: string): string {
+  return name.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "asset";
 }
 
 export function isDirPath(files: Record<string, string>, path: string): boolean {
