@@ -29,7 +29,30 @@ type PluginManifest = {
 const SkillReadme = lazy(() => import("@/components/skill-readme"));
 const SkillBundleBrowser = lazy(() => import("@/components/skill-bundle-browser"));
 
+// Shared between the loader (prefetch) and the component (render) so both
+// sides hit the exact same cache entry.
+const registryQueryOptions = (org: string, repo: string) => ({
+  queryKey: ["registry", org, repo] as const,
+  queryFn: () => api<RegistryItem>(`/v1/registry/${org}/${repo}`),
+});
+
+// Realtime hasn't connected at loader time, so etag is always undefined here
+// — matching the component's key on first render before a publish event.
+const metaQueryOptions = (org: string, repo: string, etag?: string) => ({
+  queryKey: ["skill-meta", org, repo, etag] as const,
+  queryFn: () => api<Record<string, unknown>>(`/${org}/${repo}/meta`),
+});
+
 export const Route = createFileRoute("/$org/$repo")({
+  loader: ({ params: { org, repo }, context: { queryClient } }) =>
+    Promise.all([
+      queryClient.ensureQueryData(registryQueryOptions(org, repo)),
+      queryClient.ensureQueryData(metaQueryOptions(org, repo)),
+    ]),
+  pendingComponent: () => {
+    const { org, repo } = Route.useParams();
+    return <SkillDetailSkeleton org={org} repo={repo} />;
+  },
   component: SkillRepoPage,
 });
 
@@ -45,8 +68,7 @@ function SkillRepoPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["registry", org, repo],
-    queryFn: () => api<RegistryItem>(`/v1/registry/${org}/${repo}`),
+    ...registryQueryOptions(org, repo),
     placeholderData: keepPreviousData,
   });
 
@@ -57,8 +79,7 @@ function SkillRepoPage() {
   });
 
   const { data: meta } = useQuery({
-    queryKey: ["skill-meta", org, repo, lastEvent?.etag],
-    queryFn: () => api<Record<string, unknown>>(`/${org}/${repo}/meta`),
+    ...metaQueryOptions(org, repo, lastEvent?.etag),
     placeholderData: keepPreviousData,
   });
 
