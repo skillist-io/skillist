@@ -1,10 +1,24 @@
-import { feedback, organizations, skillFiles, skills, skillVersions } from "@skillist/db/schema";
+import {
+  aiJobs,
+  feedback,
+  organizations,
+  registryEntries,
+  skillFiles,
+  skills,
+  skillVersions,
+} from "@skillist/db/schema";
+import type {
+  PluginManifest,
+  SecurityScanResult,
+  SkillBundle,
+  SkillFrontmatter,
+  SkillReviewResult,
+} from "@skillist/skill-format";
 import {
   bumpSemver,
   estimateImpactScore,
   extractAgentDiscovery,
   extractRegistryDiscovery,
-  objectToBundle,
   parsePluginManifest,
   reviewSkillBundle,
   scanSkillSecurity,
@@ -14,7 +28,8 @@ import { and, eq, ne } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "./audit";
 import type { WorkerDb } from "./db";
-import { broadcastPublish, cachePublishedSkill } from "./publish";
+import { runModel } from "./model";
+import { broadcastPublish, cachePublishedSkill, purgePublishedSkill } from "./publish";
 import { evaluatePublishPolicy } from "./publish-policy";
 import { getVersionEvalStatus, queueSkillEval } from "./queue-eval";
 import { downloadBundleFromR2, listBundlePaths, r2Prefix, sha256, uploadBundleToR2 } from "./r2";
@@ -54,24 +69,7 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
 
   let improvedMd: string;
   try {
-    if (env.AI_GATEWAY_ACCOUNT_ID && env.AI_GATEWAY_TOKEN) {
-      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${env.AI_GATEWAY_ACCOUNT_ID}/skillist/workers-ai/@cf/meta/llama-3.1-8b-instruct`;
-      const res = await fetch(gatewayUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${env.AI_GATEWAY_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
-      });
-      const data = (await res.json()) as { result?: { response?: string } };
-      improvedMd = data.result?.response ?? skillMd;
-    } else {
-      const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
-        messages: [{ role: "user", content: prompt }],
-      });
-      improvedMd = (result as { response?: string }).response ?? skillMd;
-    }
+    improvedMd = (await runModel(env, prompt)) || skillMd;
   } catch (err) {
     await db.update(feedback).set({ status: "pending" }).where(eq(feedback.id, feedbackId));
     throw err;
@@ -99,16 +97,19 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
     createdBy: job.submittedBy,
   });
 
-  for (const [path, content] of fileEntries) {
-    await db.insert(skillFiles).values({
+  // Hash in parallel and insert all file rows in a single round-trip.
+  const fileRows = await Promise.all(
+    fileEntries.map(async ([path, content]) => ({
       versionId,
       path,
       sha256: await sha256(content),
       size: content.length,
-    });
+    })),
+  );
+  if (fileRows.length > 0) {
+    await db.insert(skillFiles).values(fileRows);
   }
 
-  const { aiJobs } = await import("@skillist/db/schema");
   await db
     .update(aiJobs)
     .set({
@@ -117,6 +118,256 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
       completedAt: new Date(),
     })
     .where(eq(aiJobs.id, jobId));
+}
+
+/**
+ * Shared tail for publish and rollback: both take a validated, reviewed,
+ * security-scanned bundle and make it the live published version. The DB
+ * mutations (archive the previous published version, mark this one published,
+ * move the skill's live pointer, upsert the public registry entry) run in a
+ * single transaction, so a mid-sequence failure can't leave the skill
+ * half-published. KV is written only after the transaction commits — and only
+ * for public skills — so the public edge can never advertise a version the
+ * database rolled back, and a private/org skill is purged from the edge rather
+ * than cached there.
+ */
+async function commitPublishedVersion(params: {
+  env: Env;
+  db: WorkerDb;
+  skill: typeof skills.$inferSelect;
+  org: typeof organizations.$inferSelect;
+  version: typeof skillVersions.$inferSelect;
+  bundle: SkillBundle;
+  frontmatter: SkillFrontmatter;
+  review: SkillReviewResult;
+  impactScore: number;
+  security: SecurityScanResult;
+  pluginManifest: PluginManifest | null;
+  compatibleAgents: string[];
+  userId: string | null;
+  actorType: "user" | "api_key";
+  action: "skill.published" | "skill.rolled_back";
+  auditMetadata: Record<string, unknown>;
+}): Promise<{
+  etag: string;
+  version: string;
+  qualityScore: number;
+  impactScore: number;
+  securityStatus: string;
+}> {
+  const {
+    env,
+    db,
+    skill,
+    org,
+    version,
+    bundle,
+    frontmatter,
+    review,
+    impactScore,
+    security,
+    pluginManifest,
+    compatibleAgents,
+    userId,
+    actorType,
+    action,
+    auditMetadata,
+  } = params;
+
+  const isPublic = skill.visibility === "public";
+  const reviewChecks = review.checks.map(({ id, label, passed, message }) => ({
+    id,
+    label,
+    passed,
+    message,
+  }));
+  const skillMd = bundle.get("SKILL.md") ?? "";
+  const etag = (await sha256(skillMd)).slice(0, 16);
+  const publishedAt = new Date().toISOString();
+  const runtime = detectSkillRuntime(bundle);
+  const discovery = extractRegistryDiscovery(frontmatter);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(skillVersions)
+      .set({ status: "archived" })
+      .where(
+        and(
+          eq(skillVersions.skillId, skill.id),
+          eq(skillVersions.status, "published"),
+          ne(skillVersions.id, version.id),
+        ),
+      );
+
+    await tx
+      .update(skillVersions)
+      .set({
+        status: "published",
+        publishedAt: new Date(),
+        kvEtag: etag,
+        qualityScore: review.score,
+        impactScore,
+        securityStatus: security.status,
+        securityIssues: security.issues,
+        reviewChecks,
+        pluginManifest: pluginManifest ?? null,
+      })
+      .where(eq(skillVersions.id, version.id));
+
+    await tx
+      .update(skills)
+      .set({
+        latestPublishedVersionId: version.id,
+        description: frontmatter.description,
+        runtime,
+        updatedAt: new Date(),
+      })
+      .where(eq(skills.id, skill.id));
+
+    if (isPublic) {
+      await tx
+        .insert(registryEntries)
+        .values({
+          skillId: skill.id,
+          orgSlug: org.slug,
+          skillRepo: skill.repo,
+          name: frontmatter.name,
+          description: frontmatter.description,
+          latestVersion: version.semver,
+          qualityScore: review.score,
+          impactScore,
+          securityStatus: security.status,
+          category: discovery.category,
+          tags: discovery.tags,
+          compatibleAgents,
+          lastReviewedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: registryEntries.skillId,
+          set: {
+            name: frontmatter.name,
+            description: frontmatter.description,
+            latestVersion: version.semver,
+            qualityScore: review.score,
+            impactScore,
+            securityStatus: security.status,
+            category: discovery.category,
+            tags: discovery.tags,
+            compatibleAgents,
+            lastReviewedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+    }
+  });
+
+  // KV is edge-eventual and non-transactional, so write it only after the DB
+  // commit — otherwise a rolled-back transaction would leave the edge serving a
+  // version the DB no longer considers published.
+  if (isPublic) {
+    await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
+      skillMd,
+      meta: {
+        name: frontmatter.name,
+        description: frontmatter.description,
+        version: version.semver,
+        versionId: version.id,
+        etag,
+        org: org.slug,
+        repo: skill.repo,
+        publishedAt,
+        visibility: "public",
+      },
+    });
+  } else {
+    await purgePublishedSkill(env.SKILLS_KV, org.slug, skill.repo);
+  }
+
+  await logAudit(db, {
+    orgId: org.id,
+    actorId: userId,
+    actorType,
+    action,
+    resourceType: "skill",
+    resourceId: skill.id,
+    metadata: auditMetadata,
+  });
+
+  const event = {
+    type: "skill.published" as const,
+    org: org.slug,
+    repo: skill.repo,
+    version: version.semver,
+    versionId: version.id,
+    etag,
+    publishedAt,
+    // Never fan out private/org skill contents over the realtime hub.
+    skillMd: isPublic && skillMd.length < 65536 ? skillMd : undefined,
+  };
+  await broadcastPublish(env, org.slug, skill.repo, event);
+
+  return {
+    etag,
+    version: version.semver,
+    qualityScore: review.score,
+    impactScore,
+    securityStatus: security.status,
+  };
+}
+
+/**
+ * Re-syncs the public edge cache for a skill's current live version to match
+ * its visibility — used after a visibility change. Caches SKILL.md/meta when
+ * the skill is public with a live version, and purges the edge otherwise so a
+ * skill flipped to private/org stops being served from the public path.
+ */
+export async function syncSkillEdge(env: Env, db: WorkerDb, skillId: string): Promise<void> {
+  const [skill] = await db.select().from(skills).where(eq(skills.id, skillId)).limit(1);
+  if (!skill) return;
+  const [org] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, skill.orgId))
+    .limit(1);
+  if (!org) return;
+
+  if (skill.visibility !== "public" || !skill.latestPublishedVersionId) {
+    await purgePublishedSkill(env.SKILLS_KV, org.slug, skill.repo);
+    return;
+  }
+
+  const [version] = await db
+    .select()
+    .from(skillVersions)
+    .where(eq(skillVersions.id, skill.latestPublishedVersionId))
+    .limit(1);
+  if (!version) {
+    await purgePublishedSkill(env.SKILLS_KV, org.slug, skill.repo);
+    return;
+  }
+
+  const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
+  const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
+  const skillMd = bundle.get("SKILL.md") ?? "";
+  const parsed = validateSkillBundle(bundle, skill.repo);
+  const name = parsed.valid ? parsed.frontmatter.name : skill.repo;
+  const description = parsed.valid ? parsed.frontmatter.description : (skill.description ?? "");
+  const etag = version.kvEtag ?? (await sha256(skillMd)).slice(0, 16);
+
+  await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
+    skillMd,
+    meta: {
+      name,
+      description,
+      version: version.semver,
+      versionId: version.id,
+      etag,
+      org: org.slug,
+      repo: skill.repo,
+      publishedAt: (version.publishedAt ?? new Date()).toISOString(),
+      visibility: "public",
+    },
+  });
 }
 
 export async function publishVersion(
@@ -199,113 +450,23 @@ export async function publishVersion(
     throw new Error(policyCheck.reasons.join("; "));
   }
 
-  const reviewChecks = review.checks.map(({ id, label, passed, message }) => ({
-    id,
-    label,
-    passed,
-    message,
-  }));
-
-  const skillMd = bundle.get("SKILL.md")!;
-  const etag = (await sha256(skillMd)).slice(0, 16);
-  const publishedAt = new Date().toISOString();
-
-  await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
-    skillMd,
-    meta: {
-      name: validation.frontmatter.name,
-      description: validation.frontmatter.description,
-      version: version.semver,
-      versionId: version.id,
-      etag,
-      org: org.slug,
-      repo: skill.repo,
-      publishedAt,
-    },
-  });
-
-  await db
-    .update(skillVersions)
-    .set({ status: "archived" })
-    .where(
-      and(
-        eq(skillVersions.skillId, skillId),
-        eq(skillVersions.status, "published"),
-        ne(skillVersions.id, versionId),
-      ),
-    );
-
-  await db
-    .update(skillVersions)
-    .set({
-      status: "published",
-      publishedAt: new Date(),
-      kvEtag: etag,
-      qualityScore: review.score,
-      impactScore,
-      securityStatus: security.status,
-      securityIssues: security.issues,
-      reviewChecks,
-      pluginManifest: pluginManifest ?? null,
-    })
-    .where(eq(skillVersions.id, versionId));
-
-  await db
-    .update(skills)
-    .set({
-      latestPublishedVersionId: versionId,
-      description: validation.frontmatter.description,
-      runtime: detectSkillRuntime(bundle),
-      updatedAt: new Date(),
-    })
-    .where(eq(skills.id, skillId));
-
-  if (skill.visibility === "public") {
-    const { registryEntries } = await import("@skillist/db/schema");
-    const discovery = extractRegistryDiscovery(validation.frontmatter);
-    await db
-      .insert(registryEntries)
-      .values({
-        skillId: skill.id,
-        orgSlug: org.slug,
-        skillRepo: skill.repo,
-        name: validation.frontmatter.name,
-        description: validation.frontmatter.description,
-        latestVersion: version.semver,
-        qualityScore: review.score,
-        impactScore,
-        securityStatus: security.status,
-        category: discovery.category,
-        tags: discovery.tags,
-        compatibleAgents,
-        lastReviewedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: registryEntries.skillId,
-        set: {
-          name: validation.frontmatter.name,
-          description: validation.frontmatter.description,
-          latestVersion: version.semver,
-          qualityScore: review.score,
-          impactScore,
-          securityStatus: security.status,
-          category: discovery.category,
-          tags: discovery.tags,
-          compatibleAgents,
-          lastReviewedAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-  }
-
-  await logAudit(db, {
-    orgId: org.id,
-    actorId: userId,
+  return commitPublishedVersion({
+    env,
+    db,
+    skill,
+    org,
+    version,
+    bundle,
+    frontmatter: validation.frontmatter,
+    review,
+    impactScore,
+    security,
+    pluginManifest,
+    compatibleAgents,
+    userId,
     actorType,
     action: "skill.published",
-    resourceType: "skill",
-    resourceId: skill.id,
-    metadata: {
+    auditMetadata: {
       repo: skill.repo,
       version: version.semver,
       qualityScore: review.score,
@@ -313,27 +474,6 @@ export async function publishVersion(
       securityStatus: security.status,
     },
   });
-
-  const event = {
-    type: "skill.published" as const,
-    org: org.slug,
-    repo: skill.repo,
-    version: version.semver,
-    versionId: version.id,
-    etag,
-    publishedAt,
-    skillMd: skillMd.length < 65536 ? skillMd : undefined,
-  };
-
-  await broadcastPublish(env, org.slug, skill.repo, event);
-
-  return {
-    etag,
-    version: version.semver,
-    qualityScore: review.score,
-    impactScore,
-    securityStatus: security.status,
-  };
 }
 
 export async function rollbackVersion(
@@ -389,137 +529,26 @@ export async function rollbackVersion(
   const pluginManifest = pluginRaw ? parsePluginManifest(pluginRaw) : null;
   const compatibleAgents = extractAgentDiscovery(pluginManifest);
 
-  const reviewChecks = review.checks.map(({ id, label, passed, message }) => ({
-    id,
-    label,
-    passed,
-    message,
-  }));
-
-  const skillMd = bundle.get("SKILL.md")!;
-  const etag = (await sha256(skillMd)).slice(0, 16);
-  const publishedAt = new Date().toISOString();
-
-  await cachePublishedSkill(env.SKILLS_KV, org.slug, skill.repo, {
-    skillMd,
-    meta: {
-      name: validation.frontmatter.name,
-      description: validation.frontmatter.description,
-      version: version.semver,
-      versionId: version.id,
-      etag,
-      org: org.slug,
-      repo: skill.repo,
-      publishedAt,
-    },
-  });
-
-  await db
-    .update(skillVersions)
-    .set({ status: "archived" })
-    .where(
-      and(
-        eq(skillVersions.skillId, skillId),
-        eq(skillVersions.status, "published"),
-        ne(skillVersions.id, versionId),
-      ),
-    );
-
-  await db
-    .update(skillVersions)
-    .set({
-      status: "published",
-      publishedAt: new Date(),
-      kvEtag: etag,
-      qualityScore: review.score,
-      impactScore,
-      securityStatus: security.status,
-      securityIssues: security.issues,
-      reviewChecks,
-      pluginManifest: pluginManifest ?? null,
-    })
-    .where(eq(skillVersions.id, versionId));
-
-  await db
-    .update(skills)
-    .set({
-      latestPublishedVersionId: versionId,
-      description: validation.frontmatter.description,
-      runtime: detectSkillRuntime(bundle),
-      updatedAt: new Date(),
-    })
-    .where(eq(skills.id, skillId));
-
-  if (skill.visibility === "public") {
-    const { registryEntries } = await import("@skillist/db/schema");
-    const discovery = extractRegistryDiscovery(validation.frontmatter);
-    await db
-      .insert(registryEntries)
-      .values({
-        skillId: skill.id,
-        orgSlug: org.slug,
-        skillRepo: skill.repo,
-        name: validation.frontmatter.name,
-        description: validation.frontmatter.description,
-        latestVersion: version.semver,
-        qualityScore: review.score,
-        impactScore,
-        securityStatus: security.status,
-        category: discovery.category,
-        tags: discovery.tags,
-        compatibleAgents,
-        lastReviewedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: registryEntries.skillId,
-        set: {
-          name: validation.frontmatter.name,
-          description: validation.frontmatter.description,
-          latestVersion: version.semver,
-          qualityScore: review.score,
-          impactScore,
-          securityStatus: security.status,
-          category: discovery.category,
-          tags: discovery.tags,
-          compatibleAgents,
-          lastReviewedAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-  }
-
-  await logAudit(db, {
-    orgId: org.id,
-    actorId: userId,
+  return commitPublishedVersion({
+    env,
+    db,
+    skill,
+    org,
+    version,
+    bundle,
+    frontmatter: validation.frontmatter,
+    review,
+    impactScore,
+    security,
+    pluginManifest,
+    compatibleAgents,
+    userId,
     actorType,
     action: "skill.rolled_back",
-    resourceType: "skill",
-    resourceId: skill.id,
-    metadata: {
+    auditMetadata: {
       repo: skill.repo,
       version: version.semver,
       versionId: version.id,
     },
   });
-
-  const event = {
-    type: "skill.published" as const,
-    org: org.slug,
-    repo: skill.repo,
-    version: version.semver,
-    versionId: version.id,
-    etag,
-    publishedAt,
-    skillMd: skillMd.length < 65536 ? skillMd : undefined,
-  };
-
-  await broadcastPublish(env, org.slug, skill.repo, event);
-
-  return {
-    etag,
-    version: version.semver,
-    qualityScore: review.score,
-    impactScore,
-    securityStatus: security.status,
-  };
 }

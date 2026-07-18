@@ -47,7 +47,7 @@ export function resolveWebUrl(env: AuthEnv): string {
   if (env.BETTER_AUTH_URL.includes("localhost")) {
     return "http://localhost:5173";
   }
-  return "https://skillist.dev";
+  return "https://skillist.io";
 }
 
 function resolveAuthBaseURL(env: AuthEnv) {
@@ -55,9 +55,9 @@ function resolveAuthBaseURL(env: AuthEnv) {
     return env.BETTER_AUTH_URL;
   }
 
-  // Auth is served on both skillist.dev/api/* (SPA proxy) and api.skillist.dev.
+  // Auth is served on both skillist.io/api/* (SPA proxy) and api.skillist.io.
   return {
-    allowedHosts: ["skillist.dev", "api.skillist.dev"],
+    allowedHosts: ["skillist.io", "api.skillist.io"],
     fallback: env.BETTER_AUTH_URL,
     protocol: "https" as const,
   };
@@ -130,15 +130,15 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
       webUrl,
       "http://localhost:5173",
       "http://localhost:8787",
-      "https://skillist.dev",
-      "https://api.skillist.dev",
+      "https://skillist.io",
+      "https://api.skillist.io",
     ],
     advanced: isLocal
       ? undefined
       : {
           crossSubDomainCookies: {
             enabled: true,
-            domain: ".skillist.dev",
+            domain: ".skillist.io",
           },
           defaultCookieAttributes: {
             secure: true,
@@ -185,11 +185,11 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
         },
       }),
       passkey({
-        rpID: isLocal ? "localhost" : "skillist.dev",
+        rpID: isLocal ? "localhost" : "skillist.io",
         rpName: "Skillist",
         origin: isLocal
           ? ["http://localhost:5173", "http://localhost:8787"]
-          : ["https://skillist.dev", "https://api.skillist.dev"],
+          : ["https://skillist.io", "https://api.skillist.io"],
       }),
       mcp({
         loginPage: `${webUrl}/login`,

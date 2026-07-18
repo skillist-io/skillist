@@ -25,6 +25,13 @@ export async function assertSkillRunAccess(
 
   if (skill.visibility === "public") {
     if (auth.apiKeyId) {
+      // Running a public skill still consumes the OWNER org's quota and sandbox
+      // compute, so an API key must explicitly carry `skills:run` to trigger a
+      // run — a `skills:read` key must not be able to burn another org's budget
+      // (denial-of-wallet). Viewing is free and stays open to any valid key.
+      if (mode === "run" && !auth.apiKeyScopes.includes("skills:run")) {
+        return { ok: false, status: 403 };
+      }
       return {
         ok: true,
         actorId: auth.apiKeyCreatedBy,

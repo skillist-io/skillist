@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PageTitle } from "@/components/ui/page-title";
 import {
   Sheet,
   SheetClose,
@@ -212,7 +213,7 @@ function RegistryPage() {
       <div className="space-y-8">
         <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight text-balance">Public Registry</h1>
+            <PageTitle>Public Registry</PageTitle>
             <p className="max-w-prose text-sm text-muted-foreground">
               Browse Agent Skills scored for quality, impact, and security. Copy an install command
               or open a skill for the full bundle.

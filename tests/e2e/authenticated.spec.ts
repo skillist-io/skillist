@@ -9,7 +9,7 @@ async function skipIfSignedOut(page: Page, testInfo: TestInfo, path = "/dashboar
   if (onLogin) {
     testInfo.skip(
       true,
-      "Auth state expired — run: pnpm exec playwright open --save-storage=tests/e2e/.auth/user.json https://skillist.dev/login",
+      "Auth state expired — run: pnpm exec playwright open --save-storage=tests/e2e/.auth/user.json https://skillist.io/login",
     );
   }
 }
@@ -50,7 +50,7 @@ test.describe("signed-in flows", () => {
     await expect(page.getByText("skillist/cloudflare-deploy")).toBeVisible();
   });
 
-  test("signed-in session authorizes apex /run via skillist.dev proxy", async ({ page }) => {
+  test("signed-in session authorizes apex /run via skillist.io proxy", async ({ page }) => {
     const res = await page.request.post("/skillist/cloudflare-deploy/run", {
       headers: { "Content-Type": "application/json" },
       data: { scriptPath: "scripts/preflight.sh" },

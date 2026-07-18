@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-const API_URL = process.env.SMOKE_API_URL ?? "https://api.skillist.dev";
-const WEB_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.dev";
-const DOCS_URL = process.env.SMOKE_DOCS_URL ?? "https://docs.skillist.dev";
+const API_URL = process.env.SMOKE_API_URL ?? "https://api.skillist.io";
+const WEB_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.io";
+const DOCS_URL = process.env.SMOKE_DOCS_URL ?? "https://docs.skillist.io";
 
 async function fetchJson(path: string, init?: RequestInit) {
   const res = await fetch(`${API_URL}${path}`, init);

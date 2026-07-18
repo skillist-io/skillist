@@ -14,5 +14,5 @@
       "service": "skillist-api-production"
     }
   ],
-  "routes": [{ "pattern": "skillist.dev", "custom_domain": true }]
+  "routes": [{ "pattern": "skillist.io", "custom_domain": true }]
 }

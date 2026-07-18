@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PageTitle } from "@/components/ui/page-title";
 import { Switch } from "@/components/ui/switch";
 import {
   type AuditEvent,
@@ -59,7 +60,7 @@ function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <PageTitle>Settings</PageTitle>
         <p className="text-muted-foreground">
           Org OAuth setup and agent API keys. Personal profile and passkeys are on{" "}
           <Link to="/account" className="text-primary underline">

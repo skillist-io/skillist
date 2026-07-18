@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Env } from "../env";
 import { enqueueSyncForGithubRepo } from "../lib/github-sync/queue-handler";
@@ -39,6 +38,10 @@ const githubWebhookRoute = createRoute({
     202: {
       description: "Accepted",
       content: { "application/json": { schema: z.object({ ok: z.boolean() }) } },
+    },
+    400: {
+      description: "Invalid payload",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
     },
     401: {
       description: "Invalid signature",

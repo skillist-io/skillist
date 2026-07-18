@@ -89,7 +89,7 @@ export async function resolveGithubToRegistry(
 }
 
 export function skillistDeliveryUrls(org: string, repo: string) {
-  const base = `https://skillist.dev/${org}/${repo}`;
+  const base = `https://skillist.io/${org}/${repo}`;
   return {
     pageUrl: base,
     skillMdUrl: `${base}/SKILL.md`,

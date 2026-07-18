@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Skillist ([skillist.dev](https://skillist.dev)) is a realtime Agent Skills registry — publish, version, improve, and deliver skills compliant with the [agentskills.io](https://agentskills.io) spec. It runs entirely on Cloudflare Workers.
+Skillist ([skillist.io](https://skillist.io)) is a realtime Agent Skills registry — publish, version, improve, and deliver skills compliant with the [agentskills.io](https://agentskills.io) spec. It runs entirely on Cloudflare Workers.
 
 ## Monorepo layout
 
@@ -50,7 +50,7 @@ Testing specifics:
 - **Unit tests** live next to source (`*.test.ts`). API tests run under `@cloudflare/vitest-pool-workers` (real Workers runtime), config in `apps/api/vitest.config.ts`.
 - Run one workspace: `pnpm --filter @skillist/api test`. Run one file: `pnpm --filter @skillist/api exec vitest run src/publish-latency.test.ts`.
 - `pnpm smoke` — HTTP checks against **production** (`tests/vitest.config.ts`); builds the CLI first.
-- `pnpm test:e2e` — Playwright against skillist.dev (`tests/e2e/`).
+- `pnpm test:e2e` — Playwright against skillist.io (`tests/e2e/`).
 - CI (`.github/workflows/ci.yml`) runs `check → typecheck → test → playwright → build`, then deploys api/web/docs to Cloudflare on `main`.
 
 DB workflow: edit `packages/db/src/schema.ts` → `pnpm db:generate` (writes SQL to `packages/db/drizzle/`) → `pnpm db:migrate`.

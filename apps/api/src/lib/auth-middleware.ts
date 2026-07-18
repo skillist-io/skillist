@@ -32,7 +32,12 @@ export const authMiddleware = createMiddleware<{
     const key = authHeader.slice(7);
     const keyHash = await sha256(key);
     const [record] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash)).limit(1);
-    if (record) {
+    // A revoked or expired key authenticates as no one — it is ignored here
+    // rather than error so a stale key falls back to session auth (or 401 at
+    // the route) exactly like an unknown key.
+    const isValid =
+      record && !record.revokedAt && (!record.expiresAt || record.expiresAt > new Date());
+    if (record && isValid) {
       apiKeyId = record.id;
       apiKeyOrgId = record.orgId;
       apiKeyCreatedBy = record.createdBy;

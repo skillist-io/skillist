@@ -15,7 +15,7 @@ Use this skill when the user wants to search, browse, or install skills from the
 
 ## When to activate
 
-- User asks to find or install an agent skill from skillist.dev
+- User asks to find or install an agent skill from skillist.io
 - User wants registry search by category, tag, or agent (Cursor, Claude, VS Code)
 - User needs install commands or skill metadata before pulling a bundle
 
@@ -24,7 +24,7 @@ Use this skill when the user wants to search, browse, or install skills from the
 Connect your agent to the Skillist registry MCP endpoint:
 
 ```
-https://api.skillist.dev/mcp
+https://api.skillist.io/mcp
 ```
 
 ### Cursor configuration
@@ -35,15 +35,15 @@ Add to `.cursor/mcp.json`:
 {
   "mcpServers": {
     "skillist-registry": {
-      "url": "https://api.skillist.dev/mcp"
+      "url": "https://api.skillist.io/mcp"
     }
   }
 }
 ```
 
 OAuth-capable MCP clients (e.g. Cursor) discover authorization via
-`/.well-known/oauth-protected-resource` and sign in at `https://skillist.dev/login`.
-Full setup guide: [docs.skillist.dev/mcp/connect](https://docs.skillist.dev/mcp/connect/).
+`/.well-known/oauth-protected-resource` and sign in at `https://skillist.io/login`.
+Full setup guide: [docs.skillist.io/mcp/connect](https://docs.skillist.io/mcp/connect/).
 Registry read tools work without a token; authenticated sessions are available for
 future user-specific tools.
 
@@ -70,11 +70,11 @@ future user-specific tools.
 Found 3 skills:
 - skillist/web-perf-audit (Q95, uplift +21) — hosted sandbox performance audits
   Install: skillist install skillist/web-perf-audit
-  Page: https://skillist.dev/skillist/web-perf-audit
+  Page: https://skillist.io/skillist/web-perf-audit
 ```
 
 ## Constraints
 
 - Registry MCP is read-only — publish and run require the Skillist CLI with an API key.
 - Always include the install command when recommending a skill.
-- Skill pages and SKILL.md live at `https://skillist.dev/{org}/{repo}` and `https://skillist.dev/{org}/{repo}/SKILL.md`.
+- Skill pages and SKILL.md live at `https://skillist.io/{org}/{repo}` and `https://skillist.io/{org}/{repo}/SKILL.md`.

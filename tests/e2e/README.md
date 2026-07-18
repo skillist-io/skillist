@@ -1,6 +1,6 @@
 # E2E tests
 
-Production smoke tests run against `https://skillist.dev` by default.
+Production smoke tests run against `https://skillist.io` by default.
 
 ## Anonymous tests (`smoke.spec.ts`)
 
@@ -11,7 +11,7 @@ Always run in CI: homepage, registry, login guards, registry retry UI.
 Require a Playwright storage state file. Generate locally:
 
 ```bash
-pnpm exec playwright open --save-storage=tests/e2e/.auth/user.json https://skillist.dev/login
+pnpm exec playwright open --save-storage=tests/e2e/.auth/user.json https://skillist.io/login
 ```
 
 Sign in with GitHub or Google, then close the browser.

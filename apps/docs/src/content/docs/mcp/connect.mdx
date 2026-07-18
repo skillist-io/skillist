@@ -9,7 +9,7 @@ import { McpConnectCard } from "@/components/docs/McpConnectCard";
 import { SectionHeading } from "@/components/docs/SectionHeading";
 
 <DocAlert title="MCP endpoint" client:load>
-  All clients connect to `https://api.skillist.dev/mcp` using streamable HTTP.
+  All clients connect to `https://api.skillist.io/mcp` using streamable HTTP.
 </DocAlert>
 
 <SectionHeading title="Cursor" client:load />
@@ -28,14 +28,14 @@ Use the remote HTTP transport with the same URL in your MCP config. Consult Anth
 
 ## VS Code
 
-If your VS Code MCP extension supports streamable HTTP, point it at `https://api.skillist.dev/mcp` via the extension's server registration UI or `settings.json`.
+If your VS Code MCP extension supports streamable HTTP, point it at `https://api.skillist.io/mcp` via the extension's server registration UI or `settings.json`.
 
 ## Generic HTTP client
 
 Stateless JSON-RPC (no session):
 
 ```bash
-curl -s https://api.skillist.dev/mcp \
+curl -s https://api.skillist.io/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -49,7 +49,7 @@ Streamable HTTP with session:
 
 ```bash
 # initialize — note Mcp-Session-Id response header
-curl -si https://api.skillist.dev/mcp \
+curl -si https://api.skillist.io/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{
@@ -66,7 +66,7 @@ curl -si https://api.skillist.dev/mcp \
 
 ## Demo skill
 
-The [`skillist/registry-mcp`](https://skillist.dev/skillist/registry-mcp) skill documents registry MCP usage for agents. Install it with:
+The [`skillist/registry-mcp`](https://skillist.io/skillist/registry-mcp) skill documents registry MCP usage for agents. Install it with:
 
 ```bash
 skillist install skillist/registry-mcp
@@ -78,7 +78,7 @@ skillist install skillist/registry-mcp
   client:load
   columns={["Issue", "Fix"]}
   rows={[
-    ["401 from MCP client", "Complete OAuth sign-in at skillist.dev/login if your client requires tokens"],
+    ["401 from MCP client", "Complete OAuth sign-in at skillist.io/login if your client requires tokens"],
     ["Session not found", "Call initialize first or omit Mcp-Session-Id for stateless JSON mode"],
     ["CORS errors", "Ensure your client sends Content-Type: application/json"],
     ["OAuth discovery fails", "Confirm /.well-known/oauth-protected-resource is reachable — see OAuth docs"],

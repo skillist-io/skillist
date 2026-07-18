@@ -184,11 +184,25 @@ export function validateSkillBundle(files: SkillBundle, expectedSlug?: string): 
         message: "binary assets (images, PDFs, archives) must live under assets/",
       });
     }
+    // Reject path traversal / absolute paths outright — do NOT fold this into
+    // the allowed-root skip. At runtime every bundle entry is written to
+    // `/workspace/${path}`, so a `..` segment or leading slash escapes the
+    // sandbox workspace and can clobber runtime files. These must fail
+    // validation, not be silently skipped.
     if (
       filePath.includes("..") ||
       filePath.startsWith("/") ||
-      (ALLOWED_ROOT_FILES as readonly string[]).includes(filePath)
+      filePath.startsWith("\\") ||
+      filePath.includes("\0") ||
+      /^[a-zA-Z]:/.test(filePath)
     ) {
+      errors.push({
+        path: filePath,
+        message: "file path must be relative and must not contain '..' or a leading slash",
+      });
+      continue;
+    }
+    if ((ALLOWED_ROOT_FILES as readonly string[]).includes(filePath)) {
       continue;
     }
     const topDir = filePath.split("/")[0];

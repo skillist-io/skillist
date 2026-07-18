@@ -15,7 +15,7 @@ description: >-
 `.github/workflows/ci.yml` runs on push to `main`: `check → typecheck → test → playwright → build`, and only if all pass, deploys:
 
 - **api** → `wrangler deploy --config apps/api/wrangler.production.jsonc`
-- **web** → built with `VITE_API_URL=https://api.skillist.dev`, then deployed
+- **web** → built with `VITE_API_URL=https://api.skillist.io`, then deployed
 - **docs** → `wrangler deploy`
 
 Then a **smoke** job runs `pnpm smoke` against production. So: land it on `main` via a merged PR and let CI deploy. Don't run production `wrangler deploy` by hand unless explicitly asked to hotfix.

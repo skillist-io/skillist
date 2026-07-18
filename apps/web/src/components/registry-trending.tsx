@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { StarButton } from "@/components/registry-star-button";
-import { ScoreBadges } from "@/components/score-badges";
+import { ScoreReadout } from "@/components/score-readout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +54,7 @@ export function RegistryTrending() {
               </div>
               <StarButton org={item.orgSlug} repo={item.skillRepo} stars={item.stars} />
             </div>
-            <ScoreBadges
+            <ScoreReadout
               quality={item.qualityScore}
               impact={item.impactScore}
               security={item.securityStatus}

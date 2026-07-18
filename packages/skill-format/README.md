@@ -1,6 +1,6 @@
 # @skillist/skill-format
 
-Validation and review utilities for [agentskills.io](https://agentskills.io) skill bundles on [Skillist](https://skillist.dev).
+Validation and review utilities for [agentskills.io](https://agentskills.io) skill bundles on [Skillist](https://skillist.io).
 
 ## Install
 

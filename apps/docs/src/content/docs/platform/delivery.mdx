@@ -1,6 +1,6 @@
 ---
 title: Delivery URLs
-description: GitHub-style public URLs at skillist.dev/{org}/{repo} for skill pages and raw agentskills.io delivery.
+description: GitHub-style public URLs at skillist.io/{org}/{repo} for skill pages and raw agentskills.io delivery.
 ---
 
 import { DocAlert } from "@/components/docs/DocAlert";
@@ -10,7 +10,7 @@ import { SectionHeading } from "@/components/docs/SectionHeading";
 Skillist uses a single GitHub-like namespace on the apex domain. The **org** is the organization slug; **repo** is the skill identifier (formerly called `slug` in older API versions).
 
 <DocAlert title="Browse vs delivery" client:load>
-  The public **registry index** stays at [skillist.dev/registry](https://skillist.dev/registry). Individual skills live at `skillist.dev/{org}/{repo}` — not under `/registry/`.
+  The public **registry index** stays at [skillist.io/registry](https://skillist.io/registry). Individual skills live at `skillist.io/{org}/{repo}` — not under `/registry/`.
 </DocAlert>
 
 ## URL map
@@ -19,14 +19,14 @@ Skillist uses a single GitHub-like namespace on the apex domain. The **org** is 
   client:load
   columns={["Purpose", "URL"]}
   rows={[
-    ["Registry browse", "https://skillist.dev/registry"],
-    ["Skill page", "https://skillist.dev/{org}/{repo}"],
-    ["SKILL.md", "https://skillist.dev/{org}/{repo}/SKILL.md"],
-    ["Discovery meta", "https://skillist.dev/{org}/{repo}/meta"],
-    ["Full bundle", "https://skillist.dev/{org}/{repo}/bundle"],
-    ["Script list", "https://skillist.dev/{org}/{repo}/scripts"],
-    ["Run script", "POST https://skillist.dev/{org}/{repo}/run"],
-    ["Run history", "https://skillist.dev/{org}/{repo}/runs"],
+    ["Registry browse", "https://skillist.io/registry"],
+    ["Skill page", "https://skillist.io/{org}/{repo}"],
+    ["SKILL.md", "https://skillist.io/{org}/{repo}/SKILL.md"],
+    ["Discovery meta", "https://skillist.io/{org}/{repo}/meta"],
+    ["Full bundle", "https://skillist.io/{org}/{repo}/bundle"],
+    ["Script list", "https://skillist.io/{org}/{repo}/scripts"],
+    ["Run script", "POST https://skillist.io/{org}/{repo}/run"],
+    ["Run history", "https://skillist.io/{org}/{repo}/runs"],
   ]}
 />
 
@@ -35,9 +35,9 @@ Skillist uses a single GitHub-like namespace on the apex domain. The **org** is 
 For the public skill `skillist/web-perf-audit`:
 
 ```
-https://skillist.dev/skillist/web-perf-audit
-https://skillist.dev/skillist/web-perf-audit/SKILL.md
-https://skillist.dev/skillist/web-perf-audit/meta
+https://skillist.io/skillist/web-perf-audit
+https://skillist.io/skillist/web-perf-audit/SKILL.md
+https://skillist.io/skillist/web-perf-audit/meta
 ```
 
 ## REST equivalents
@@ -45,19 +45,19 @@ https://skillist.dev/skillist/web-perf-audit/meta
 Registry metadata and mutations still use the API worker under `/v1`:
 
 ```
-GET https://api.skillist.dev/v1/registry
-GET https://api.skillist.dev/v1/registry/{org}/{repo}
+GET https://api.skillist.io/v1/registry
+GET https://api.skillist.io/v1/registry/{org}/{repo}
 ```
 
-Raw delivery and hosted execution are also available on `api.skillist.dev` when called directly, but **canonical public URLs** use `skillist.dev`.
+Raw delivery and hosted execution are also available on `api.skillist.io` when called directly, but **canonical public URLs** use `skillist.io`.
 
 ## CLI and agents
 
-The CLI defaults delivery to `https://skillist.dev`:
+The CLI defaults delivery to `https://skillist.io`:
 
 ```bash
 skillist install skillist/web-perf-audit
-curl https://skillist.dev/skillist/web-perf-audit/SKILL.md
+curl https://skillist.io/skillist/web-perf-audit/SKILL.md
 ```
 
 Override for staging or local dev:
@@ -71,17 +71,17 @@ export SKILLIST_API_URL=http://localhost:8787
 
 `registry_install_help` returns apex delivery URLs:
 
-- `skillMdUrl` — `https://skillist.dev/{org}/{repo}/SKILL.md`
-- `registryUrl` — `https://skillist.dev/{org}/{repo}`
+- `skillMdUrl` — `https://skillist.io/{org}/{repo}/SKILL.md`
+- `registryUrl` — `https://skillist.io/{org}/{repo}`
 
 See [Tools reference](/mcp/tools/) for parameters (`org` and `repo`).
 
 ## How routing works
 
-DNS zone routing cannot place wildcards mid-path (e.g. `skillist.dev/*/SKILL.md`), so delivery is implemented in two layers:
+DNS zone routing cannot place wildcards mid-path (e.g. `skillist.io/*/SKILL.md`), so delivery is implemented in two layers:
 
 1. **API worker** — serves `/{org}/{repo}/SKILL.md`, `/meta`, `/bundle`, and authenticated `/scripts`, `/run`, `/runs`
-2. **Web worker** — intercepts the same paths on `skillist.dev` and forwards them to the API worker via a service binding; also proxies `/v1/*` and `/api/*` for same-origin SPA requests
+2. **Web worker** — intercepts the same paths on `skillist.io` and forwards them to the API worker via a service binding; also proxies `/v1/*` and `/api/*` for same-origin SPA requests
 
 The registry browse UI and skill detail pages are served as static assets with SPA fallback.
 

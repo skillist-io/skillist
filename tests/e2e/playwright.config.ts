@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
-const WEB_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.dev";
+const WEB_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.io";
 const AUTH_STATE = "tests/e2e/.auth/user.json";
 
 const hasAuthState = Boolean(process.env.E2E_AUTH_STATE_B64) || fs.existsSync(AUTH_STATE);

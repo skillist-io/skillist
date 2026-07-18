@@ -19,7 +19,7 @@ You run checks and return a **tight summary**, keeping verbose tool output in yo
 - One file (API tests run under `@cloudflare/vitest-pool-workers`): `pnpm --filter @skillist/api exec vitest run <path>`.
 - Lint/format only: `pnpm check`. Types only: `pnpm typecheck`.
 
-Do **not** run `pnpm smoke` (hits production) or `pnpm test:e2e` (Playwright against skillist.dev) unless explicitly asked.
+Do **not** run `pnpm smoke` (hits production) or `pnpm test:e2e` (Playwright against skillist.io) unless explicitly asked.
 
 ## Rules
 

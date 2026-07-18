@@ -1,6 +1,6 @@
 # Skillist
 
-Realtime Agent Skills management, improvement, and versioning platform for [skillist.dev](https://skillist.dev).
+Realtime Agent Skills management, improvement, and versioning platform for [skillist.io](https://skillist.io).
 
 Built on Cloudflare Workers with Hono, Durable Objects, KV, R2, Worker AI, AI Gateway, Neon Postgres via Hyperdrive, and Better Auth (passwordless). Compliant with the [agentskills.io](https://agentskills.io/home) specification.
 
@@ -37,8 +37,8 @@ Configure GitHub and Google OAuth apps with the redirect URIs below. See the [Gi
 
 | Provider | Local redirect URI | Production redirect URI |
 |----------|-------------------|-------------------------|
-| GitHub | `http://localhost:8787/api/auth/callback/github` | `https://api.skillist.dev/api/auth/callback/github` |
-| Google | `http://localhost:8787/api/auth/callback/google` | `https://api.skillist.dev/api/auth/callback/google` |
+| GitHub | `http://localhost:8787/api/auth/callback/github` | `https://api.skillist.io/api/auth/callback/github` |
+| Google | `http://localhost:8787/api/auth/callback/google` | `https://api.skillist.io/api/auth/callback/google` |
 
 Copy `apps/api/.dev.vars.example` → `apps/api/.dev.vars` and set `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 
@@ -74,7 +74,7 @@ Neon project `lively-dew-31540211` is provisioned; migrations run against `DATAB
 
 ```bash
 pnpm smoke          # API + web HTTP checks against production
-pnpm test:e2e       # Playwright browser checks against skillist.dev
+pnpm test:e2e       # Playwright browser checks against skillist.io
 ```
 
 ## Agent CLI
@@ -124,7 +124,7 @@ packages/
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /{org}/{repo}/SKILL.md` | Hot KV read (&lt;10ms edge) on skillist.dev |
+| `GET /{org}/{repo}/SKILL.md` | Hot KV read (&lt;10ms edge) on skillist.io |
 | `GET /{org}/{repo}/meta` | Discovery metadata only |
 | `GET /{org}/{repo}/bundle` | Full published skill bundle |
 | `GET /{org}/{repo}/scripts` | List runnable scripts |
@@ -158,7 +158,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on 
 | R2 bucket | `skillist-skills` |
 | Queue | `skillist-ai-jobs` |
 
-Configure `skillist.dev` and `api.skillist.dev` routes in Cloudflare dashboard. Email Sending is enabled on `skillist.dev`.
+Configure `skillist.io` and `api.skillist.io` routes in Cloudflare dashboard. Email Sending is enabled on `skillist.io`.
 
 ### OAuth & secrets
 

@@ -22,7 +22,7 @@ For substantial rewrites, delegate to the `docs-writer` agent (it preloads this 
 
 ## 1. Audience placement (public vs internal)
 
-- **Public** (external users): `apps/docs/src/content/docs/**` → docs.skillist.dev; `packages/cli/README.md`, `packages/skill-format/README.md` (npm). Task-oriented; no roadmap/architecture/secrets/unreleased features.
+- **Public** (external users): `apps/docs/src/content/docs/**` → docs.skillist.io; `packages/cli/README.md`, `packages/skill-format/README.md` (npm). Task-oriented; no roadmap/architecture/secrets/unreleased features.
 - **Internal** (contributors/agents): root `README.md`, `PRODUCT.md`, `DESIGN.md`, all `CLAUDE.md`, `apps/docs/AGENTS.md`, `.claude/README.md`. Architecture, rationale, gotchas.
 
 Flag any leak: internal-only detail (DO internals, queue semantics, apex auth regex, admin ids) that has crept into public docs, or user-facing how-tos stranded in a README.
@@ -52,7 +52,7 @@ The CLI surface has **three parallel hand-maintained copies** — `usage()`, `pa
   grep -n "slug:" apps/docs/astro.config.mjs
   ```
 - Frontmatter: every page has `title` + `description`. Sidebar label ≈ page title (flag confusing divergences).
-- Internal links resolve; API-reference links point at `https://api.skillist.dev/docs` (don't duplicate the full spec).
+- Internal links resolve; API-reference links point at `https://api.skillist.io/docs` (don't duplicate the full spec).
 
 ## 4. Coverage gaps
 

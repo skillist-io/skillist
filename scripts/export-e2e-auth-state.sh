@@ -8,7 +8,7 @@ if [[ ! -f "$AUTH_FILE" ]]; then
   echo "Missing $AUTH_FILE"
   echo ""
   echo "Generate it by signing in to production, then run:"
-  echo "  pnpm exec playwright open --save-storage=$AUTH_FILE https://skillist.dev/login"
+  echo "  pnpm exec playwright open --save-storage=$AUTH_FILE https://skillist.io/login"
   echo ""
   echo "Complete GitHub/Google sign-in in the browser, then close it."
   exit 1

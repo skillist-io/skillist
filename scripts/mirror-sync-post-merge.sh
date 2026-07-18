@@ -3,8 +3,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-API_URL="${SKILLIST_API_URL:-https://api.skillist.dev}"
-WEB_URL="${SKILLIST_WEB_URL:-https://skillist.dev}"
+API_URL="${SKILLIST_API_URL:-https://api.skillist.io}"
+WEB_URL="${SKILLIST_WEB_URL:-https://skillist.io}"
 
 echo "==> Mirror sync post-merge ops"
 echo "API: $API_URL"

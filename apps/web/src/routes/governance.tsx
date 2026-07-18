@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PageTitle } from "@/components/ui/page-title";
 import { api, type Org } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 import { GovernancePanel } from "@/routes/settings";
@@ -24,7 +25,7 @@ function GovernancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Governance</h1>
+        <PageTitle>Governance</PageTitle>
         <p className="text-muted-foreground">
           Publish policies, execution quotas, required skills, and audit logs
         </p>

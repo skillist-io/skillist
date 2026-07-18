@@ -10,7 +10,7 @@ import { SectionHeading } from "@/components/docs/SectionHeading";
 The **skill inventory** tracks agentskills.io skills discovered in your GitHub repositories and links them to Skillist registry identities when a match exists.
 
 <DocAlert title="Requires sign-in" client:load>
-  Inventory is available at [skillist.dev/inventory](https://skillist.dev/inventory) for authenticated org members. API routes live under `/v1/orgs/{orgId}/inventory`.
+  Inventory is available at [skillist.io/inventory](https://skillist.io/inventory) for authenticated org members. API routes live under `/v1/orgs/{orgId}/inventory`.
 </DocAlert>
 
 ## Scan payload
@@ -68,7 +68,7 @@ When `registryOrgSlug` and `registryRepo` are omitted, Skillist resolves a deliv
 A resolved match is marked **managed** and linked to:
 
 ```
-https://skillist.dev/{registryOrgSlug}/{registryRepo}
+https://skillist.io/{registryOrgSlug}/{registryRepo}
 ```
 
 Items with no match remain **local** until published or explicitly mapped.
@@ -117,6 +117,6 @@ The web UI includes a **Load example** payload to test the flow manually.
 
 ## Related
 
-- [Delivery URLs](/platform/delivery/) — canonical `skillist.dev/{org}/{repo}` paths
+- [Delivery URLs](/platform/delivery/) — canonical `skillist.io/{org}/{repo}` paths
 - [Registry](/platform/registry/) — publish skills so inventory can resolve them
 - [Authentication](/platform/authentication/) — sessions and API keys for inventory routes

@@ -11,5 +11,5 @@ fi
 wrangler deploy --config wrangler.production.jsonc
 
 echo "==> Done. Configure custom domains:"
-echo "    api.skillist.dev -> skillist-api"
-echo "    Enable Email Sending: wrangler email sending enable skillist.dev"
+echo "    api.skillist.io -> skillist-api"
+echo "    Enable Email Sending: wrangler email sending enable skillist.io"

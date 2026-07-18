@@ -10,7 +10,7 @@ import { SectionHeading } from "@/components/docs/SectionHeading";
 The **Skillist Registry MCP** server lets agents search, browse, and install skills without leaving the chat. It runs on the same API worker as the REST registry.
 
 <DocAlert title="Endpoint" client:load>
-  `https://api.skillist.dev/mcp` — streamable HTTP with optional OAuth.
+  `https://api.skillist.io/mcp` — streamable HTTP with optional OAuth.
 </DocAlert>
 
 <SectionHeading title="Transport" client:load />
@@ -32,7 +32,7 @@ The **Skillist Registry MCP** server lets agents search, browse, and install ski
 ## Server info
 
 ```bash
-curl https://api.skillist.dev/mcp
+curl https://api.skillist.io/mcp
 ```
 
 Returns transport metadata, tool names, and OAuth discovery URLs.
@@ -60,4 +60,4 @@ Registry MCP is read-only. Publish, edit, and sandbox **run** require the [CLI](
 
 - [Connect your agent](/mcp/connect/) — Cursor, Claude, VS Code
 - [OAuth authentication](/mcp/oauth/) — sign in from OAuth-capable MCP clients
-- [Delivery URLs](/platform/delivery/) — apex `skillist.dev/{org}/{repo}` paths returned by install help
+- [Delivery URLs](/platform/delivery/) — apex `skillist.io/{org}/{repo}` paths returned by install help

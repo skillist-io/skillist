@@ -12,7 +12,7 @@
     "servers": [
       {
         "name": "skillist-registry",
-        "url": "https://api.skillist.dev/mcp"
+        "url": "https://api.skillist.io/mcp"
       }
     ]
   }

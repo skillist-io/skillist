@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   approveFeedbackSchema,
@@ -290,7 +289,7 @@ feedbackRoutes.openapi(suggestRoute, async (c) => {
     feedbackId: id,
     skillId: item.skillId,
     orgSlug: org?.slug ?? "",
-    skillRepo: skill?.slug ?? "",
+    skillRepo: skill?.repo ?? "",
   };
   await c.env.AI_QUEUE.send(message);
 
