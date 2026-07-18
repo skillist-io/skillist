@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
+@plugin "@tailwindcss/typography";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -25,6 +27,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-signal: var(--signal);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -64,9 +67,10 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  --signal: oklch(0.5 0.146 60);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -80,7 +84,7 @@
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 .dark {
@@ -99,6 +103,7 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --signal: oklch(0.65 0.146 60);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -117,6 +122,30 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+:root {
+  --tok-comment: oklch(0.5 0 0);
+  --tok-string: oklch(0.45 0.09 150);
+  --tok-keyword: oklch(0.4 0.12 260);
+  --tok-number: oklch(0.5 0.146 60);
+  --tok-property: oklch(0.35 0.06 230);
+  --tok-punctuation: oklch(0.556 0 0);
+  --tok-heading: oklch(0.145 0 0);
+  --tok-fence: oklch(0.5 0.146 60);
+  --tok-link: oklch(0.4 0.12 260);
+}
+
+.dark {
+  --tok-comment: oklch(0.62 0 0);
+  --tok-string: oklch(0.78 0.1 150);
+  --tok-keyword: oklch(0.75 0.1 260);
+  --tok-number: oklch(0.78 0.13 60);
+  --tok-property: oklch(0.78 0.08 230);
+  --tok-punctuation: oklch(0.708 0 0);
+  --tok-heading: oklch(0.985 0 0);
+  --tok-fence: oklch(0.78 0.13 60);
+  --tok-link: oklch(0.75 0.1 260);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -126,5 +155,60 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer components {
+  .prose {
+    --tw-prose-body: var(--foreground);
+    --tw-prose-headings: var(--foreground);
+    --tw-prose-lead: var(--muted-foreground);
+    --tw-prose-links: var(--foreground);
+    --tw-prose-bold: var(--foreground);
+    --tw-prose-counters: var(--muted-foreground);
+    --tw-prose-bullets: var(--muted-foreground);
+    --tw-prose-hr: var(--border);
+    --tw-prose-quotes: var(--foreground);
+    --tw-prose-quote-borders: var(--border);
+    --tw-prose-captions: var(--muted-foreground);
+    --tw-prose-code: var(--foreground);
+    --tw-prose-pre-code: var(--foreground);
+    --tw-prose-pre-bg: var(--muted);
+    --tw-prose-th-borders: var(--border);
+    --tw-prose-td-borders: var(--border);
+  }
+  .prose :where(pre, code, img, video):not(:where([class~="not-prose"] *)) {
+    border-radius: 0;
+  }
+
+  .tok-comment {
+    color: var(--tok-comment);
+    font-style: italic;
+  }
+  .tok-string {
+    color: var(--tok-string);
+  }
+  .tok-keyword {
+    color: var(--tok-keyword);
+  }
+  .tok-number {
+    color: var(--tok-number);
+  }
+  .tok-property {
+    color: var(--tok-property);
+  }
+  .tok-punctuation {
+    color: var(--tok-punctuation);
+  }
+  .tok-heading {
+    color: var(--tok-heading);
+    font-weight: 600;
+  }
+  .tok-fence {
+    color: var(--tok-fence);
+  }
+  .tok-link {
+    color: var(--tok-link);
+    text-decoration: underline;
   }
 }

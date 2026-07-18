@@ -1,17 +1,15 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { RouteErrorFallback } from "@/components/route-error";
 import { ThemeProvider } from "@/components/theme-provider";
+import { useSession } from "@/lib/auth-client";
+import { buildPersistOptions, createAppQueryClient, ensureCacheOwner } from "@/lib/query-cache";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1 },
-  },
-});
+const queryClient = createAppQueryClient();
 
 const router = createRouter({
   routeTree,
@@ -25,12 +23,23 @@ declare module "@tanstack/react-router" {
   }
 }
 
+/** Purges the persisted cache when a different user signs in on this browser. */
+function CacheOwnerGuard() {
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+  useEffect(() => {
+    if (userId) ensureCacheOwner(userId, queryClient);
+  }, [userId]);
+  return null;
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider client={queryClient} persistOptions={buildPersistOptions()}>
+        <CacheOwnerGuard />
         <RouterProvider router={router} />
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </ThemeProvider>
   </StrictMode>,
 );
