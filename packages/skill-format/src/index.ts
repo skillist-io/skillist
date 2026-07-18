@@ -1,4 +1,4 @@
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { z } from "zod";
 import type { PluginManifest } from "./plugin.js";
 
@@ -33,11 +33,13 @@ export type ValidationResult =
 const OPTIONAL_DIRS = ["scripts", "references", "assets"] as const;
 const ALLOWED_ROOT_FILES = ["plugin.json"] as const;
 
+const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+
 function parseFrontmatter(content: string): {
   frontmatter: unknown;
   body: string;
 } | null {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  const match = content.match(FRONTMATTER_REGEX);
   if (!match) return null;
   try {
     const frontmatter = parseYaml(match[1]!);
@@ -45,6 +47,60 @@ function parseFrontmatter(content: string): {
   } catch {
     return null;
   }
+}
+
+export function parseSkillMd(content: string): {
+  yamlText: string;
+  frontmatter: unknown;
+  body: string;
+} | null {
+  const match = content.match(FRONTMATTER_REGEX);
+  if (!match) return null;
+  try {
+    return {
+      yamlText: match[1]!,
+      frontmatter: parseYaml(match[1]!),
+      body: match[2] ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+const FRONTMATTER_KEY_ORDER = [
+  "name",
+  "description",
+  "license",
+  "compatibility",
+  "metadata",
+  "allowed-tools",
+] as const;
+
+function stringifyFrontmatter(frontmatter: SkillFrontmatter): string {
+  const ordered: Record<string, unknown> = {};
+  for (const key of FRONTMATTER_KEY_ORDER) {
+    const value = frontmatter[key as keyof SkillFrontmatter];
+    if (value !== undefined) ordered[key] = value;
+  }
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (!(key in ordered) && value !== undefined) ordered[key] = value;
+  }
+  return stringifyYaml(ordered).trimEnd();
+}
+
+export function serializeSkillMd(frontmatter: SkillFrontmatter, body: string): string {
+  return `---\n${stringifyFrontmatter(frontmatter)}\n---\n${body}`;
+}
+
+/**
+ * Replaces only the YAML between the frontmatter fences, leaving the body
+ * byte-identical. Comments and custom key order inside the YAML block are
+ * not preserved — the block is regenerated from the given frontmatter.
+ */
+export function updateSkillMdFrontmatter(content: string, frontmatter: SkillFrontmatter): string {
+  const match = content.match(FRONTMATTER_REGEX);
+  if (!match) return serializeSkillMd(frontmatter, content);
+  return `---\n${stringifyFrontmatter(frontmatter)}\n---\n${match[2] ?? ""}`;
 }
 
 export function validateSkillName(name: string, slug?: string): ValidationError[] {

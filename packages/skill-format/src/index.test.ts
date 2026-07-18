@@ -5,8 +5,11 @@ import {
   extractAgentDiscovery,
   extractRegistryDiscovery,
   parsePluginManifest,
+  parseSkillMd,
   reviewSkillBundle,
   scanSkillSecurity,
+  serializeSkillMd,
+  updateSkillMdFrontmatter,
   validateSkillBundle,
   validateSkillName,
 } from "./index";
@@ -54,6 +57,73 @@ describe("validateSkillBundle", () => {
     bundle.set("plugin.json", JSON.stringify({ name: "my-skill", skills: ["SKILL.md"] }));
     const result = validateSkillBundle(bundle, "my-skill");
     expect(result.valid).toBe(true);
+  });
+});
+
+describe("parseSkillMd", () => {
+  it("splits yaml text, parsed frontmatter, and body", () => {
+    const content = "---\nname: roll-dice\ndescription: Roll dice.\n---\n# Body\n";
+    const parsed = parseSkillMd(content);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.yamlText).toBe("name: roll-dice\ndescription: Roll dice.");
+    expect(parsed?.frontmatter).toEqual({ name: "roll-dice", description: "Roll dice." });
+    expect(parsed?.body).toBe("# Body\n");
+  });
+
+  it("handles CRLF fences", () => {
+    const content = "---\r\nname: roll-dice\r\ndescription: Roll dice.\r\n---\r\n# Body";
+    const parsed = parseSkillMd(content);
+    expect(parsed?.body).toBe("# Body");
+  });
+
+  it("returns null on missing fences or invalid yaml", () => {
+    expect(parseSkillMd("# no frontmatter")).toBeNull();
+    expect(parseSkillMd("---\n: [broken\n---\nbody")).toBeNull();
+  });
+});
+
+describe("serializeSkillMd", () => {
+  it("round-trips through parseSkillMd with stable key order", () => {
+    const fm = {
+      "allowed-tools": "Bash Read",
+      description: "Roll dice.",
+      metadata: { author: "skillist" },
+      name: "roll-dice",
+    };
+    const content = serializeSkillMd(fm, "# Body\n");
+    expect(content).toBe(
+      "---\nname: roll-dice\ndescription: Roll dice.\nmetadata:\n  author: skillist\nallowed-tools: Bash Read\n---\n# Body\n",
+    );
+    const parsed = parseSkillMd(content);
+    expect(parsed?.frontmatter).toEqual(fm);
+    expect(parsed?.body).toBe("# Body\n");
+  });
+
+  it("omits undefined optional fields", () => {
+    const content = serializeSkillMd({ name: "a", description: "b", license: undefined }, "");
+    expect(content).toBe("---\nname: a\ndescription: b\n---\n");
+  });
+});
+
+describe("updateSkillMdFrontmatter", () => {
+  it("keeps the body byte-identical", () => {
+    const body = "# Title\n\n```py\nx = 1\n```\n\ntrailing  spaces  \n";
+    const content = serializeSkillMd({ name: "a", description: "b" }, body);
+    const updated = updateSkillMdFrontmatter(content, { name: "a", description: "changed" });
+    expect(parseSkillMd(updated)?.body).toBe(body);
+    expect(parseSkillMd(updated)?.frontmatter).toEqual({ name: "a", description: "changed" });
+  });
+
+  it("drops yaml comments on regeneration", () => {
+    const content = "---\n# a comment\nname: a\ndescription: b\n---\nbody";
+    const updated = updateSkillMdFrontmatter(content, { name: "a", description: "b" });
+    expect(updated).not.toContain("# a comment");
+    expect(parseSkillMd(updated)?.body).toBe("body");
+  });
+
+  it("wraps content lacking frontmatter", () => {
+    const updated = updateSkillMdFrontmatter("just a body", { name: "a", description: "b" });
+    expect(parseSkillMd(updated)?.body).toBe("just a body");
   });
 });
 
