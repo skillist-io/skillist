@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { QueryError } from "@/components/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +91,7 @@ function OrgCard({ org }: { org: Org }) {
   const [inviteRole, setInviteRole] = useState("viewer");
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const {
     data: skills,
@@ -109,8 +110,12 @@ function OrgCard({ org }: { org: Org }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["skills", org.id] });
-      setRepo("");
       setCreateSkillError(null);
+      // Land directly in the bundle editor with the template already
+      // scaffolded, instead of leaving the author to find the new skill
+      // in the list and click into it themselves.
+      navigate({ to: "/orgs/$orgId/skills/$repo", params: { orgId: org.id, repo } });
+      setRepo("");
     },
     onError: (err) => {
       setCreateSkillError(err instanceof Error ? err.message : "Failed to create skill");
@@ -133,7 +138,7 @@ function OrgCard({ org }: { org: Org }) {
   });
 
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <CardTitle>{org.name}</CardTitle>
         <CardDescription>

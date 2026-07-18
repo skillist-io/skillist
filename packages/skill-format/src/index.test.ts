@@ -38,6 +38,15 @@ describe("validateSkillBundle", () => {
     }
   });
 
+  it("handles a description containing a colon (regression: the API's default 'Agent skill: <name>' text)", () => {
+    const bundle = createSkillTemplate("my-skill", "Agent skill: my skill");
+    const result = validateSkillBundle(bundle, "my-skill");
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.frontmatter.description).toBe("Agent skill: my skill");
+    }
+  });
+
   it("requires SKILL.md", () => {
     const result = validateSkillBundle(new Map());
     expect(result.valid).toBe(false);

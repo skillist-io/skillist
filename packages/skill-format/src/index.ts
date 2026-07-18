@@ -207,17 +207,13 @@ export function validateSkillBundle(files: SkillBundle, expectedSlug?: string): 
 
 export function createSkillTemplate(slug: string, description: string): SkillBundle {
   const bundle = new Map<string, string>();
+  // Goes through the proper YAML serializer rather than raw interpolation —
+  // an unquoted description containing ": " (e.g. an auto-generated
+  // "Agent skill: <name>" default) would otherwise produce invalid
+  // frontmatter that fails the bundle's own validation.
   bundle.set(
     "SKILL.md",
-    `---
-name: ${slug}
-description: ${description}
----
-
-# ${slug}
-
-Add skill instructions here.
-`,
+    serializeSkillMd({ name: slug, description }, `\n# ${slug}\n\nAdd skill instructions here.\n`),
   );
   return bundle;
 }
