@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { skillSourceSuggestions, skillSources } from "@skillist/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -12,6 +11,11 @@ type AppEnv = {
 };
 
 export const sourcesRoutes = new OpenAPIHono<AppEnv>();
+
+const jsonError = (description: string) => ({
+  content: { "application/json": { schema: z.object({ error: z.any() }) } },
+  description,
+});
 
 function requireAdmin(c: { env: Env; get: (k: "auth") => AuthContext }) {
   const auth = c.get("auth");
@@ -33,8 +37,10 @@ const listSourcesRoute = createRoute({
   responses: {
     200: {
       description: "Curated skill sources",
-      content: { "application/json": { schema: z.object({ items: z.array(z.any()) }) } },
+      content: { "application/json": { schema: z.object({ items: z.array(z.unknown()) }) } },
     },
+    401: jsonError("Unauthorized"),
+    403: jsonError("Admin only"),
   },
 });
 
@@ -42,7 +48,7 @@ sourcesRoutes.openapi(listSourcesRoute, async (c) => {
   const admin = requireAdmin(c);
   if (!admin.ok) return c.json({ error: admin.error }, admin.status);
   const items = await c.var.db.select().from(skillSources).orderBy(desc(skillSources.updatedAt));
-  return c.json({ items });
+  return c.json({ items }, 200);
 });
 
 const listSuggestionsRoute = createRoute({
@@ -57,8 +63,10 @@ const listSuggestionsRoute = createRoute({
   responses: {
     200: {
       description: "Suggested GitHub skill repos",
-      content: { "application/json": { schema: z.object({ items: z.array(z.any()) }) } },
+      content: { "application/json": { schema: z.object({ items: z.array(z.unknown()) }) } },
     },
+    401: jsonError("Unauthorized"),
+    403: jsonError("Admin only"),
   },
 });
 
@@ -72,7 +80,7 @@ sourcesRoutes.openapi(listSuggestionsRoute, async (c) => {
     .from(skillSourceSuggestions)
     .where(where)
     .orderBy(desc(skillSourceSuggestions.matchScore));
-  return c.json({ items });
+  return c.json({ items }, 200);
 });
 
 const approveSuggestionRoute = createRoute({
@@ -103,6 +111,9 @@ const approveSuggestionRoute = createRoute({
         },
       },
     },
+    401: jsonError("Unauthorized"),
+    403: jsonError("Admin only"),
+    404: jsonError("Not found"),
   },
 });
 
@@ -152,7 +163,7 @@ sourcesRoutes.openapi(approveSuggestionRoute, async (c) => {
     .where(eq(skillSourceSuggestions.id, id));
 
   await c.env.SYNC_QUEUE.send({ type: "sync_source", sourceId: source!.id });
-  return c.json({ sourceId: source!.id, status: "approved" });
+  return c.json({ sourceId: source!.id, status: "approved" }, 200);
 });
 
 const rejectSuggestionRoute = createRoute({
@@ -165,6 +176,8 @@ const rejectSuggestionRoute = createRoute({
       description: "Suggestion rejected",
       content: { "application/json": { schema: z.object({ status: z.string() }) } },
     },
+    401: jsonError("Unauthorized"),
+    403: jsonError("Admin only"),
   },
 });
 
@@ -181,7 +194,7 @@ sourcesRoutes.openapi(rejectSuggestionRoute, async (c) => {
       updatedAt: new Date(),
     })
     .where(eq(skillSourceSuggestions.id, id));
-  return c.json({ status: "rejected" });
+  return c.json({ status: "rejected" }, 200);
 });
 
 const syncSourceRoute = createRoute({
@@ -198,6 +211,9 @@ const syncSourceRoute = createRoute({
         },
       },
     },
+    401: jsonError("Unauthorized"),
+    403: jsonError("Admin only"),
+    404: jsonError("Not found"),
   },
 });
 
@@ -224,6 +240,8 @@ const syncAllRoute = createRoute({
       description: "Full sync enqueued",
       content: { "application/json": { schema: z.object({ status: z.string() }) } },
     },
+    401: jsonError("Unauthorized"),
+    403: jsonError("Admin only"),
   },
 });
 

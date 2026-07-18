@@ -14,6 +14,7 @@ import { StarStat } from "@/components/star-stat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageTitle } from "@/components/ui/page-title";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
@@ -116,9 +117,7 @@ function SkillRepoPage() {
         <header className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
             <div className="min-w-0 space-y-1.5">
-              <h1 className="text-3xl font-bold tracking-tight text-balance">
-                {entry?.name ?? repo}
-              </h1>
+              <PageTitle>{entry?.name ?? repo}</PageTitle>
               <p className="font-mono text-sm text-muted-foreground">
                 {org}/{repo}
                 {version !== "—" ? ` · v${version}` : ""}
@@ -241,7 +240,7 @@ function SkillRepoPage() {
                 org={org}
                 repo={repo}
                 scripts={scripts}
-                defaultTargetUrl="https://skillist.dev"
+                defaultTargetUrl="https://skillist.io"
               />
             )}
 

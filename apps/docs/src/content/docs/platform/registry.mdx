@@ -1,6 +1,6 @@
 ---
 title: Registry
-description: Browse, search, and install public agent skills from skillist.dev.
+description: Browse, search, and install public agent skills from skillist.io.
 ---
 
 import { DocAlert } from "@/components/docs/DocAlert";
@@ -10,15 +10,15 @@ The Skillist registry lists public skills published by organizations. Each entry
 
 ## Web UI
 
-Browse at [skillist.dev/registry](https://skillist.dev/registry).
+Browse at [skillist.io/registry](https://skillist.io/registry).
 
 Skill **detail pages** use GitHub-style URLs:
 
 ```
-https://skillist.dev/{org}/{repo}
+https://skillist.io/{org}/{repo}
 ```
 
-Example: [skillist.dev/skillist/web-perf-audit](https://skillist.dev/skillist/web-perf-audit)
+Example: [skillist.io/skillist/web-perf-audit](https://skillist.io/skillist/web-perf-audit)
 
 Detail pages show eval history, MCP server config (when declared in `plugin.json`), install snippets, and a **Run** card for skills with hosted scripts.
 
@@ -27,12 +27,12 @@ See [Delivery URLs](/platform/delivery/) for SKILL.md, meta, and bundle paths.
 ## REST API
 
 ```
-GET https://api.skillist.dev/v1/registry
-GET https://api.skillist.dev/v1/registry/{org}/{repo}
-GET https://api.skillist.dev/v1/registry/facets
+GET https://api.skillist.io/v1/registry
+GET https://api.skillist.io/v1/registry/{org}/{repo}
+GET https://api.skillist.io/v1/registry/facets
 ```
 
-Additional routes support stars, analytics, and subscriptions per skill. OpenAPI reference: [api.skillist.dev/docs](https://api.skillist.dev/docs)
+Additional routes support stars, analytics, and subscriptions per skill. OpenAPI reference: [api.skillist.io/docs](https://api.skillist.io/docs)
 
 <DocAlert title="org/repo naming" client:load>
   Public skills are identified by **org** (organization slug) and **repo** (skill repo name). CLI and MCP use the same `org/repo` form.
@@ -40,7 +40,7 @@ Additional routes support stars, analytics, and subscriptions per skill. OpenAPI
 
 ## MCP API
 
-For in-agent discovery, use [Registry MCP](/mcp/) at `https://api.skillist.dev/mcp`. Tools accept `org` and `repo` parameters and return apex delivery URLs in install help responses.
+For in-agent discovery, use [Registry MCP](/mcp/) at `https://api.skillist.io/mcp`. Tools accept `org` and `repo` parameters and return apex delivery URLs in install help responses.
 
 ## Publishing
 
@@ -49,8 +49,8 @@ For in-agent discovery, use [Registry MCP](/mcp/) at `https://api.skillist.dev/m
 3. Publish via dashboard or `skillist publish <org>/<repo> <dir>`
 4. Set visibility to `public` for registry listing
 
-After publish, delivery is available at `skillist.dev/{org}/{repo}/SKILL.md` with sub-10ms KV reads at the edge.
+After publish, delivery is available at `skillist.io/{org}/{repo}/SKILL.md` with sub-10ms KV reads at the edge.
 
 ## Featured skills
 
-See [skillist.dev](https://skillist.dev) for curated picks and the [`skillist/registry-mcp`](https://skillist.dev/skillist/registry-mcp) demo skill.
+See [skillist.io](https://skillist.io) for curated picks and the [`skillist/registry-mcp`](https://skillist.io/skillist/registry-mcp) demo skill.

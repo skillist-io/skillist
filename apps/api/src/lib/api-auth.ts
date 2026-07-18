@@ -32,7 +32,7 @@ export function createApiEmailSender(env: Env): EmailSender {
     try {
       await env.EMAIL.send({
         to,
-        from: "welcome@skillist.dev",
+        from: "welcome@skillist.io",
         subject,
         html,
         text,

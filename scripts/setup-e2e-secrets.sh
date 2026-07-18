@@ -4,7 +4,7 @@ set -euo pipefail
 # Push Playwright auth state and optional API key to GitHub Actions secrets.
 #
 # 1. Generate auth state (one-time, interactive):
-#      pnpm exec playwright open --save-storage=tests/e2e/.auth/user.json https://skillist.dev/login
+#      pnpm exec playwright open --save-storage=tests/e2e/.auth/user.json https://skillist.io/login
 # 2. Export secrets:
 #      ./scripts/setup-e2e-secrets.sh
 #    Or with API key:
@@ -22,7 +22,7 @@ if [[ ! -f "$AUTH_FILE" ]]; then
   echo "Missing $AUTH_FILE"
   echo ""
   echo "Sign in to production, then re-run:"
-  echo "  pnpm exec playwright open --save-storage=$AUTH_FILE https://skillist.dev/login"
+  echo "  pnpm exec playwright open --save-storage=$AUTH_FILE https://skillist.io/login"
   exit 1
 fi
 
@@ -30,7 +30,7 @@ echo "Validating auth state against production..."
 if ! "$ROOT/scripts/validate-e2e-auth.sh"; then
   echo ""
   echo "Auth state is missing or expired. Sign in again:"
-  echo "  pnpm exec playwright open --save-storage=$AUTH_FILE https://skillist.dev/login"
+  echo "  pnpm exec playwright open --save-storage=$AUTH_FILE https://skillist.io/login"
   exit 1
 fi
 

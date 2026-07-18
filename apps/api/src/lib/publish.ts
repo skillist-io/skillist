@@ -13,6 +13,22 @@ export async function cachePublishedSkill(
   ]);
 }
 
+/**
+ * Removes a skill from the public edge cache. Called when a skill is published
+ * or rolled back while non-public, and when its visibility is changed away from
+ * public, so the public delivery path stops serving it immediately.
+ */
+export async function purgePublishedSkill(
+  kv: KVNamespace,
+  orgSlug: string,
+  skillRepo: string,
+): Promise<void> {
+  await Promise.all([
+    kv.delete(skillMetaKey(orgSlug, skillRepo)),
+    kv.delete(skillMdKey(orgSlug, skillRepo)),
+  ]);
+}
+
 export async function getPublishedSkillMd(
   kv: KVNamespace,
   orgSlug: string,

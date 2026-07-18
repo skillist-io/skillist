@@ -56,7 +56,7 @@ app.get("/.well-known/oauth-protected-resource", async (c) => {
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:5173", "https://skillist.dev", "https://api.skillist.dev"],
+    origin: ["http://localhost:5173", "https://skillist.io", "https://api.skillist.io"],
     credentials: true,
   }),
 );
@@ -124,7 +124,7 @@ app.doc("/openapi.json", {
   },
   servers: [
     { url: "http://localhost:8787/v1", description: "Local" },
-    { url: "https://api.skillist.dev/v1", description: "Production" },
+    { url: "https://api.skillist.io/v1", description: "Production" },
   ],
 });
 

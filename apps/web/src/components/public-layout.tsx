@@ -32,7 +32,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         <Link to="/registry">Registry</Link>
       </Button>
       <Button variant="ghost" asChild onClick={onNavigate}>
-        <a href="https://docs.skillist.dev" target="_blank" rel="noreferrer">
+        <a href="https://docs.skillist.io" target="_blank" rel="noreferrer">
           Docs
         </a>
       </Button>

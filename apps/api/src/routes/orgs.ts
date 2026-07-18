@@ -1,8 +1,7 @@
-// @ts-nocheck
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { createApiKeySchema, createOrgSchema, inviteMemberSchema } from "@skillist/contracts";
 import { apiKeys, organizations, orgMembers } from "@skillist/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
@@ -39,6 +38,10 @@ const listOrgsRoute = createRoute({
         },
       },
       description: "List organizations for current user",
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
     },
   },
 });
@@ -95,6 +98,14 @@ const createOrgRoute = createRoute({
         },
       },
       description: "Organization created",
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
+    },
+    500: {
+      description: "Failed to create organization",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
     },
   },
 });
@@ -169,6 +180,14 @@ const createApiKeyRoute = createRoute({
       },
       description: "API key created",
     },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
+    },
+    403: {
+      description: "Forbidden",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
+    },
   },
 });
 
@@ -220,6 +239,14 @@ const listApiKeysRoute = createRoute({
       },
       description: "List API keys",
     },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
+    },
+    403: {
+      description: "Forbidden",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
+    },
   },
 });
 
@@ -239,7 +266,7 @@ orgRoutes.openapi(listApiKeysRoute, async (c) => {
       createdAt: apiKeys.createdAt,
     })
     .from(apiKeys)
-    .where(eq(apiKeys.orgId, orgId));
+    .where(and(eq(apiKeys.orgId, orgId), isNull(apiKeys.revokedAt)));
 
   return c.json(
     rows.map((row) => ({
@@ -270,7 +297,12 @@ orgRoutes.openapi(revokeApiKeyRoute, async (c) => {
   const access = await requireOrgRole(c.var.db, orgId, userId, "owner");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
-  await c.var.db.delete(apiKeys).where(and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, orgId)));
+  // Soft-revoke: mark the key revoked (auth rejects it immediately) but keep the
+  // row so its audit trail and last-used history survive.
+  await c.var.db
+    .update(apiKeys)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, orgId), isNull(apiKeys.revokedAt)));
 
   return c.json({ ok: true }, 200);
 });

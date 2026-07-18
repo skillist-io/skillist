@@ -1,6 +1,6 @@
 /**
  * Base URL for credentialed browser fetches.
- * Production uses same-origin paths (skillist.dev/api, /v1) so session cookies
+ * Production uses same-origin paths (skillist.io/api, /v1) so session cookies
  * set during OAuth are first-party. Local dev proxies those paths via Vite.
  */
 export function clientFetchBase(): string {

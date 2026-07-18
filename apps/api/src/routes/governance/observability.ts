@@ -1,0 +1,292 @@
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { telemetryEventSchema } from "@skillist/contracts";
+import {
+  auditEvents,
+  organizations,
+  registryEntries,
+  skillRuns,
+  telemetryEvents,
+} from "@skillist/db/schema";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { requireOrgAccess } from "../../lib/org-access";
+import { resolveUserId } from "../../lib/session";
+import { addDayBucket, buildDayBuckets, toDaySeries } from "../../lib/time-series";
+import type { AppEnv } from "./shared";
+
+export const observabilityRoutes = new OpenAPIHono<AppEnv>();
+
+const auditRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/audit",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    query: z.object({ limit: z.coerce.number().int().min(1).max(100).default(50) }),
+  },
+  responses: { 200: { description: "Audit log" } },
+});
+
+observabilityRoutes.openapi(auditRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const { limit } = c.req.valid("query");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const items = await c.var.db
+    .select()
+    .from(auditEvents)
+    .where(eq(auditEvents.orgId, orgId))
+    .orderBy(desc(auditEvents.createdAt))
+    .limit(limit);
+
+  return c.json({ items }, 200);
+});
+
+const telemetryIngestRoute = createRoute({
+  method: "post",
+  path: "/telemetry",
+  tags: ["Telemetry"],
+  request: {
+    body: { content: { "application/json": { schema: telemetryEventSchema } } },
+  },
+  responses: { 201: { description: "Recorded" } },
+});
+
+observabilityRoutes.openapi(telemetryIngestRoute, async (c) => {
+  const body = c.req.valid("json");
+  const userId = await resolveUserId(c);
+  const apiKeyId = c.var.auth.apiKeyId ?? null;
+
+  await c.var.db.insert(telemetryEvents).values({
+    orgSlug: body.orgSlug,
+    skillRepo: body.skillRepo,
+    eventType: body.eventType,
+    projectHash: body.projectHash ?? null,
+    userId,
+    apiKeyId,
+  });
+
+  const column = body.eventType === "install" ? "installCount" : "activationCount";
+  await c.var.db
+    .update(registryEntries)
+    .set({
+      [column]: sql`${registryEntries[column]} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(registryEntries.orgSlug, body.orgSlug), eq(registryEntries.skillRepo, body.skillRepo)),
+    );
+
+  return c.json({ ok: true }, 201);
+});
+
+const orgTelemetryRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/telemetry",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    query: z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }),
+  },
+  responses: { 200: { description: "Telemetry summary" } },
+});
+
+observabilityRoutes.openapi(orgTelemetryRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const { days } = c.req.valid("query");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  if (!org) return c.json({ error: "Not found" }, 404);
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  const events = await c.var.db
+    .select()
+    .from(telemetryEvents)
+    .where(and(eq(telemetryEvents.orgSlug, org.slug), gte(telemetryEvents.createdAt, since)));
+
+  const registry = await c.var.db
+    .select({
+      skillRepo: registryEntries.skillRepo,
+      installCount: registryEntries.installCount,
+      activationCount: registryEntries.activationCount,
+    })
+    .from(registryEntries)
+    .where(eq(registryEntries.orgSlug, org.slug));
+
+  return c.json(
+    {
+      events: events.length,
+      installs: events.filter((e) => e.eventType === "install").length,
+      activations: events.filter((e) => e.eventType === "activation").length,
+      bySkill: registry,
+    },
+    200,
+  );
+});
+
+const observabilityRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/observability",
+  tags: ["Governance"],
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    query: z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }),
+  },
+  responses: { 200: { description: "Org observability" } },
+});
+
+observabilityRoutes.openapi(observabilityRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const { days } = c.req.valid("query");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  if (!org) return c.json({ error: "Not found" }, 404);
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+
+  // Per-day telemetry counts by event type (UTC day, matching the JS bucketing).
+  const eventRows = await c.var.db
+    .select({
+      day: sql<string>`(${telemetryEvents.createdAt} AT TIME ZONE 'UTC')::date::text`,
+      eventType: telemetryEvents.eventType,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(telemetryEvents)
+    .where(and(eq(telemetryEvents.orgSlug, org.slug), gte(telemetryEvents.createdAt, since)))
+    .groupBy(
+      sql`(${telemetryEvents.createdAt} AT TIME ZONE 'UTC')::date`,
+      telemetryEvents.eventType,
+    );
+
+  const registry = await c.var.db
+    .select({
+      skillRepo: registryEntries.skillRepo,
+      installCount: registryEntries.installCount,
+      activationCount: registryEntries.activationCount,
+    })
+    .from(registryEntries)
+    .where(eq(registryEntries.orgSlug, org.slug));
+
+  const runsWhere = and(eq(skillRuns.orgSlug, org.slug), gte(skillRuns.createdAt, since));
+
+  // Per-day run + success counts (success = exitCode 0, matching the JS check).
+  const runDayRows = await c.var.db
+    .select({
+      day: sql<string>`(${skillRuns.createdAt} AT TIME ZONE 'UTC')::date::text`,
+      total: sql<number>`count(*)::int`,
+      successes: sql<number>`(count(*) filter (where ${skillRuns.exitCode} = 0))::int`,
+    })
+    .from(skillRuns)
+    .where(runsWhere)
+    .groupBy(sql`(${skillRuns.createdAt} AT TIME ZONE 'UTC')::date`);
+
+  // Scalar run aggregates. `finished` = completed|failed; `succeeded` = finished
+  // with exitCode 0. Duration sum/count are returned raw so the JS-side
+  // Math.round(sum / count) stays byte-identical to the previous in-memory math.
+  const [runStats] = await c.var.db
+    .select({
+      total: sql<number>`count(*)::int`,
+      finished: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed')))::int`,
+      succeeded: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.exitCode} = 0))::int`,
+      durationSum: sql<number>`coalesce((sum(${skillRuns.durationMs}) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.durationMs} > 0)), 0)::float8`,
+      durationCount: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.durationMs} > 0))::int`,
+    })
+    .from(skillRuns)
+    .where(runsWhere);
+
+  // Runtime breakdown. Ordering by each runtime's most-recent run (desc)
+  // reproduces the first-seen insertion order of the previous JS reduce over
+  // runs sorted by createdAt desc, so the object's key order is preserved.
+  const runtimeRows = await c.var.db
+    .select({ runtime: skillRuns.runtime, count: sql<number>`count(*)::int` })
+    .from(skillRuns)
+    .where(runsWhere)
+    .groupBy(skillRuns.runtime)
+    .orderBy(desc(sql`max(${skillRuns.createdAt})`));
+
+  const recentRuns = await c.var.db
+    .select()
+    .from(skillRuns)
+    .where(runsWhere)
+    .orderBy(desc(skillRuns.createdAt))
+    .limit(20);
+
+  const runBuckets = buildDayBuckets(days);
+  const successBuckets = buildDayBuckets(days);
+  const installBuckets = buildDayBuckets(days);
+  const activationBuckets = buildDayBuckets(days);
+
+  for (const row of runDayRows) {
+    addDayBucket(runBuckets, row.day, row.total);
+    addDayBucket(successBuckets, row.day, row.successes);
+  }
+
+  let events = 0;
+  let installs = 0;
+  let activations = 0;
+  for (const row of eventRows) {
+    events += row.count;
+    if (row.eventType === "install") {
+      installs += row.count;
+      addDayBucket(installBuckets, row.day, row.count);
+    } else if (row.eventType === "activation") {
+      activations += row.count;
+      addDayBucket(activationBuckets, row.day, row.count);
+    }
+  }
+
+  const finished = runStats?.finished ?? 0;
+  const succeeded = runStats?.succeeded ?? 0;
+  const durationCount = runStats?.durationCount ?? 0;
+  const avgDurationMs = durationCount
+    ? Math.round((runStats?.durationSum ?? 0) / durationCount)
+    : 0;
+
+  const byRuntime: Record<string, number> = {};
+  for (const row of runtimeRows) {
+    byRuntime[row.runtime] = row.count;
+  }
+
+  return c.json(
+    {
+      telemetry: {
+        events,
+        installs,
+        activations,
+        bySkill: registry,
+      },
+      runs: {
+        total: runStats?.total ?? 0,
+        finished,
+        succeeded,
+        failed: finished - succeeded,
+        successRate: finished > 0 ? Math.round((succeeded / finished) * 100) : null,
+        avgDurationMs,
+        byRuntime,
+        recent: recentRuns,
+      },
+      series: {
+        runs: toDaySeries(runBuckets),
+        successes: toDaySeries(successBuckets),
+        installs: toDaySeries(installBuckets),
+        activations: toDaySeries(activationBuckets),
+      },
+    },
+    200,
+  );
+});

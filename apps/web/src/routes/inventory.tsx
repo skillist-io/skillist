@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PageTitle } from "@/components/ui/page-title";
 import { Textarea } from "@/components/ui/textarea";
 import { api, type Org, type SkillInventoryItem } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
@@ -80,7 +81,7 @@ function InventoryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Skill inventory</h1>
+        <PageTitle>Skill inventory</PageTitle>
         <p className="text-muted-foreground">
           Skills discovered across repos — managed registry links vs local-only
         </p>
@@ -234,7 +235,7 @@ function InventoryPage() {
                   )}
                   {item.managed && item.registryOrgSlug && item.registryRepo && (
                     <p className="text-xs text-muted-foreground">
-                      → skillist.dev/{item.registryOrgSlug}/{item.registryRepo}
+                      → skillist.io/{item.registryOrgSlug}/{item.registryRepo}
                     </p>
                   )}
                 </div>

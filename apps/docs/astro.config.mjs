@@ -9,7 +9,7 @@ import { defineConfig } from "astro/config";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  site: "https://docs.skillist.dev",
+  site: "https://docs.skillist.io",
   output: "static",
   integrations: [
     react(),
@@ -32,8 +32,8 @@ export default defineConfig({
       social: [
         {
           icon: "external",
-          label: "skillist.dev",
-          href: "https://skillist.dev",
+          label: "skillist.io",
+          href: "https://skillist.io",
         },
         {
           icon: "github",

@@ -11,7 +11,7 @@ export function McpConnectCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <InstallSnippet command='{ "mcpServers": { "skillist-registry": { "url": "https://api.skillist.dev/mcp" } } }' />
+        <InstallSnippet command='{ "mcpServers": { "skillist-registry": { "url": "https://api.skillist.io/mcp" } } }' />
       </CardContent>
     </Card>
   );

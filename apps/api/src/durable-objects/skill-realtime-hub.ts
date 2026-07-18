@@ -1,21 +1,28 @@
 import { DurableObject } from "cloudflare:workers";
 import type { SkillPublishedEvent } from "@skillist/contracts";
 
-type ConnectionMeta = {
-  type: "websocket" | "sse";
-  connectedAt: number;
+type SseConnection = {
+  writer: WritableStreamDefaultWriter<Uint8Array>;
+  interval: ReturnType<typeof setInterval>;
 };
 
 export class SkillRealtimeHub extends DurableObject {
+  // SSE writers live only in memory. A live stream writer and its keepalive
+  // timer cannot be serialized into DO storage (the previous implementation
+  // did exactly that, so SSE clients never received events and writers leaked).
+  // An open SSE response keeps this DO awake, so an in-memory map is the correct
+  // home for these connections. WebSocket clients are tracked separately by the
+  // hibernation API via getWebSockets().
+  private sseConnections = new Map<string, SseConnection>();
+  private encoder = new TextEncoder();
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/broadcast" && request.method === "POST") {
       const event = (await request.json()) as SkillPublishedEvent;
       await this.broadcast(event);
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return Response.json({ ok: true });
     }
 
     if (url.pathname === "/ws") {
@@ -28,24 +35,21 @@ export class SkillRealtimeHub extends DurableObject {
     }
 
     if (url.pathname === "/sse") {
-      const { readable, writable } = new TransformStream();
+      const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
       const writer = writable.getWriter();
-      const encoder = new TextEncoder();
+      const id = crypto.randomUUID();
 
       await writer.write(
-        encoder.encode(`event: connected\ndata: ${JSON.stringify({ ok: true })}\n\n`),
+        this.encoder.encode(`event: connected\ndata: ${JSON.stringify({ ok: true })}\n\n`),
       );
 
-      const id = crypto.randomUUID();
-      const interval = setInterval(async () => {
-        try {
-          await writer.write(encoder.encode(`: ping\n\n`));
-        } catch {
-          clearInterval(interval);
-        }
+      const interval = setInterval(() => {
+        // A failed keepalive write means the client hung up — reap the
+        // connection so we neither leak the timer nor try to broadcast to it.
+        writer.write(this.encoder.encode(": ping\n\n")).catch(() => this.removeSse(id));
       }, 15000);
 
-      this.ctx.storage.put(`sse:${id}`, { writer, interval });
+      this.sseConnections.set(id, { writer, interval });
 
       return new Response(readable, {
         headers: {
@@ -57,6 +61,14 @@ export class SkillRealtimeHub extends DurableObject {
     }
 
     return new Response("Not found", { status: 404 });
+  }
+
+  private removeSse(id: string): void {
+    const conn = this.sseConnections.get(id);
+    if (!conn) return;
+    this.sseConnections.delete(id);
+    clearInterval(conn.interval);
+    conn.writer.close().catch(() => {});
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
@@ -71,8 +83,8 @@ export class SkillRealtimeHub extends DurableObject {
 
   private async broadcast(event: SkillPublishedEvent): Promise<void> {
     const payload = JSON.stringify(event);
-    const sockets = this.ctx.getWebSockets();
-    for (const ws of sockets) {
+
+    for (const ws of this.ctx.getWebSockets()) {
       try {
         ws.send(payload);
       } catch {
@@ -80,18 +92,11 @@ export class SkillRealtimeHub extends DurableObject {
       }
     }
 
-    // SSE clients receive via storage writers if any
-    const keys = await this.ctx.storage.list<{
-      writer: WritableStreamDefaultWriter;
-      interval: ReturnType<typeof setInterval>;
-    }>({ prefix: "sse:" });
-    const encoder = new TextEncoder();
-    for (const [, entry] of keys) {
-      try {
-        await entry.writer.write(encoder.encode(`event: skill.published\ndata: ${payload}\n\n`));
-      } catch {
-        clearInterval(entry.interval);
-      }
-    }
+    const frame = this.encoder.encode(`event: skill.published\ndata: ${payload}\n\n`);
+    await Promise.all(
+      [...this.sseConnections.entries()].map(([id, conn]) =>
+        conn.writer.write(frame).catch(() => this.removeSse(id)),
+      ),
+    );
   }
 }

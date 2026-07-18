@@ -4,6 +4,7 @@ import { GitBranch, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageTitle } from "@/components/ui/page-title";
 import { api, type SkillSource, type SkillSourceSuggestion } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -68,7 +69,7 @@ function AdminMirrorsPage() {
   if (sources.isError) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight">Official mirrors</h1>
+        <PageTitle>Official mirrors</PageTitle>
         <p className="text-sm text-muted-foreground">
           Admin access required. Set <code className="bg-muted px-1">SKILLIST_ADMIN_USER_IDS</code>{" "}
           on the API Worker to your Better Auth user id.
@@ -84,7 +85,7 @@ function AdminMirrorsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Official mirrors</h1>
+          <PageTitle>Official mirrors</PageTitle>
           <p className="text-muted-foreground">
             Curated GitHub skill sources, sync status, and discovery suggestions
           </p>

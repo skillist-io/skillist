@@ -108,6 +108,23 @@ describe("validateSkillBundle", () => {
       expect(result.errors.some((e) => e.message.includes("exceeds the 5MB limit"))).toBe(true);
     }
   });
+
+  it("rejects a path-traversal file path instead of silently skipping it", () => {
+    const bundle = createSkillTemplate("my-skill", "A skill that tries to escape /workspace.");
+    bundle.set("../../etc/cron.d/evil", "* * * * * root sh");
+    const result = validateSkillBundle(bundle, "my-skill");
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some((e) => e.path === "../../etc/cron.d/evil")).toBe(true);
+    }
+  });
+
+  it("rejects an absolute file path", () => {
+    const bundle = createSkillTemplate("my-skill", "A skill with an absolute path.");
+    bundle.set("/etc/passwd", "root:x:0:0");
+    const result = validateSkillBundle(bundle, "my-skill");
+    expect(result.valid).toBe(false);
+  });
 });
 
 describe("parseSkillMd", () => {

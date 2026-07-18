@@ -9,8 +9,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 const CLI = path.join(ROOT, "packages/cli/dist/index.js");
 
-const API_URL = process.env.SMOKE_API_URL ?? "https://api.skillist.dev";
-const DELIVERY_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.dev";
+const API_URL = process.env.SMOKE_API_URL ?? "https://api.skillist.io";
+const DELIVERY_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.io";
 
 function runCli(args: string[], cwd: string, env: Record<string, string> = {}) {
   return execFileSync(process.execPath, [CLI, ...args], {

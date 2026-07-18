@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PageTitle } from "@/components/ui/page-title";
 import { api, type Org, type Skill } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -46,7 +47,7 @@ function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <PageTitle>Dashboard</PageTitle>
         <p className="text-muted-foreground">Manage organizations and skills</p>
       </div>
 

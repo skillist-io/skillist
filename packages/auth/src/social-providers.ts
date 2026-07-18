@@ -25,7 +25,7 @@ export function buildSocialProviders(env: AuthEnv) {
       clientId: env.GITHUB_CLIENT_ID,
       clientSecret: env.GITHUB_CLIENT_SECRET,
       // Pin to BETTER_AUTH_URL — the OAuth app registers exactly one callback
-      // host, so the request-host-derived default breaks sign-in from skillist.dev.
+      // host, so the request-host-derived default breaks sign-in from skillist.io.
       redirectURI: authCallbackUrl(env.BETTER_AUTH_URL, "github"),
       scope: ["read:user", "user:email"],
       mapProfileToUser: (profile: GitHubProfile) => {

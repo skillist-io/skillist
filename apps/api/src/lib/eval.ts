@@ -2,6 +2,7 @@ import { skillEvals, skills, skillVersions } from "@skillist/db/schema";
 import { eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { WorkerDb } from "./db";
+import { runModel } from "./model";
 import { downloadBundleFromR2, listBundlePaths } from "./r2";
 
 export type EvalScenario = {
@@ -38,25 +39,7 @@ const DEFAULT_SCENARIOS: EvalScenario[] = [
 
 async function scorePrompt(env: Env, prompt: string): Promise<number> {
   try {
-    if (env.AI_GATEWAY_ACCOUNT_ID && env.AI_GATEWAY_TOKEN) {
-      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${env.AI_GATEWAY_ACCOUNT_ID}/skillist/workers-ai/@cf/meta/llama-3.1-8b-instruct`;
-      const res = await fetch(gatewayUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${env.AI_GATEWAY_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      const data = (await res.json()) as { result?: { response?: string } };
-      return parseScore(data.result?.response ?? "50");
-    }
-    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
-      messages: [{ role: "user", content: prompt }],
-    });
-    return parseScore((result as { response?: string }).response ?? "50");
+    return parseScore((await runModel(env, prompt)) || "50");
   } catch {
     return 50;
   }
@@ -73,25 +56,7 @@ SKILL.md:
 ${skillMd.slice(0, 6000)}`;
 
   try {
-    let text = "";
-    if (env.AI_GATEWAY_ACCOUNT_ID && env.AI_GATEWAY_TOKEN) {
-      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/${env.AI_GATEWAY_ACCOUNT_ID}/skillist/workers-ai/@cf/meta/llama-3.1-8b-instruct`;
-      const res = await fetch(gatewayUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${env.AI_GATEWAY_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
-      });
-      const data = (await res.json()) as { result?: { response?: string } };
-      text = data.result?.response ?? "";
-    } else {
-      const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
-        messages: [{ role: "user", content: prompt }],
-      });
-      text = (result as { response?: string }).response ?? "";
-    }
+    const text = await runModel(env, prompt);
     const match = text.match(/\[[\s\S]*\]/);
     if (!match) return DEFAULT_SCENARIOS.slice(0, count);
     const parsed = JSON.parse(match[0]) as EvalScenario[];

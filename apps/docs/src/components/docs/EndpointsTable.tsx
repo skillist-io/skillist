@@ -8,13 +8,13 @@ import {
 } from "@/components/ui/table";
 
 const endpoints = [
-  { service: "Web app", url: "https://skillist.dev" },
-  { service: "Registry browse", url: "https://skillist.dev/registry" },
-  { service: "Skill page", url: "https://skillist.dev/{org}/{repo}" },
-  { service: "SKILL.md delivery", url: "https://skillist.dev/{org}/{repo}/SKILL.md" },
-  { service: "API", url: "https://api.skillist.dev" },
-  { service: "Registry MCP", url: "https://api.skillist.dev/mcp" },
-  { service: "API reference", url: "https://api.skillist.dev/docs" },
+  { service: "Web app", url: "https://skillist.io" },
+  { service: "Registry browse", url: "https://skillist.io/registry" },
+  { service: "Skill page", url: "https://skillist.io/{org}/{repo}" },
+  { service: "SKILL.md delivery", url: "https://skillist.io/{org}/{repo}/SKILL.md" },
+  { service: "API", url: "https://api.skillist.io" },
+  { service: "Registry MCP", url: "https://api.skillist.io/mcp" },
+  { service: "API reference", url: "https://api.skillist.io/docs" },
 ];
 
 export function EndpointsTable() {

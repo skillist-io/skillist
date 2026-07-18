@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageTitle } from "@/components/ui/page-title";
 import { authClient, linkSocialProvider, useSession } from "@/lib/auth-client";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -216,7 +217,7 @@ function AccountPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account</h1>
+        <PageTitle>Account</PageTitle>
         <p className="text-muted-foreground">
           Profile, sign-in methods, passkeys, and active sessions. Org API keys live in{" "}
           <Link to="/settings" className="text-primary underline">
