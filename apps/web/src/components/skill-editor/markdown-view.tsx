@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { highlight, languageForFence } from "./highlight";
 
 export type MarkdownViewProps = {
   markdown: string;
@@ -55,6 +56,28 @@ export default function MarkdownView({
               return <span className="text-xs text-muted-foreground">[image: {bundlePath}]</span>;
             }
             return <img src={src} alt={alt ?? ""} className="max-w-full" />;
+          },
+          code: ({ className, children, ...props }) => {
+            const fenceLang = /language-(\S+)/.exec(className ?? "")?.[1];
+            if (!fenceLang) {
+              // Inline `code` span — no fence language, no highlighting.
+              return (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            }
+            const source = (Array.isArray(children) ? children.join("") : String(children)).replace(
+              /\n$/,
+              "",
+            );
+            return (
+              <code
+                className={className}
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: output of our own escaping tokenizer
+                dangerouslySetInnerHTML={{ __html: highlight(source, languageForFence(fenceLang)) }}
+              />
+            );
           },
         }}
       >
