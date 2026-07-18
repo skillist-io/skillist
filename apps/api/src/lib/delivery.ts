@@ -358,6 +358,13 @@ export async function serveSkillBundle(
   }
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
   const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
+  // A published bundle always contains at least SKILL.md — an empty result
+  // means the version's files are missing from R2. Serving (or worse,
+  // materializing) an empty bundle would make the data gap sticky; 404 with
+  // the short negative-cache window instead.
+  if (bundle.size === 0) {
+    return notFound();
+  }
   await putBundleObject(env.SKILLS_R2, version.r2Prefix, bundle, version.semver);
   const files: Record<string, string> = {};
   for (const [path, content] of bundle.entries()) {
