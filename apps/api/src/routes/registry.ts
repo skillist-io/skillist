@@ -13,7 +13,7 @@ import {
 import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
-import type { WorkerDb } from "../lib/db";
+import { createWorkerDbCached, type WorkerDb } from "../lib/db";
 import { resolveUserId } from "../lib/session";
 import { addDayBucket, buildDayBuckets, toDaySeries } from "../lib/time-series";
 
@@ -148,7 +148,11 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
   const where = buildRegistryWhere(query);
   const orderBy = registryOrderBy(query);
 
-  const items = await c.var.db
+  // Public registry browse is high-volume and tolerates ~60s staleness, so it
+  // uses the caching-enabled Hyperdrive binding.
+  const db = createWorkerDbCached(c.env);
+
+  const items = await db
     .select({
       id: registryEntries.id,
       skillId: registryEntries.skillId,
@@ -178,7 +182,7 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
     .limit(limit)
     .offset(offset);
 
-  const [countRow] = await c.var.db
+  const [countRow] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(registryEntries)
     .innerJoin(skills, eq(registryEntries.skillId, skills.id))
@@ -208,7 +212,9 @@ const registryFacetsRoute = createRoute({
 });
 
 registryRoutes.openapi(registryFacetsRoute, async (c) => {
-  const categoryRows = await c.var.db
+  // Facets are staleness-tolerant public browse data — use the cached binding.
+  const db = createWorkerDbCached(c.env);
+  const categoryRows = await db
     .selectDistinct({ category: registryEntries.category })
     .from(registryEntries)
     .where(sql`${registryEntries.category} IS NOT NULL`);
@@ -216,11 +222,11 @@ registryRoutes.openapi(registryFacetsRoute, async (c) => {
   // Expand the jsonb string arrays and dedupe in SQL rather than scanning every
   // row into memory. `tags`/`compatible_agents` are non-null jsonb string arrays;
   // set-returning `jsonb_array_elements_text` yields no rows for empty arrays.
-  const tagRows = await c.var.db
+  const tagRows = await db
     .selectDistinct({ tag: sql<string>`jsonb_array_elements_text(${registryEntries.tags})` })
     .from(registryEntries);
 
-  const agentRows = await c.var.db
+  const agentRows = await db
     .selectDistinct({
       agent: sql<string>`jsonb_array_elements_text(${registryEntries.compatibleAgents})`,
     })

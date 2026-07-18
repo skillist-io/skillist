@@ -3,6 +3,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-01-15",
   "compatibility_flags": ["nodejs_compat"],
+  // Smart Placement runs the Worker near the database so multi-query requests
+  // don't pay a client<->origin round-trip per query. No-op in local dev.
+  "placement": { "mode": "smart" },
   "vars": {
     "BETTER_AUTH_URL": "http://localhost:8787",
     "WEB_URL": "http://localhost:5173"
