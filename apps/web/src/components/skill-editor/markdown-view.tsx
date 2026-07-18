@@ -1,3 +1,4 @@
+import { binaryAssetMimeType, isBinaryAssetPath } from "@skillist/skill-format";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,16 @@ export default function MarkdownView({
           img: ({ src, alt }) => {
             const bundlePath = typeof src === "string" ? resolveBundlePath(src) : null;
             if (bundlePath) {
-              // Bundle-relative images have no servable URL inside the editor.
+              const content = files?.[bundlePath];
+              if (content !== undefined && isBinaryAssetPath(bundlePath)) {
+                return (
+                  <img
+                    src={`data:${binaryAssetMimeType(bundlePath)};base64,${content}`}
+                    alt={alt ?? bundlePath}
+                    className="max-w-full"
+                  />
+                );
+              }
               return <span className="text-xs text-muted-foreground">[image: {bundlePath}]</span>;
             }
             return <img src={src} alt={alt ?? ""} className="max-w-full" />;

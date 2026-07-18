@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
+  isBinaryAssetPath,
   type ReviewRubricConfig,
   reviewSkillBundle,
   type SecurityIssue,
@@ -20,6 +21,8 @@ export async function readLocalBundle(dir: string): Promise<Map<string, string>>
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
         await walk(full, rel);
+      } else if (isBinaryAssetPath(rel)) {
+        files.set(rel, (await readFile(full)).toString("base64"));
       } else {
         files.set(rel, await readFile(full, "utf8"));
       }

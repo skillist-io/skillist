@@ -4,6 +4,7 @@ import {
   File,
   FileText,
   Folder,
+  Image,
   MoreHorizontal,
   Plus,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import {
   buildTree,
   bundleDirs,
   isAllowedPath,
+  isBinaryAssetPath,
   isProtectedPath,
   isTextPath,
   type TreeNode,
@@ -36,6 +38,8 @@ type FileTreeProps = {
   onCreateDir?: (path: string) => void;
   onRename?: (from: string, to: string) => boolean;
   onDelete?: (path: string) => void;
+  /** Opens the shared asset file picker (owned by the parent editor). */
+  onRequestUpload?: () => void;
 };
 
 type PendingInput = { kind: "create"; parent: string } | { kind: "rename"; path: string } | null;
@@ -50,6 +54,7 @@ export function FileTree({
   onCreateDir,
   onRename,
   onDelete,
+  onRequestUpload,
 }: FileTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<PendingInput>(null);
@@ -186,6 +191,8 @@ export function FileTree({
             >
               {node.path === "SKILL.md" ? (
                 <FileText className="size-3.5 shrink-0" aria-hidden />
+              ) : isBinaryAssetPath(node.path) ? (
+                <Image className="size-3.5 shrink-0" aria-hidden />
               ) : (
                 <File className="size-3.5 shrink-0" aria-hidden />
               )}
@@ -280,6 +287,11 @@ export function FileTree({
               {!files["plugin.json"] && (
                 <DropdownMenuItem onSelect={() => onCreateFile?.("plugin.json")}>
                   Add plugin.json
+                </DropdownMenuItem>
+              )}
+              {onRequestUpload && (
+                <DropdownMenuItem onSelect={onRequestUpload}>
+                  Upload asset to assets/
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

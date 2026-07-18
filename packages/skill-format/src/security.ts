@@ -1,3 +1,4 @@
+import { isBinaryAssetPath } from "./binary.js";
 import type { SkillBundle } from "./index.js";
 
 export type SecurityIssue = {
@@ -119,6 +120,10 @@ export function scanSkillSecurity(files: SkillBundle): SecurityScanResult {
   const issues: SecurityIssue[] = [];
 
   for (const [path, content] of files.entries()) {
+    // Base64 asset content isn't source — regex credential/pattern scanning
+    // over it is meaningless and prone to false positives.
+    if (isBinaryAssetPath(path)) continue;
+
     for (const pattern of CREDENTIAL_PATTERNS) {
       if (pattern.re.test(content)) {
         issues.push({

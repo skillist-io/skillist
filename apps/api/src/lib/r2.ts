@@ -1,16 +1,29 @@
-import { bundleToObject, objectToBundle, type SkillBundle } from "@skillist/skill-format";
+import {
+  binaryAssetMimeType,
+  bundleToObject,
+  decodeBase64,
+  encodeBase64,
+  isBinaryAssetPath,
+  objectToBundle,
+  type SkillBundle,
+} from "@skillist/skill-format";
 
 export function r2Prefix(orgId: string, skillRepo: string, versionId: string): string {
   return `orgs/${orgId}/skills/${skillRepo}/v/${versionId}`;
 }
 
+// Binary assets are represented as base64 text in the SkillBundle map (see
+// @skillist/skill-format/binary) but stored as real decoded bytes in R2, so
+// the object is genuinely the image/PDF/whatever — correct Content-Type,
+// servable directly if anything ever reads R2 without going through this
+// encode/decode boundary.
 export async function uploadBundleToR2(
   bucket: R2Bucket,
   prefix: string,
   files: SkillBundle,
 ): Promise<void> {
   const uploads = [...files.entries()].map(([path, content]) =>
-    bucket.put(`${prefix}/${path}`, content, {
+    bucket.put(`${prefix}/${path}`, isBinaryAssetPath(path) ? decodeBase64(content) : content, {
       httpMetadata: { contentType: contentTypeForPath(path) },
     }),
   );
@@ -26,7 +39,10 @@ export async function downloadBundleFromR2(
   await Promise.all(
     paths.map(async (path) => {
       const obj = await bucket.get(`${prefix}/${path}`);
-      if (obj) {
+      if (!obj) return;
+      if (isBinaryAssetPath(path)) {
+        bundle.set(path, encodeBase64(new Uint8Array(await obj.arrayBuffer())));
+      } else {
         bundle.set(path, await obj.text());
       }
     }),
@@ -40,6 +56,7 @@ export async function listBundlePaths(bucket: R2Bucket, prefix: string): Promise
 }
 
 function contentTypeForPath(path: string): string {
+  if (isBinaryAssetPath(path)) return binaryAssetMimeType(path);
   if (path.endsWith(".md")) return "text/markdown";
   if (path.endsWith(".json")) return "application/json";
   if (path.endsWith(".py")) return "text/x-python";

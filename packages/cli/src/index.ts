@@ -2,7 +2,7 @@
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { createInterface } from "node:readline";
-import { type SemverBump, validateSkillBundle } from "@skillist/skill-format";
+import { isBinaryAssetPath, type SemverBump, validateSkillBundle } from "@skillist/skill-format";
 import { discoverSkillItems, importGithubOrgInventory, resolveRepoFullName } from "./inventory.js";
 import { reviewLocalSkill } from "./review.js";
 
@@ -266,7 +266,11 @@ async function pull(
   for (const [path, content] of Object.entries(bundle.files)) {
     const filePath = join(outDir, path);
     await mkdir(dirname(filePath), { recursive: true });
-    await writeFile(filePath, content, "utf8");
+    if (isBinaryAssetPath(path)) {
+      await writeFile(filePath, Buffer.from(content, "base64"));
+    } else {
+      await writeFile(filePath, content, "utf8");
+    }
   }
 
   if (recordLock) {
@@ -301,6 +305,8 @@ async function readLocalBundle(dir: string): Promise<Map<string, string>> {
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
         await walk(full, rel);
+      } else if (isBinaryAssetPath(rel)) {
+        files.set(rel, (await readFile(full)).toString("base64"));
       } else {
         files.set(rel, await readFile(full, "utf8"));
       }
