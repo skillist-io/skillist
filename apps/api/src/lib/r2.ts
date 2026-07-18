@@ -50,6 +50,29 @@ export async function downloadBundleFromR2(
   return bundle;
 }
 
+/**
+ * Key of the materialized bundle object — the exact `{files, version}` JSON
+ * the /bundle delivery route serves, assembled once at publish instead of on
+ * every request. A sibling of the `${prefix}/` file tree (no slash), so it can
+ * never collide with a bundle file path and never shows up in listBundlePaths.
+ */
+export function bundleObjectKey(r2Prefix: string): string {
+  return `${r2Prefix}.bundle.json`;
+}
+
+export async function putBundleObject(
+  bucket: R2Bucket,
+  r2Prefix: string,
+  files: SkillBundle,
+  version: string,
+): Promise<string> {
+  const key = bundleObjectKey(r2Prefix);
+  await bucket.put(key, JSON.stringify({ files: bundleToObject(files), version }), {
+    httpMetadata: { contentType: "application/json" },
+  });
+  return key;
+}
+
 export async function listBundlePaths(bucket: R2Bucket, prefix: string): Promise<string[]> {
   const listed = await bucket.list({ prefix: `${prefix}/` });
   return listed.objects.map((o) => o.key.replace(`${prefix}/`, ""));
