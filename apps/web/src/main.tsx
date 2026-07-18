@@ -15,6 +15,11 @@ const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultErrorComponent: RouteErrorFallback,
+  // Start route loaders on hover/touch-down so data is already in cache by
+  // the time the click lands — combined with route loaders, this is what
+  // turns "click, see skeletons" into "click, see content."
+  defaultPreload: "intent",
+  defaultPreloadStaleTime: 0,
 });
 
 declare module "@tanstack/react-router" {
