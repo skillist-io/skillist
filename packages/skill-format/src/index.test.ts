@@ -99,6 +99,14 @@ describe("serializeSkillMd", () => {
     expect(parsed?.body).toBe("# Body\n");
   });
 
+  it("does not fold long scalar values across lines", () => {
+    const description =
+      "Extracts text and tables from PDF files, fills PDF forms, and merges multiple PDFs. Use when working with PDF documents or when the user mentions PDFs, forms, or document extraction.";
+    const content = serializeSkillMd({ name: "pdf-tools", description }, "");
+    expect(content).toBe(`---\nname: pdf-tools\ndescription: ${description}\n---\n`);
+    expect(parseSkillMd(content)?.frontmatter).toEqual({ name: "pdf-tools", description });
+  });
+
   it("omits undefined optional fields", () => {
     const content = serializeSkillMd({ name: "a", description: "b", license: undefined }, "");
     expect(content).toBe("---\nname: a\ndescription: b\n---\n");

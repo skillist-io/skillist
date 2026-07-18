@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { highlight, languageForPath } from "./highlight";
+import { highlight, languageForFence, languageForPath } from "./highlight";
 
 describe("languageForPath", () => {
   it("maps extensions", () => {
@@ -8,6 +8,21 @@ describe("languageForPath", () => {
     expect(languageForPath("scripts/build.sh")).toBe("shell");
     expect(languageForPath("plugin.json")).toBe("json");
     expect(languageForPath("assets/data.csv")).toBe("plain");
+  });
+});
+
+describe("languageForFence", () => {
+  it("maps common fence info strings, case-insensitively", () => {
+    expect(languageForFence("py")).toBe("python");
+    expect(languageForFence("Python")).toBe("python");
+    expect(languageForFence("bash")).toBe("shell");
+    expect(languageForFence("ts")).toBe("javascript");
+    expect(languageForFence("yml")).toBe("yaml");
+  });
+
+  it("falls back to plain for unknown or missing info strings", () => {
+    expect(languageForFence("rust")).toBe("plain");
+    expect(languageForFence(undefined)).toBe("plain");
   });
 });
 

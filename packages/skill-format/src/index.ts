@@ -85,7 +85,10 @@ function stringifyFrontmatter(frontmatter: SkillFrontmatter): string {
   for (const [key, value] of Object.entries(frontmatter)) {
     if (!(key in ordered) && value !== undefined) ordered[key] = value;
   }
-  return stringifyYaml(ordered).trimEnd();
+  // lineWidth: 0 disables folding — a long description stays one line
+  // instead of yaml wrapping it, which would otherwise reformat text the
+  // author didn't touch every time any other field changes.
+  return stringifyYaml(ordered, { lineWidth: 0 }).trimEnd();
 }
 
 export function serializeSkillMd(frontmatter: SkillFrontmatter, body: string): string {

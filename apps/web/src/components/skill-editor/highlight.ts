@@ -15,6 +15,33 @@ export function languageForPath(path: string): Language {
   return "plain";
 }
 
+const FENCE_LANG_ALIASES: Record<string, Language> = {
+  md: "markdown",
+  markdown: "markdown",
+  yaml: "yaml",
+  yml: "yaml",
+  py: "python",
+  python: "python",
+  sh: "shell",
+  shell: "shell",
+  bash: "shell",
+  zsh: "shell",
+  js: "javascript",
+  jsx: "javascript",
+  ts: "javascript",
+  tsx: "javascript",
+  javascript: "javascript",
+  typescript: "javascript",
+  json: "json",
+  jsonc: "json",
+};
+
+/** Maps a fenced-code-block info string (e.g. "py", "ts", "yaml") to a highlighter language. */
+export function languageForFence(info: string | undefined): Language {
+  if (!info) return "plain";
+  return FENCE_LANG_ALIASES[info.toLowerCase()] ?? "plain";
+}
+
 function escapeHtml(text: string): string {
   return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
