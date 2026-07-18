@@ -6,7 +6,10 @@ import { downloadBundleFromR2, listBundlePaths } from "./r2";
 
 export async function serveSkillMd(kv: KVNamespace, org: string, repo: string): Promise<Response> {
   const cached = await getPublishedSkillMd(kv, org, repo);
-  if (!cached) {
+  // Fail closed: these routes are public and unauthenticated, so serve only
+  // skills explicitly marked public. A missing visibility (pre-visibility cache
+  // entry) is treated as not-public and 404s until the skill is republished.
+  if (cached?.meta.visibility !== "public") {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
   return new Response(cached.skillMd, {
@@ -25,7 +28,7 @@ export async function serveSkillMeta(
   repo: string,
 ): Promise<Response> {
   const meta = await getPublishedMeta(kv, org, repo);
-  if (!meta) {
+  if (meta?.visibility !== "public") {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
   return Response.json(meta);
@@ -51,7 +54,9 @@ export async function serveSkillBundle(
     .from(skills)
     .where(and(eq(skills.orgId, orgRow.id), eq(skills.repo, repo)))
     .limit(1);
-  if (!skill || !skill.latestPublishedVersionId) {
+  // Bundle delivery is public and unauthenticated — only public skills, and
+  // only once they have a published version, may be served here.
+  if (!skill || !skill.latestPublishedVersionId || skill.visibility !== "public") {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { registryQuerySchema } from "@skillist/contracts";
 import {
@@ -16,7 +15,7 @@ import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { resolveUserId } from "../lib/session";
-import { buildDayBuckets, incrementDayBucket, toDaySeries } from "../lib/time-series";
+import { addDayBucket, buildDayBuckets, toDaySeries } from "../lib/time-series";
 
 const CLI_INSTALL = "npm install -g @skillist/cli";
 
@@ -214,25 +213,18 @@ registryRoutes.openapi(registryFacetsRoute, async (c) => {
     .from(registryEntries)
     .where(sql`${registryEntries.category} IS NOT NULL`);
 
-  const tagRows = await c.var.db.select({ tags: registryEntries.tags }).from(registryEntries);
-
-  const tagSet = new Set<string>();
-  for (const row of tagRows) {
-    for (const tag of row.tags ?? []) {
-      if (tag) tagSet.add(tag);
-    }
-  }
-
-  const agentRows = await c.var.db
-    .select({ agents: registryEntries.compatibleAgents })
+  // Expand the jsonb string arrays and dedupe in SQL rather than scanning every
+  // row into memory. `tags`/`compatible_agents` are non-null jsonb string arrays;
+  // set-returning `jsonb_array_elements_text` yields no rows for empty arrays.
+  const tagRows = await c.var.db
+    .selectDistinct({ tag: sql<string>`jsonb_array_elements_text(${registryEntries.tags})` })
     .from(registryEntries);
 
-  const agentSet = new Set<string>();
-  for (const row of agentRows) {
-    for (const agent of row.agents ?? []) {
-      if (agent) agentSet.add(agent);
-    }
-  }
+  const agentRows = await c.var.db
+    .selectDistinct({
+      agent: sql<string>`jsonb_array_elements_text(${registryEntries.compatibleAgents})`,
+    })
+    .from(registryEntries);
 
   return c.json(
     {
@@ -240,8 +232,14 @@ registryRoutes.openapi(registryFacetsRoute, async (c) => {
         .map((r) => r.category)
         .filter(Boolean)
         .sort(),
-      tags: [...tagSet].sort(),
-      agents: [...agentSet].sort(),
+      tags: tagRows
+        .map((r) => r.tag)
+        .filter(Boolean)
+        .sort(),
+      agents: agentRows
+        .map((r) => r.agent)
+        .filter(Boolean)
+        .sort(),
       sourceTypes: ["native", "mirror"],
     },
     200,
@@ -429,8 +427,16 @@ registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
   const { days } = c.req.valid("query");
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-  const events = await c.var.db
-    .select()
+  // Aggregate per-day counts by event type in SQL. The UTC day key matches the
+  // JS bucketing (`createdAt.toISOString().slice(0, 10)`); day rows outside the
+  // requested window are dropped by `addDayBucket`, while the top-level totals
+  // sum every matching event (the rolling `since` window, as before).
+  const eventRows = await c.var.db
+    .select({
+      day: sql<string>`(${telemetryEvents.createdAt} AT TIME ZONE 'UTC')::date::text`,
+      eventType: telemetryEvents.eventType,
+      count: sql<number>`count(*)::int`,
+    })
     .from(telemetryEvents)
     .where(
       and(
@@ -439,22 +445,29 @@ registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
         gte(telemetryEvents.createdAt, since),
       ),
     )
-    .orderBy(desc(telemetryEvents.createdAt));
+    .groupBy(
+      sql`(${telemetryEvents.createdAt} AT TIME ZONE 'UTC')::date`,
+      telemetryEvents.eventType,
+    );
 
   const installBuckets = buildDayBuckets(days);
   const activationBuckets = buildDayBuckets(days);
-  for (const event of events) {
-    if (event.eventType === "install") {
-      incrementDayBucket(installBuckets, event.createdAt);
-    } else if (event.eventType === "activation") {
-      incrementDayBucket(activationBuckets, event.createdAt);
+  let installs = 0;
+  let activations = 0;
+  for (const row of eventRows) {
+    if (row.eventType === "install") {
+      installs += row.count;
+      addDayBucket(installBuckets, row.day, row.count);
+    } else if (row.eventType === "activation") {
+      activations += row.count;
+      addDayBucket(activationBuckets, row.day, row.count);
     }
   }
 
   return c.json(
     {
-      installs: events.filter((e) => e.eventType === "install").length,
-      activations: events.filter((e) => e.eventType === "activation").length,
+      installs,
+      activations,
       series: {
         installs: toDaySeries(installBuckets),
         activations: toDaySeries(activationBuckets),
@@ -539,21 +552,27 @@ registryRoutes.openapi(updateVisibilityRoute, async (c) => {
     .set({ visibility, updatedAt: new Date() })
     .where(eq(skills.id, skill.id));
 
+  // Re-sync the public edge cache for the new visibility (caches SKILL.md/meta
+  // when public, purges it otherwise) so delivery reflects the change at once.
+  const { syncSkillEdge } = await import("../lib/ai");
+  await syncSkillEdge(c.env, c.var.db, skill.id);
+
   if (visibility === "public" && skill.latestPublishedVersionId) {
     const [orgRow] = await c.var.db
       .select()
       .from(organizations)
       .where(eq(organizations.id, orgId))
       .limit(1);
+    // syncSkillEdge above (re)populated the KV meta from R2 for public skills.
     const { getPublishedMeta } = await import("../lib/publish");
-    const meta = orgRow ? await getPublishedMeta(c.env.SKILLS_KV, orgRow.slug, slug) : null;
+    const meta = orgRow ? await getPublishedMeta(c.env.SKILLS_KV, orgRow.slug, repo) : null;
     if (meta && orgRow) {
       await c.var.db
         .insert(registryEntries)
         .values({
           skillId: skill.id,
           orgSlug: orgRow.slug,
-          skillRepo: slug,
+          skillRepo: repo,
           name: meta.name,
           description: meta.description,
           latestVersion: meta.version,
@@ -568,6 +587,10 @@ registryRoutes.openapi(updateVisibilityRoute, async (c) => {
           },
         });
     }
+  } else {
+    // Leaving public: drop the skill from the public registry index so it stops
+    // appearing in discovery.
+    await c.var.db.delete(registryEntries).where(eq(registryEntries.skillId, skill.id));
   }
 
   return c.json({ ok: true }, 200);

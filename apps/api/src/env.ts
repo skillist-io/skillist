@@ -1,4 +1,10 @@
-import type { Ai, DurableObjectNamespace, Hyperdrive, SendEmail } from "@cloudflare/workers-types";
+import type {
+  Ai,
+  DurableObjectNamespace,
+  Hyperdrive,
+  RateLimit,
+  SendEmail,
+} from "@cloudflare/workers-types";
 import type { SyncQueueMessage } from "@skillist/contracts";
 
 export type Env = {
@@ -10,6 +16,9 @@ export type Env = {
   SANDBOX_HEAVY: DurableObjectNamespace;
   AI: Ai;
   EMAIL: SendEmail;
+  /** Native Workers Rate Limiting binding (distributed). Optional so local dev
+   * and tests without the binding fall back to the in-memory limiter. */
+  RATE_LIMITER?: RateLimit;
   AI_QUEUE: Queue<AiJobMessage>;
   SYNC_QUEUE: Queue<SyncQueueMessage>;
   SYNC_WORKFLOW: Workflow;

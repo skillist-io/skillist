@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { runSkillSchema } from "@skillist/contracts";
 import { organizations, skillRuns, skills, telemetryEvents } from "@skillist/db/schema";

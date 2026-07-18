@@ -39,6 +39,13 @@
       "preview_bucket_name": "skillist-skills-preview"
     }
   ],
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 120, "period": 60 }
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

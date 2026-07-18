@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { InstallSnippet } from "@/components/install-snippet";
 import { PublicEvalBadge } from "@/components/public-eval-badge";
-import { InstallSnippet, ScoreBadges } from "@/components/score-badges";
+import { ScoreReadout } from "@/components/score-readout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ const FEATURED = [
   {
     org: "skillist",
     slug: "registry-mcp",
-    pitch: "Search and install skills via MCP: connect to api.skillist.dev/mcp.",
+    pitch: "Search and install skills via MCP: connect to api.skillist.io/mcp.",
   },
   {
     org: "skillist",
@@ -82,7 +83,7 @@ export function RegistryFeatured() {
             </div>
             <p className="text-sm text-muted-foreground">{pitch}</p>
             <div className="flex flex-wrap items-center gap-2">
-              <ScoreBadges
+              <ScoreReadout
                 quality={item.qualityScore}
                 impact={item.impactScore}
                 security={item.securityStatus}

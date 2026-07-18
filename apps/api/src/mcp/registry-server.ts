@@ -142,8 +142,8 @@ async function callTool(db: WorkerDb, name: string, args: Record<string, unknown
           skill.runtime && skill.runtime !== "local"
             ? `skillist run ${org}/${repo} --script scripts/<script>`
             : null,
-        skillMdUrl: `https://skillist.dev/${org}/${repo}/SKILL.md`,
-        registryUrl: `https://skillist.dev/${org}/${repo}`,
+        skillMdUrl: `https://skillist.io/${org}/${repo}/SKILL.md`,
+        registryUrl: `https://skillist.io/${org}/${repo}`,
         sourceType: skill.sourceType ?? "native",
         upstreamRepo: skill.upstreamRepo ?? null,
         upstreamUrl: skill.upstreamUrl ?? null,
@@ -232,7 +232,7 @@ export async function handleMcpJsonRpc(
 }
 
 export function mcpServerInfo(apiBaseUrl?: string) {
-  const base = apiBaseUrl?.replace(/\/$/, "") ?? "https://api.skillist.dev";
+  const base = apiBaseUrl?.replace(/\/$/, "") ?? "https://api.skillist.io";
   return {
     name: "skillist-registry",
     version: "1.0.0",
@@ -243,13 +243,13 @@ export function mcpServerInfo(apiBaseUrl?: string) {
     oauth: {
       authorizationServer: `${base}/.well-known/oauth-authorization-server`,
       protectedResource: `${base}/.well-known/oauth-protected-resource`,
-      loginPage: "https://skillist.dev/login",
+      loginPage: "https://skillist.io/login",
     },
     session: {
       header: "Mcp-Session-Id",
       sseAccept: "text/event-stream",
     },
     tools: REGISTRY_MCP_TOOLS.map((t) => t.name),
-    docs: "https://skillist.dev",
+    docs: "https://skillist.io",
   };
 }

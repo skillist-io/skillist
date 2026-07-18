@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PageTitle } from "@/components/ui/page-title";
 import { api, type ObservabilitySummary, type Org } from "@/lib/api";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -53,7 +54,7 @@ function ObservabilityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Observability</h1>
+        <PageTitle>Observability</PageTitle>
         <p className="text-muted-foreground">Hosted runs, install funnel, and activation trends</p>
       </div>
 

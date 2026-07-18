@@ -4,13 +4,13 @@
   "compatibility_date": "2025-01-15",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "BETTER_AUTH_URL": "https://api.skillist.dev",
-    "WEB_URL": "https://skillist.dev"
+    "BETTER_AUTH_URL": "https://api.skillist.io",
+    "WEB_URL": "https://skillist.io"
   },
   "routes": [
-    { "pattern": "api.skillist.dev", "custom_domain": true },
-    { "pattern": "skillist.dev/api/*", "zone_name": "skillist.dev" },
-    { "pattern": "skillist.dev/v1/*", "zone_name": "skillist.dev" }
+    { "pattern": "api.skillist.io", "custom_domain": true },
+    { "pattern": "skillist.io/api/*", "zone_name": "skillist.io" },
+    { "pattern": "skillist.io/v1/*", "zone_name": "skillist.io" }
   ],
   "triggers": {
     // Daily 06:00 UTC sync; weekly Sunday 07:00 UTC discover (CF: 1=Sun…7=Sat, not 0=Sun)

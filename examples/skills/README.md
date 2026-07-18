@@ -1,6 +1,6 @@
 # Example Agent Skills
 
-Public demo skills for [skillist.dev](https://skillist.dev), compliant with [agentskills.io](https://agentskills.io/home).
+Public demo skills for [skillist.io](https://skillist.io), compliant with [agentskills.io](https://agentskills.io/home).
 
 | Skill | Level | Bundle contents |
 |-------|-------|-----------------|

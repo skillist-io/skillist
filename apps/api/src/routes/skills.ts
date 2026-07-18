@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { createSkillSchema, uploadVersionSchema } from "@skillist/contracts";
 import { organizations, skillFiles, skills, skillVersions } from "@skillist/db/schema";
@@ -33,6 +32,11 @@ type AppEnv = {
 
 export const skillRoutes = new OpenAPIHono<AppEnv>();
 
+const jsonError = (description: string) => ({
+  content: { "application/json": { schema: z.object({ error: z.any() }) } },
+  description,
+});
+
 const createSkillRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/skills",
@@ -54,6 +58,10 @@ const createSkillRoute = createRoute({
       },
       description: "Skill created",
     },
+    400: jsonError("Invalid skill bundle"),
+    401: jsonError("Unauthorized"),
+    403: jsonError("Forbidden"),
+    500: jsonError("Failed to create skill"),
   },
 });
 
@@ -126,6 +134,8 @@ const listSkillsRoute = createRoute({
       },
       description: "List skills",
     },
+    401: jsonError("Unauthorized"),
+    403: jsonError("Forbidden"),
   },
 });
 
@@ -165,6 +175,10 @@ const uploadVersionRoute = createRoute({
       },
       description: "Version uploaded",
     },
+    400: jsonError("Invalid skill bundle"),
+    401: jsonError("Unauthorized"),
+    403: jsonError("Forbidden"),
+    404: jsonError("Skill not found"),
   },
 });
 
@@ -220,13 +234,18 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
     })
     .returning();
 
-  for (const [path, content] of bundle.entries()) {
-    await c.var.db.insert(skillFiles).values({
+  // Hash every file in parallel, then insert them in one round-trip rather than
+  // one sequential INSERT (each preceded by an awaited hash) per file.
+  const fileRows = await Promise.all(
+    [...bundle.entries()].map(async ([path, content]) => ({
       versionId,
       path,
       sha256: await sha256(content),
       size: content.length,
-    });
+    })),
+  );
+  if (fileRows.length > 0) {
+    await c.var.db.insert(skillFiles).values(fileRows);
   }
 
   const [org] = await c.var.db
@@ -313,6 +332,10 @@ const publishRoute = createRoute({
       },
       description: "Published",
     },
+    400: jsonError("Publish failed"),
+    401: jsonError("Unauthorized"),
+    403: jsonError("Forbidden"),
+    404: jsonError("Not found"),
   },
 });
 

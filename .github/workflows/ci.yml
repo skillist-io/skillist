@@ -104,7 +104,7 @@ jobs:
 
       - run: pnpm --filter @skillist/web build
         env:
-          VITE_API_URL: https://api.skillist.dev
+          VITE_API_URL: https://api.skillist.io
 
       - name: Deploy Web
         uses: cloudflare/wrangler-action@v4

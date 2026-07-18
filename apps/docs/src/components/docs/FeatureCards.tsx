@@ -26,7 +26,7 @@ const features: Feature[] = [
     badge: "MCP",
     href: "/mcp/",
     description:
-      "Search and install skills from your agent via streamable HTTP at api.skillist.dev/mcp.",
+      "Search and install skills from your agent via streamable HTTP at api.skillist.io/mcp.",
   },
   {
     title: "CLI",
@@ -49,7 +49,7 @@ const features: Feature[] = [
     badge: "Platform",
     href: "/platform/delivery/",
     description:
-      "GitHub-style skillist.dev/org/repo pages with SKILL.md, meta, and bundle at the edge.",
+      "GitHub-style skillist.io/org/repo pages with SKILL.md, meta, and bundle at the edge.",
   },
   {
     title: "Evals",

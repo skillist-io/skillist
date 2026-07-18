@@ -23,12 +23,12 @@ Skillist OAuth setup
 ====================
 
 1) GitHub OAuth App — https://github.com/settings/applications/new
-   Homepage:  https://skillist.dev
-   Callback:  https://api.skillist.dev/api/auth/callback/github
+   Homepage:  https://skillist.io
+   Callback:  https://api.skillist.io/api/auth/callback/github
    Local:     http://localhost:8787/api/auth/callback/github
 
 2) Google OAuth client — add redirect URIs to your client:
-   https://api.skillist.dev/api/auth/callback/google
+   https://api.skillist.io/api/auth/callback/google
    http://localhost:8787/api/auth/callback/google
 
    Edit client:

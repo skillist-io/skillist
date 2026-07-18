@@ -33,10 +33,10 @@ skillist pull <org>/<repo>
 skillist list
 ```
 
-Public delivery URLs default to `https://skillist.dev/{org}/{repo}`:
+Public delivery URLs default to `https://skillist.io/{org}/{repo}`:
 
 ```bash
-curl https://skillist.dev/skillist/web-perf-audit/SKILL.md
+curl https://skillist.io/skillist/web-perf-audit/SKILL.md
 ```
 
 ## Publishing
@@ -85,8 +85,8 @@ Installs and updates respect org install policy when `SKILLIST_API_KEY` is set.
   client:load
   columns={["Variable", "Default", "Description"]}
   rows={[
-    ["SKILLIST_API_URL", "https://api.skillist.dev", "REST API and auth base URL"],
-    ["SKILLIST_DELIVERY_URL", "https://skillist.dev", "Public skill pages and SKILL.md delivery"],
+    ["SKILLIST_API_URL", "https://api.skillist.io", "REST API and auth base URL"],
+    ["SKILLIST_DELIVERY_URL", "https://skillist.io", "Public skill pages and SKILL.md delivery"],
     ["SKILLIST_API_KEY", "—", "Bearer token (sk_...) for push, publish, and private runs"],
   ]}
 />

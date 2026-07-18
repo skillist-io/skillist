@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -314,7 +315,13 @@ export const registryEntries = pgTable(
   },
   (t) => [
     uniqueIndex("registry_org_skill_idx").on(t.orgSlug, t.skillRepo),
+    // Retained for ORDER BY name (btree). Leading-wildcard ILIKE search can't
+    // use it — the trigram GIN indexes below serve `%q%` search instead.
     index("registry_search_idx").on(t.name, t.description),
+    // GIN trigram indexes power the registry search's `ILIKE '%q%'` on name and
+    // description. Requires the pg_trgm extension (see the migration note).
+    index("registry_name_trgm_idx").using("gin", sql`${t.name} gin_trgm_ops`),
+    index("registry_description_trgm_idx").using("gin", sql`${t.description} gin_trgm_ops`),
     index("registry_category_idx").on(t.category),
     index("registry_source_type_idx").on(t.sourceType),
   ],
@@ -365,6 +372,10 @@ export const apiKeys = pgTable(
       onDelete: "set null",
     }),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    // Optional expiry: a key past this instant is rejected at auth time.
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    // Revocation: set to disable a key while preserving its row for audit.
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("api_keys_org_idx").on(t.orgId)],

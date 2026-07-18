@@ -1,6 +1,6 @@
 # skillist
 
-CLI for the [Skillist](https://skillist.dev) Agent Skills platform — search, install, publish, review, inventory, and run skills from the public registry.
+CLI for the [Skillist](https://skillist.io) Agent Skills platform — search, install, publish, review, inventory, and run skills from the public registry.
 
 ## Install
 
@@ -31,16 +31,16 @@ skillist publish my-org/my-skill ./skills/my-skill
 Public skill pages and delivery live at GitHub-style URLs:
 
 ```
-https://skillist.dev/{org}/{repo}
-https://skillist.dev/{org}/{repo}/SKILL.md
+https://skillist.io/{org}/{repo}
+https://skillist.io/{org}/{repo}/SKILL.md
 ```
 
 ## Environment
 
 | Variable | Description |
 |----------|-------------|
-| `SKILLIST_API_URL` | API base URL (default: `https://api.skillist.dev`) |
-| `SKILLIST_DELIVERY_URL` | Public delivery URL (default: `https://skillist.dev`) |
+| `SKILLIST_API_URL` | API base URL (default: `https://api.skillist.io`) |
+| `SKILLIST_DELIVERY_URL` | Public delivery URL (default: `https://skillist.io`) |
 | `SKILLIST_API_KEY` | Bearer token (`sk_...`) for push, publish, and private runs |
 
 ## Commands

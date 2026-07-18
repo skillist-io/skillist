@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { SkillistLogo } from "@/components/skillist-logo";
+import { PageTitle } from "@/components/ui/page-title";
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
@@ -16,7 +17,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       </div>
       <div className="relative hidden bg-muted lg:block">
         <div className="absolute inset-0 flex flex-col justify-center gap-4 p-10">
-          <h2 className="text-3xl font-semibold tracking-tight">Realtime Agent Skills</h2>
+          <PageTitle as="h2">Realtime Agent Skills</PageTitle>
           <p className="max-w-md text-muted-foreground">
             Manage, version, and deliver SKILL.md files with sub-10ms fan-out. Built for the
             agentskills.io standard.

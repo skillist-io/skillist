@@ -7,6 +7,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PageTitle } from "@/components/ui/page-title";
 import { cn } from "@/lib/utils";
 
 type LoginFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
@@ -47,7 +48,7 @@ export function LoginForm({
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">Sign in to Skillist</h1>
+          <PageTitle>Sign in to Skillist</PageTitle>
           <p className="text-sm text-balance text-muted-foreground">
             Passwordless — GitHub, Google, SSO, passkey, or magic link
           </p>

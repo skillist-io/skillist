@@ -4,7 +4,7 @@ import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { Check, X } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { FeedbackInbox } from "@/components/feedback-inbox";
-import { ScoreBadges } from "@/components/score-badges";
+import { ScoreReadout } from "@/components/score-readout";
 import type { CodeEditorHandle } from "@/components/skill-editor/code-editor";
 import { errorLinesForSkillMd } from "@/components/skill-editor/frontmatter-lines";
 import { SkillBundleEditor } from "@/components/skill-editor/skill-bundle-editor";
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { PageTitle } from "@/components/ui/page-title";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import {
@@ -327,7 +328,7 @@ function SkillEditorPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{repo}</h1>
+          <PageTitle>{repo}</PageTitle>
           <p className="text-sm text-muted-foreground">
             {connected ? "Realtime connected" : "Realtime disconnected"}
             {latestDraft ? ` · draft v${latestDraft.semver}` : ""}
@@ -441,7 +442,7 @@ function SkillEditorPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <ScoreBadges
+              <ScoreReadout
                 quality={preview?.qualityScore ?? publishedVersion?.qualityScore}
                 impact={preview?.impactScore ?? publishedVersion?.impactScore}
                 security={preview?.securityStatus ?? publishedVersion?.securityStatus}

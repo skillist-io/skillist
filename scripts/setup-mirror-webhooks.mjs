@@ -15,7 +15,7 @@ const SEEDED_SOURCES = [
   ["aws", "agent-toolkit-for-aws"],
 ];
 
-const API_WEBHOOK = process.env.MIRROR_WEBHOOK_URL ?? "https://api.skillist.dev/v1/webhooks/github";
+const API_WEBHOOK = process.env.MIRROR_WEBHOOK_URL ?? "https://api.skillist.io/v1/webhooks/github";
 
 function loadToken() {
   if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;

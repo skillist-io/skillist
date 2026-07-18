@@ -283,7 +283,7 @@ async function main() {
   }
 
   console.log("\nDone. Verify:");
-  console.log("  curl https://api.skillist.dev/v1/registry/skillist/roll-dice | jq .eval");
+  console.log("  curl https://api.skillist.io/v1/registry/skillist/roll-dice | jq .eval");
 }
 
 main().catch((err) => {
