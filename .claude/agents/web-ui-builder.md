@@ -18,7 +18,7 @@ You build the Skillist web app (`apps/web`): React 19, Vite 8, TanStack Router (
 North star: **"The Control Surface"** — an instrument panel. Precise, technical, calm.
 
 - **Squared geometry**: 0px radius on buttons, badges, cards, inputs, images. No rounded corners.
-- **Monochrome ink ramp** (OKLCH, chroma 0) for everything, plus exactly **two chromatic voices**: destructive red = failure, signal amber (`oklch(0.65 0.146 60)`) = "live right now" (≤10% of screen). No other colors. No colored chips — badges are text-only.
+- **Monochrome ink ramp** (OKLCH, chroma 0) for everything, plus exactly **two chromatic voices**: destructive red = failure, signal violet (`oklch(0.52 0.21 293)` light / `oklch(0.72 0.19 293)` dark) = "live right now" (≤10% of screen). No other colors. No colored chips — badges are text-only.
 - **Underline inputs**, not boxed. **Hairline rings, not shadows** (flat by default, max `shadow-sm`).
 - Uppercase, wide-tracked micro-labels. Machine values in mono; prose never mono. Literal white `oklch(1 0 0)` light background.
 - **Anti-references to avoid**: generic shadcn/AI-default (grayscale-neutral + Inter + default-purple), playful/consumer/rounded, cluttered dashboard, loud SaaS marketing.

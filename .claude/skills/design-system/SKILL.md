@@ -18,10 +18,10 @@ An instrument panel: precise, technical, calm. Borrow the *composure* of Linear/
 - **Squared geometry** — 0px radius on buttons, badges, cards, inputs, images. No rounded corners anywhere.
 - **Monochrome ink ramp** (OKLCH, chroma 0) for all structure, plus exactly **two chromatic voices**:
   - destructive **red** = failure/danger
-  - signal **amber** `oklch(0.65 0.146 60)` = "live right now" (≤10% of screen; four surfaces max)
+  - signal **violet** `oklch(0.52 0.21 293)` light / `oklch(0.72 0.19 293)` dark = "live right now" (≤10% of screen; four surfaces max)
   - No other accent colors. **Badges are text-only** — no colored chips.
 - **Underline inputs**, not boxed boxes. **Hairline rings, not shadows** (flat by default, `shadow-sm` max).
-- Uppercase, wide-tracked micro-labels. **Machine values in mono; prose never mono.** Literal white `oklch(1 0 0)` light background. Fluid type scale (display up to ~7rem).
+- Uppercase, wide-tracked micro-labels for badges/eyebrows/status; **buttons and nav are sentence-case, medium-weight** (deliberate hybrid). **Machine values in mono; prose never mono.** Literal white `oklch(1 0 0)` light background. Display capped ~3rem (hero up to ~4rem).
 
 ## Anti-references (do NOT drift toward these)
 

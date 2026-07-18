@@ -79,7 +79,7 @@ function InventoryPage() {
   const failing = items.filter((i) => i.securityStatus === "fail").length;
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <div>
         <PageTitle>Skill inventory</PageTitle>
         <p className="text-muted-foreground">
@@ -106,25 +106,25 @@ function InventoryPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card size="sm">
           <CardHeader className="pb-2">
             <CardDescription>Total discovered</CardDescription>
             <CardTitle className="text-3xl tabular-nums">{items.length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card size="sm">
           <CardHeader className="pb-2">
             <CardDescription>Registry-managed</CardDescription>
             <CardTitle className="text-3xl tabular-nums">{managed}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card size="sm">
           <CardHeader className="pb-2">
             <CardDescription>Local only</CardDescription>
             <CardTitle className="text-3xl tabular-nums">{unmanaged}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card size="sm">
           <CardHeader className="pb-2">
             <CardDescription>Security fail</CardDescription>
             <CardTitle className="text-3xl tabular-nums">{failing}</CardTitle>
@@ -174,7 +174,7 @@ function InventoryPage() {
         </div>
       </div>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Scan results</CardTitle>
           <CardDescription>
@@ -212,7 +212,7 @@ function InventoryPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Discovered skills</CardTitle>
         </CardHeader>

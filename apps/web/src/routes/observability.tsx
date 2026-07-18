@@ -25,7 +25,7 @@ function MetricCard({
   hint?: string;
 }) {
   return (
-    <Card className="flex flex-col">
+    <Card size="sm" className="flex flex-col">
       <CardHeader className="pb-2">
         <CardDescription>{title}</CardDescription>
         <CardTitle className="text-3xl tabular-nums">{value}</CardTitle>
@@ -52,7 +52,7 @@ function ObservabilityPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <div>
         <PageTitle>Observability</PageTitle>
         <p className="text-muted-foreground">Hosted runs, install funnel, and activation trends</p>
@@ -106,7 +106,7 @@ function ObservabilityPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card id="run-metrics-chart">
+            <Card size="sm" id="run-metrics-chart">
               <CardHeader>
                 <CardTitle>Run volume</CardTitle>
                 <CardDescription>Daily hosted runs</CardDescription>
@@ -121,7 +121,7 @@ function ObservabilityPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card size="sm">
               <CardHeader>
                 <CardTitle>Install funnel trend</CardTitle>
                 <CardDescription>Daily installs and activations</CardDescription>
@@ -150,7 +150,7 @@ function ObservabilityPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+            <Card size="sm">
               <CardHeader>
                 <CardTitle>Runs by runtime</CardTitle>
                 <CardDescription>Last 30 days</CardDescription>
@@ -168,7 +168,7 @@ function ObservabilityPage() {
               </CardContent>
             </Card>
 
-            <Card id="install-funnel">
+            <Card size="sm" id="install-funnel">
               <CardHeader>
                 <CardTitle>Registry funnel</CardTitle>
                 <CardDescription>Install vs activation by skill</CardDescription>
@@ -193,7 +193,7 @@ function ObservabilityPage() {
             </Card>
           </div>
 
-          <Card id="recent-runs">
+          <Card size="sm" id="recent-runs">
             <CardHeader>
               <CardTitle>Recent runs</CardTitle>
               <CardDescription>Latest hosted script executions</CardDescription>
