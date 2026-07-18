@@ -24,14 +24,17 @@ skillist whoami
 
 ## Registry
 
-Skills are referenced as `org/repo` (GitHub-style):
+Skills are referenced as `org/repo` (GitHub-style), optionally pinned to an exact published version with `@`:
 
 ```bash
 skillist search <query> [--category <cat>] [--tag <tag>]
-skillist install <org>/<repo>
-skillist pull <org>/<repo>
+skillist install <org>/<repo>            # latest, resolved then pinned
+skillist install <org>/<repo>@1.2.3      # exact version (immutable)
+skillist pull <org>/<repo>[@version]
 skillist list
 ```
+
+Installs resolve to an exact version, download over the immutable versioned URL, and verify the bundle's `SKILL.md` against the registry's published sha256 (recorded in `.skillist.lock` as `contentSha256`). `skillist update` checks the current published version first and skips skills that are already up to date.
 
 Public delivery URLs default to `https://skillist.io/{org}/{repo}`:
 
@@ -101,8 +104,8 @@ export SKILLIST_DELIVERY_URL=http://localhost:5173
 <SectionHeading title="Commands" client:load />
 
 - `skillist search [query]` — search registry with filters
-- `skillist install <org>/<repo>` — download and record in `.skillist.lock`
-- `skillist pull <org>/<repo>` — download without lockfile
+- `skillist install <org>/<repo>[@version]` — download, verify sha256, and record in `.skillist.lock`
+- `skillist pull <org>/<repo>[@version]` — download without lockfile
 - `skillist push <org>/<repo> <dir>` — upload draft version
 - `skillist publish <org>/<repo> <dir>` — push and publish
 - `skillist run <org>/<repo> --script <path>` — hosted execution
