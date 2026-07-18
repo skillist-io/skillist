@@ -1,9 +1,15 @@
+import { objectToBundle, validateSkillBundle } from "@skillist/skill-format";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { Check, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { FeedbackInbox } from "@/components/feedback-inbox";
 import { ScoreBadges } from "@/components/score-badges";
+import type { CodeEditorHandle } from "@/components/skill-editor/code-editor";
+import { errorLinesForSkillMd } from "@/components/skill-editor/frontmatter-lines";
+import { SkillBundleEditor } from "@/components/skill-editor/skill-bundle-editor";
+import { useSkillBundle } from "@/components/skill-editor/use-skill-bundle";
+import { ValidationPanel } from "@/components/skill-editor/validation-panel";
 import { SkillEvalPanel } from "@/components/skill-eval-panel";
 import { SkillEvalRegression } from "@/components/skill-eval-regression";
 import { SkillRunCard } from "@/components/skill-run-card";
@@ -13,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import {
   api,
@@ -44,7 +49,6 @@ export const Route = createFileRoute("/orgs/$orgId/skills/$repo")({
 function SkillEditorPage() {
   const { orgId, repo } = Route.useParams();
   const queryClient = useQueryClient();
-  const [content, setContent] = useState("");
   const [feedbackBody, setFeedbackBody] = useState("");
   const [versionBump, setVersionBump] = useState<SemverBump>("patch");
   const [compareVersionId, setCompareVersionId] = useState<string | null>(null);
@@ -137,6 +141,36 @@ function SkillEditorPage() {
     enabled: !!compareVersionId,
   });
 
+  const bundle = useSkillBundle({
+    initialFiles: files?.files,
+    versionId: latestDraft?.id,
+  });
+  const content = bundle.files["SKILL.md"] ?? "";
+  const { overwriteSkillMd, reset: resetBundle } = bundle;
+  const editorRef = useRef<CodeEditorHandle>(null);
+
+  // Deferred so validation lags a beat behind fast typing instead of blocking it.
+  const deferredFiles = useDeferredValue(bundle.files);
+  const specErrors = useMemo(() => {
+    if (Object.keys(deferredFiles).length === 0) return [];
+    const result = validateSkillBundle(objectToBundle(deferredFiles), repo);
+    return result.valid ? [] : result.errors;
+  }, [deferredFiles, repo]);
+  const errorLines = useMemo(
+    () => errorLinesForSkillMd(deferredFiles["SKILL.md"] ?? "", specErrors),
+    [deferredFiles, specErrors],
+  );
+
+  useBlocker({
+    shouldBlockFn: () => {
+      if (!bundle.dirty) return false;
+      return !window.confirm("You have unsaved changes. Discard them and leave?");
+    },
+    // The bundle hook manages its own dirty-gated beforeunload; the router's
+    // default would warn on every hard navigation even with no edits.
+    enableBeforeUnload: false,
+  });
+
   const diff = useMemo(() => {
     if (!compareVersionId || !compareFiles?.files["SKILL.md"]) return null;
     return diffLines(compareFiles.files["SKILL.md"], content);
@@ -145,31 +179,27 @@ function SkillEditorPage() {
   const stats = diff ? diffStats(diff) : null;
 
   useEffect(() => {
-    if (files?.files["SKILL.md"]) {
-      setContent(files.files["SKILL.md"]);
-    }
-  }, [files]);
-
-  useEffect(() => {
     if (lastEvent?.skillMd) {
-      setContent(lastEvent.skillMd);
+      overwriteSkillMd(lastEvent.skillMd);
       queryClient.invalidateQueries({ queryKey: ["versions", orgId, repo] });
     }
-  }, [lastEvent, orgId, repo, queryClient]);
+  }, [lastEvent, orgId, repo, queryClient, overwriteSkillMd]);
 
   const saveVersion = useMutation({
     mutationFn: () =>
       api(`/v1/orgs/${orgId}/skills/${repo}/versions`, {
         method: "PUT",
         body: JSON.stringify({
-          files: { ...files?.files, "SKILL.md": content },
+          files: bundle.files,
           parentVersionId: latestDraft?.id,
           bump: versionBump,
         }),
       }),
     onSuccess: () => {
+      resetBundle(bundle.files);
       queryClient.invalidateQueries({ queryKey: ["versions", orgId, repo] });
       queryClient.invalidateQueries({ queryKey: ["evals", orgId, repo] });
+      queryClient.invalidateQueries({ queryKey: ["files", orgId, repo] });
     },
   });
 
@@ -275,7 +305,15 @@ function SkillEditorPage() {
           <Button variant="outline" onClick={() => setPublic.mutate()}>
             Make public
           </Button>
-          <Button onClick={() => saveVersion.mutate()} disabled={saveVersion.isPending}>
+          <Button
+            onClick={() => saveVersion.mutate()}
+            disabled={saveVersion.isPending || specErrors.length > 0}
+            title={
+              specErrors.length > 0
+                ? `${specErrors.length} spec error${specErrors.length === 1 ? "" : "s"} — see the validation panel`
+                : undefined
+            }
+          >
             Save v{nextDraftSemver}
           </Button>
           {latestDraft && (
@@ -293,22 +331,43 @@ function SkillEditorPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>SKILL.md editor</CardTitle>
-            <CardDescription>agentskills.io format with YAML frontmatter</CardDescription>
+            <CardTitle>Skill bundle editor</CardTitle>
+            <CardDescription>
+              agentskills.io format — SKILL.md frontmatter, scripts/, references/, assets/
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Textarea
-              className="min-h-[400px] font-mono text-xs"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
+            <SkillBundleEditor
+              bundle={bundle}
+              repoSlug={repo}
+              validationErrors={specErrors}
+              errorLines={errorLines}
+              editorRef={editorRef}
             />
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+          <Card>
+            <CardHeader>
+              <CardTitle>Spec validation</CardTitle>
+              <CardDescription>agentskills.io conformance, checked as you type</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ValidationPanel
+                errors={specErrors}
+                onFocusError={(error) => {
+                  bundle.setActivePath("SKILL.md");
+                  const lines = errorLinesForSkillMd(content, [error]);
+                  const line = lines.values().next().value ?? 1;
+                  requestAnimationFrame(() => editorRef.current?.focusLine(line));
+                }}
+              />
+            </CardContent>
+          </Card>
           {publishBlockedReason && (
             <Card>
               <CardContent className="pt-4 text-sm">
@@ -453,7 +512,7 @@ function SkillEditorPage() {
             onFeedbackBodyChange={setFeedbackBody}
             onSubmit={() => submitFeedback.mutate()}
             onApprove={(id) => approveFeedback.mutate(id)}
-            onApplyDraft={(skillMd) => setContent(skillMd)}
+            onApplyDraft={(skillMd) => overwriteSkillMd(skillMd)}
             onPublishDraft={(versionId) => publish.mutate(versionId)}
             isSubmitting={submitFeedback.isPending}
             isApproving={approveFeedback.isPending}

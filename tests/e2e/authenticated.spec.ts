@@ -96,6 +96,38 @@ test.describe("signed-in flows", () => {
     await expect(page.getByText("Private only")).toBeVisible();
   });
 
+  test("skill bundle editor renders tree, tabs, and live validation", async ({
+    page,
+  }, testInfo) => {
+    await ensureExplorerOpen(page);
+    const skillLink = page.locator('a[href*="/skills/"]').first();
+    if ((await skillLink.count()) === 0) {
+      testInfo.skip(true, "No skills in this account to open the editor with");
+    }
+    await skillLink.click();
+    await page.waitForURL(/\/orgs\/.+\/skills\/.+/);
+
+    const editorHeading = page.getByText("Skill bundle editor");
+    if (!(await editorHeading.isVisible())) {
+      testInfo.skip(true, "Bundle editor not deployed to this environment yet");
+    }
+
+    await expect(page.getByText("Files", { exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Source" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Frontmatter" })).toBeVisible();
+
+    const source = page.getByLabel("SKILL.md source");
+    await expect(source).toBeVisible();
+    await source.focus();
+    await page.keyboard.press("End");
+    await page.keyboard.type("x");
+    await expect(page.getByTitle("Unsaved changes")).toBeVisible();
+
+    await page.getByRole("tab", { name: "Frontmatter" }).click();
+    await expect(page.getByLabel("name", { exact: true })).toBeVisible();
+    await expect(page.getByText("agentskills.io conformance, checked as you type")).toBeVisible();
+  });
+
   test("logout from sidebar redirects to login and clears session", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 

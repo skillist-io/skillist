@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { WifiOff } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
 import { AgentInstallButtons } from "@/components/agent-install-buttons";
 import { CopyButton } from "@/components/copy-button";
 import { PublicEvalBadge } from "@/components/public-eval-badge";
@@ -25,6 +26,9 @@ type PluginManifest = {
   mcp?: { servers?: { name: string; url?: string }[] };
 };
 
+const SkillReadme = lazy(() => import("@/components/skill-readme"));
+const SkillBundleBrowser = lazy(() => import("@/components/skill-bundle-browser"));
+
 export const Route = createFileRoute("/$org/$repo")({
   component: SkillRepoPage,
 });
@@ -33,6 +37,7 @@ function SkillRepoPage() {
   const { org, repo } = Route.useParams();
   const queryClient = useQueryClient();
   const { connected, lastEvent } = useSkillRealtime(org, repo);
+  const [viewedBundlePath, setViewedBundlePath] = useState<string | null>(null);
 
   const {
     data: entry,
@@ -166,6 +171,15 @@ function SkillRepoPage() {
         {/* Body: primary adopt/run column + secondary reference rail */}
         <div className="space-y-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8 lg:space-y-0">
           <div className="space-y-8">
+            <Suspense fallback={null}>
+              <SkillReadme
+                org={org}
+                repo={repo}
+                etag={lastEvent?.etag}
+                onOpenFile={setViewedBundlePath}
+              />
+            </Suspense>
+
             <Card>
               <CardHeader>
                 <CardTitle>Install</CardTitle>
@@ -215,6 +229,16 @@ function SkillRepoPage() {
 
           {/* Reference rail */}
           <aside className="space-y-6 lg:sticky lg:top-20">
+            <Suspense fallback={null}>
+              <SkillBundleBrowser
+                org={org}
+                repo={repo}
+                etag={lastEvent?.etag}
+                viewedPath={viewedBundlePath}
+                onViewPath={setViewedBundlePath}
+              />
+            </Suspense>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Agent compatibility</CardTitle>
