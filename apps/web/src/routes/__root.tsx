@@ -1,4 +1,5 @@
-import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
+import { createRootRouteWithContext, Outlet, useRouterState } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { AuthShell } from "@/components/auth-shell";
 import { PublicLayout } from "@/components/public-layout";
@@ -43,7 +44,7 @@ function RootLayout() {
   );
 }
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootLayout,
   errorComponent: RouteErrorFallback,
 });

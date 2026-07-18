@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSkillRealtime } from "@/hooks/use-skill-realtime";
 import {
   api,
@@ -41,10 +42,56 @@ function previewNextSemver(base: string | undefined, bump: SemverBump): string {
   return `${major}.${minor}.${patch + 1}`;
 }
 
+// Shared between the loader (prefetch) and the component (render) so both
+// sides hit the exact same cache entry.
+const orgsQueryOptions = () => ({
+  queryKey: ["orgs"] as const,
+  queryFn: () => api<Org[]>("/v1/orgs"),
+});
+
+const versionsQueryOptions = (orgId: string, repo: string) => ({
+  queryKey: ["versions", orgId, repo] as const,
+  queryFn: () => api<SkillVersion[]>(`/v1/orgs/${orgId}/skills/${repo}/versions`),
+});
+
+const filesQueryOptions = (orgId: string, repo: string, versionId: string) => ({
+  queryKey: ["files", orgId, repo, versionId] as const,
+  queryFn: () =>
+    api<{ files: Record<string, string> }>(
+      `/v1/orgs/${orgId}/skills/${repo}/versions/${versionId}/files`,
+    ),
+});
+
 export const Route = createFileRoute("/orgs/$orgId/skills/$repo")({
   beforeLoad: () => requireAuth(),
+  loader: async ({ params: { orgId, repo }, context: { queryClient } }) => {
+    const [, versions] = await Promise.all([
+      queryClient.ensureQueryData(orgsQueryOptions()),
+      queryClient.ensureQueryData(versionsQueryOptions(orgId, repo)),
+    ]);
+    const latestDraft = versions.find((v) => v.status === "draft") ?? versions[0];
+    if (latestDraft) {
+      await queryClient.ensureQueryData(filesQueryOptions(orgId, repo, latestDraft.id));
+    }
+  },
+  pendingComponent: EditorSkeleton,
   component: SkillEditorPage,
 });
+
+function EditorSkeleton() {
+  return (
+    <div className="space-y-6" aria-hidden>
+      <p className="sr-only" role="status">
+        Loading skill editor
+      </p>
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-9 w-64" />
+      </div>
+      <Skeleton className="h-96 w-full" />
+    </div>
+  );
+}
 
 function SkillEditorPage() {
   const { orgId, repo } = Route.useParams();
@@ -52,16 +99,12 @@ function SkillEditorPage() {
   const [feedbackBody, setFeedbackBody] = useState("");
   const [versionBump, setVersionBump] = useState<SemverBump>("patch");
   const [compareVersionId, setCompareVersionId] = useState<string | null>(null);
-  const { data: orgs } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => api<Org[]>("/v1/orgs"),
-  });
+  const { data: orgs } = useQuery(orgsQueryOptions());
   const orgSlug = orgs?.find((o) => o.id === orgId)?.slug ?? "";
   const { connected, lastEvent } = useSkillRealtime(orgSlug, repo);
 
   const { data: versions } = useQuery({
-    queryKey: ["versions", orgId, repo],
-    queryFn: () => api<SkillVersion[]>(`/v1/orgs/${orgId}/skills/${repo}/versions`),
+    ...versionsQueryOptions(orgId, repo),
     placeholderData: keepPreviousData,
   });
 
@@ -126,11 +169,7 @@ function SkillEditorPage() {
   }, [latestDraft, evalGateRequired, draftEval, publishPolicy]);
 
   const { data: files } = useQuery({
-    queryKey: ["files", orgId, repo, latestDraft?.id],
-    queryFn: () =>
-      api<{ files: Record<string, string> }>(
-        `/v1/orgs/${orgId}/skills/${repo}/versions/${latestDraft!.id}/files`,
-      ),
+    ...filesQueryOptions(orgId, repo, latestDraft?.id ?? ""),
     enabled: !!latestDraft,
   });
 
@@ -204,6 +243,20 @@ function SkillEditorPage() {
       queryClient.invalidateQueries({ queryKey: ["files", orgId, repo] });
     },
   });
+
+  // Cmd/Ctrl+S saves the draft instead of triggering the browser's save-page
+  // dialog. Guarded exactly like the Save button: no-op while pending, dirty
+  // is not required (mirrors clicking Save at any time), spec errors block it.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "s" || !(event.metaKey || event.ctrlKey)) return;
+      event.preventDefault();
+      if (saveVersion.isPending || specErrors.length > 0) return;
+      saveVersion.mutate();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [saveVersion, specErrors.length]);
 
   const runEval = useMutation({
     mutationFn: () =>
