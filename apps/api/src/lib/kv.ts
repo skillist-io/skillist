@@ -10,6 +10,15 @@ export function skillVersionKey(orgSlug: string, skillRepo: string, version: str
   return `skill:${orgSlug}:${skillRepo}:v:${version}`;
 }
 
+export function skillVersionMetaKey(orgSlug: string, skillRepo: string, version: string) {
+  return `skill:${orgSlug}:${skillRepo}:v:${version}:meta`;
+}
+
+/** Prefix covering every per-version key of a skill (SKILL.md and meta). */
+export function skillVersionPrefix(orgSlug: string, skillRepo: string) {
+  return `skill:${orgSlug}:${skillRepo}:v:`;
+}
+
 export type SkillKvMeta = {
   name: string;
   description: string;

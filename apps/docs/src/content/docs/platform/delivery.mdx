@@ -21,7 +21,8 @@ Skillist uses a single GitHub-like namespace on the apex domain. The **org** is 
   rows={[
     ["Registry browse", "https://skillist.io/registry"],
     ["Skill page", "https://skillist.io/{org}/{repo}"],
-    ["SKILL.md", "https://skillist.io/{org}/{repo}/SKILL.md"],
+    ["SKILL.md (latest)", "https://skillist.io/{org}/{repo}/SKILL.md"],
+    ["SKILL.md (pinned)", "https://skillist.io/{org}/{repo}@{version}/SKILL.md"],
     ["Discovery meta", "https://skillist.io/{org}/{repo}/meta"],
     ["Full bundle", "https://skillist.io/{org}/{repo}/bundle"],
     ["Script list", "https://skillist.io/{org}/{repo}/scripts"],
@@ -38,7 +39,17 @@ For the public skill `skillist/web-perf-audit`:
 https://skillist.io/skillist/web-perf-audit
 https://skillist.io/skillist/web-perf-audit/SKILL.md
 https://skillist.io/skillist/web-perf-audit/meta
+https://skillist.io/skillist/web-perf-audit@1.4.2/SKILL.md
 ```
+
+## Version pinning
+
+Append `@{version}` to the repo segment of any delivery URL (`SKILL.md`, `meta`, `bundle`) to pin an exact published version:
+
+- **`{repo}` or `{repo}@latest`** — the mutable latest URL. Fresh for 60s and always resolves to the newest published version; the `X-Skillist-Version` response header tells you what it resolved to.
+- **`{repo}@1.4.2`** — an exact, previously published version. Immutable: served with `Cache-Control: public, max-age=31536000, immutable`, so agents and CI can cache it forever. Superseded (archived) versions stay addressable; drafts and unpublished versions 404.
+
+Pin exact versions in lockfiles and reproducible agent configs; use the latest URL when you want a skill's self-improvement loop delivered automatically.
 
 ## Caching and integrity
 
@@ -49,7 +60,7 @@ Delivery responses are edge-cached and support conditional requests:
   columns={["Header", "Meaning"]}
   rows={[
     ["ETag", "Version identifier for the response. Send it back as If-None-Match to get a 304 with no body when the skill is unchanged."],
-    ["Cache-Control", "SKILL.md and meta are fresh for 60s; bundles for 300s. Caches may serve stale while revalidating, and for up to a day on origin errors."],
+    ["Cache-Control", "Latest URLs: SKILL.md and meta are fresh for 60s, bundles for 300s, with stale-while-revalidate and serve-stale-on-error. Version-pinned URLs are immutable (max-age=31536000)."],
     ["X-Skillist-Version", "The published semver this response resolved to."],
     ["X-Skillist-Content-Sha256", "Full sha256 of SKILL.md — verify the content you fetched matches what was published. Also returned as contentSha256 in /meta."],
   ]}
