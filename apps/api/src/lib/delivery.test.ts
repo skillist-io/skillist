@@ -357,6 +357,31 @@ describe("versioned delivery backfill", () => {
     expect(res.status).toBe(304);
   });
 
+  it("404s instead of materializing when a version has no files in R2", async () => {
+    const { kv } = recordingKv();
+    let putCalled = false;
+    const emptyR2 = {
+      get: async () => null,
+      list: async () => ({ objects: [] }),
+      put: async () => {
+        putCalled = true;
+      },
+    } as unknown as R2Bucket;
+    const bundleRows = [
+      rows[0]!,
+      [{ id: "skill-1", visibility: "public", latestPublishedVersionId: "ver-1" }],
+      rows[2]!,
+    ];
+    const res = await serveSkillBundle(
+      { SKILLS_KV: kv, SKILLS_R2: emptyR2 },
+      () => stubDb(bundleRows),
+      "acme",
+      "widget",
+    );
+    expect(res.status).toBe(404);
+    expect(putCalled).toBe(false);
+  });
+
   it("404s a version pin for a non-public skill without touching R2", async () => {
     const { kv } = recordingKv();
     const privateRows = [rows[0]!, [{ id: "skill-1", visibility: "private" }]];

@@ -224,10 +224,23 @@ async function seedSkill(
   const semver = SKILL_LEVELS[slug] ?? "1.0.0";
   const prefix = r2Prefix(org.id, slug, versionId);
   const skillMd = bundle.get("SKILL.md")!;
-  const etag = sha256(skillMd).slice(0, 16);
+  const contentSha256 = sha256(skillMd);
+  const etag = contentSha256.slice(0, 16);
   const publishedAt = new Date();
 
   await uploadBundleToR2(prefix, bundle);
+
+  // Materialize the bundle object the /bundle route streams (same shape the
+  // worker's putBundleObject writes at publish time).
+  const bundleKey = `${prefix}.bundle.json`;
+  const bundleTmp = join(ROOT, ".seed-bundle-tmp.json");
+  writeFileSync(
+    bundleTmp,
+    JSON.stringify({ files: Object.fromEntries(bundle), version: semver }),
+    "utf8",
+  );
+  putR2Object(bundleKey, bundleTmp);
+  unlinkSync(bundleTmp);
 
   const reviewChecks = review.checks.map(({ id, label, passed, message }) => ({
     id,
@@ -279,6 +292,11 @@ async function seedSkill(
     org: org.slug,
     repo: slug,
     publishedAt: publishedAt.toISOString(),
+    // The public delivery path fails closed on a missing visibility — a meta
+    // entry without it 404s even for a DB-public skill.
+    visibility: "public",
+    contentSha256,
+    bundleKey,
   };
 
   putKvKey(skillMetaKey(org.slug, slug), JSON.stringify(meta));
