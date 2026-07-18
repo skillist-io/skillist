@@ -11,7 +11,7 @@ const FEATURED = [
   {
     org: "skillist",
     slug: "registry-mcp",
-    pitch: "Search and install skills via MCP — connect to api.skillist.dev/mcp.",
+    pitch: "Search and install skills via MCP: connect to api.skillist.dev/mcp.",
   },
   {
     org: "skillist",
@@ -26,21 +26,21 @@ const FEATURED = [
   {
     org: "skillist",
     slug: "cloudflare-deploy",
-    pitch: "Deploy Workers with preflight scripts — works in Cursor, Claude, and VS Code.",
+    pitch: "Deploy Workers with preflight scripts. Works in Cursor, Claude, and VS Code.",
   },
   {
     org: "skillist",
     slug: "roll-dice",
-    pitch: "Minimal starter skill — great first install to verify your agent setup.",
+    pitch: "Minimal starter skill for verifying your agent setup.",
   },
 ] as const;
 
 export function RegistryFeatured() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["registry", "featured"],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const items = await Promise.all(
-        FEATURED.map((f) => api<RegistryItem>(`/v1/registry/${f.org}/${f.slug}`)),
+        FEATURED.map((f) => api<RegistryItem>(`/v1/registry/${f.org}/${f.slug}`, { signal })),
       );
       return FEATURED.map((f, i) => ({
         ...f,
@@ -51,6 +51,17 @@ export function RegistryFeatured() {
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading featured skills…</p>;
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center gap-3 text-sm text-destructive">
+        <p>Could not load featured skills.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   return (

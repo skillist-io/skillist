@@ -24,13 +24,13 @@ function MetricCard({
   hint?: string;
 }) {
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader className="pb-2">
         <CardDescription>{title}</CardDescription>
         <CardTitle className="text-3xl tabular-nums">{value}</CardTitle>
       </CardHeader>
       {hint ? (
-        <CardContent className="pt-0 text-xs text-muted-foreground">{hint}</CardContent>
+        <CardContent className="mt-auto pt-0 text-xs text-muted-foreground">{hint}</CardContent>
       ) : null}
     </Card>
   );
