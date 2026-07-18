@@ -2,15 +2,10 @@ import { expect, test } from "@playwright/test";
 
 test("homepage shows hero and registry MCP section", async ({ page }) => {
   await page.goto("/");
-  // e2e runs against live prod (skillist.io). During the Control Surface
-  // redesign rollout the hero + MCP-section copy is changing, so tolerate both
-  // the current and new wording until this ships; tighten once deployed.
   await expect(
-    page.getByRole("heading", {
-      name: /^(The realtime registry for Agent Skills|Realtime Agent Skills)$/,
-    }),
+    page.getByRole("heading", { name: "The realtime registry for Agent Skills" }),
   ).toBeVisible();
-  await expect(page.getByText(/Connect over MCP|Registry MCP/)).toBeVisible();
+  await expect(page.getByText("Connect over MCP")).toBeVisible();
   await expect(page.getByText("registry_search")).toBeVisible();
 });
 
