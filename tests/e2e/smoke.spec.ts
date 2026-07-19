@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+// Authenticated surfaces moved to the console app (console.skillist.io); the
+// marketing site (baseURL) no longer has /dashboard or /inventory.
+const CONSOLE_URL = process.env.SMOKE_CONSOLE_URL ?? "https://console.skillist.io";
+
 test("homepage shows hero and connect section", async ({ page }) => {
   await page.goto("/");
   await expect(
@@ -51,12 +55,12 @@ test("registry shows retry when API fails then recovers", async ({ page }) => {
   });
 });
 
-test("login guard redirects dashboard to login", async ({ page }) => {
-  await page.goto("/dashboard");
+test("console login guard redirects dashboard to login", async ({ page }) => {
+  await page.goto(`${CONSOLE_URL}/dashboard`);
   await expect(page).toHaveURL(/\/login/);
 });
 
-test("inventory redirects to login when signed out", async ({ page }) => {
-  await page.goto("/inventory");
+test("console inventory redirects to login when signed out", async ({ page }) => {
+  await page.goto(`${CONSOLE_URL}/inventory`);
   await expect(page).toHaveURL(/\/login/);
 });
