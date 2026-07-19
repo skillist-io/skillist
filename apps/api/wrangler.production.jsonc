@@ -3,6 +3,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-01-15",
   "compatibility_flags": ["nodejs_compat"],
+  // Run the Worker near the database so multi-query requests don't pay a
+  // client<->origin round-trip per query.
+  "placement": { "mode": "smart" },
   "vars": {
     "BETTER_AUTH_URL": "https://api.skillist.io",
     "WEB_URL": "https://skillist.io"
@@ -24,6 +27,12 @@
     {
       "binding": "HYPERDRIVE",
       "id": "3864600443334cd68ad86d592df9fd4a"
+    },
+    {
+      // Caching-DISABLED config over the same DB. Default client for auth /
+      // permissions / writes, so a revoked key stops authenticating immediately.
+      "binding": "HYPERDRIVE_CACHE_DISABLED",
+      "id": "1f35001220914a8b986b7fddb4523c9d"
     }
   ],
   "kv_namespaces": [
@@ -36,6 +45,13 @@
     {
       "binding": "SKILLS_R2",
       "bucket_name": "skillist-skills"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 120, "period": 60 }
     }
   ],
   "durable_objects": {
