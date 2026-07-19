@@ -9,7 +9,7 @@ import {
 } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AgentChat } from "@/components/agent/agent-chat";
+import { LazyAgentChat, prefetchAgentChat } from "@/components/agent/agent-chat-lazy";
 import { useAgentContext } from "@/lib/agent-context";
 import { useAgentOrg } from "@/lib/use-agent-org";
 
@@ -89,7 +89,7 @@ export function AgentDrawer({
         ) : (
           // Remount on org switch → useAgent/useAgentChat rebuild against the
           // new DO instance with no stale-message window.
-          <AgentChat
+          <LazyAgentChat
             key={activeOrg.id}
             orgId={activeOrg.id}
             orgName={activeOrg.name}
@@ -110,6 +110,19 @@ export function AgentDrawer({
  */
 export function useAgentDrawer() {
   const [open, setOpen] = useState(false);
+
+  // Warm the agent chunk once the shell is idle. It is off the critical path
+  // either way; fetching it during a quiet moment means the first ⌘K is
+  // instant instead of paying for several megabytes of SDK on open.
+  useEffect(() => {
+    const idle = window.requestIdleCallback;
+    if (typeof idle === "function") {
+      const handle = idle(() => prefetchAgentChat(), { timeout: 4000 });
+      return () => window.cancelIdleCallback?.(handle);
+    }
+    const timer = window.setTimeout(prefetchAgentChat, 2000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

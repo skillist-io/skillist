@@ -1,6 +1,6 @@
 import { NativeSelect, QueryError, Skeleton } from "@skillist/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AgentChat } from "@/components/agent/agent-chat";
+import { LazyAgentChat } from "@/components/agent/agent-chat-lazy";
 import { useAgentContext } from "@/lib/agent-context";
 import { requireAuth } from "@/lib/require-auth";
 import { useAgentOrg } from "@/lib/use-agent-org";
@@ -85,7 +85,7 @@ function AgentPage() {
       </Header>
       {/* Remount on org switch → useAgent/useAgentChat rebuild against the new
           DO instance with no stale-message window. */}
-      <AgentChat
+      <LazyAgentChat
         key={activeOrg.id}
         orgId={activeOrg.id}
         orgName={activeOrg.name}

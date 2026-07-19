@@ -20,6 +20,7 @@ import {
 } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
 import { Bot } from "lucide-react";
+import { prefetchAgentChat } from "@/components/agent/agent-chat-lazy";
 import { AgentDrawer, useAgentDrawer } from "@/components/agent/agent-drawer";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useBreadcrumbs } from "@/lib/breadcrumbs";
@@ -74,6 +75,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     size="icon"
                     onClick={() => agentDrawer.setOpen(true)}
+                    // Warm the agent chunk on intent, so the drawer usually has
+                    // it in cache by the time it opens.
+                    onPointerEnter={prefetchAgentChat}
+                    onFocus={prefetchAgentChat}
                     aria-label="Ask the Skillist agent"
                     aria-keyshortcuts="Meta+K Control+K"
                   >
