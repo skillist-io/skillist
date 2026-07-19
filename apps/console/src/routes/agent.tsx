@@ -1,46 +1,23 @@
-import { api, NativeSelect, type Org, QueryError, Skeleton } from "@skillist/ui";
-import { useQuery } from "@tanstack/react-query";
+import { NativeSelect, QueryError, Skeleton } from "@skillist/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { AgentChat } from "@/components/agent/agent-chat";
+import { useAgentContext } from "@/lib/agent-context";
 import { requireAuth } from "@/lib/require-auth";
+import { useAgentOrg } from "@/lib/use-agent-org";
 
 export const Route = createFileRoute("/agent")({
   beforeLoad: () => requireAuth(),
   component: AgentPage,
 });
 
-const STORE_KEY = "skillist:agent:org";
-
+/**
+ * The agent's full-page surface, for long sessions. The global drawer
+ * (<AgentDrawer>, mounted in the app shell) is the ambient one; both key the
+ * same Durable Object by org, so they share a single transcript.
+ */
 function AgentPage() {
-  const {
-    data: orgs,
-    isPending,
-    isError,
-    refetch,
-  } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => api<Org[]>("/v1/orgs"),
-  });
-
-  const [orgId, setOrgId] = useState<string | null>(null);
-
-  // Default the target org to the last-used one (if still a member) or the
-  // first org. The `["orgs"]` query only returns orgs the user belongs to, so
-  // any id it yields is one the API agent gate will accept.
-  useEffect(() => {
-    if (!orgs?.length) return;
-    setOrgId((current) => {
-      if (current && orgs.some((o) => o.id === current)) return current;
-      const stored = typeof window !== "undefined" ? window.localStorage.getItem(STORE_KEY) : null;
-      if (stored && orgs.some((o) => o.id === stored)) return stored;
-      return orgs[0]?.id ?? null;
-    });
-  }, [orgs]);
-
-  useEffect(() => {
-    if (orgId && typeof window !== "undefined") window.localStorage.setItem(STORE_KEY, orgId);
-  }, [orgId]);
+  const { orgs, activeOrg, setOrgId, isPending, isError, refetch } = useAgentOrg();
+  const context = useAgentContext();
 
   // Fill the viewport below the sticky app header; the transcript scrolls
   // internally rather than the page.
@@ -68,7 +45,7 @@ function AgentPage() {
     );
   }
 
-  if (!orgs.length) {
+  if (!activeOrg) {
     return (
       <div className={shell}>
         <Header />
@@ -84,9 +61,6 @@ function AgentPage() {
       </div>
     );
   }
-
-  const activeOrg = orgs.find((o) => o.id === orgId) ?? orgs[0];
-  if (!activeOrg) return null;
 
   return (
     <div className={shell}>
@@ -111,7 +85,12 @@ function AgentPage() {
       </Header>
       {/* Remount on org switch → useAgent/useAgentChat rebuild against the new
           DO instance with no stale-message window. */}
-      <AgentChat key={activeOrg.id} orgId={activeOrg.id} orgName={activeOrg.name} />
+      <AgentChat
+        key={activeOrg.id}
+        orgId={activeOrg.id}
+        orgName={activeOrg.name}
+        context={context}
+      />
     </div>
   );
 }

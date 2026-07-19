@@ -13,7 +13,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       {/* Brand column — the fixed hero panel. Decorative grid + real proof. */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-background p-10 lg:flex">
+      <aside className="panel-noise relative hidden flex-col justify-between overflow-hidden border-r border-border bg-background p-10 lg:flex">
         <CanvasBackdrop className="opacity-60 [mask-image:radial-gradient(120%_100%_at_20%_0%,black,transparent_70%)]" />
 
         <Link
