@@ -277,6 +277,83 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Panel treatments — DESIGN.md §4.
+
+   Two techniques borrowed from Neon's site and drained of color. Both are
+   structural, not decorative: they make a flat hairline read as a physical
+   panel edge without introducing a hue, a shadow, or a gradient fill. The
+   surface stays monochrome; the "Flat-By-Default" rule still holds, because
+   neither adds elevation — they only describe the edge that is already there.
+   --------------------------------------------------------------------------- */
+
+@layer components {
+  /*
+   * A hairline whose brightness falls off from the top edge, the way light
+   * catches the lip of a real panel. A gradient is painted into the border box,
+   * then masked so only the 1px border survives: `mask-composite: exclude`
+   * subtracts the padding box from the full box, leaving the frame.
+   *
+   * Ink only — `--foreground` at low alpha fading into `--border`. No hue.
+   *
+   * MUST be applied to a decorative overlay, never to a content element.
+   * `mask` composites the element *and its descendants*, so putting this on a
+   * panel would clip the panel's own text away. Use the <RuleEdge /> component,
+   * which renders the aria-hidden absolutely-positioned span this expects; the
+   * parent just needs `relative`.
+   *
+   * Browsers without mask-composite fall through to the flat hairline we
+   * already shipped, so the edge degrades rather than disappearing.
+   */
+  .rule-gradient {
+    border: 1px solid var(--border);
+  }
+
+  @supports (mask-composite: exclude) or (-webkit-mask-composite: xor) {
+    .rule-gradient {
+      border: 1px solid transparent;
+      background: linear-gradient(
+          to bottom,
+          color-mix(in oklch, var(--foreground) 22%, transparent) 0%,
+          var(--border) 45%,
+          color-mix(in oklch, var(--border) 55%, transparent) 100%
+        )
+        border-box;
+      -webkit-mask:
+        linear-gradient(#fff 0 0) padding-box,
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask:
+        linear-gradient(#fff 0 0) padding-box,
+        linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+    }
+  }
+
+  /*
+   * Fine-grain noise for large dark areas. Flat OKLCH fills band on wide
+   * gradients and on cheap panels; a sub-perceptual grain breaks the banding up
+   * and gives the surface some tooth. Generated as an inline feTurbulence
+   * data-URI — no image asset, no extra request.
+   *
+   * Dark only (light surfaces are literal white and must stay that way), and
+   * held at 3.5% so it never touches text contrast. Always decorative.
+   */
+  .panel-noise::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .dark .panel-noise::after,
+  :root[data-theme="dark"] .panel-noise::after {
+    opacity: 0.035;
+  }
+}
+
 @keyframes marquee-scroll {
   from {
     transform: translateX(0);

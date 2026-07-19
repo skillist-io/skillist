@@ -9,6 +9,7 @@ export * from "./components/markdown-view";
 export * from "./components/mini-bar-chart";
 export * from "./components/query-error";
 export * from "./components/route-error";
+export * from "./components/rule-edge";
 export * from "./components/score-readout";
 export * from "./components/skill-analytics-chart";
 export * from "./components/skill-readme";
