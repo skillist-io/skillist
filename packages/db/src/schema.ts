@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -53,6 +54,11 @@ export const failurePatternStatusEnum = pgEnum("failure_pattern_status", [
   "open",
   "drafted",
   "dismissed",
+]);
+export const agentApprovalStatusEnum = pgEnum("agent_approval_status", [
+  "pending",
+  "approved",
+  "denied",
 ]);
 
 // Better Auth tables
@@ -837,5 +843,74 @@ export const oauthConsents = pgTable(
     index("oauth_consent_client_idx").on(t.clientId),
     index("oauth_consent_user_idx").on(t.userId),
     uniqueIndex("oauth_consent_user_client_idx").on(t.userId, t.clientId),
+  ],
+);
+
+// Platform-agent v2: per-user chats, durable memory, HITL approvals
+export const agentChats = pgTable(
+  "agent_chats",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("agent_chats_org_user_idx").on(t.orgId, t.userId),
+    // Newest-first history listing orders by updated_at desc.
+    index("agent_chats_updated_idx").on(t.updatedAt),
+  ],
+);
+
+export const agentMemory = pgTable(
+  "agent_memory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Null userId = org-wide memory; set-null on user delete preserves org facts.
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // NULLS NOT DISTINCT so a null userId still dedupes org-wide keys (PG15+/Neon PG17).
+    // drizzle 0.45.2 only exposes nullsNotDistinct on the unique-constraint builder,
+    // not uniqueIndex — this emits an equivalent UNIQUE(...) NULLS NOT DISTINCT constraint.
+    unique("agent_memory_org_user_key_idx").on(t.orgId, t.userId, t.key).nullsNotDistinct(),
+    index("agent_memory_org_user_idx").on(t.orgId, t.userId),
+  ],
+);
+
+export const agentApprovals = pgTable(
+  "agent_approvals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    toolName: text("tool_name").notNull(),
+    // sha256 of the sorted tool-call args — dedupes identical pending requests.
+    callSignature: text("call_signature").notNull(),
+    args: jsonb("args").$type<Record<string, unknown>>(),
+    status: agentApprovalStatusEnum("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("agent_approvals_call_idx").on(t.orgId, t.userId, t.toolName, t.callSignature),
+    index("agent_approvals_org_user_status_idx").on(t.orgId, t.userId, t.status),
   ],
 );

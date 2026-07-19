@@ -111,6 +111,9 @@
   "ai": {
     "binding": "AI"
   },
+  // Shared by failure-mining vectors and docs-RAG vectors (kind:"doc", seeded by
+  // `pnpm embed:docs`). Docs filtering needs a `kind` metadata index:
+  //   wrangler vectorize create-metadata-index skillist-failures --property-name=kind --type=string
   "vectorize": [
     {
       "binding": "VECTORIZE",

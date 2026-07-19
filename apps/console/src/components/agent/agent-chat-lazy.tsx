@@ -29,8 +29,10 @@ export function prefetchAgentChat() {
 export function LazyAgentChat(props: {
   orgId: string;
   orgName: string;
+  chatId: string;
   context?: AgentContext;
   compact?: boolean;
+  onListRefresh?: () => void;
 }) {
   return (
     <Suspense fallback={<AgentChatSkeleton compact={props.compact} />}>

@@ -18,6 +18,9 @@ import { rateLimit } from "./lib/rate-limit";
 import { resolveSessionUserId } from "./lib/session";
 import { handleMcpRequest } from "./mcp/handler";
 import { mcpServerInfo } from "./mcp/registry-server";
+import { agentApprovalsRoutes } from "./routes/agent-approvals";
+import { agentChatsRoutes } from "./routes/agent-chats";
+import { agentMemoryRoutes } from "./routes/agent-memory";
 import { deliveryRoutes } from "./routes/delivery";
 import { executionRoutes } from "./routes/execution";
 import { feedbackRoutes } from "./routes/feedback";
@@ -153,14 +156,26 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
 });
 
 // Platform agent (Cloudflare Agents SDK). Auth-gated on the Better Auth session
-// and org membership before `routeAgentRequest` resolves the DO. The instance
-// name is the orgId (`/agents/skillist-agent/{orgId}`), so the verified uid is
-// injected as a query param the client can't spoof — we delete any client value
-// first.
+// and org membership before `routeAgentRequest` resolves the DO.
+//
+// The client addresses a conversation by `orgId::chatId` (chatId is a
+// client-generated uuid, one per conversation). We verify the session +
+// membership on orgId, then REWRITE the instance segment to
+// `orgId::userId::chatId`, injecting the SESSION-verified userId the client
+// never supplies. So the DO instance a user reaches is always keyed by their
+// own userId — per-user chats are un-spoofable. The verified uid also rides
+// along as a `?uid=` query param (any client value is stripped first).
 app.all("/agents/*", async (c) => {
   const url = new URL(c.req.url);
-  const parts = url.pathname.split("/").filter(Boolean); // ["agents", "{class}", "{orgId}", ...]
-  const orgId = parts[2];
+  const parts = url.pathname.split("/").filter(Boolean); // ["agents", "{class}", "{orgId::chatId}", ...]
+  const instance = parts[2];
+  if (!instance) return c.json({ error: "Missing agent instance" }, 400);
+
+  // The client sends `orgId::chatId`; split on the first separator so a chatId
+  // never bleeds into the orgId. A bare `orgId` (no chatId) is tolerated.
+  const sepIdx = instance.indexOf("::");
+  const orgId = sepIdx === -1 ? instance : instance.slice(0, sepIdx);
+  const chatId = sepIdx === -1 ? "" : instance.slice(sepIdx + 2);
   if (!orgId) return c.json({ error: "Missing agent instance" }, 400);
 
   const db = createWorkerDb(c.env);
@@ -169,6 +184,12 @@ app.all("/agents/*", async (c) => {
 
   const membership = await getOrgMembership(db, orgId, userId);
   if (!membership) return c.json({ error: "Forbidden" }, 403);
+
+  // Rewrite the instance segment to the un-spoofable `orgId::userId::chatId`.
+  const rewrittenInstance = `${orgId}::${userId}::${chatId}`;
+  const rewrittenParts = [...parts];
+  rewrittenParts[2] = rewrittenInstance;
+  url.pathname = `/${rewrittenParts.join("/")}`;
 
   url.searchParams.delete("uid");
   url.searchParams.set("uid", userId);
@@ -183,6 +204,9 @@ v1.route("/", projectRoutes);
 v1.route("/", registryRoutes);
 v1.route("/", feedbackRoutes);
 v1.route("/", governanceRoutes);
+v1.route("/", agentChatsRoutes);
+v1.route("/", agentMemoryRoutes);
+v1.route("/", agentApprovalsRoutes);
 v1.route("/", realtimeRoutes);
 v1.route("/", sourcesRoutes);
 v1.route("/", webhookRoutes);

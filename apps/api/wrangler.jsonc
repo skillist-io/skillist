@@ -109,6 +109,10 @@
   },
   // 768-dim cosine index (matches @cf/baai/bge-base-en-v1.5 embeddings). Create with:
   //   wrangler vectorize create skillist-failures --dimensions=768 --metric=cosine
+  // Shared by two vector kinds: failure-mining (skillId/signature) and docs RAG
+  // (kind:"doc", page/heading/text — seeded by `pnpm embed:docs`, read by the
+  // agent's search_docs tool). Filtering docs by `kind` needs a metadata index:
+  //   wrangler vectorize create-metadata-index skillist-failures --property-name=kind --type=string
   "vectorize": [
     {
       "binding": "VECTORIZE",
