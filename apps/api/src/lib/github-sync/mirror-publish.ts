@@ -29,7 +29,7 @@ import { putBundleObject, r2Prefix, sha256, uploadBundleToR2 } from "../r2";
 import { detectSkillRuntime } from "../skill-runtime";
 import { hashSkillTreeSnapshot, loadMirrorSkillBundle, sanitizeMirrorBundle } from "./bundle";
 import { getCachedTree, putCachedTree } from "./cache";
-import { discoverSkillsFromTree } from "./discover";
+import { DEFAULT_ROOTS, discoverSkillsFromTree } from "./discover";
 import {
   assertMirrorLicenseAllowed,
   cacheTarballToR2,
@@ -213,7 +213,7 @@ export async function syncSource(
     }
 
     const tree = await loadTree(env, source.githubOwner, source.githubRepo, commitSha);
-    const discovered = discoverSkillsFromTree(tree, source.discoveryRoots ?? ["skills"]);
+    const discovered = discoverSkillsFromTree(tree, source.discoveryRoots ?? DEFAULT_ROOTS);
     const org = await ensureMirrorOrg(db, source.githubOwner);
 
     const existingSkills = await db

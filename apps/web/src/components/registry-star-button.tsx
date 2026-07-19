@@ -1,7 +1,6 @@
+import { api, Button } from "@skillist/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Star } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
 
 type StarButtonProps = {
   org: string;

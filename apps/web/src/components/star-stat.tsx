@@ -1,7 +1,6 @@
+import { formatCount, useSession } from "@skillist/ui";
 import { Star } from "lucide-react";
 import { StarButton } from "@/components/registry-star-button";
-import { useSession } from "@/lib/auth-client";
-import { formatCount } from "@/lib/utils";
 
 type StarStatProps = {
   org: string;

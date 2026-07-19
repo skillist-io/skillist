@@ -1,26 +1,33 @@
+import {
+  api,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CopyButton,
+  formatCount,
+  PageTitle,
+  QueryError,
+  type RegistryItem,
+  ScoreReadout,
+  Skeleton,
+  SkillAnalyticsChart,
+  SkillRunCard,
+  SkillRunHistory,
+  TooltipProvider,
+  useSkillRealtime,
+} from "@skillist/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { WifiOff } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
-import { AddToProjectButton } from "@/components/add-to-project";
 import { AgentInstallButtons } from "@/components/agent-install-buttons";
-import { CopyButton } from "@/components/copy-button";
 import { PublicEvalBadge } from "@/components/public-eval-badge";
-import { QueryError } from "@/components/query-error";
-import { ScoreReadout } from "@/components/score-readout";
-import { SkillAnalyticsChart } from "@/components/skill-analytics-chart";
-import { SkillRunCard } from "@/components/skill-run-card";
-import { SkillRunHistory } from "@/components/skill-run-history";
+import { SignInToAddButton } from "@/components/sign-in-cta";
 import { StarStat } from "@/components/star-stat";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageTitle } from "@/components/ui/page-title";
-import { Skeleton } from "@/components/ui/skeleton";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useSkillRealtime } from "@/hooks/use-skill-realtime";
-import { api, type RegistryItem } from "@/lib/api";
-import { formatCount } from "@/lib/utils";
 
 type PluginManifest = {
   agents?: string[];
@@ -28,8 +35,7 @@ type PluginManifest = {
   mcp?: { servers?: { name: string; url?: string }[] };
 };
 
-const SkillReadme = lazy(() => import("@/components/skill-readme"));
-const SkillBundleBrowser = lazy(() => import("@/components/skill-bundle-browser"));
+const SkillReadme = lazy(() => import("@skillist/ui/skill-readme"));
 
 // Shared between the loader (prefetch) and the component (render) so both
 // sides hit the exact same cache entry.
@@ -126,19 +132,7 @@ function SkillRepoPage() {
             </div>
             <div className="flex items-center gap-2">
               <LiveIndicator connected={connected} />
-              <AddToProjectButton
-                target={
-                  entry?.skillId
-                    ? { kind: "skill", skillId: entry.skillId, label: entry.name ?? repo }
-                    : {
-                        kind: "external",
-                        externalUrl: `https://skillist.io/${org}/${repo}`,
-                        externalName: entry?.name ?? repo,
-                      }
-                }
-                variant="outline"
-                size="sm"
-              />
+              <SignInToAddButton />
               <Button
                 variant="outline"
                 onClick={() => subscribe.mutate()}
@@ -265,16 +259,6 @@ function SkillRepoPage() {
 
           {/* Reference rail */}
           <aside className="space-y-6 lg:sticky lg:top-20">
-            <Suspense fallback={null}>
-              <SkillBundleBrowser
-                org={org}
-                repo={repo}
-                etag={lastEvent?.etag}
-                viewedPath={viewedBundlePath}
-                onViewPath={setViewedBundlePath}
-              />
-            </Suspense>
-
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Agent compatibility</CardTitle>

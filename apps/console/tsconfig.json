@@ -1,0 +1,10 @@
+{
+  "extends": "@skillist/tsconfig/react.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["src/worker.ts"]
+}

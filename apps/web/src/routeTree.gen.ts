@@ -9,56 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ObservabilityRouteImport } from './routes/observability'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as InventoryRouteImport } from './routes/inventory'
-import { Route as GovernanceRouteImport } from './routes/governance'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
-import { Route as AdminMirrorsRouteImport } from './routes/admin/mirrors'
 import { Route as OrgRepoRouteImport } from './routes/$org/$repo'
-import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs/$orgId/projects/index'
-import { Route as OrgsOrgIdSkillsRepoRouteImport } from './routes/orgs/$orgId/skills/$repo'
-import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs/$orgId/projects/$projectId'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ObservabilityRoute = ObservabilityRouteImport.update({
-  id: '/observability',
-  path: '/observability',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InventoryRoute = InventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GovernanceRoute = GovernanceRouteImport.update({
-  id: '/governance',
-  path: '/governance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountRoute = AccountRouteImport.update({
-  id: '/account',
-  path: '/account',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -69,201 +23,44 @@ const RegistryIndexRoute = RegistryIndexRouteImport.update({
   path: '/registry/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminMirrorsRoute = AdminMirrorsRouteImport.update({
-  id: '/admin/mirrors',
-  path: '/admin/mirrors',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const OrgRepoRoute = OrgRepoRouteImport.update({
   id: '/$org/$repo',
   path: '/$org/$repo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrgsOrgIdProjectsIndexRoute = OrgsOrgIdProjectsIndexRouteImport.update({
-  id: '/orgs/$orgId/projects/',
-  path: '/orgs/$orgId/projects/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrgsOrgIdSkillsRepoRoute = OrgsOrgIdSkillsRepoRouteImport.update({
-  id: '/orgs/$orgId/skills/$repo',
-  path: '/orgs/$orgId/skills/$repo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrgsOrgIdProjectsProjectIdRoute =
-  OrgsOrgIdProjectsProjectIdRouteImport.update({
-    id: '/orgs/$orgId/projects/$projectId',
-    path: '/orgs/$orgId/projects/$projectId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
-  '/dashboard': typeof DashboardRoute
-  '/governance': typeof GovernanceRoute
-  '/inventory': typeof InventoryRoute
-  '/login': typeof LoginRoute
-  '/observability': typeof ObservabilityRoute
-  '/settings': typeof SettingsRoute
   '/$org/$repo': typeof OrgRepoRoute
-  '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry/': typeof RegistryIndexRoute
-  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
-  '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
-  '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
-  '/dashboard': typeof DashboardRoute
-  '/governance': typeof GovernanceRoute
-  '/inventory': typeof InventoryRoute
-  '/login': typeof LoginRoute
-  '/observability': typeof ObservabilityRoute
-  '/settings': typeof SettingsRoute
   '/$org/$repo': typeof OrgRepoRoute
-  '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry': typeof RegistryIndexRoute
-  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
-  '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
-  '/orgs/$orgId/projects': typeof OrgsOrgIdProjectsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
-  '/dashboard': typeof DashboardRoute
-  '/governance': typeof GovernanceRoute
-  '/inventory': typeof InventoryRoute
-  '/login': typeof LoginRoute
-  '/observability': typeof ObservabilityRoute
-  '/settings': typeof SettingsRoute
   '/$org/$repo': typeof OrgRepoRoute
-  '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry/': typeof RegistryIndexRoute
-  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
-  '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
-  '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/account'
-    | '/dashboard'
-    | '/governance'
-    | '/inventory'
-    | '/login'
-    | '/observability'
-    | '/settings'
-    | '/$org/$repo'
-    | '/admin/mirrors'
-    | '/registry/'
-    | '/orgs/$orgId/projects/$projectId'
-    | '/orgs/$orgId/skills/$repo'
-    | '/orgs/$orgId/projects/'
+  fullPaths: '/' | '/$org/$repo' | '/registry/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/account'
-    | '/dashboard'
-    | '/governance'
-    | '/inventory'
-    | '/login'
-    | '/observability'
-    | '/settings'
-    | '/$org/$repo'
-    | '/admin/mirrors'
-    | '/registry'
-    | '/orgs/$orgId/projects/$projectId'
-    | '/orgs/$orgId/skills/$repo'
-    | '/orgs/$orgId/projects'
-  id:
-    | '__root__'
-    | '/'
-    | '/account'
-    | '/dashboard'
-    | '/governance'
-    | '/inventory'
-    | '/login'
-    | '/observability'
-    | '/settings'
-    | '/$org/$repo'
-    | '/admin/mirrors'
-    | '/registry/'
-    | '/orgs/$orgId/projects/$projectId'
-    | '/orgs/$orgId/skills/$repo'
-    | '/orgs/$orgId/projects/'
+  to: '/' | '/$org/$repo' | '/registry'
+  id: '__root__' | '/' | '/$org/$repo' | '/registry/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AccountRoute: typeof AccountRoute
-  DashboardRoute: typeof DashboardRoute
-  GovernanceRoute: typeof GovernanceRoute
-  InventoryRoute: typeof InventoryRoute
-  LoginRoute: typeof LoginRoute
-  ObservabilityRoute: typeof ObservabilityRoute
-  SettingsRoute: typeof SettingsRoute
   OrgRepoRoute: typeof OrgRepoRoute
-  AdminMirrorsRoute: typeof AdminMirrorsRoute
   RegistryIndexRoute: typeof RegistryIndexRoute
-  OrgsOrgIdProjectsProjectIdRoute: typeof OrgsOrgIdProjectsProjectIdRoute
-  OrgsOrgIdSkillsRepoRoute: typeof OrgsOrgIdSkillsRepoRoute
-  OrgsOrgIdProjectsIndexRoute: typeof OrgsOrgIdProjectsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/observability': {
-      id: '/observability'
-      path: '/observability'
-      fullPath: '/observability'
-      preLoaderRoute: typeof ObservabilityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inventory': {
-      id: '/inventory'
-      path: '/inventory'
-      fullPath: '/inventory'
-      preLoaderRoute: typeof InventoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/governance': {
-      id: '/governance'
-      path: '/governance'
-      fullPath: '/governance'
-      preLoaderRoute: typeof GovernanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/account': {
-      id: '/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AccountRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -278,13 +75,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/mirrors': {
-      id: '/admin/mirrors'
-      path: '/admin/mirrors'
-      fullPath: '/admin/mirrors'
-      preLoaderRoute: typeof AdminMirrorsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/$org/$repo': {
       id: '/$org/$repo'
       path: '/$org/$repo'
@@ -292,45 +82,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgRepoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/orgs/$orgId/projects/': {
-      id: '/orgs/$orgId/projects/'
-      path: '/orgs/$orgId/projects'
-      fullPath: '/orgs/$orgId/projects/'
-      preLoaderRoute: typeof OrgsOrgIdProjectsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orgs/$orgId/skills/$repo': {
-      id: '/orgs/$orgId/skills/$repo'
-      path: '/orgs/$orgId/skills/$repo'
-      fullPath: '/orgs/$orgId/skills/$repo'
-      preLoaderRoute: typeof OrgsOrgIdSkillsRepoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orgs/$orgId/projects/$projectId': {
-      id: '/orgs/$orgId/projects/$projectId'
-      path: '/orgs/$orgId/projects/$projectId'
-      fullPath: '/orgs/$orgId/projects/$projectId'
-      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AccountRoute: AccountRoute,
-  DashboardRoute: DashboardRoute,
-  GovernanceRoute: GovernanceRoute,
-  InventoryRoute: InventoryRoute,
-  LoginRoute: LoginRoute,
-  ObservabilityRoute: ObservabilityRoute,
-  SettingsRoute: SettingsRoute,
   OrgRepoRoute: OrgRepoRoute,
-  AdminMirrorsRoute: AdminMirrorsRoute,
   RegistryIndexRoute: RegistryIndexRoute,
-  OrgsOrgIdProjectsProjectIdRoute: OrgsOrgIdProjectsProjectIdRoute,
-  OrgsOrgIdSkillsRepoRoute: OrgsOrgIdSkillsRepoRoute,
-  OrgsOrgIdProjectsIndexRoute: OrgsOrgIdProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

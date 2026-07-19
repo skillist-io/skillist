@@ -23,13 +23,17 @@ export default defineConfig({
             return "react";
           if (id.includes("@tanstack")) return "tanstack";
           if (id.includes("radix-ui") || id.includes("@radix-ui")) return "radix";
-          if (id.includes("better-auth") || id.includes("better-call")) return "auth";
+          // NB: don't hand-split better-auth/better-call into their own chunk.
+          // They are CommonJS; a manual chunk orphans esbuild's __commonJSMin
+          // interop helper in another chunk and the app fails to mount
+          // ("__commonJSMin is not a function"). Let Rollup co-locate them.
         },
       },
     },
   },
   server: {
     port: 5173,
+    strictPort: true,
     proxy: {
       "/api": "http://localhost:8787",
       "/v1": "http://localhost:8787",

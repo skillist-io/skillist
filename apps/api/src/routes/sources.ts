@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { DEFAULT_ROOTS } from "../lib/github-sync/discover";
 
 type AppEnv = {
   Bindings: Env;
@@ -137,7 +138,7 @@ sourcesRoutes.openapi(approveSuggestionRoute, async (c) => {
       githubOwner: suggestion.githubOwner,
       githubRepo: suggestion.githubRepo,
       defaultBranch: body.defaultBranch ?? "main",
-      discoveryRoots: body.discoveryRoots ?? ["skills"],
+      discoveryRoots: body.discoveryRoots ?? DEFAULT_ROOTS,
       trustTier: "official_mirror",
       syncEnabled: true,
       license: suggestion.license,

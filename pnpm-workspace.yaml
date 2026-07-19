@@ -2,6 +2,37 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Single source of truth for shared dependency versions across apps + packages.
+# Reference as `"catalog:"` in each package.json so React-context singletons
+# (router, query, auth) resolve to one instance. https://pnpm.io/catalogs
+catalog:
+  react: ^19.2.7
+  react-dom: ^19.2.7
+  "@types/react": ^19.2.17
+  "@types/react-dom": ^19.2.3
+  "@tanstack/react-router": ^1.170.18
+  "@tanstack/react-query": ^5.101.2
+  "@tanstack/react-query-persist-client": ^5.101.2
+  "@tanstack/query-sync-storage-persister": ^5.101.2
+  "@tanstack/router-plugin": ^1.168.20
+  radix-ui: ^1.6.2
+  lucide-react: ^1.24.0
+  class-variance-authority: ^0.7.1
+  clsx: ^2.1.1
+  tailwind-merge: ^3.6.0
+  better-auth: ^1.6.23
+  "@better-auth/passkey": 1.6.23
+  react-markdown: ^10.1.0
+  remark-gfm: ^4.0.1
+  zod: ^4.4.3
+  typescript: ^7.0.2
+  tailwindcss: ^4.3.2
+  "@tailwindcss/vite": ^4.3.2
+  "@tailwindcss/typography": ^0.5.20
+  vite: ^8.1.4
+  vitest: ^4.1.10
+  "@vitejs/plugin-react": ^6.0.3
+
 onlyBuiltDependencies:
   - esbuild
   - lefthook

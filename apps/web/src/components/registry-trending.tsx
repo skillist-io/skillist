@@ -1,10 +1,7 @@
+import { api, Button, type RegistryItem, ScoreReadout } from "@skillist/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { StarButton } from "@/components/registry-star-button";
-import { ScoreReadout } from "@/components/score-readout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { api, type RegistryItem } from "@/lib/api";
 
 export function RegistryTrending() {
   const { data, isLoading, isError, refetch } = useQuery({
@@ -40,17 +37,19 @@ export function RegistryTrending() {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {data.items.map((item) => (
-        <Card
+    <div className="grid gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+      {data.items.map((item, i) => (
+        <article
           key={`${item.orgSlug}/${item.skillRepo}`}
-          size="sm"
-          className="group flex flex-col transition-[background-color,box-shadow] duration-200 hover:bg-[color-mix(in_oklch,var(--card),var(--foreground)_3%)] hover:ring-foreground/15"
+          className="group flex flex-col gap-3 bg-background p-5 transition-colors hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_3%)]"
         >
-          <CardHeader className="space-y-2">
-            <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+                {`0${i + 1}`}
+              </span>
               <div className="min-w-0">
-                <CardTitle className="text-base">
+                <h3 className="truncate text-headline text-foreground">
                   <Link
                     to="/$org/$repo"
                     params={{ org: item.orgSlug, repo: item.skillRepo }}
@@ -58,23 +57,25 @@ export function RegistryTrending() {
                   >
                     {item.name}
                   </Link>
-                </CardTitle>
-                <CardDescription className="truncate">
+                </h3>
+                <p className="truncate font-mono text-xs text-muted-foreground">
                   {item.orgSlug}/{item.skillRepo}
-                </CardDescription>
+                </p>
               </div>
-              <StarButton org={item.orgSlug} repo={item.skillRepo} stars={item.stars} />
             </div>
-            <p className="line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
-          </CardHeader>
-          <CardContent className="mt-auto space-y-3">
+            <StarButton org={item.orgSlug} repo={item.skillRepo} stars={item.stars} />
+          </div>
+          <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            {item.description}
+          </p>
+          <div className="mt-auto flex flex-col gap-3 pt-1">
             <ScoreReadout
               quality={item.qualityScore}
               impact={item.impactScore}
               security={item.securityStatus}
             />
             {item.compatibleAgents?.length ? (
-              <p className="truncate text-[0.65rem] font-semibold tracking-widest text-muted-foreground uppercase">
+              <p className="truncate font-mono text-[0.65rem] tracking-wide text-muted-foreground lowercase">
                 {item.compatibleAgents.join(" · ")}
               </p>
             ) : null}
@@ -93,8 +94,8 @@ export function RegistryTrending() {
                 </span>
               </Link>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </article>
       ))}
     </div>
   );

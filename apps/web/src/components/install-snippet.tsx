@@ -1,4 +1,4 @@
-import { CopyButton } from "@/components/copy-button";
+import { CopyButton } from "@skillist/ui";
 
 export function InstallSnippet({ command, prefix }: { command: string; prefix?: string }) {
   return (

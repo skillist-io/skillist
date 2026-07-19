@@ -1,0 +1,8 @@
+/*
+ * Shared design tokens ("The Control Surface") — the single source of truth for
+ * both apps. Each app's entry CSS does `@import "@skillist/ui/styles.css"` and
+ * points Tailwind's content scan at packages/ui so the token layer + component
+ * classes resolve identically on marketing and console.
+ *
+ * Tokens migrate here from apps/web/src/index.css during the split.
+ */

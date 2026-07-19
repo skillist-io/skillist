@@ -1,19 +1,21 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowUpRight, MenuIcon } from "lucide-react";
-import { useState } from "react";
-import { SkillistLogo } from "@/components/skillist-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
 import {
+  apiUrl,
+  Button,
+  cn,
+  consoleUrl,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
-import { apiUrl } from "@/lib/api-url";
-import { signOutAndRedirect, useSession } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
+  SkillistLogo,
+  signOutAndRedirect,
+  ThemeToggle,
+  useSession,
+} from "@skillist/ui";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { ArrowUpRight, MenuIcon } from "lucide-react";
+import { useState } from "react";
 
 const GITHUB_URL = "https://github.com/skillist";
 
@@ -102,7 +104,7 @@ function AuthActions({ onNavigate, className }: { onNavigate?: () => void; class
     return (
       <>
         <Button variant="ghost" size="sm" asChild onClick={onNavigate} className={className}>
-          <Link to="/dashboard">Dashboard</Link>
+          <a href={consoleUrl("/dashboard")}>Dashboard</a>
         </Button>
         <Button
           variant="outline"
@@ -121,9 +123,7 @@ function AuthActions({ onNavigate, className }: { onNavigate?: () => void; class
 
   return (
     <Button asChild size="sm" onClick={onNavigate} className={className}>
-      <Link to="/login" search={{ redirect: undefined }}>
-        Sign in
-      </Link>
+      <a href={consoleUrl("/login")}>Sign in</a>
     </Button>
   );
 }
@@ -141,7 +141,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
           <Link to="/" className="flex items-center" aria-label="Skillist home">
             <SkillistLogo />
@@ -272,7 +272,10 @@ function SiteFooter() {
   return (
     <footer className="mt-20 border-t border-border">
       <div
-        className={cn("grid gap-10 px-4 py-14 md:grid-cols-[1.4fr_repeat(3,1fr)] md:px-6", width)}
+        className={cn(
+          "grid gap-y-10 px-4 py-14 md:grid-cols-[1.4fr_repeat(3,1fr)] md:gap-x-8 md:px-6",
+          width,
+        )}
       >
         <div className="flex flex-col gap-4">
           <Link to="/" className="flex w-fit items-center" aria-label="Skillist home">
@@ -294,7 +297,10 @@ function SiteFooter() {
         </div>
 
         {FOOTER_COLUMNS.map((column) => (
-          <nav key={column.heading} className="flex flex-col gap-3">
+          <nav
+            key={column.heading}
+            className="flex flex-col gap-3 md:border-l md:border-border md:pl-8"
+          >
             <h2 className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
               {column.heading}
             </h2>
@@ -316,6 +322,11 @@ function SiteFooter() {
             © {new Date().getFullYear()} Skillist. Built on Cloudflare Workers.
           </p>
           <div className="flex items-center gap-5">
+            {/* Honest signals, machine-voice — Skillist implements the spec and
+                delivers from the edge. No unearned compliance badges. */}
+            <span className="hidden font-mono text-[0.65rem] text-muted-foreground sm:inline">
+              sub-10ms edge delivery
+            </span>
             <a
               href={GITHUB_URL}
               target="_blank"
@@ -329,9 +340,9 @@ function SiteFooter() {
               href="https://agentskills.io"
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-semibold tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground"
+              className="font-mono text-[0.65rem] text-muted-foreground transition-colors hover:text-foreground"
             >
-              agentskills.io
+              agentskills.io compliant
             </a>
           </div>
         </div>

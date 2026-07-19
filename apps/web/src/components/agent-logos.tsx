@@ -1,6 +1,5 @@
+import { cn, Tooltip, TooltipContent, TooltipTrigger } from "@skillist/ui";
 import { AGENT_MARKS, AgentMark, type AgentMarkData } from "@/components/agent-marks";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 
 /**
  * "Available for these agents" — an auto-scrolling, monochrome logo row that

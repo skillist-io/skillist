@@ -1,0 +1,18 @@
+{
+  "name": "skillist-console",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-01-15",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "services": [
+    {
+      "binding": "API",
+      "service": "skillist-api-production"
+    }
+  ],
+  "routes": [{ "pattern": "console.skillist.io", "custom_domain": true }]
+}
