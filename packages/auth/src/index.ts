@@ -33,6 +33,8 @@ export type AuthEnv = {
   SSO_TOKEN_URL?: string;
   SSO_USERINFO_URL?: string;
   SSO_SCOPES?: string;
+  /** Console app origin (console.skillist.io); the authed surfaces + /login. */
+  CONSOLE_URL?: string;
 };
 
 export type EmailSender = (params: {
@@ -50,14 +52,24 @@ export function resolveWebUrl(env: AuthEnv): string {
   return "https://skillist.io";
 }
 
+/** Console app origin — where /login and the authed surfaces live. */
+export function resolveConsoleUrl(env: AuthEnv): string {
+  if (env.CONSOLE_URL) return env.CONSOLE_URL.replace(/\/$/, "");
+  if (env.BETTER_AUTH_URL.includes("localhost")) {
+    return "http://localhost:5174";
+  }
+  return "https://console.skillist.io";
+}
+
 function resolveAuthBaseURL(env: AuthEnv) {
   if (env.BETTER_AUTH_URL.includes("localhost")) {
     return env.BETTER_AUTH_URL;
   }
 
-  // Auth is served on both skillist.io/api/* (SPA proxy) and api.skillist.io.
+  // Auth is served same-origin on skillist.io/api/*, console.skillist.io/api/*
+  // (SPA worker proxies) and api.skillist.io.
   return {
-    allowedHosts: ["skillist.io", "api.skillist.io"],
+    allowedHosts: ["skillist.io", "console.skillist.io", "api.skillist.io"],
     fallback: env.BETTER_AUTH_URL,
     protocol: "https" as const,
   };
@@ -106,6 +118,7 @@ function buildSsoPlugin(env: AuthEnv) {
 export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) {
   const socialProviders = buildSocialProviders(env);
   const webUrl = resolveWebUrl(env);
+  const consoleUrl = resolveConsoleUrl(env);
   const isLocal = env.BETTER_AUTH_URL.includes("localhost");
   const ssoPlugin = buildSsoPlugin(env);
 
@@ -129,8 +142,10 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
       env.BETTER_AUTH_URL,
       webUrl,
       "http://localhost:5173",
+      "http://localhost:5174",
       "http://localhost:8787",
       "https://skillist.io",
+      "https://console.skillist.io",
       "https://api.skillist.io",
     ],
     advanced: isLocal
@@ -185,14 +200,17 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
         },
       }),
       passkey({
+        // rpID is the registrable parent domain so passkeys work on both
+        // skillist.io and console.skillist.io.
         rpID: isLocal ? "localhost" : "skillist.io",
         rpName: "Skillist",
         origin: isLocal
-          ? ["http://localhost:5173", "http://localhost:8787"]
-          : ["https://skillist.io", "https://api.skillist.io"],
+          ? ["http://localhost:5173", "http://localhost:5174", "http://localhost:8787"]
+          : ["https://skillist.io", "https://console.skillist.io", "https://api.skillist.io"],
       }),
       mcp({
-        loginPage: `${webUrl}/login`,
+        // /login lives on the console app now.
+        loginPage: `${consoleUrl}/login`,
         resource: env.BETTER_AUTH_URL,
       }),
       ...(ssoPlugin ? [ssoPlugin] : []),
