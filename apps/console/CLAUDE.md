@@ -15,5 +15,5 @@ React 19, Vite 8, TanStack Router (file-based) + Query, shadcn/ui, Tailwind v4. 
 
 ## Dev / test
 
-- `pnpm dev:console` (:5173). The Vite dev server proxies `/api`, `/v1`, `/docs`, `/openapi.json`, and the apex `/{org}/{repo}/...` paths to `:8787` — that proxy's path regex mirrors the API's apex auth regex; keep them in sync.
+- `pnpm dev:console` (:5174). The Vite dev server proxies `/api`, `/v1`, `/docs`, `/openapi.json`, and the apex `/{org}/{repo}/...` paths to `:8787` — that proxy's path regex mirrors the API's apex auth regex; keep them in sync.
 - Tests: Vitest + jsdom + Testing Library. One file: `pnpm --filter @skillist/web exec vitest run <path>`.

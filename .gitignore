@@ -22,3 +22,4 @@ lefthook-local.yml
 tests/e2e/.auth/
 .cursor/
 .impeccable/critique/
+!.env.development
