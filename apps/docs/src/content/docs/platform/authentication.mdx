@@ -9,16 +9,16 @@ Skillist supports passwordless authentication — no passwords stored.
 
 | Method | Where |
 |--------|-------|
-| GitHub OAuth | [skillist.io/login](https://skillist.io/login) |
-| Google OAuth | [skillist.io/login](https://skillist.io/login) |
-| Passkey | Login page or [Account](https://skillist.io/account) |
+| GitHub OAuth | [console.skillist.io/login](https://console.skillist.io/login) |
+| Google OAuth | [console.skillist.io/login](https://console.skillist.io/login) |
+| Passkey | Login page or [Account](https://console.skillist.io/account) |
 | Magic link | Email link via API |
 | Email OTP | One-time code via email |
 | Enterprise SSO | Login page (when configured) |
 
 ## Account
 
-Signed-in users manage personal auth at [skillist.io/account](https://skillist.io/account):
+Signed-in users manage personal auth at [console.skillist.io/account](https://console.skillist.io/account):
 
 - Display name
 - Linked GitHub / Google providers
@@ -29,13 +29,13 @@ Org API keys and OAuth app redirect docs stay under **Settings**.
 
 ## API auth
 
-Session cookies are used by the web app. Production sessions use cross-subdomain cookies on `.skillist.io` so `skillist.io` and `api.skillist.io` share the same session. The CLI and API keys use Bearer tokens after `skillist login`.
+Session cookies are used by the web app. Sign-in happens on `console.skillist.io`, and production sessions use cross-subdomain cookies on `.skillist.io` so `console.skillist.io`, `skillist.io`, and `api.skillist.io` all share the same session — signing in on the console is reflected on the marketing site too. The CLI and API keys use Bearer tokens after `skillist login`.
 
 Protected API routes live under `/v1/*` and require a valid session or org API key.
 
 ## MCP OAuth
 
-MCP clients use a separate OAuth flow — see [OAuth authentication](/mcp/oauth/). Sign-in still happens at `skillist.io/login`.
+MCP clients use a separate OAuth flow — see [OAuth authentication](/mcp/oauth/). Sign-in still happens at `console.skillist.io/login`.
 
 ## Sandbox policy
 

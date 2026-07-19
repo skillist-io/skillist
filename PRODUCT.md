@@ -4,7 +4,7 @@
 
 product
 
-> Skillist spans two surfaces that matter equally: the authenticated **product** tool (dashboard, governance, registry management, observability, feedback inbox) and a public **brand** surface (landing + registry discovery). The default above is `product` because the daily-driver is the management tool and it holds the center of gravity. Treat the marketing/registry-discovery pages as a co-equal brand register and override per task (`/impeccable craft landing`, etc.) when working on them. The two must stay visibly one system.
+> Skillist spans two surfaces that matter equally, now shipped as two apps: the authenticated **product** tool `apps/console` (console.skillist.io — dashboard, governance, registry management, observability, feedback inbox) and a public **brand** surface `apps/web` (skillist.io — landing + registry discovery). The default above is `product` because the daily-driver is the management tool and it holds the center of gravity. Treat the marketing/registry-discovery pages as a co-equal brand register and override per task (`/impeccable craft landing`, etc.) when working on them. The two share one design system (`packages/ui`) and must stay visibly one system.
 
 ## Users
 
