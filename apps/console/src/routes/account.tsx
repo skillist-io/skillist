@@ -255,9 +255,9 @@ function AccountPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12 rounded-none">
+            <Avatar className="h-12 w-12">
               <AvatarImage src={user.image ?? undefined} alt={user.name} />
-              <AvatarFallback className="rounded-none">{initials}</AvatarFallback>
+              <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <div className="text-sm">
               <p className="font-medium">{user.name}</p>

@@ -41,29 +41,31 @@ export function AgentDrawer({
         className="w-full gap-0 p-0 sm:max-w-md lg:max-w-lg"
         aria-describedby={undefined}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="flex flex-col">
-            <SheetTitle className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-              Skillist Agent
-            </SheetTitle>
+        {/* pr-14 clears SheetContent's absolutely-positioned close button, which
+            sits at top-4 right-4 and would otherwise land on the org select. */}
+        <div className="flex shrink-0 flex-col gap-0.5 border-b border-border py-3 pr-14 pl-4">
+          <SheetTitle className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+            Skillist Agent
+          </SheetTitle>
+          <div className="flex items-center justify-between gap-3">
             <SheetDescription className="text-sm font-medium text-foreground">
               Org intelligence
             </SheetDescription>
+            {orgs.length > 1 && activeOrg && (
+              <NativeSelect
+                aria-label="Active organization"
+                value={activeOrg.id}
+                onChange={(e) => setOrgId(e.target.value)}
+                className="h-8 w-auto min-w-28"
+              >
+                {orgs.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            )}
           </div>
-          {orgs.length > 1 && activeOrg && (
-            <NativeSelect
-              aria-label="Active organization"
-              value={activeOrg.id}
-              onChange={(e) => setOrgId(e.target.value)}
-              className="h-9 w-auto min-w-32"
-            >
-              {orgs.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </NativeSelect>
-          )}
         </div>
 
         {isError ? (

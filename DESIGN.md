@@ -116,7 +116,7 @@ It explicitly rejects four things. It is not the **generic shadcn / AI-default**
 
 **Key Characteristics:**
 - Monochrome by default; grayscale ink ramp carries the entire UI.
-- Squared geometry everywhere (0px radius on controls, cards, and images).
+- Squared geometry everywhere (0px radius on controls, cards, and images) — avatars are the single exception.
 - Sentence-case, medium-weight labels on buttons and nav; uppercase wide-tracked micro-labels reserved for badges, eyebrows, and status/readouts.
 - Underline inputs, not boxed fields.
 - Hairline rings instead of shadows; flat at rest.
@@ -215,7 +215,7 @@ The product's distinctive surfaces are its live readouts: eval panels, run histo
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** keep geometry squared: 0px radius on buttons, badges, cards, and images. The `base` radius token (0.625rem) exists for third-party primitives only; the Skillist voice is square.
+- **Do** keep geometry squared: 0px radius on buttons, badges, cards, and images. The `base` radius token (0.625rem) exists for third-party primitives only; the Skillist voice is square. **Avatars are the one exception and are round** — they depict a person rather than a control or a readout, a squared portrait reads as an ID-badge mugshot, and the roundness is what tells an avatar apart from every other small square on screen at a glance.
 - **Do** build hierarchy from scale, weight, and space (400 → 600 → 700), then a hairline, then tonal layering. Reach for color last.
 - **Do** set every machine value (skill id, version hash, path, JSON, eval number) in mono, and every short control label in uppercase tracked micro-type.
 - **Do** hold the surface at literal white `oklch(1 0 0)` in light mode and near-black `oklch(0.145 0 0)` in dark; both themes must pass 4.5:1 for body text.
