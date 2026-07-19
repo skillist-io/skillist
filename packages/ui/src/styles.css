@@ -208,6 +208,19 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* A keyboard user must never find an unfocusable-looking control. Components
+     define their own richer focus rings; this is the floor, so anything that
+     ships without one still shows a visible indicator (WCAG 2.2 AA, 2.4.11).
+     Override the offset in a component if it clips — not the color or width. */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex]:not([tabindex="-1"]) {
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
+  }
   /* Typographic polish — the crisp render Inter is known for on Linear/Vercel:
      antialiased smoothing (lighter, sharper than macOS subpixel default),
      variable optical sizing, and ligatures/contextual alternates. Letterforms
