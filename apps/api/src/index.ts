@@ -156,7 +156,7 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
 // and org membership before `routeAgentRequest` resolves the DO. The instance
 // name is the orgId (`/agents/skillist-agent/{orgId}`), so the verified uid is
 // injected as a query param the client can't spoof — we delete any client value
-// first, mirroring fold.run's gateAgentRequest.
+// first.
 app.all("/agents/*", async (c) => {
   const url = new URL(c.req.url);
   const parts = url.pathname.split("/").filter(Boolean); // ["agents", "{class}", "{orgId}", ...]
