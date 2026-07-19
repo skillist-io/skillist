@@ -31,6 +31,74 @@ export const apiKeyScopeSchema = z.enum([
 ]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 
+export const projectItemKindSchema = z.enum(["skill", "external"]);
+export type ProjectItemKind = z.infer<typeof projectItemKindSchema>;
+
+export const projectVisibilitySchema = z.enum(["private", "shared"]);
+export type ProjectVisibility = z.infer<typeof projectVisibilitySchema>;
+
+export const projectRoleSchema = z.enum(["viewer", "editor", "admin"]);
+export type ProjectRole = z.infer<typeof projectRoleSchema>;
+
+export const createProjectSchema = z.object({
+  name: z.string().min(1).max(128),
+  slug: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  description: z.string().max(2000).optional(),
+  visibility: projectVisibilitySchema.optional(),
+});
+export type CreateProjectInput = z.infer<typeof createProjectSchema>;
+
+export const updateProjectSchema = z.object({
+  name: z.string().min(1).max(128).optional(),
+  description: z.string().max(2000).optional(),
+  visibility: projectVisibilitySchema.optional(),
+});
+export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+
+export const addProjectMemberSchema = z.object({
+  userId: z.string().min(1),
+  role: projectRoleSchema.optional(),
+});
+export type AddProjectMemberInput = z.infer<typeof addProjectMemberSchema>;
+
+export const updateProjectMemberSchema = z.object({
+  role: projectRoleSchema,
+});
+export type UpdateProjectMemberInput = z.infer<typeof updateProjectMemberSchema>;
+
+export const addProjectItemSchema = z
+  .object({
+    kind: projectItemKindSchema,
+    skillId: z.string().uuid().optional(),
+    externalUrl: z.string().url().optional(),
+    externalName: z.string().min(1).max(200).optional(),
+    path: z.string().max(500).optional(),
+    label: z.string().max(200).optional(),
+    note: z.string().max(2000).optional(),
+  })
+  .refine(
+    (v) =>
+      v.kind === "skill"
+        ? v.skillId !== undefined && v.externalUrl === undefined
+        : v.externalUrl !== undefined && v.skillId === undefined,
+    {
+      message:
+        'kind "skill" requires skillId and no externalUrl; kind "external" requires externalUrl and no skillId',
+    },
+  );
+export type AddProjectItemInput = z.infer<typeof addProjectItemSchema>;
+
+export const updateProjectItemSchema = z.object({
+  path: z.string().max(500).optional(),
+  position: z.number().int().min(0).optional(),
+  label: z.string().max(200).nullable().optional(),
+});
+export type UpdateProjectItemInput = z.infer<typeof updateProjectItemSchema>;
+
 export const createOrgSchema = z.object({
   name: z.string().min(1).max(128),
   slug: z
@@ -51,7 +119,13 @@ export const createSkillSchema = z.object({
 });
 
 export const uploadVersionSchema = z.object({
-  files: z.record(z.string(), z.string()),
+  // Bound the bundle: cap path length, per-file size, and file count so a client
+  // can't push an unbounded payload that is then hashed, stored, and materialized.
+  files: z
+    .record(z.string().max(512), z.string().max(1_000_000))
+    .refine((f) => Object.keys(f).length <= 500, {
+      message: "A skill bundle may contain at most 500 files",
+    }),
   semver: z
     .string()
     .regex(/^\d+\.\d+\.\d+$/)
@@ -213,42 +287,44 @@ export const requiredSkillSchema = z.object({
 });
 
 export const inventoryScanSchema = z.object({
-  items: z.array(
-    z.object({
-      repoFullName: z.string(),
-      filePath: z.string(),
-      localSlug: z.string().optional(),
-      registryOrgSlug: z.string().optional(),
-      registryRepo: z.string().optional(),
-      sourceType: z.string().optional(),
-      scope: z.string().optional(),
-      marketplace: z.string().optional(),
-      pluginName: z.string().optional(),
-      isSymlink: z.boolean().optional(),
-      conformanceStatus: z.string().optional(),
-      conformanceIssues: z
-        .array(
-          z.object({
-            level: z.string(),
-            field: z.string().optional(),
-            message: z.string(),
-          }),
-        )
-        .optional(),
-      contentHash: z.string().optional(),
-      securityStatus: z.enum(["pass", "advisory", "fail"]).optional(),
-      securityIssues: z
-        .array(
-          z.object({
-            severity: z.string(),
-            path: z.string(),
-            message: z.string(),
-          }),
-        )
-        .optional(),
-      skillMd: z.string().max(500_000).optional(),
-    }),
-  ),
+  items: z
+    .array(
+      z.object({
+        repoFullName: z.string(),
+        filePath: z.string(),
+        localSlug: z.string().optional(),
+        registryOrgSlug: z.string().optional(),
+        registryRepo: z.string().optional(),
+        sourceType: z.string().optional(),
+        scope: z.string().optional(),
+        marketplace: z.string().optional(),
+        pluginName: z.string().optional(),
+        isSymlink: z.boolean().optional(),
+        conformanceStatus: z.string().optional(),
+        conformanceIssues: z
+          .array(
+            z.object({
+              level: z.string(),
+              field: z.string().optional(),
+              message: z.string(),
+            }),
+          )
+          .optional(),
+        contentHash: z.string().optional(),
+        securityStatus: z.enum(["pass", "advisory", "fail"]).optional(),
+        securityIssues: z
+          .array(
+            z.object({
+              severity: z.string(),
+              path: z.string(),
+              message: z.string(),
+            }),
+          )
+          .optional(),
+        skillMd: z.string().max(500_000).optional(),
+      }),
+    )
+    .max(5000, "An inventory scan may include at most 5000 items"),
 });
 
 export const mcpServerSchema = z.object({
@@ -270,10 +346,11 @@ export const runEvalSchema = z.object({
   scenarios: z
     .array(
       z.object({
-        name: z.string(),
-        prompt: z.string(),
+        name: z.string().max(200),
+        prompt: z.string().max(10_000),
       }),
     )
+    .max(50, "At most 50 eval scenarios")
     .optional(),
   generateScenarios: z.boolean().optional(),
   scenarioCount: z.number().int().min(1).max(10).optional(),

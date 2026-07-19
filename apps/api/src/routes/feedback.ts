@@ -271,25 +271,33 @@ feedbackRoutes.openapi(suggestRoute, async (c) => {
   const [item] = await c.var.db.select().from(feedback).where(eq(feedback.id, id)).limit(1);
   if (!item) return c.json({ error: "Not found" }, 404);
 
+  const [skill] = await c.var.db.select().from(skills).where(eq(skills.id, item.skillId)).limit(1);
+  if (!skill) return c.json({ error: "Not found" }, 404);
+
+  // Only an editor of the owning org may spend AI credits / write a draft
+  // version against this skill (mirrors approve/reject above).
+  const access = await requireOrgRole(c.var.db, skill.orgId, userId, "editor");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
   const [job] = await c.var.db
     .insert(aiJobs)
     .values({ feedbackId: id, status: "queued" })
     .returning();
 
-  const [skill] = await c.var.db.select().from(skills).where(eq(skills.id, item.skillId)).limit(1);
-
   const { organizations } = await import("@skillist/db/schema");
-  const [org] = skill
-    ? await c.var.db.select().from(organizations).where(eq(organizations.id, skill.orgId)).limit(1)
-    : [null];
+  const [org] = await c.var.db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, skill.orgId))
+    .limit(1);
 
   const message: AiJobMessage = {
     type: "feedback",
     jobId: job!.id,
     feedbackId: id,
-    skillId: item.skillId,
+    skillId: skill.id,
     orgSlug: org?.slug ?? "",
-    skillRepo: skill?.repo ?? "",
+    skillRepo: skill.repo,
   };
   await c.env.AI_QUEUE.send(message);
 
@@ -310,5 +318,17 @@ feedbackRoutes.openapi(getAiJobRoute, async (c) => {
   const { id } = c.req.valid("param");
   const [job] = await c.var.db.select().from(aiJobs).where(eq(aiJobs.id, id)).limit(1);
   if (!job) return c.json({ error: "Not found" }, 404);
+
+  // Scope the job to a caller who can view the owning org: job -> feedback -> skill -> org.
+  const [item] = job.feedbackId
+    ? await c.var.db.select().from(feedback).where(eq(feedback.id, job.feedbackId)).limit(1)
+    : [undefined];
+  const [skill] = item
+    ? await c.var.db.select().from(skills).where(eq(skills.id, item.skillId)).limit(1)
+    : [undefined];
+  if (!skill) return c.json({ error: "Not found" }, 404);
+  const access = await requireOrgRole(c.var.db, skill.orgId, userId, "viewer");
+  if (!access.ok) return c.json({ error: "Not found" }, 404);
+
   return c.json(job, 200);
 });

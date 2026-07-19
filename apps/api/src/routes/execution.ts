@@ -137,6 +137,9 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
 
   if (body.stream) {
     const encoder = new TextEncoder();
+    // Abort the run if the client disconnects (stream cancelled), so the hosted
+    // container doesn't keep running to its timeout with nobody reading.
+    const runAbort = new AbortController();
     const stream = new ReadableStream({
       async start(controller) {
         const send = (event: string, data: unknown) => {
@@ -145,6 +148,7 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
         try {
           const result = await runSkillScript(c.env, c.var.db, {
             ...runInput,
+            signal: runAbort.signal,
             onOutput: (outputStream, chunk) => {
               send("output", { stream: outputStream, chunk });
             },
@@ -158,6 +162,9 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
         } finally {
           controller.close();
         }
+      },
+      cancel() {
+        runAbort.abort();
       },
     });
 

@@ -15,6 +15,18 @@ export class SkillRealtimeHub extends DurableObject {
   // hibernation API via getWebSockets().
   private sseConnections = new Map<string, SseConnection>();
   private encoder = new TextEncoder();
+  // Each open SSE stream pins this DO in memory and holds a keepalive timer, so
+  // cap concurrent SSE subscribers per skill to bound memory / timer growth.
+  private static readonly MAX_SSE_CONNECTIONS = 256;
+
+  constructor(ctx: DurableObjectState, env: unknown) {
+    super(ctx, env as never);
+    // Answer WebSocket keepalives ("ping") without waking the DO from
+    // hibernation, so idle subscribers don't bill wall-clock duration.
+    ctx.setWebSocketAutoResponse(
+      new WebSocketRequestResponsePair("ping", JSON.stringify({ type: "pong" })),
+    );
+  }
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -35,6 +47,9 @@ export class SkillRealtimeHub extends DurableObject {
     }
 
     if (url.pathname === "/sse") {
+      if (this.sseConnections.size >= SkillRealtimeHub.MAX_SSE_CONNECTIONS) {
+        return new Response("Too many subscribers", { status: 503 });
+      }
       const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
       const writer = writable.getWriter();
       const id = crypto.randomUUID();

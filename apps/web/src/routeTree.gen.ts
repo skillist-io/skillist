@@ -20,7 +20,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
 import { Route as AdminMirrorsRouteImport } from './routes/admin/mirrors'
 import { Route as OrgRepoRouteImport } from './routes/$org/$repo'
+import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs/$orgId/projects/index'
 import { Route as OrgsOrgIdSkillsRepoRouteImport } from './routes/orgs/$orgId/skills/$repo'
+import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs/$orgId/projects/$projectId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -77,11 +79,22 @@ const OrgRepoRoute = OrgRepoRouteImport.update({
   path: '/$org/$repo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgsOrgIdProjectsIndexRoute = OrgsOrgIdProjectsIndexRouteImport.update({
+  id: '/orgs/$orgId/projects/',
+  path: '/orgs/$orgId/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgsOrgIdSkillsRepoRoute = OrgsOrgIdSkillsRepoRouteImport.update({
   id: '/orgs/$orgId/skills/$repo',
   path: '/orgs/$orgId/skills/$repo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgsOrgIdProjectsProjectIdRoute =
+  OrgsOrgIdProjectsProjectIdRouteImport.update({
+    id: '/orgs/$orgId/projects/$projectId',
+    path: '/orgs/$orgId/projects/$projectId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,7 +108,9 @@ export interface FileRoutesByFullPath {
   '/$org/$repo': typeof OrgRepoRoute
   '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry/': typeof RegistryIndexRoute
+  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
+  '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -109,7 +124,9 @@ export interface FileRoutesByTo {
   '/$org/$repo': typeof OrgRepoRoute
   '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry': typeof RegistryIndexRoute
+  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
+  '/orgs/$orgId/projects': typeof OrgsOrgIdProjectsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -124,7 +141,9 @@ export interface FileRoutesById {
   '/$org/$repo': typeof OrgRepoRoute
   '/admin/mirrors': typeof AdminMirrorsRoute
   '/registry/': typeof RegistryIndexRoute
+  '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
+  '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -140,7 +159,9 @@ export interface FileRouteTypes {
     | '/$org/$repo'
     | '/admin/mirrors'
     | '/registry/'
+    | '/orgs/$orgId/projects/$projectId'
     | '/orgs/$orgId/skills/$repo'
+    | '/orgs/$orgId/projects/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -154,7 +175,9 @@ export interface FileRouteTypes {
     | '/$org/$repo'
     | '/admin/mirrors'
     | '/registry'
+    | '/orgs/$orgId/projects/$projectId'
     | '/orgs/$orgId/skills/$repo'
+    | '/orgs/$orgId/projects'
   id:
     | '__root__'
     | '/'
@@ -168,7 +191,9 @@ export interface FileRouteTypes {
     | '/$org/$repo'
     | '/admin/mirrors'
     | '/registry/'
+    | '/orgs/$orgId/projects/$projectId'
     | '/orgs/$orgId/skills/$repo'
+    | '/orgs/$orgId/projects/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -183,7 +208,9 @@ export interface RootRouteChildren {
   OrgRepoRoute: typeof OrgRepoRoute
   AdminMirrorsRoute: typeof AdminMirrorsRoute
   RegistryIndexRoute: typeof RegistryIndexRoute
+  OrgsOrgIdProjectsProjectIdRoute: typeof OrgsOrgIdProjectsProjectIdRoute
   OrgsOrgIdSkillsRepoRoute: typeof OrgsOrgIdSkillsRepoRoute
+  OrgsOrgIdProjectsIndexRoute: typeof OrgsOrgIdProjectsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -265,11 +292,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgRepoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orgs/$orgId/projects/': {
+      id: '/orgs/$orgId/projects/'
+      path: '/orgs/$orgId/projects'
+      fullPath: '/orgs/$orgId/projects/'
+      preLoaderRoute: typeof OrgsOrgIdProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orgs/$orgId/skills/$repo': {
       id: '/orgs/$orgId/skills/$repo'
       path: '/orgs/$orgId/skills/$repo'
       fullPath: '/orgs/$orgId/skills/$repo'
       preLoaderRoute: typeof OrgsOrgIdSkillsRepoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orgs/$orgId/projects/$projectId': {
+      id: '/orgs/$orgId/projects/$projectId'
+      path: '/orgs/$orgId/projects/$projectId'
+      fullPath: '/orgs/$orgId/projects/$projectId'
+      preLoaderRoute: typeof OrgsOrgIdProjectsProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -287,7 +328,9 @@ const rootRouteChildren: RootRouteChildren = {
   OrgRepoRoute: OrgRepoRoute,
   AdminMirrorsRoute: AdminMirrorsRoute,
   RegistryIndexRoute: RegistryIndexRoute,
+  OrgsOrgIdProjectsProjectIdRoute: OrgsOrgIdProjectsProjectIdRoute,
   OrgsOrgIdSkillsRepoRoute: OrgsOrgIdSkillsRepoRoute,
+  OrgsOrgIdProjectsIndexRoute: OrgsOrgIdProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

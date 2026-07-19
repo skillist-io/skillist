@@ -1,5 +1,6 @@
 import {
   organizations,
+  orgMembers,
   registryEntries,
   skillFiles,
   skillProvenance,
@@ -75,7 +76,23 @@ async function ensureMirrorOrg(
     .from(organizations)
     .where(eq(organizations.slug, githubOwner))
     .limit(1);
-  if (existing) return { id: existing.id, slug: existing.slug };
+  if (existing) {
+    // Mirror orgs are created here with no members. A slug that already belongs
+    // to a member-bearing org is a user-created org (possibly slug-squatted to
+    // match a GitHub owner) — refuse to publish mirrored skills into it, which
+    // would hand that user owner control over the mirror.
+    const [member] = await db
+      .select({ userId: orgMembers.userId })
+      .from(orgMembers)
+      .where(eq(orgMembers.orgId, existing.id))
+      .limit(1);
+    if (member) {
+      throw new Error(
+        `Refusing to mirror into org slug "${githubOwner}": it is claimed by a user-owned org.`,
+      );
+    }
+    return { id: existing.id, slug: existing.slug };
+  }
 
   const [created] = await db
     .insert(organizations)

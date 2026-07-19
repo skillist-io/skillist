@@ -1,8 +1,8 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { inventoryScanSchema } from "@skillist/contracts";
-import { organizations, skillInventory, skills } from "@skillist/db/schema";
+import { organizations, registryEntries, skillInventory, skills } from "@skillist/db/schema";
 import { scanSkillSecurity } from "@skillist/skill-format";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, inArray } from "drizzle-orm";
 import { logAudit } from "../../lib/audit";
 import { requireOrgAccess } from "../../lib/org-access";
 import type { AppEnv } from "./shared";
@@ -173,9 +173,23 @@ inventoryRoutes.openapi(listInventoryRoute, async (c) => {
   const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
+  // Managed items point at a registry skill via (registryOrgSlug, registryRepo),
+  // which is unique in registry_entries — a one-to-one left join surfaces the
+  // backing skills.id so the web app can curate them as real skill project items.
+  // Rows without a public registry match (or unmanaged) resolve skillId to null.
   const items = await c.var.db
-    .select()
+    .select({
+      ...getTableColumns(skillInventory),
+      skillId: registryEntries.skillId,
+    })
     .from(skillInventory)
+    .leftJoin(
+      registryEntries,
+      and(
+        eq(registryEntries.orgSlug, skillInventory.registryOrgSlug),
+        eq(registryEntries.skillRepo, skillInventory.registryRepo),
+      ),
+    )
     .where(eq(skillInventory.orgId, orgId))
     .orderBy(desc(skillInventory.scannedAt));
 

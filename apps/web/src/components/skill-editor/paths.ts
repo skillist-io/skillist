@@ -66,8 +66,21 @@ export type TreeNode = {
   children?: TreeNode[];
 };
 
-/** Builds the display tree: root files first (SKILL.md pinned on top), then spec dirs. */
-export function buildTree(files: Record<string, string>, pendingDirs: string[] = []): TreeNode[] {
+/**
+ * Builds a nested folder tree from a flat list of slash-delimited paths.
+ * Leaves are files (no `children`); intermediate segments become dir nodes.
+ * Generic and content-agnostic — pass a comparator for custom ordering, or
+ * rely on the default alphabetical sort. `pendingDirs` materializes empty
+ * folders that have no files under them yet.
+ */
+export function buildPathTree(
+  paths: string[],
+  options: {
+    pendingDirs?: string[];
+    compare?: (a: TreeNode, b: TreeNode) => number;
+  } = {},
+): TreeNode[] {
+  const { pendingDirs = [], compare } = options;
   const roots: TreeNode[] = [];
   const dirNodes = new Map<string, TreeNode>();
 
@@ -89,7 +102,7 @@ export function buildTree(files: Record<string, string>, pendingDirs: string[] =
     return node;
   };
 
-  const sortedPaths = Object.keys(files).sort();
+  const sortedPaths = [...paths].sort();
   for (const path of sortedPaths) {
     const segments = path.split("/");
     if (segments.length === 1) {
@@ -102,20 +115,31 @@ export function buildTree(files: Record<string, string>, pendingDirs: string[] =
     }
   }
   for (const dir of pendingDirs) {
-    if (!isDirPath(files, dir)) ensureDir(dir);
+    if (!dirNodes.has(dir) && !sortedPaths.some((p) => p.startsWith(`${dir}/`))) {
+      ensureDir(dir);
+    }
   }
 
-  const rank = (node: TreeNode) => {
-    if (node.path === "SKILL.md") return 0;
-    if (!node.children) return 1;
-    return 2;
-  };
+  const cmp = compare ?? ((a, b) => a.name.localeCompare(b.name));
   const sortNodes = (nodes: TreeNode[]) => {
-    nodes.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+    nodes.sort(cmp);
     for (const node of nodes) {
       if (node.children) sortNodes(node.children);
     }
   };
   sortNodes(roots);
   return roots;
+}
+
+/** Builds the display tree: root files first (SKILL.md pinned on top), then spec dirs. */
+export function buildTree(files: Record<string, string>, pendingDirs: string[] = []): TreeNode[] {
+  const rank = (node: TreeNode) => {
+    if (node.path === "SKILL.md") return 0;
+    if (!node.children) return 1;
+    return 2;
+  };
+  return buildPathTree(Object.keys(files), {
+    pendingDirs,
+    compare: (a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name),
+  });
 }

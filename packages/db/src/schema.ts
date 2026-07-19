@@ -46,6 +46,9 @@ export const skillSourceSuggestionStatusEnum = pgEnum("skill_source_suggestion_s
   "approved",
   "rejected",
 ]);
+export const projectItemKindEnum = pgEnum("project_item_kind", ["skill", "external"]);
+export const projectVisibilityEnum = pgEnum("project_visibility", ["private", "shared"]);
+export const projectRoleEnum = pgEnum("project_role", ["viewer", "editor", "admin"]);
 
 // Better Auth tables
 export const users = pgTable("users", {
@@ -200,6 +203,76 @@ export const skills = pgTable(
   ],
 );
 
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    visibility: projectVisibilityEnum("visibility").notNull().default("private"),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("projects_org_slug_idx").on(t.orgId, t.slug),
+    index("projects_org_idx").on(t.orgId),
+  ],
+);
+
+export const projectItems = pgTable(
+  "project_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    kind: projectItemKindEnum("kind").notNull(),
+    skillId: uuid("skill_id").references(() => skills.id, { onDelete: "cascade" }),
+    externalUrl: text("external_url"),
+    externalName: text("external_name"),
+    path: text("path").notNull().default(""),
+    position: integer("position").notNull().default(0),
+    label: text("label"),
+    note: text("note"),
+    addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("project_items_project_idx").on(t.projectId),
+    uniqueIndex("project_items_project_skill_idx")
+      .on(t.projectId, t.skillId)
+      .where(sql`skill_id is not null`),
+    uniqueIndex("project_items_project_external_idx")
+      .on(t.projectId, t.externalUrl)
+      .where(sql`external_url is not null`),
+  ],
+);
+
+export const projectMembers = pgTable(
+  "project_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: projectRoleEnum("role").notNull().default("viewer"),
+    addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("project_members_project_user_idx").on(t.projectId, t.userId),
+    index("project_members_user_idx").on(t.userId),
+  ],
+);
+
 export const skillVersions = pgTable(
   "skill_versions",
   {
@@ -270,20 +343,33 @@ export const feedback = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("feedback_skill_idx").on(t.skillId), index("feedback_status_idx").on(t.status)],
+  (t) => [
+    index("feedback_skill_idx").on(t.skillId),
+    index("feedback_status_idx").on(t.status),
+    // FK used by version-scoped feedback lookups + cascade deletes.
+    index("feedback_target_version_idx").on(t.targetVersionId),
+  ],
 );
 
-export const approvals = pgTable("approvals", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  feedbackId: uuid("feedback_id")
-    .notNull()
-    .references(() => feedback.id, { onDelete: "cascade" }),
-  approvedBy: text("approved_by")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  comment: text("comment"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const approvals = pgTable(
+  "approvals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    feedbackId: uuid("feedback_id")
+      .notNull()
+      .references(() => feedback.id, { onDelete: "cascade" }),
+    approvedBy: text("approved_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    comment: text("comment"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Both are FKs with no prior index — cascade parent deletes seq-scanned.
+  (t) => [
+    index("approvals_feedback_idx").on(t.feedbackId),
+    index("approvals_approved_by_idx").on(t.approvedBy),
+  ],
+);
 
 export const registryEntries = pgTable(
   "registry_entries",
@@ -322,6 +408,11 @@ export const registryEntries = pgTable(
     // description. Requires the pg_trgm extension (see the migration note).
     index("registry_name_trgm_idx").using("gin", sql`${t.name} gin_trgm_ops`),
     index("registry_description_trgm_idx").using("gin", sql`${t.description} gin_trgm_ops`),
+    // Search ORs these two columns as well (registry-service buildRegistryWhere);
+    // without trigram indexes the OR branch forces a seq scan even when name and
+    // description are indexed. Trigram-index them too.
+    index("registry_repo_trgm_idx").using("gin", sql`${t.skillRepo} gin_trgm_ops`),
+    index("registry_org_slug_trgm_idx").using("gin", sql`${t.orgSlug} gin_trgm_ops`),
     index("registry_category_idx").on(t.category),
     index("registry_source_type_idx").on(t.sourceType),
   ],
@@ -417,6 +508,8 @@ export const auditEvents = pgTable(
   (t) => [
     index("audit_events_org_idx").on(t.orgId),
     index("audit_events_created_idx").on(t.createdAt),
+    // Audit log listing filters org_id and orders by created_at desc.
+    index("audit_events_org_created_idx").on(t.orgId, t.createdAt),
   ],
 );
 
@@ -435,6 +528,9 @@ export const telemetryEvents = pgTable(
   (t) => [
     index("telemetry_skill_idx").on(t.orgSlug, t.skillRepo),
     index("telemetry_type_idx").on(t.eventType),
+    // Analytics filters (org_slug, skill_repo) over a created_at window and
+    // groups by day (observability + org telemetry routes).
+    index("telemetry_skill_created_idx").on(t.orgSlug, t.skillRepo, t.createdAt),
   ],
 );
 
@@ -467,7 +563,12 @@ export const skillEvals = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
-  (t) => [index("skill_evals_skill_idx").on(t.skillId)],
+  (t) => [
+    index("skill_evals_skill_idx").on(t.skillId),
+    // Public skill-detail reads the latest eval by (version_id, status) ordered
+    // by completed_at; version_id was an unindexed FK before this.
+    index("skill_evals_version_idx").on(t.versionId, t.status, t.completedAt),
+  ],
 );
 
 export const orgRequiredSkills = pgTable(
@@ -568,6 +669,9 @@ export const skillRuns = pgTable(
   (t) => [
     index("skill_runs_skill_idx").on(t.skillId),
     index("skill_runs_created_idx").on(t.createdAt),
+    // Run-quota counts join skill_id over a created_at window on every hosted
+    // run; a composite index serves those hot COUNT(*) queries directly.
+    index("skill_runs_skill_created_idx").on(t.skillId, t.createdAt),
   ],
 );
 

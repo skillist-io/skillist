@@ -47,14 +47,28 @@ Returns transport metadata, tool names, and OAuth discovery URLs.
     ["registry_get_skill", "Full metadata for org/repo including eval uplift"],
     ["registry_facets", "Categories, tags, and compatible agents"],
     ["registry_install_help", "CLI install commands and SKILL.md URL"],
+    ["my_projects", "Projects you can access across orgs (session required)"],
+    ["project_skills", "Curated items in a project (read access, session required)"],
+    ["add_skill_to_project", "Add a skill/link to a project (write access, session required)"],
   ]}
 />
 
+The first four tools are public. `my_projects`, `project_skills`, and
+`add_skill_to_project` require an authenticated MCP session — see
+[OAuth authentication](/mcp/oauth/).
+
 See [Tools reference](/mcp/tools/) for parameters and examples.
 
-## Read-only by design
+## Public reads, scoped writes
 
-Registry MCP is read-only. Publish, edit, and sandbox **run** require the [CLI](/getting-started/cli/) with an authenticated API key.
+The four `registry_*` tools are public, read-only registry access. The project
+tools are gated by an authenticated MCP session and per-project access derived
+from project visibility (`private`/`shared`) and membership: `my_projects`
+returns only readable projects, `project_skills` needs read access (org owner, a
+project member, or a shared project), and `add_skill_to_project` needs write
+access (org owner, a project editor/admin, or an org editor+ on a shared
+project). Publish, edit, and sandbox **run** still require the
+[CLI](/getting-started/cli/) with an authenticated API key.
 
 ## Next steps
 
