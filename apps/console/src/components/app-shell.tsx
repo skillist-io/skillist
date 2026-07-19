@@ -6,12 +6,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
-  CanvasBackdrop,
-  canvasBackdropClass,
   Separator,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
+  SignalField,
+  signalFieldClass,
   ThemeToggle,
   Tooltip,
   TooltipContent,
@@ -39,14 +39,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
       >
         <AppSidebar />
-        {/* isolate: own stacking context so the -z-10 CanvasBackdrop paints
+        {/* isolate: own stacking context so the -z-10 SignalField paints
             above this pane's bg-background instead of escaping behind it. */}
         {/* panel-noise: dark-mode grain over the whole product surface, in the
             same decorative layer as the grid below. One edit covers every route. */}
         <SidebarInset className="panel-noise isolate">
-          {/* Shared canvas — same hairline grid as the homepage hero, so the
+          {/* Shared canvas — the same live grid as the homepage hero, so the
               product surface reads as the same instrument. Behind all content. */}
-          <CanvasBackdrop className={`-z-10 ${canvasBackdropClass}`} />
+          <SignalField className={`-z-10 ${signalFieldClass}`} />
           <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />

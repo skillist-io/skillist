@@ -1,4 +1,4 @@
-import { CanvasBackdrop, SkillistLogo, ThemeToggle, webUrl } from "@skillist/ui";
+import { SignalField, SkillistLogo, ThemeToggle, webUrl } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
 
 /**
@@ -14,7 +14,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     <div className="grid min-h-svh lg:grid-cols-2">
       {/* Brand column — the fixed hero panel. Decorative grid + real proof. */}
       <aside className="panel-noise relative hidden flex-col justify-between overflow-hidden border-r border-border bg-background p-10 lg:flex">
-        <CanvasBackdrop className="opacity-60 [mask-image:radial-gradient(120%_100%_at_20%_0%,black,transparent_70%)]" />
+        {/* The same live grid as the marketing hero — sign-in is the first
+            product surface anyone sees, so it should look alive rather than
+            like a screenshot of the hero. */}
+        <SignalField className="[mask-image:radial-gradient(120%_100%_at_20%_0%,black,transparent_70%)]" />
 
         <Link
           to="/"

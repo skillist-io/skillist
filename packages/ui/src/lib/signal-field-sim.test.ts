@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   type Field,
   MAX_PACKETS,
+  MIN_PACKETS,
   NODE_FLASH_MS,
   PACKET_LIFE,
   PACKET_SPEED,
+  packetCapacity,
   type Random,
   randomDirection,
   spawnPacket,
@@ -23,13 +25,27 @@ function emptyField(): Field {
   return { packets: [], flashes: [] };
 }
 
+describe("packetCapacity", () => {
+  it("keeps density constant instead of count as the grid grows", () => {
+    // A laptop hero (~20x10 nodes) stays restrained; a 4K one (~60x10) gets
+    // more packets so the field reads the same at both sizes.
+    expect(packetCapacity(20, 10)).toBe(MIN_PACKETS);
+    expect(packetCapacity(60, 10)).toBeGreaterThan(MIN_PACKETS);
+  });
+
+  it("never empties out and never exceeds the signal budget", () => {
+    expect(packetCapacity(0, 0)).toBe(MIN_PACKETS);
+    expect(packetCapacity(500, 500)).toBe(MAX_PACKETS);
+  });
+});
+
 describe("stepField", () => {
   it("fills the field to capacity and keeps it there", () => {
     const field = stepField(emptyField(), { dtSeconds: 0, now: 0, ...GRID });
-    expect(field.packets).toHaveLength(MAX_PACKETS);
+    expect(field.packets).toHaveLength(packetCapacity(GRID.cols, GRID.rows));
 
     stepField(field, { dtSeconds: 0.016, now: 16, ...GRID });
-    expect(field.packets).toHaveLength(MAX_PACKETS);
+    expect(field.packets).toHaveLength(packetCapacity(GRID.cols, GRID.rows));
   });
 
   it("spawns packets inside the grid", () => {
@@ -70,7 +86,7 @@ describe("stepField", () => {
 
     // The spent packet is gone; the field refills, so none of the survivors is
     // the original at its post-step position.
-    expect(field.packets).toHaveLength(MAX_PACKETS);
+    expect(field.packets).toHaveLength(packetCapacity(GRID.cols, GRID.rows));
     expect(field.packets.some((p) => p.nodesLeft === 0)).toBe(false);
   });
 

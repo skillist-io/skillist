@@ -8,7 +8,23 @@
  * coordinates; the renderer multiplies by the cell size.
  */
 
-export const MAX_PACKETS = 3;
+/**
+ * Packets in flight, derived from how many grid nodes there are to travel.
+ *
+ * A fixed count reads completely differently at different widths: three packets
+ * are restrained on a laptop and invisible across ~600 nodes on a 4K display.
+ * Scaling by area keeps the *density* constant instead of the count, so the
+ * field looks the same everywhere. Clamped at both ends — never empty, never
+ * busy enough to spend the signal-violet budget (DESIGN.md §2).
+ */
+export const NODES_PER_PACKET = 90;
+export const MIN_PACKETS = 3;
+export const MAX_PACKETS = 10;
+
+export function packetCapacity(cols: number, rows: number): number {
+  const nodes = Math.max(0, (cols + 1) * (rows + 1));
+  return Math.min(MAX_PACKETS, Math.max(MIN_PACKETS, Math.round(nodes / NODES_PER_PACKET)));
+}
 /** Grid nodes traversed per second. */
 export const PACKET_SPEED = 3.2;
 /** Nodes a packet crosses before it fades out. */
@@ -98,7 +114,8 @@ export function stepField(
   field.packets = field.packets.filter(
     (p) => p.nodesLeft > 0 && p.gx >= -2 && p.gy >= -2 && p.gx <= cols + 2 && p.gy <= rows + 2,
   );
-  while (field.packets.length < MAX_PACKETS) {
+  const capacity = packetCapacity(cols, rows);
+  while (field.packets.length < capacity) {
     field.packets.push(spawnPacket(cols, rows, random));
   }
   field.flashes = field.flashes.filter((f) => now - f.at < NODE_FLASH_MS);

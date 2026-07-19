@@ -21,7 +21,9 @@ import {
   SheetFooter,
   SheetTitle,
   SheetTrigger,
+  SignalField,
   Skeleton,
+  signalFieldClass,
   TooltipProvider,
 } from "@skillist/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -215,17 +217,23 @@ function RegistryPage() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-8">
-        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-          <div className="space-y-1">
-            <PageTitle>Public Registry</PageTitle>
-            <p className="max-w-prose text-sm text-muted-foreground">
-              Browse Agent Skills scored for quality, impact, and security. Copy an install command
-              or open a skill for the full bundle.
+        {/* Header band — the hero's live grid, bled to the container edges so
+            the registry reads as the same surface as the landing page. Negative
+            margins undo PublicLayout's padding; the content re-applies it. */}
+        <header className="panel-noise relative -mx-4 -mt-8 overflow-hidden border-b border-border px-4 py-8 md:-mx-6 md:px-6">
+          <SignalField className={signalFieldClass} />
+          <div className="relative z-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+            <div className="space-y-1">
+              <PageTitle>Public Registry</PageTitle>
+              <p className="max-w-prose text-sm text-muted-foreground">
+                Browse Agent Skills scored for quality, impact, and security. Copy an install
+                command or open a skill for the full bundle.
+              </p>
+            </div>
+            <p className="font-mono text-sm text-muted-foreground" aria-live="polite">
+              {data ? `${data.total} skill${data.total === 1 ? "" : "s"}` : " "}
             </p>
           </div>
-          <p className="font-mono text-sm text-muted-foreground" aria-live="polite">
-            {data ? `${data.total} skill${data.total === 1 ? "" : "s"}` : " "}
-          </p>
         </header>
 
         {/* Toolbar: search + sort always visible; Filters opens a sheet below lg */}
