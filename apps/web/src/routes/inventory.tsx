@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { AddToProjectButton } from "@/components/add-to-project";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -261,17 +262,36 @@ function InventoryPage() {
                     <Badge variant="outline">{item.conformanceStatus}</Badge>
                   ) : null}
                   {item.registryOrgSlug && item.registryRepo && (
-                    <Button size="sm" variant="outline" asChild>
-                      <Link
-                        to="/$org/$repo"
-                        params={{
-                          org: item.registryOrgSlug,
-                          repo: item.registryRepo,
-                        }}
-                      >
-                        {item.registryOrgSlug}/{item.registryRepo}
-                      </Link>
-                    </Button>
+                    <>
+                      <Button size="sm" variant="outline" asChild>
+                        <Link
+                          to="/$org/$repo"
+                          params={{
+                            org: item.registryOrgSlug,
+                            repo: item.registryRepo,
+                          }}
+                        >
+                          {item.registryOrgSlug}/{item.registryRepo}
+                        </Link>
+                      </Button>
+                      <AddToProjectButton
+                        target={
+                          item.skillId
+                            ? {
+                                kind: "skill",
+                                skillId: item.skillId,
+                                label: item.localSlug ?? item.registryRepo,
+                              }
+                            : {
+                                kind: "external",
+                                externalUrl: `https://skillist.io/${item.registryOrgSlug}/${item.registryRepo}`,
+                                externalName: item.localSlug ?? item.registryRepo,
+                              }
+                        }
+                        variant="ghost"
+                        iconOnly
+                      />
+                    </>
                   )}
                   <span className="text-xs text-muted-foreground">
                     {new Date(item.scannedAt).toLocaleDateString()}

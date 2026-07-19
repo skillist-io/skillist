@@ -13,7 +13,7 @@ export function QueryError({
   onRetry,
 }: QueryErrorProps) {
   return (
-    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+    <div className="border border-destructive/30 bg-destructive/5 p-4">
       <div className="flex items-start gap-3">
         <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
         <div className="space-y-2">

@@ -1,0 +1,267 @@
+---
+title: Projects
+description: Curate org-scoped, foldered collections of skills from your org, the public registry, and external URLs.
+---
+
+import { DocAlert } from "@/components/docs/DocAlert";
+import { DocTable } from "@/components/docs/DocTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
+
+A **project** is an org-scoped, foldered collection that curates skills from any source — your organization's first-party skills, public registry skills, and external URLs. Items are grouped into folders by their `path`, so a project reads like a small tree of related skills.
+
+Projects are the same curation model the [registry MCP project tools](/mcp/tools/) (`my_projects`, `project_skills`, `add_skill_to_project`) expose to agents: the REST API is how you build and maintain a project, and the MCP tools are how an agent consumes it.
+
+<DocAlert title="Requires sign-in" client:load>
+  Projects belong to an organization. API routes live under `/v1/orgs/{orgId}/projects` and require a session or org API key. Access is decided by your org role, the project's visibility, and — for `private` projects — your per-project membership.
+</DocAlert>
+
+## Access model
+
+Projects are org-scoped and access is layered on two things: your standing in the org, and (for `private` projects) your membership on the specific project.
+
+Any org member — viewer and up — can create a project. Whoever creates it becomes its first project `admin`.
+
+### Visibility
+
+Every project has a `visibility` of `private` (the default) or `shared`.
+
+<DocTable
+  client:load
+  columns={["Visibility", "Who can reach it"]}
+  rows={[
+    ["private", "The creator and explicitly-added project members, plus org owners"],
+    ["shared", "Governed by org roles — any org member can read, editors and up can curate"],
+  ]}
+/>
+
+### Project member roles
+
+Project membership is separate from org membership. A project member holds one of three roles:
+
+<DocTable
+  client:load
+  columns={["Role", "Grants"]}
+  rows={[
+    ["viewer", "Read the project and its items"],
+    ["editor", "Read plus curate items (add, move, relabel, remove)"],
+    ["admin", "Everything, plus manage members, change visibility, and delete the project"],
+  ]}
+/>
+
+### Capabilities
+
+Each operation requires one of three capabilities. A caller is granted a capability when **any** of the listed conditions hold:
+
+<DocTable
+  client:load
+  columns={["Capability", "Operations", "Granted when"]}
+  rows={[
+    ["read", "List / get a project, list members", "Org owner · any project member · project is shared"],
+    ["write", "Add / move / remove items, rename or describe", "Org owner · project editor or admin · project is shared and you're an org editor or higher"],
+    ["manage", "Change visibility, delete, add / update / remove members", "Org owner · project admin"],
+  ]}
+/>
+
+<DocAlert title="API keys" client:load>
+  Org API keys act with org standing only — they never hold a project membership row. A key reaches `private` projects solely through org-owner standing; it reads and curates `shared` projects using its scope (`skills:read` for reads, `skills:write` for writes). The `manage` capability is effectively owner-only for keys.
+</DocAlert>
+
+## Projects
+
+```
+GET    /v1/orgs/{orgId}/projects
+POST   /v1/orgs/{orgId}/projects
+GET    /v1/orgs/{orgId}/projects/{projectId}
+PATCH  /v1/orgs/{orgId}/projects/{projectId}
+DELETE /v1/orgs/{orgId}/projects/{projectId}
+```
+
+`GET /v1/orgs/{orgId}/projects` returns each project the caller can read, with its `visibility`, the caller's own project `role` (or `null`), whether the caller `canWrite`, and an `itemCount`:
+
+```json
+[
+  {
+    "id": "…",
+    "slug": "onboarding",
+    "name": "Onboarding",
+    "description": "Skills new engineers should install first",
+    "visibility": "shared",
+    "role": "admin",
+    "canWrite": true,
+    "createdAt": "2026-01-04T12:00:00.000Z",
+    "itemCount": 6
+  }
+]
+```
+
+The list is already filtered to what you can reach: org owners see every project in the org; everyone else sees `shared` projects plus any `private` project they're a member of.
+
+Create a project with a `name` and a URL-safe `slug` (lowercase, hyphen-separated). The `slug` must be unique within the org — a collision returns **409**. Pass an optional `visibility` (`private` by default). The creator becomes the project's first `admin` member.
+
+```json
+// POST /v1/orgs/{orgId}/projects
+{
+  "name": "Onboarding",
+  "slug": "onboarding",
+  "description": "Skills new engineers should install first",
+  "visibility": "shared"
+}
+// → 201 { "id": "…", "slug": "onboarding", "name": "Onboarding", "visibility": "shared" }
+```
+
+`PATCH` accepts `name`, `description`, and/or `visibility`. Changing `visibility` requires the `manage` capability (org owner or project admin); a plain rename or re-describe only needs `write`. `DELETE` requires `manage` and cascades to all of the project's items and members.
+
+## Resolved items
+
+`GET /v1/orgs/{orgId}/projects/{projectId}` returns the project plus its fully resolved `items`, ordered by folder `path` then `position`. It also echoes the caller's `role`, and whether they `canWrite` (curate items) and `canManage` (members, visibility, delete):
+
+```json
+{
+  "id": "…",
+  "slug": "onboarding",
+  "name": "Onboarding",
+  "description": "…",
+  "visibility": "shared",
+  "role": "admin",
+  "canWrite": true,
+  "canManage": true,
+  "items": [ /* … */ ]
+}
+```
+
+`role` is the caller's project-membership role, or `null` when they reach the project purely through org standing (an org owner, or any member of a `shared` project).
+
+Every item carries these base fields:
+
+<DocTable
+  client:load
+  columns={["Field", "Type", "Description"]}
+  rows={[
+    ["id", "string", "Item id"],
+    ["kind", "\"skill\" | \"external\"", "Whether the item references a Skillist skill or an external URL"],
+    ["path", "string", "Folder path within the project (empty string = project root)"],
+    ["position", "number", "Sort order within the folder"],
+    ["label", "string | null", "Optional display label overriding the skill/external name"],
+    ["note", "string | null", "Optional curator note"],
+  ]}
+/>
+
+**Skill items** (`kind: "skill"`) additionally resolve:
+
+<DocTable
+  client:load
+  columns={["Field", "Type", "Description"]}
+  rows={[
+    ["skillId", "string", "Referenced skill id"],
+    ["orgSlug", "string", "Owning org slug (may differ from this org for public skills)"],
+    ["repo", "string", "Skill repo name — combine with orgSlug for {org}/{repo}"],
+    ["visibility", "string", "Skill visibility (e.g. public, private)"],
+    ["description", "string | null", "Registry description when published, else the skill's own description"],
+  ]}
+/>
+
+**External items** (`kind: "external"`) additionally carry:
+
+<DocTable
+  client:load
+  columns={["Field", "Type", "Description"]}
+  rows={[
+    ["externalUrl", "string", "The external reference URL"],
+    ["externalName", "string | null", "Optional display name for the external reference"],
+  ]}
+/>
+
+## Curating items
+
+```
+POST   /v1/orgs/{orgId}/projects/{projectId}/items
+PATCH  /v1/orgs/{orgId}/projects/{projectId}/items/{itemId}
+DELETE /v1/orgs/{orgId}/projects/{projectId}/items/{itemId}
+```
+
+Add exactly one kind of item per request. For a **skill**, provide `skillId`; for an **external** reference, provide `externalUrl`.
+
+```json
+// POST …/items — skill
+{ "kind": "skill", "skillId": "…", "path": "review", "label": "SQL review", "note": "run before every migration" }
+
+// POST …/items — external
+{ "kind": "external", "externalUrl": "https://example.com/guide", "externalName": "Style guide", "path": "docs" }
+```
+
+`path`, `label`, and `note` are optional on both kinds; a missing `path` places the item at the project root.
+
+<DocAlert title="Skill accessibility" client:load>
+  A skill can only be curated if it belongs to this organization **or** is public. Adding another org's private skill returns **403**. Adding a skill or external URL already present in the project returns **409**.
+</DocAlert>
+
+`PATCH …/items/{itemId}` moves or relabels an item — send any of `path`, `position`, or `label` (send `label: null` to clear it). `DELETE …/items/{itemId}` removes a single item.
+
+## Members
+
+Membership controls who can reach a `private` project and what each person can do. All member operations except the two read endpoints require the `manage` capability (org owner or project admin).
+
+```
+GET    /v1/orgs/{orgId}/members
+GET    /v1/orgs/{orgId}/projects/{projectId}/members
+POST   /v1/orgs/{orgId}/projects/{projectId}/members
+PATCH  /v1/orgs/{orgId}/projects/{projectId}/members/{userId}
+DELETE /v1/orgs/{orgId}/projects/{projectId}/members/{userId}
+```
+
+### Org roster
+
+`GET /v1/orgs/{orgId}/members` lists everyone in the org — the roster you draw from when adding project members. Any org member (viewer and up) can read it. Only these users are eligible to be added to a project.
+
+```json
+[
+  { "userId": "…", "name": "Ada Lovelace", "email": "ada@example.com", "role": "owner" }
+]
+```
+
+### Project members
+
+`GET /v1/orgs/{orgId}/projects/{projectId}/members` lists the project's members. It needs `read` access to the project (org owner, an existing member, or a `shared` project).
+
+```json
+[
+  {
+    "userId": "…",
+    "name": "Ada Lovelace",
+    "email": "ada@example.com",
+    "role": "admin",
+    "addedBy": "…",
+    "createdAt": "2026-01-04T12:00:00.000Z"
+  }
+]
+```
+
+Add a member with `POST …/members`. Provide a `userId` and an optional `role` (defaults to `viewer`). The target must already be an org member — otherwise the call returns **400**. Adding someone who is already on the project returns **409**.
+
+```json
+// POST …/members
+{ "userId": "…", "role": "editor" }
+// → 201 { "ok": true }
+```
+
+`PATCH …/members/{userId}` changes a member's `role`; `DELETE …/members/{userId}` removes them.
+
+<DocAlert title="A project always keeps an admin" client:load>
+  Demoting or removing the project's **last** `admin` returns **409**. Promote another member to `admin` first.
+</DocAlert>
+
+## MCP consumption
+
+Agents read projects through the [registry MCP tools](/mcp/tools/), which enforce the same read/write access model described above:
+
+- `my_projects` — list the readable projects across every org the caller belongs to
+- `project_skills` — resolve a project's items, grouped by folder `path`, with install/run commands (needs `read` access)
+- `add_skill_to_project` — add a skill or external reference (needs `write` access)
+
+The MCP tools require an authenticated MCP session — see [OAuth authentication](/mcp/oauth/).
+
+## Related
+
+- [Registry](/platform/registry/) — publish skills so they can be curated into projects
+- [Authentication](/platform/authentication/) — sessions, org roles, and API keys
+- [MCP tools reference](/mcp/tools/) — the project tools agents use

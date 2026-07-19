@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { createApiKeySchema, createOrgSchema, inviteMemberSchema } from "@skillist/contracts";
-import { apiKeys, organizations, orgMembers } from "@skillist/db/schema";
+import { apiKeys, organizations, orgMembers, users } from "@skillist/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
@@ -146,7 +146,6 @@ orgRoutes.openapi(inviteRoute, async (c) => {
   const access = await requireOrgRole(c.var.db, orgId, userId, "owner");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
   const body = c.req.valid("json");
-  const { users } = await import("@skillist/db/schema");
   const [user] = await c.var.db.select().from(users).where(eq(users.email, body.email)).limit(1);
   if (!user) return c.json({ error: "User not found" }, 404);
   await c.var.db.insert(orgMembers).values({
@@ -155,6 +154,59 @@ orgRoutes.openapi(inviteRoute, async (c) => {
     role: body.role,
   });
   return c.json({ ok: true }, 201);
+});
+
+const listMembersRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/members",
+  tags: ["Organizations"],
+  request: { params: z.object({ orgId: z.string().uuid() }) },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.array(
+            z.object({
+              userId: z.string(),
+              name: z.string().nullable(),
+              email: z.string().nullable(),
+              role: z.string(),
+            }),
+          ),
+        },
+      },
+      description: "List org members",
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
+    },
+    403: {
+      description: "Forbidden",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
+    },
+  },
+});
+
+orgRoutes.openapi(listMembersRoute, async (c) => {
+  const userId = await resolveUserId(c);
+  const { orgId } = c.req.valid("param");
+  // Any org member may view the roster (used by the project-member picker).
+  const access = await requireOrgRole(c.var.db, orgId, userId, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const rows = await c.var.db
+    .select({
+      userId: orgMembers.userId,
+      name: users.name,
+      email: users.email,
+      role: orgMembers.role,
+    })
+    .from(orgMembers)
+    .leftJoin(users, eq(orgMembers.userId, users.id))
+    .where(eq(orgMembers.orgId, orgId));
+
+  return c.json(rows, 200);
 });
 
 const createApiKeyRoute = createRoute({

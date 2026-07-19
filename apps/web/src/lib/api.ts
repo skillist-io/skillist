@@ -25,6 +25,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type RegistryItem = {
+  /** Backing skills.id — present for registry entries so they curate as real skill items. */
+  skillId?: string;
   orgSlug: string;
   skillRepo: string;
   name: string;
@@ -234,6 +236,8 @@ export type SkillInventoryItem = {
   managed: boolean;
   registryOrgSlug: string | null;
   registryRepo: string | null;
+  /** Backing skills.id when the managed item resolves to a public registry skill. */
+  skillId?: string | null;
   sourceType?: string | null;
   scope?: string | null;
   marketplace?: string | null;
@@ -263,6 +267,77 @@ export type SkillSource = {
   license: string | null;
   homepageUrl: string | null;
   updatedAt: string;
+};
+
+export type ProjectVisibility = "private" | "shared";
+export type ProjectRole = "viewer" | "editor" | "admin";
+
+export type Project = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  itemCount: number;
+  visibility: ProjectVisibility;
+  /** Whether the current user can curate (editor+). */
+  canWrite: boolean;
+  /** The current user's project role, or null when access is inherited (e.g. org owner). */
+  role: ProjectRole | null;
+};
+
+export type ProjectMember = {
+  userId: string;
+  name: string;
+  email: string;
+  role: ProjectRole;
+  addedBy: string | null;
+  createdAt: string;
+};
+
+export type OrgMember = {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
+type ProjectItemBase = {
+  id: string;
+  path: string;
+  position: number;
+  label: string | null;
+  note: string | null;
+};
+
+export type ProjectItem =
+  | (ProjectItemBase & {
+      kind: "skill";
+      skillId: string;
+      orgSlug: string;
+      repo: string;
+      visibility: "private" | "org" | "public";
+      description: string | null;
+    })
+  | (ProjectItemBase & {
+      kind: "external";
+      externalUrl: string;
+      externalName: string | null;
+    });
+
+export type ProjectDetail = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  items: ProjectItem[];
+  visibility: ProjectVisibility;
+  /** The current user's project role, or null when access is inherited (e.g. org owner). */
+  role: ProjectRole | null;
+  /** Whether the current user can curate items (editor+). */
+  canWrite: boolean;
+  /** Whether the current user can manage visibility, members, and deletion (admin / org owner). */
+  canManage: boolean;
 };
 
 export type SkillSourceSuggestion = {

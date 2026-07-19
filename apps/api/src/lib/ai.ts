@@ -24,7 +24,7 @@ import {
   scanSkillSecurity,
   validateSkillBundle,
 } from "@skillist/skill-format";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "./audit";
 import type { WorkerDb } from "./db";
@@ -42,24 +42,36 @@ import {
 } from "./r2";
 import { detectSkillRuntime } from "./skill-runtime";
 
+/**
+ * Formats 64 hex chars (a sha256) into a valid RFC 4122 v4-variant UUID string.
+ * Deterministic: the same seed always yields the same UUID.
+ */
+function uuidFromHex(hex: string): string {
+  const h = hex.padEnd(32, "0");
+  const variant = ((Number.parseInt(h[16] ?? "8", 16) & 0x3) | 0x8).toString(16);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
 export async function runAiJob(
   env: Env,
   db: WorkerDb,
   jobId: string,
   feedbackId: string,
 ): Promise<void> {
+  // Idempotency: a retried job that already produced its draft must not run the
+  // model again or create a second draft version.
+  const [existingJob] = await db.select().from(aiJobs).where(eq(aiJobs.id, jobId)).limit(1);
+  if (existingJob?.status === "completed" && existingJob.resultDraftVersionId) return;
+
   const [job] = await db.select().from(feedback).where(eq(feedback.id, feedbackId)).limit(1);
   if (!job) return;
 
-  const [skill] = await db.select().from(skills).where(eq(skills.id, job.skillId)).limit(1);
-  if (!skill) return;
-
-  const [version] = await db
-    .select()
-    .from(skillVersions)
-    .where(eq(skillVersions.id, job.targetVersionId))
-    .limit(1);
-  if (!version) return;
+  // skill and version are independent once the feedback row is loaded.
+  const [[skill], [version]] = await Promise.all([
+    db.select().from(skills).where(eq(skills.id, job.skillId)).limit(1),
+    db.select().from(skillVersions).where(eq(skillVersions.id, job.targetVersionId)).limit(1),
+  ]);
+  if (!skill || !version) return;
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
   const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);
@@ -89,22 +101,15 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
     throw new Error("AI output failed validation");
   }
 
-  const versionId = crypto.randomUUID();
+  // Deterministic draft id from the job id: a retry reuses the same version id
+  // and R2 prefix, so re-running overwrites rather than accumulating duplicate
+  // drafts and orphaned R2 objects.
+  const versionId = uuidFromHex(await sha256(`aijob:${jobId}`));
   const prefix = r2Prefix(skill.orgId, skill.repo, versionId);
   await uploadBundleToR2(env.SKILLS_R2, prefix, newBundle);
 
   const fileEntries = [...newBundle.entries()];
-  await db.insert(skillVersions).values({
-    id: versionId,
-    skillId: skill.id,
-    status: "draft",
-    semver: bumpSemver(version.semver, "patch"),
-    r2Prefix: prefix,
-    parentVersionId: version.id,
-    createdBy: job.submittedBy,
-  });
-
-  // Hash in parallel and insert all file rows in a single round-trip.
+  // Hash in parallel outside the transaction (pure CPU, no DB round-trips).
   const fileRows = await Promise.all(
     fileEntries.map(async ([path, content]) => ({
       versionId,
@@ -113,18 +118,36 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
       size: content.length,
     })),
   );
-  if (fileRows.length > 0) {
-    await db.insert(skillFiles).values(fileRows);
-  }
 
-  await db
-    .update(aiJobs)
-    .set({
-      status: "completed",
-      resultDraftVersionId: versionId,
-      completedAt: new Date(),
-    })
-    .where(eq(aiJobs.id, jobId));
+  // Version row, file rows, and job completion move together; onConflictDoNothing
+  // makes the insert half idempotent under retry (deterministic ids above).
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(skillVersions)
+      .values({
+        id: versionId,
+        skillId: skill.id,
+        status: "draft",
+        semver: bumpSemver(version.semver, "patch"),
+        r2Prefix: prefix,
+        parentVersionId: version.id,
+        createdBy: job.submittedBy,
+      })
+      .onConflictDoNothing();
+
+    if (fileRows.length > 0) {
+      await tx.insert(skillFiles).values(fileRows).onConflictDoNothing();
+    }
+
+    await tx
+      .update(aiJobs)
+      .set({
+        status: "completed",
+        resultDraftVersionId: versionId,
+        completedAt: new Date(),
+      })
+      .where(eq(aiJobs.id, jobId));
+  });
 }
 
 /**
@@ -196,6 +219,12 @@ async function commitPublishedVersion(params: {
   const discovery = extractRegistryDiscovery(frontmatter);
 
   await db.transaction(async (tx) => {
+    // Serialize concurrent publishes of the same skill. Without this lock two
+    // publishes can interleave: each archives the other's not-yet-committed
+    // "published" version and races to set latestPublishedVersionId. Locking the
+    // skills row up front makes the archive → publish → set-latest sequence atomic.
+    await tx.execute(sql`select id from skills where id = ${skill.id} for update`);
+
     await tx
       .update(skillVersions)
       .set({ status: "archived" })
@@ -300,16 +329,6 @@ async function commitPublishedVersion(params: {
     await purgePublishedSkill(env.SKILLS_KV, org.slug, skill.repo);
   }
 
-  await logAudit(db, {
-    orgId: org.id,
-    actorId: userId,
-    actorType,
-    action,
-    resourceType: "skill",
-    resourceId: skill.id,
-    metadata: auditMetadata,
-  });
-
   const event = {
     type: "skill.published" as const,
     org: org.slug,
@@ -321,7 +340,31 @@ async function commitPublishedVersion(params: {
     // Never fan out private/org skill contents over the realtime hub.
     skillMd: isPublic && skillMd.length < 65536 ? skillMd : undefined,
   };
-  await broadcastPublish(env, org.slug, skill.repo, event);
+  // The audit write (DB) and the realtime broadcast (DO) are independent, so run
+  // them together. The broadcast is best-effort: the version is already committed
+  // to the DB and KV above, so a transient Durable Object error must not fail the
+  // publish (which would return HTTP 400 to the caller for a skill that is live).
+  await Promise.all([
+    logAudit(db, {
+      orgId: org.id,
+      actorId: userId,
+      actorType,
+      action,
+      resourceType: "skill",
+      resourceId: skill.id,
+      metadata: auditMetadata,
+    }),
+    broadcastPublish(env, org.slug, skill.repo, event).catch((err) => {
+      console.error(
+        JSON.stringify({
+          msg: "broadcast_publish_failed",
+          org: org.slug,
+          repo: skill.repo,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }),
+  ]);
 
   return {
     etag,

@@ -33,6 +33,13 @@ export type DiscoveredSkill = {
   skillMdPath: string;
 };
 
+// Bound every outbound GitHub call so a hung upstream can't stall a sync
+// Workflow step, and cap buffered payloads so an oversized repo can't exhaust
+// the Worker's memory limit.
+const GITHUB_FETCH_TIMEOUT_MS = 30_000;
+const MAX_TARBALL_BYTES = 100 * 1024 * 1024;
+const MAX_BLOB_BASE64_CHARS = 14 * 1024 * 1024; // ~10 MB decoded
+
 function githubHeaders(token?: string): HeadersInit {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
@@ -43,8 +50,40 @@ function githubHeaders(token?: string): HeadersInit {
   return headers;
 }
 
+/** Reads a response body, aborting if it exceeds `maxBytes` (no full buffering of oversized bodies). */
+async function readCapped(res: Response, maxBytes: number, label: string): Promise<Uint8Array> {
+  const reader = res.body?.getReader();
+  if (!reader) {
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.byteLength > maxBytes) throw new Error(`${label} exceeds ${maxBytes} bytes`);
+    return buf;
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error(`${label} exceeds ${maxBytes} bytes`);
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
 async function githubJson<T>(url: string, token?: string): Promise<T> {
-  const res = await fetch(url, { headers: githubHeaders(token) });
+  const res = await fetch(url, {
+    headers: githubHeaders(token),
+    signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`GitHub API ${res.status} for ${url}: ${body.slice(0, 200)}`);
@@ -123,6 +162,9 @@ export async function fetchBlobText(
     `https://api.github.com/repos/${owner}/${repo}/git/blobs/${fileSha}`,
     token,
   );
+  if (data.content.length > MAX_BLOB_BASE64_CHARS) {
+    throw new Error(`Blob ${fileSha} exceeds the ${MAX_BLOB_BASE64_CHARS}-char size cap`);
+  }
   if (data.encoding === "base64") {
     const binary = atob(data.content.replace(/\n/g, ""));
     const bytes = new Uint8Array(binary.length);
@@ -146,13 +188,15 @@ export async function cacheTarballToR2(
 
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/tarball/${commitSha}`, {
     headers: githubHeaders(token),
+    signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new Error(`Failed to download tarball ${owner}/${repo}@${commitSha}: ${res.status}`);
   }
 
   // R2 requires a known-length body; GitHub tarball streams omit Content-Length.
-  const bytes = await res.arrayBuffer();
+  // Read with a hard byte cap so an oversized repo can't exhaust Worker memory.
+  const bytes = await readCapped(res, MAX_TARBALL_BYTES, `tarball ${owner}/${repo}@${commitSha}`);
   await bucket.put(key, bytes, {
     httpMetadata: { contentType: "application/gzip" },
     customMetadata: { owner, repo, commitSha },

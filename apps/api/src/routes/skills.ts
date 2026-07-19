@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { createSkillSchema, uploadVersionSchema } from "@skillist/contracts";
 import { organizations, skillFiles, skills, skillVersions } from "@skillist/db/schema";
 import {
+  compareSemver,
   createSkillTemplate,
   estimateImpactScore,
   objectToBundle,
@@ -18,6 +19,7 @@ import type { WorkerDb } from "../lib/db";
 import { requireOrgAccess } from "../lib/org-access";
 import { queueSkillEval } from "../lib/queue-eval";
 import {
+  deleteBundleFromR2,
   downloadBundleFromR2,
   listBundlePaths,
   r2Prefix,
@@ -78,39 +80,45 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
     return c.json({ error: validation.errors }, 400);
   }
 
-  const [skill] = await c.var.db
-    .insert(skills)
-    .values({
-      orgId,
-      repo: body.repo,
-      visibility: body.visibility,
-      description,
-    })
-    .returning();
-  if (!skill) return c.json({ error: "Failed" }, 500);
-
   const versionId = crypto.randomUUID();
   const prefix = r2Prefix(orgId, body.repo, versionId);
   await uploadBundleToR2(c.env.SKILLS_R2, prefix, bundle);
 
-  await c.var.db.insert(skillVersions).values({
-    id: versionId,
-    skillId: skill.id,
-    status: "draft",
-    semver: "0.1.0",
-    r2Prefix: prefix,
-    createdBy: userId,
-  });
-
   const skillMd = bundle.get("SKILL.md")!;
-  await c.var.db.insert(skillFiles).values({
-    versionId,
-    path: "SKILL.md",
-    sha256: await sha256(skillMd),
-    size: skillMd.length,
-  });
+  const skillMdSha = await sha256(skillMd);
 
-  return c.json({ id: skill.id, repo: skill.repo, visibility: skill.visibility }, 201);
+  // Skill + initial version + file rows must land together; if the DB writes
+  // fail, delete the R2 objects we just wrote so no orphaned bundle is left.
+  let created: { id: string; repo: string; visibility: string };
+  try {
+    created = await c.var.db.transaction(async (tx) => {
+      const [skill] = await tx
+        .insert(skills)
+        .values({ orgId, repo: body.repo, visibility: body.visibility, description })
+        .returning();
+      if (!skill) throw new Error("skill insert returned no row");
+      await tx.insert(skillVersions).values({
+        id: versionId,
+        skillId: skill.id,
+        status: "draft",
+        semver: "0.1.0",
+        r2Prefix: prefix,
+        createdBy: userId,
+      });
+      await tx.insert(skillFiles).values({
+        versionId,
+        path: "SKILL.md",
+        sha256: skillMdSha,
+        size: skillMd.length,
+      });
+      return { id: skill.id, repo: skill.repo, visibility: skill.visibility };
+    });
+  } catch (err) {
+    await deleteBundleFromR2(c.env.SKILLS_R2, prefix).catch(() => {});
+    throw err;
+  }
+
+  return c.json(created, 201);
 });
 
 const listSkillsRoute = createRoute({
@@ -179,6 +187,7 @@ const uploadVersionRoute = createRoute({
     401: jsonError("Unauthorized"),
     403: jsonError("Forbidden"),
     404: jsonError("Skill not found"),
+    409: jsonError("Version conflict"),
   },
 });
 
@@ -204,10 +213,6 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
     return c.json({ error: validation.errors }, 400);
   }
 
-  const versionId = crypto.randomUUID();
-  const prefix = r2Prefix(orgId, repo, versionId);
-  await uploadBundleToR2(c.env.SKILLS_R2, prefix, bundle);
-
   const parentVersion = body.parentVersionId
     ? await c.var.db
         .select({ semver: skillVersions.semver })
@@ -221,21 +226,35 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
     semver: body.semver,
     bump: body.bump,
   });
-  const [version] = await c.var.db
-    .insert(skillVersions)
-    .values({
-      id: versionId,
-      skillId: skill.id,
-      status: "draft",
-      semver,
-      r2Prefix: prefix,
-      parentVersionId: body.parentVersionId,
-      createdBy: userId,
-    })
-    .returning();
 
-  // Hash every file in parallel, then insert them in one round-trip rather than
-  // one sequential INSERT (each preceded by an awaited hash) per file.
+  // Guard against version reuse / going backwards before touching R2. Semver
+  // must be unique within a skill, and an explicitly pinned semver must move
+  // past the highest existing version (an auto-bump is monotonic already).
+  const existingVersions = await c.var.db
+    .select({ semver: skillVersions.semver })
+    .from(skillVersions)
+    .where(eq(skillVersions.skillId, skill.id));
+  if (existingVersions.some((v) => v.semver === semver)) {
+    return c.json({ error: `Version ${semver} already exists for this skill` }, 409);
+  }
+  if (body.semver) {
+    const highest = existingVersions.reduce<string | null>(
+      (max, v) => (max === null || compareSemver(v.semver, max) > 0 ? v.semver : max),
+      null,
+    );
+    if (highest && compareSemver(semver, highest) <= 0) {
+      return c.json(
+        { error: `Version ${semver} must be greater than the latest version ${highest}` },
+        409,
+      );
+    }
+  }
+
+  const versionId = crypto.randomUUID();
+  const prefix = r2Prefix(orgId, repo, versionId);
+  await uploadBundleToR2(c.env.SKILLS_R2, prefix, bundle);
+
+  // Hash every file in parallel (pure CPU) before opening the transaction.
   const fileRows = await Promise.all(
     [...bundle.entries()].map(async ([path, content]) => ({
       versionId,
@@ -244,8 +263,33 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
       size: content.length,
     })),
   );
-  if (fileRows.length > 0) {
-    await c.var.db.insert(skillFiles).values(fileRows);
+
+  // Version + file rows land together; on failure delete the R2 objects we just
+  // wrote so a failed upload leaves no orphaned bundle.
+  let version: typeof skillVersions.$inferSelect;
+  try {
+    version = await c.var.db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(skillVersions)
+        .values({
+          id: versionId,
+          skillId: skill.id,
+          status: "draft",
+          semver,
+          r2Prefix: prefix,
+          parentVersionId: body.parentVersionId,
+          createdBy: userId,
+        })
+        .returning();
+      if (!inserted) throw new Error("version insert returned no row");
+      if (fileRows.length > 0) {
+        await tx.insert(skillFiles).values(fileRows);
+      }
+      return inserted;
+    });
+  } catch (err) {
+    await deleteBundleFromR2(c.env.SKILLS_R2, prefix).catch(() => {});
+    throw err;
   }
 
   const [org] = await c.var.db
@@ -266,9 +310,9 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
 
   return c.json(
     {
-      id: version!.id,
-      semver: version!.semver,
-      status: version!.status,
+      id: version.id,
+      semver: version.semver,
+      status: version.status,
       eval: evalQueue,
     },
     201,
@@ -443,7 +487,7 @@ skillRoutes.openapi(getVersionFilesRoute, async (c) => {
   const [version] = await c.var.db
     .select()
     .from(skillVersions)
-    .where(eq(skillVersions.id, versionId))
+    .where(and(eq(skillVersions.id, versionId), eq(skillVersions.skillId, skill.id)))
     .limit(1);
   if (!version) return c.json({ error: "Not found" }, 404);
 
@@ -487,7 +531,7 @@ skillRoutes.openapi(previewVersionRoute, async (c) => {
   const [version] = await c.var.db
     .select()
     .from(skillVersions)
-    .where(eq(skillVersions.id, versionId))
+    .where(and(eq(skillVersions.id, versionId), eq(skillVersions.skillId, skill.id)))
     .limit(1);
   if (!version) return c.json({ error: "Not found" }, 404);
 

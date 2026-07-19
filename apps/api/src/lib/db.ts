@@ -34,3 +34,45 @@ export function createWorkerDbCached(env: Env): import("@skillist/auth").WorkerD
 }
 
 export type { WorkerDb } from "@skillist/auth";
+
+/** True when running against the production deployment (api.skillist.io). */
+function isProductionEnv(env: Env): boolean {
+  return /(?:^|\/\/)(?:[^/]*\.)?skillist\.io(?:[:/]|$)/.test(env.BETTER_AUTH_URL ?? "");
+}
+
+let cacheDisabledBindingOk = false;
+
+/**
+ * Fail-loud guard against production config drift. `createWorkerDb` silently
+ * falls back to the caching-enabled Hyperdrive when the cache-disabled binding
+ * is absent — in production that means auth/permission/API-key reads can serve
+ * up to the Hyperdrive cache TTL stale (a revoked key keeps authenticating).
+ * We refuse to serve rather than degrade silently. A missing distributed
+ * RATE_LIMITER is degraded-but-functional (in-memory fallback), so it warns
+ * loudly instead of throwing. Cheap: memoized after the first OK check.
+ */
+export function assertProductionBindings(env: Env): void {
+  if (cacheDisabledBindingOk) return;
+  if (!isProductionEnv(env)) {
+    cacheDisabledBindingOk = true;
+    return;
+  }
+  if (!env.RATE_LIMITER) {
+    console.error(
+      JSON.stringify({
+        msg: "missing_binding",
+        binding: "RATE_LIMITER",
+        impact: "rate limiting degraded to per-isolate in-memory fallback",
+      }),
+    );
+  }
+  if (!env.HYPERDRIVE_CACHE_DISABLED) {
+    throw new Error(
+      "Production is missing the HYPERDRIVE_CACHE_DISABLED binding. Auth, " +
+        "permission, and API-key reads would silently serve stale (cached) data " +
+        "— refusing to serve. Add the cache-disabled Hyperdrive config to " +
+        "wrangler.production.jsonc.",
+    );
+  }
+  cacheDisabledBindingOk = true;
+}
