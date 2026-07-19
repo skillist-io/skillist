@@ -99,6 +99,21 @@ export const updateProjectItemSchema = z.object({
 });
 export type UpdateProjectItemInput = z.infer<typeof updateProjectItemSchema>;
 
+export const agentApprovalStatusSchema = z.enum(["pending", "approved", "denied"]);
+export type AgentApprovalStatus = z.infer<typeof agentApprovalStatusSchema>;
+
+export const rememberInputSchema = z.object({
+  key: z.string().min(1).max(128),
+  value: z.string().min(1).max(4000),
+  scope: z.enum(["org", "user"]).optional(),
+});
+export type RememberInput = z.infer<typeof rememberInputSchema>;
+
+export const createAgentChatSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+});
+export type CreateAgentChatInput = z.infer<typeof createAgentChatSchema>;
+
 export const createOrgSchema = z.object({
   name: z.string().min(1).max(128),
   slug: z

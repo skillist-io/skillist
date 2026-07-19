@@ -1,5 +1,10 @@
+import type { Org } from "@skillist/ui";
 import {
+  Button,
   NativeSelect,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   QueryError,
   Sheet,
   SheetContent,
@@ -8,9 +13,14 @@ import {
   Skeleton,
 } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
+import { MessagesSquare, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LazyAgentChat, prefetchAgentChat } from "@/components/agent/agent-chat-lazy";
+import { ApprovalsPanel } from "@/components/agent/approvals-panel";
+import { ChatHistoryList } from "@/components/agent/chat-history";
+import { MemoryPanel } from "@/components/agent/memory-panel";
 import { useAgentContext } from "@/lib/agent-context";
+import { useAgentChats } from "@/lib/use-agent-chats";
 import { useAgentOrg } from "@/lib/use-agent-org";
 
 /**
@@ -20,9 +30,9 @@ import { useAgentOrg } from "@/lib/use-agent-org";
  * ask about it — the whole point of the context attachment is that you are
  * looking at the thing you are asking about.
  *
- * The transcript itself lives in the agent's Durable Object, keyed by org, so
- * this drawer and the full /agent page are the same conversation; nothing is
- * lost moving between them.
+ * Conversations live in the agent's Durable Object, keyed by `${orgId}::${chatId}`
+ * and indexed per user; this drawer and the full /agent page read the same
+ * index, so a chat started on one is reachable from the other.
  */
 export function AgentDrawer({
   open,
@@ -87,18 +97,77 @@ export function AgentDrawer({
             </p>
           </div>
         ) : (
-          // Remount on org switch → useAgent/useAgentChat rebuild against the
-          // new DO instance with no stale-message window.
-          <LazyAgentChat
-            key={activeOrg.id}
-            orgId={activeOrg.id}
-            orgName={activeOrg.name}
-            context={context}
-            compact
-          />
+          // Remount on org switch → the conversation index + active chat reset
+          // to the new org.
+          <DrawerBody key={activeOrg.id} activeOrg={activeOrg} context={context} />
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DrawerBody({
+  activeOrg,
+  context,
+}: {
+  activeOrg: Org;
+  context: ReturnType<typeof useAgentContext>;
+}) {
+  const { chatId, chats, isPending, isError, selectChat, newChat, deleteChat, invalidate } =
+    useAgentChats(activeOrg.id);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  return (
+    <>
+      <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border px-2 py-2">
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => newChat()}>
+            <Plus className="size-3.5" aria-hidden />
+            New chat
+          </Button>
+          <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-2">
+                <MessagesSquare className="size-3.5" aria-hidden />
+                History
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 p-0">
+              <div className="max-h-[60svh] min-h-0">
+                <ChatHistoryList
+                  chats={chats}
+                  activeChatId={chatId}
+                  isPending={isPending}
+                  isError={isError}
+                  onSelect={selectChat}
+                  onNew={newChat}
+                  onDelete={deleteChat}
+                  onAfterAction={() => setHistoryOpen(false)}
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+        {/* Same agent-governance controls as the full page, kept reachable from
+            the ambient drawer. */}
+        <div className="flex items-center gap-1">
+          <MemoryPanel orgId={activeOrg.id} />
+          <ApprovalsPanel orgId={activeOrg.id} />
+        </div>
+      </div>
+
+      {/* Remount on chat switch → useAgent/useAgentChat rebuild against the new
+          DO instance with no stale-message window. */}
+      <LazyAgentChat
+        key={chatId}
+        orgId={activeOrg.id}
+        orgName={activeOrg.name}
+        chatId={chatId}
+        context={context}
+        compact
+        onListRefresh={invalidate}
+      />
+    </>
   );
 }
 
