@@ -18,6 +18,7 @@ import { rateLimit } from "./lib/rate-limit";
 import { resolveSessionUserId } from "./lib/session";
 import { handleMcpRequest } from "./mcp/handler";
 import { mcpServerInfo } from "./mcp/registry-server";
+import { adminDocsRoutes } from "./routes/admin-docs";
 import { agentApprovalsRoutes } from "./routes/agent-approvals";
 import { agentChatsRoutes } from "./routes/agent-chats";
 import { agentMemoryRoutes } from "./routes/agent-memory";
@@ -209,6 +210,7 @@ v1.route("/", agentMemoryRoutes);
 v1.route("/", agentApprovalsRoutes);
 v1.route("/", realtimeRoutes);
 v1.route("/", sourcesRoutes);
+v1.route("/", adminDocsRoutes);
 v1.route("/", webhookRoutes);
 
 app.route("/v1", v1);
