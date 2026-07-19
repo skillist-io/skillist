@@ -1,0 +1,33 @@
+# Neon Local — spawns an ephemeral Neon branch when the container starts and
+# deletes it when it stops. Local apps connect to localhost:5432; the proxy
+# forwards to that branch in the Neon cloud, so dev/test runs get an isolated,
+# throwaway database instead of sharing one dev branch.
+#
+# Workflow:
+#   pnpm db:up             # start the proxy (fresh ephemeral branch off local-baseline)
+#   pnpm db:migrate:local  # apply migrations (0000..) to the fresh branch
+#   pnpm dev
+#   pnpm db:down           # stop the proxy (the ephemeral branch is deleted)
+#
+# Requires a repo-root .env with NEON_API_KEY and NEON_PROJECT_ID (see .env.example).
+services:
+  neon-local:
+    image: neondatabase/neon_local:latest
+    container_name: skillist-db
+    ports:
+      - "5432:5432"
+    environment:
+      NEON_API_KEY: ${NEON_API_KEY:?set NEON_API_KEY in .env}
+      NEON_PROJECT_ID: ${NEON_PROJECT_ID:?set NEON_PROJECT_ID in .env}
+      # Ephemeral branches fork from the clean, empty "local-baseline" parent so
+      # each run starts from nothing and `db:migrate:local` applies the schema
+      # fresh. Override with NEON_PARENT_BRANCH_ID in .env to fork elsewhere.
+      PARENT_BRANCH_ID: ${NEON_PARENT_BRANCH_ID:-br-damp-sun-ad62bhoy}
+      # Ephemeral by default — the branch is deleted on `db:down`. Set
+      # DELETE_BRANCH=false in your shell to keep a branch across restarts.
+      DELETE_BRANCH: ${DELETE_BRANCH:-true}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U neon"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
