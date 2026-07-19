@@ -49,6 +49,11 @@ export const skillSourceSuggestionStatusEnum = pgEnum("skill_source_suggestion_s
 export const projectItemKindEnum = pgEnum("project_item_kind", ["skill", "external"]);
 export const projectVisibilityEnum = pgEnum("project_visibility", ["private", "shared"]);
 export const projectRoleEnum = pgEnum("project_role", ["viewer", "editor", "admin"]);
+export const failurePatternStatusEnum = pgEnum("failure_pattern_status", [
+  "open",
+  "drafted",
+  "dismissed",
+]);
 
 // Better Auth tables
 export const users = pgTable("users", {
@@ -672,6 +677,35 @@ export const skillRuns = pgTable(
     // Run-quota counts join skill_id over a created_at window on every hosted
     // run; a composite index serves those hot COUNT(*) queries directly.
     index("skill_runs_skill_created_idx").on(t.skillId, t.createdAt),
+  ],
+);
+
+export const skillFailurePatterns = pgTable(
+  "skill_failure_patterns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    orgSlug: text("org_slug").notNull(),
+    skillRepo: text("skill_repo").notNull(),
+    // Cluster key: a stable hash of the representative failure, used to dedupe
+    // recurring patterns across mining runs.
+    signature: text("signature").notNull(),
+    summary: text("summary").notNull(),
+    suggestedFix: text("suggested_fix"),
+    occurrences: integer("occurrences").notNull().default(1),
+    exemplarRunIds: jsonb("exemplar_run_ids").$type<string[]>().notNull().default([]),
+    status: failurePatternStatusEnum("status").notNull().default("open"),
+    // Set once an agent-drafted feedback row is opened for this pattern.
+    feedbackId: uuid("feedback_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("skill_failure_patterns_sig_idx").on(t.skillId, t.signature),
+    index("skill_failure_patterns_skill_idx").on(t.skillId),
+    index("skill_failure_patterns_status_idx").on(t.status),
   ],
 );
 

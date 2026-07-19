@@ -6,15 +6,22 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  cn,
+  type FailurePattern,
   Label,
   MiniBarChart,
   NativeSelect,
   type ObservabilitySummary,
   type Org,
   PageTitle,
+  Skeleton,
 } from "@skillist/ui";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { AlertTriangle, ChevronRight, FilePen, Minus } from "lucide-react";
 import { useState } from "react";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -236,6 +243,185 @@ function ObservabilityPage() {
       ) : (
         <p className="text-muted-foreground">Select an organization to view metrics.</p>
       )}
+
+      {activeOrgId ? <RecurringFailures orgId={activeOrgId} /> : null}
+    </div>
+  );
+}
+
+type FailureStatusFilter = "open" | "drafted" | "dismissed" | "all";
+
+const FAILURE_FILTERS: { value: FailureStatusFilter; label: string }[] = [
+  { value: "open", label: "Open" },
+  { value: "drafted", label: "Drafted" },
+  { value: "dismissed", label: "Dismissed" },
+  { value: "all", label: "All" },
+];
+
+function RecurringFailures({ orgId }: { orgId: string }) {
+  const [filter, setFilter] = useState<FailureStatusFilter>("open");
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["failure-patterns", orgId, filter],
+    queryFn: () =>
+      api<{ patterns: FailurePattern[] }>(
+        filter === "all"
+          ? `/v1/orgs/${orgId}/failure-patterns`
+          : `/v1/orgs/${orgId}/failure-patterns?status=${filter}`,
+      ),
+    enabled: !!orgId,
+  });
+
+  const patterns = [...(data?.patterns ?? [])].sort((a, b) => b.occurrences - a.occurrences);
+
+  return (
+    <Card size="sm" id="recurring-failures">
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
+        <div className="space-y-1.5">
+          <CardTitle>Recurring failures</CardTitle>
+          <CardDescription>
+            Clustered skill-run and eval failures — surfaced most-frequent first
+          </CardDescription>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="failure-filter" className="sr-only">
+            Filter by status
+          </Label>
+          <NativeSelect
+            id="failure-filter"
+            className="w-40"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as FailureStatusFilter)}
+          >
+            {FAILURE_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <FailuresSkeleton />
+        ) : isError ? (
+          <p className="text-sm text-destructive">Could not load recurring failures.</p>
+        ) : patterns.length === 0 ? (
+          <FailuresEmpty />
+        ) : (
+          <div className="border-t border-border">
+            {patterns.map((pattern) => (
+              <FailureRow key={pattern.id} orgId={orgId} pattern={pattern} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FailureRow({ orgId, pattern }: { orgId: string; pattern: FailurePattern }) {
+  return (
+    <div className="border-b border-border py-4 last:border-b-0">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="min-w-0 truncate font-mono text-sm text-foreground">{pattern.skillRepo}</p>
+        <div className="flex items-center gap-4">
+          <span className="font-mono text-xs text-muted-foreground tabular-nums">
+            <span className="text-foreground">{pattern.occurrences}</span>{" "}
+            {pattern.occurrences === 1 ? "occurrence" : "occurrences"}
+          </span>
+          <FailureStatus status={pattern.status} />
+        </div>
+      </div>
+
+      <p className="mt-1.5 text-sm text-muted-foreground">{pattern.summary}</p>
+
+      {pattern.status === "drafted" && pattern.feedbackId ? (
+        <p className="mt-2">
+          <Link
+            to="/orgs/$orgId/skills/$repo"
+            params={{ orgId, repo: pattern.skillRepo }}
+            hash="feedback"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline underline-offset-4 hover:text-foreground/70"
+          >
+            <FilePen className="size-3.5 shrink-0" aria-hidden />
+            Improvement drafted — review in the feedback inbox
+          </Link>
+        </p>
+      ) : null}
+
+      {pattern.suggestedFix ? (
+        <Collapsible className="mt-2">
+          <CollapsibleTrigger className="group/fix inline-flex items-center gap-1 text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+            <ChevronRight
+              className="size-3 shrink-0 transition-transform group-data-[state=open]/fix:rotate-90 motion-reduce:transition-none"
+              aria-hidden
+            />
+            Suggested fix
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-1.5 border-l-2 border-border pl-3 text-sm text-muted-foreground">
+            {pattern.suggestedFix}
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Status as icon + word (never color alone). `open` is an unaddressed recurring
+ * failure → destructive red; `drafted` means an improvement is pending human
+ * approval → neutral ink; `dismissed` is muted.
+ */
+function FailureStatus({ status }: { status: FailurePattern["status"] }) {
+  const config = {
+    open: { Icon: AlertTriangle, label: "Open", tone: "text-destructive" },
+    drafted: { Icon: FilePen, label: "Drafted", tone: "text-foreground" },
+    dismissed: { Icon: Minus, label: "Dismissed", tone: "text-muted-foreground" },
+  }[status];
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase",
+        config.tone,
+      )}
+    >
+      <config.Icon className="size-3.5 shrink-0" aria-hidden />
+      {config.label}
+    </span>
+  );
+}
+
+function FailuresEmpty() {
+  return (
+    <div className="border-t border-border py-8 text-center">
+      <p className="text-sm font-medium text-foreground">No recurring failures detected</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+        The miner runs every few hours over failed skill runs and weak evals, clustering repeats and
+        drafting an improvement once a pattern reaches three occurrences.
+      </p>
+    </div>
+  );
+}
+
+function FailuresSkeleton() {
+  return (
+    <div
+      className="border-t border-border"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading recurring failures"
+    >
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="space-y-2 border-b border-border py-4 last:border-b-0">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <Skeleton className="h-4 w-full max-w-md" />
+        </div>
+      ))}
     </div>
   );
 }

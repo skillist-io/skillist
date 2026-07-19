@@ -1,0 +1,97 @@
+---
+title: Self-improving skills
+description: Skillist mines recurring execution and eval failures, clusters them, and drafts improvement feedback for human approval.
+---
+
+import { DocAlert } from "@/components/docs/DocAlert";
+import { DocTable } from "@/components/docs/DocTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
+
+Skills that run also fail — a script errors, an eval shows no uplift. Skillist treats those failures as signal. A scheduled workflow mines recent failures, groups the ones that share a root cause, and, once a pattern recurs often enough, drafts a concrete improvement for a human to approve. That is the **self-improving loop**: skills that surface their own weak spots and propose fixes.
+
+<DocAlert title="Requires sign-in" client:load>
+  Failure patterns are org-scoped. The route lives under `/v1/orgs/{orgId}/failure-patterns` and needs a session or org API key with `viewer` standing (API key scope `skills:read`).
+</DocAlert>
+
+## The loop
+
+A scheduled job runs every six hours, picks the skills with the most failed runs in the last day, and starts a durable mining workflow for each. For a given skill the workflow:
+
+1. **Gathers** recent failed runs and weak evals (a failed eval, or a completed eval with no uplift) from the last 14 days.
+2. **Normalizes** each failure — stripping volatile tokens like UUIDs, hashes, and file paths — so semantically identical failures collapse to one signature.
+3. **Embeds** each unique signature with Workers AI (`bge-base-en-v1.5`) and stores it in Vectorize.
+4. **Clusters** signatures by embedding similarity. A cluster is a recurring pattern.
+5. **Drafts** a root-cause summary and a suggested `SKILL.md` fix from a handful of exemplar errors.
+6. **Opens feedback** once a cluster reaches **3+ occurrences** and the skill has a published version — an agent-sourced, `pending` [feedback](#feedback-loop) item.
+
+<DocAlert title="Nothing is edited automatically" client:load>
+  Mining never changes a skill. It only records patterns and drafts pending feedback. A human approves (or dismisses) every improvement.
+</DocAlert>
+
+## Feedback loop
+
+A drafted pattern lands in the same review inbox as human-submitted feedback, marked as **agent-sourced**. Approving it kicks off the existing AI-draft improvement flow — the model proposes a new skill version from the feedback, and a maintainer reviews and publishes it. Dismissing it closes the pattern without a change.
+
+This is why patterns carry a `status`:
+
+<DocTable
+  client:load
+  columns={["Status", "Meaning"]}
+  rows={[
+    ["open", "Detected and recurring, no feedback drafted yet"],
+    ["drafted", "An agent-sourced feedback item is awaiting human review"],
+    ["dismissed", "Reviewed and closed without an improvement"],
+  ]}
+/>
+
+## Failure patterns
+
+```
+GET /v1/orgs/{orgId}/failure-patterns
+GET /v1/orgs/{orgId}/failure-patterns?status=open
+```
+
+Returns this org's mined patterns, most frequent first. Filter by `status` (`open`, `drafted`, or `dismissed`).
+
+```json
+{
+  "patterns": [
+    {
+      "id": "…",
+      "skillRepo": "pdf-tools",
+      "orgSlug": "skillist",
+      "summary": "Script assumes a `python3` binary that is absent in the sandbox base image.",
+      "suggestedFix": "Pin the interpreter in SKILL.md and prefer `uv run` over a bare `python3` call.",
+      "occurrences": 7,
+      "status": "drafted",
+      "feedbackId": "…",
+      "updatedAt": "2026-07-15T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+<DocTable
+  client:load
+  columns={["Field", "Type", "Meaning"]}
+  rows={[
+    ["id", "string", "Pattern id"],
+    ["skillRepo", "string", "Repo of the skill this pattern belongs to"],
+    ["orgSlug", "string", "Owning org slug"],
+    ["summary", "string", "AI root-cause summary from exemplar failures"],
+    ["suggestedFix", "string | null", "Suggested concrete SKILL.md change"],
+    ["occurrences", "number", "How many failures the cluster contains"],
+    ["status", "\"open\" | \"drafted\" | \"dismissed\"", "Lifecycle state"],
+    ["feedbackId", "string | null", "The agent-drafted feedback item, once opened"],
+    ["updatedAt", "string", "Last time the pattern was re-mined"],
+  ]}
+/>
+
+The [platform agent's](/platform/agent/) `list_recurring_failures` tool reads the same patterns, so you can triage them conversationally.
+
+## Related
+
+- [Platform agent](/platform/agent/) — ask "what keeps breaking?" and draft fixes
+- [Required-skill coverage](/platform/coverage/) — the other half of governance visibility
+- [Sandbox execution](/platform/sandbox/) — where the run failures being mined originate
+- [Full API reference](https://api.skillist.io/docs) — every parameter and response

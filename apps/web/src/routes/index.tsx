@@ -60,6 +60,45 @@ const CAPABILITIES: { title: string; desc: string; preview: ReactNode }[] = [
       </>
     ),
   },
+  {
+    title: "Coverage",
+    desc: "See required skills move from published to covered to activated across your repos, with a drift list of what is required but not installed.",
+    preview: (
+      <>
+        <span>published</span>
+        <span className="text-muted-foreground/40">→</span>
+        <span>covered</span>
+        <span className="text-muted-foreground/40">→</span>
+        <span className="text-foreground">activated</span>
+        <span className="ml-auto shrink-0 text-muted-foreground/70">2 in drift</span>
+      </>
+    ),
+  },
+  {
+    title: "Self-improving skills",
+    desc: "Skillist clusters recurring run failures and weak evals, then drafts concrete fixes you approve before they ship as a new version.",
+    preview: (
+      <>
+        <span>failures clustered</span>
+        <span className="text-muted-foreground/40">→</span>
+        <span className="text-foreground">draft fix</span>
+        <span className="ml-auto shrink-0 text-muted-foreground/70">needs review</span>
+      </>
+    ),
+  },
+  {
+    title: "Platform agent",
+    desc: "A conversational agent that inspects coverage, surfaces recurring failures, recommends required skills, and drafts improvements for your org.",
+    preview: (
+      <>
+        <span aria-hidden className="shrink-0 text-muted-foreground/70">
+          ›
+        </span>
+        <span className="text-foreground">agent</span>
+        <span className="truncate">what is required but missing?</span>
+      </>
+    ),
+  },
 ];
 
 function HomePage() {

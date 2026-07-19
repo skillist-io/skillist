@@ -39,9 +39,15 @@ onlyBuiltDependencies:
   - workerd
   - sharp
 
+# core-js-pure ships a funding postinstall we don't need; skip it so pnpm
+# doesn't error on the unapproved build script (pulled in via the AI SDK).
+ignoredBuiltDependencies:
+  - core-js-pure
+
 minimumReleaseAge: 0
 
 allowBuilds:
+  core-js-pure: false
   esbuild: true
   lefthook: true
   sharp: true

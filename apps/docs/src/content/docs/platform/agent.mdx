@@ -1,0 +1,51 @@
+---
+title: Platform agent
+description: A conversational governance agent that inspects coverage and recurring failures and drafts skill improvements.
+---
+
+import { DocAlert } from "@/components/docs/DocAlert";
+import { DocTable } from "@/components/docs/DocTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
+
+The **platform agent** is a conversational way for governing teams to inspect their skill estate — coverage, recurring failures, eval health — and draft improvements, without stitching together REST calls. Ask it "are we covered?", "what keeps breaking?", or "what should we require?", and it answers by calling the same governance data the API exposes.
+
+<DocAlert title="One agent per org, session-gated" client:load>
+  Open it in the console at [console.skillist.io/agent](https://console.skillist.io/agent). Each organization has its own agent instance; the connection is gated on your Skillist session and org membership before it resolves.
+</DocAlert>
+
+## What it is
+
+The agent is a stateful chat agent (Cloudflare Agents SDK) rather than a REST endpoint — it runs over a WebSocket. There is one instance per organization, reached at `/agents/skillist-agent/{orgId}` on the API. The instance name **is** the org id, so every answer is scoped to that org and cannot read across orgs. It never invents skills or numbers: each answer comes from a tool call.
+
+## Tools
+
+The agent has six governance tools. Five are read-only; only `draft_improvement` writes, and even then only as pending feedback a human must approve.
+
+<DocTable
+  client:load
+  columns={["Tool", "What it does", "Writes?"]}
+  rows={[
+    ["get_coverage", "Required-skill coverage across published, covered, and activated — plus drift", "No"],
+    ["list_recurring_failures", "Open and drafted recurring failure patterns, most frequent first", "No"],
+    ["list_required_skills", "The org's declared required-skill baseline", "No"],
+    ["recommend_required_skills", "Popular registry skills the org does not yet require", "No"],
+    ["flag_stale_evals", "Skills whose latest eval failed, is over ~30 days old, or never ran", "No"],
+    ["draft_improvement", "Opens agent-sourced pending feedback against a skill for human approval", "Yes (pending only)"],
+  ]}
+/>
+
+`draft_improvement` never edits a skill directly. It lands in the review inbox as pending feedback — approving it triggers the same AI-draft improvement flow described in [Self-improving skills](/platform/self-improving/). The verified user who prompted the chat is attributed on the drafted item.
+
+## Typical questions
+
+- **Coverage** — "Are we covered? What's drifting?" → `get_coverage`
+- **Failures** — "What keeps breaking? Show the top failures." → `list_recurring_failures`
+- **Baseline** — "What do we require? What are we missing?" → `list_required_skills`, `recommend_required_skills`
+- **Eval health** — "Which skills need re-evaluation?" → `flag_stale_evals`
+- **Act on it** — "Draft a fix for pdf-tools about the missing interpreter." → `draft_improvement`
+
+## Related
+
+- [Required-skill coverage](/platform/coverage/) — the data behind `get_coverage`
+- [Self-improving skills](/platform/self-improving/) — the failure patterns and feedback loop the agent reads and writes into
+- [Registry MCP](/mcp/) — the separate, agent-facing tools for registry discovery and install

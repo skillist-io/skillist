@@ -33,6 +33,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  Bot,
   ChevronRight,
   ExternalLink,
   Folder,
@@ -45,6 +46,7 @@ import {
   Plus,
   Settings2,
   Shield,
+  Target,
 } from "lucide-react";
 import * as React from "react";
 import { NavUser } from "@/components/nav-user";
@@ -57,7 +59,15 @@ type NavItem = {
   title: string;
   to: string;
   icon: LucideIcon;
-  section: "dashboard" | "inventory" | "observability" | "governance" | "mirrors" | "settings";
+  section:
+    | "dashboard"
+    | "agent"
+    | "inventory"
+    | "observability"
+    | "coverage"
+    | "governance"
+    | "mirrors"
+    | "settings";
 };
 
 const navMain: NavItem[] = [
@@ -66,6 +76,12 @@ const navMain: NavItem[] = [
     to: "/dashboard",
     icon: LayoutDashboard,
     section: "dashboard",
+  },
+  {
+    title: "Agent",
+    to: "/agent",
+    icon: Bot,
+    section: "agent",
   },
   {
     title: "Inventory",
@@ -78,6 +94,12 @@ const navMain: NavItem[] = [
     to: "/observability",
     icon: Activity,
     section: "observability",
+  },
+  {
+    title: "Coverage",
+    to: "/coverage",
+    icon: Target,
+    section: "coverage",
   },
   {
     title: "Governance",
@@ -104,7 +126,9 @@ function activeSection(pathname: string): NavItem["section"] {
   if (pathname.startsWith("/governance")) return "governance";
   if (pathname.startsWith("/admin/mirrors")) return "mirrors";
   if (pathname.startsWith("/observability")) return "observability";
+  if (pathname.startsWith("/coverage")) return "coverage";
   if (pathname.startsWith("/inventory")) return "inventory";
+  if (pathname.startsWith("/agent")) return "agent";
   return "dashboard";
 }
 

@@ -17,7 +17,7 @@
   ],
   "triggers": {
     // Daily 06:00 UTC sync; weekly Sunday 07:00 UTC discover (CF: 1=Sun…7=Sat, not 0=Sun)
-    "crons": ["0 6 * * *", "0 7 * * sun"]
+    "crons": ["0 6 * * *", "0 7 * * sun", "0 */6 * * *"]
   },
   "observability": {
     "enabled": true,
@@ -67,6 +67,12 @@
       {
         "name": "SANDBOX_HEAVY",
         "class_name": "SandboxHeavy"
+      },
+      {
+        // Kebab-cases to the `skillist-agent` routing namespace (see
+        // routeAgentRequest in src/index.ts). class_name points at the DO.
+        "name": "SKILLIST_AGENT",
+        "class_name": "SkillistAgent"
       }
     ]
   },
@@ -96,11 +102,21 @@
     {
       "tag": "v3",
       "new_sqlite_classes": ["SandboxHeavy"]
+    },
+    {
+      "tag": "v4",
+      "new_sqlite_classes": ["SkillistAgent"]
     }
   ],
   "ai": {
     "binding": "AI"
   },
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "skillist-failures"
+    }
+  ],
   "send_email": [
     {
       "name": "EMAIL"
@@ -138,6 +154,11 @@
       "binding": "SYNC_WORKFLOW",
       "name": "sync-source-workflow",
       "class_name": "SyncSourceWorkflow"
+    },
+    {
+      "binding": "FAILURE_WORKFLOW",
+      "name": "failure-mining-workflow",
+      "class_name": "FailureMiningWorkflow"
     }
   ]
 }
