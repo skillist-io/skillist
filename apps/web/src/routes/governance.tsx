@@ -23,7 +23,7 @@ function GovernancePage() {
   const activeOrgId = selectedOrgId || ownerOrgs[0]?.id || "";
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <div>
         <PageTitle>Governance</PageTitle>
         <p className="text-muted-foreground">

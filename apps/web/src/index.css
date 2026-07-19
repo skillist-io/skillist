@@ -84,7 +84,9 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --signal: oklch(0.5 0.146 60);
+  /* Signal accent — live / realtime moments. Violet (hue ~293), deliberately
+     distinct from the generic shadcn blue-violet (~264). */
+  --signal: oklch(0.52 0.21 293);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.556 0 0);
@@ -120,7 +122,7 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --signal: oklch(0.65 0.146 60);
+  --signal: oklch(0.72 0.19 293);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -170,8 +172,17 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Typographic polish — the crisp render Inter is known for on Linear/Vercel:
+     antialiased smoothing (lighter, sharper than macOS subpixel default),
+     variable optical sizing, and ligatures/contextual alternates. Letterforms
+     stay default Inter — no stylistic-set swaps that change the type's voice. */
   html {
-    @apply font-sans;
+    @apply font-sans antialiased;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+    font-feature-settings:
+      "liga" 1,
+      "calt" 1;
   }
 }
 
@@ -227,5 +238,49 @@
   .tok-link {
     color: var(--tok-link);
     text-decoration: underline;
+  }
+}
+
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes fanout-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@layer components {
+  .marquee-track {
+    animation: marquee-scroll 60s linear infinite;
+  }
+  .marquee-mask:hover .marquee-track {
+    animation-play-state: paused;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: none;
+  }
+  .marquee-mask {
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .marquee-dup {
+    display: none;
   }
 }

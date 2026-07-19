@@ -11,7 +11,8 @@ colors:
   primary-ink: "oklch(0.985 0 0)"
   ring: "oklch(0.708 0 0)"
   destructive: "oklch(0.577 0.245 27.325)"
-  signal-reserved: "oklch(0.65 0.146 60)"
+  signal: "oklch(0.52 0.21 293)"
+  signal-dark: "oklch(0.72 0.19 293)"
   ink-dark: "oklch(0.985 0 0)"
   surface-dark: "oklch(0.145 0 0)"
   raised-dark: "oklch(0.205 0 0)"
@@ -109,17 +110,17 @@ components:
 
 Skillist is an instrument panel for production agent behavior. It looks the way a well-built piece of engineering hardware looks: monochrome, squared, precisely ruled, nothing on the surface that isn't a control or a readout. The people using it are staking production agents on the skills catalogued here, so the interface earns trust the way an instrument does, by being legible, honest about state, and free of decoration that could be mistaken for meaning.
 
-The system is deliberately quiet. Hierarchy comes from scale, weight, and space, not from color or heavy borders. Chrome is treated as a cost: surfaces are flat with a single hairline ring, depth is implied rather than dramatized, and the one chromatic voice on screen (destructive red) means exactly one thing. Labels are set in small uppercase with wide tracking, the way switches and ports are labeled on real equipment. This is an information-dense product that still reads as calm because every element is squared to the same grid and speaks in the same restrained voice.
+The system is deliberately quiet. Hierarchy comes from scale, weight, and space, not from color or heavy borders. Chrome is treated as a cost: surfaces are flat with a single hairline ring, depth is implied rather than dramatized, and the two chromatic voices on screen (destructive red for failure, a violet signal for live/realtime) each mean exactly one thing. Labels are set in small uppercase with wide tracking, the way switches and ports are labeled on real equipment. This is an information-dense product that still reads as calm because every element is squared to the same grid and speaks in the same restrained voice.
 
 It explicitly rejects four things. It is not the **generic shadcn / AI-default** look it started from (rounded cards, soft grays, a decorative purple accent). It is not **playful / consumer / rounded** (no bubbly radii, no emoji, no illustration). It is not a **cluttered enterprise dashboard** (density without hierarchy, gray-on-gray tables, heavy chrome). And it is not **loud SaaS marketing** (gradient heroes, glassmorphism, hero-metric templates). Dense is welcome; cluttered is forbidden.
 
 **Key Characteristics:**
 - Monochrome by default; grayscale ink ramp carries the entire UI.
 - Squared geometry everywhere (0px radius on controls, cards, and images).
-- Uppercase, wide-tracked micro-labels on buttons and badges.
+- Sentence-case, medium-weight labels on buttons and nav; uppercase wide-tracked micro-labels reserved for badges, eyebrows, and status/readouts.
 - Underline inputs, not boxed fields.
 - Hairline rings instead of shadows; flat at rest.
-- One reserved signal accent, held out of active use until deliberately introduced.
+- One signal accent (violet) for live/realtime and active state, used sparingly (≤10% of any screen).
 
 ## 2. Colors
 
@@ -138,10 +139,10 @@ A pure grayscale ink ramp from paper-white to near-black, with a single chromati
 
 ### Tertiary
 - **Destructive** (`oklch(0.577 0.245 27.325)` light / `oklch(0.704 0.191 22.216)` dark): The single chromatic color in normal use. Deletion, failed evals, error state, invalid fields. Its rarity is what makes it legible.
-- **Signal (Reserved)** (`oklch(0.65 0.146 60)`): A dry editorial amber, defined but **not yet in active use**. This is the one reserved slot for a future brand accent, earmarked for live/realtime and active-state moments (a publish landing, a running eval). It is chosen precisely because it is not the rejected shadcn purple. Do not scatter it; when introduced it stays ≤10% of any screen.
+- **Signal** (`oklch(0.52 0.21 293)` light / `oklch(0.72 0.19 293)` dark): A deliberate violet (hue ~293), the one chromatic voice for **live / realtime** moments — publish fan-out, presence, a running eval, active/selected state. This is a specific, committed violet used narrowly and on purpose; it is not the generic shadcn *default* purple (a scattered, decorative blue-violet ~264) the system rejects. Do not scatter it; it stays ≤10% of any screen.
 
 ### Named Rules
-**The One Chromatic Voice Rule.** In normal operation, destructive red is the only saturated color on screen. Everything else is grayscale. If a second hue appears and it isn't the deliberately-introduced reserved signal, it is a bug (see the stray dark-sidebar purple, `oklch(0.488 0.243 264.376)`, a leftover to be removed).
+**The Chromatic Voice Rule.** In normal operation the screen is grayscale plus at most two saturated voices: **destructive red** (failure) and the **signal violet** (live/realtime, ≤10%). Any other hue is a bug — including the generic default purple (`oklch(0.488 0.243 264.376)`), a different, decorative blue-violet that must not appear. The signal violet is the *only* sanctioned violet, and only for live/active state.
 
 **The Literal White Rule.** Light surface is exactly `oklch(1 0 0)`. Never warm-tint the background toward cream, sand, or paper. Warmth, if it ever arrives, lives in the reserved accent, never in the canvas.
 
@@ -158,11 +159,11 @@ A pure grayscale ink ramp from paper-white to near-black, with a single chromati
 - **Headline** (600, 1.125rem, 1.3): Section and card titles.
 - **Title** (600, 1rem, 1.4): Sub-section headings, list group headers.
 - **Body** (400, 0.875rem, 1.55): Default running text, descriptions, table cells. Cap prose measure at 65–75ch.
-- **Label** (600, 0.75rem, tracking 0.1em, UPPERCASE): Buttons, badges, eyebrows, control labels. This is the signature voice, borrowed from equipment labeling.
+- **Label** (600, 0.75rem, tracking 0.1em, UPPERCASE): Badges, eyebrows, status, and control captions. This is the signature voice, borrowed from equipment labeling. **Not** buttons or nav — those are sentence-case, medium-weight (see Buttons).
 - **Mono** (400, 0.75rem): Skill IDs, version hashes, eval values, `SKILL.md` snippets. Anything a machine emitted is set in mono.
 
 ### Named Rules
-**The Equipment-Label Rule.** Uppercase + wide tracking is reserved for short labels (≤4 words): buttons, badges, control captions. Never set a sentence or body copy in all caps; at reading length it becomes unreadable.
+**The Equipment-Label Rule.** Uppercase + wide tracking is reserved for short labels (≤4 words): badges, section eyebrows, status, and control captions. **Buttons and nav are sentence-case, medium-weight** (a deliberate hybrid — the interactive elements read clean while the readouts keep the instrument voice). Never set a sentence or body copy in all caps; at reading length it becomes unreadable.
 
 **The Machine-Voice Rule.** Any literal machine value (id, hash, path, JSON) is set in mono. Human prose is never mono; machine output is never proportional. The typeface tells you who is speaking.
 
@@ -181,7 +182,7 @@ This system is flat by conviction. It uses tonal layering and a single hairline 
 
 ### Buttons
 - **Shape:** Squared, no radius (`rounded-none`, 0px). A 1px transparent border reserves space so outline and filled variants share a footprint.
-- **Primary:** Ink fill (`oklch(0.205 0 0)`) with paper-white label, `height: 2.5rem`, `padding: 0 1.5rem`, label typography (uppercase, 0.75rem, tracking 0.1em, weight 600). Hover drops fill opacity to 80%.
+- **Primary:** Ink fill (`oklch(0.205 0 0)`) with paper-white label, `height: 2.5rem`, `padding: 0 1.5rem`, **sentence-case, medium weight (0.875rem)** — not uppercase. Hover shifts the fill opaquely (`color-mix` toward background ~16%), never an opacity fade.
 - **Hover / Focus:** `active:translate-y-px` for a physical press; focus shows a 2px `ring/30` plus a `ring`-colored border. Transitions are `transition-all` at the default duration, transform + opacity only.
 - **Outline / Ghost / Secondary:** Outline uses a hairline border on transparent, hover fills with `raised`. Ghost is chromeless until hover (`raised` wash). Secondary is a `raised` fill. Destructive is a translucent red wash (`destructive/10`), not a solid red block. Link is underlined ink.
 
@@ -206,7 +207,7 @@ This system is flat by conviction. It uses tonal layering and a single hairline 
 - **Mobile:** The sidebar collapses to a sheet; the top bar keeps the wordmark and a compact action set.
 
 ### Signature Component — Status & Eval Readouts
-The product's distinctive surfaces are its live readouts: eval panels, run history, analytics bars, and score badges. These are the "instruments." Set values in mono, label them in uppercase micro-labels, keep charts grayscale (`chart-1…5` are all chroma 0), and let the single destructive red mark failure. A readout should look like a gauge, not a marketing stat.
+The product's distinctive surfaces are its live readouts: eval panels, run history, analytics bars, and score badges. These are the "instruments." Set values in mono, label them in uppercase micro-labels, keep charts grayscale (`chart-1…5` are all chroma 0), let the single destructive red mark failure, and let the signal violet mark live/active state. A readout should look like a gauge, not a marketing stat.
 
 ## 6. Do's and Don'ts
 
@@ -215,11 +216,11 @@ The product's distinctive surfaces are its live readouts: eval panels, run histo
 - **Do** build hierarchy from scale, weight, and space (400 → 600 → 700), then a hairline, then tonal layering. Reach for color last.
 - **Do** set every machine value (skill id, version hash, path, JSON, eval number) in mono, and every short control label in uppercase tracked micro-type.
 - **Do** hold the surface at literal white `oklch(1 0 0)` in light mode and near-black `oklch(0.145 0 0)` in dark; both themes must pass 4.5:1 for body text.
-- **Do** keep the reserved signal amber out of active use until it is introduced deliberately, and cap it at ≤10% of any screen when it is.
+- **Do** use the signal violet only for live/realtime and active/selected state, and cap it at ≤10% of any screen.
 - **Do** pair every status with a word or shape, and give every animation a `prefers-reduced-motion: reduce` fallback.
 
 ### Don't:
-- **Don't** ship the **generic shadcn / AI-default** look: no soft rounded cards, no decorative purple accent (delete the stray dark-sidebar `oklch(0.488 0.243 264.376)`), no gray-on-tinted body text.
+- **Don't** ship the **generic shadcn / AI-default** look: no soft rounded cards, no *decorative* / scattered purple (delete the stray dark-sidebar `oklch(0.488 0.243 264.376)`) — the only sanctioned violet is the signal, used for live/active state, no gray-on-tinted body text.
 - **Don't** drift **playful / consumer / rounded**: no bubbly radii, no emoji-forward UI, no illustration where a control belongs.
 - **Don't** become a **cluttered enterprise dashboard**: no heavy borders, no gray-on-gray tables without hierarchy, no density for its own sake. Roomy padding stays.
 - **Don't** dress up like **loud SaaS marketing**: no gradient heroes, no `background-clip: text` gradient headings, no glassmorphism (the one `backdrop-blur` on the top bar is the only sanctioned use), no hero-metric template.

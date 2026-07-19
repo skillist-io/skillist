@@ -45,31 +45,43 @@ function DashboardPage() {
   });
 
   return (
-    <div className="space-y-8">
-      <div>
+    <div className="mx-auto w-full max-w-6xl space-y-10">
+      <div className="space-y-1">
         <PageTitle>Dashboard</PageTitle>
-        <p className="text-muted-foreground">Manage organizations and skills</p>
+        <p className="text-sm text-muted-foreground">Manage organizations and skills.</p>
       </div>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Create organization</CardTitle>
+          <CardDescription>
+            Group and govern related skills under a shared namespace.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <div>
-            <Label>Name</Label>
-            <Input value={orgName} onChange={(e) => setOrgName(e.target.value)} />
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div className="min-w-40 flex-1 space-y-1.5">
+            <Label htmlFor="org-name">Name</Label>
+            <Input
+              id="org-name"
+              placeholder="Acme Inc"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+            />
           </div>
-          <div>
-            <Label>Slug</Label>
-            <Input value={orgSlug} onChange={(e) => setOrgSlug(e.target.value)} />
+          <div className="min-w-40 flex-1 space-y-1.5">
+            <Label htmlFor="org-slug">Slug</Label>
+            <Input
+              id="org-slug"
+              placeholder="acme"
+              value={orgSlug}
+              onChange={(e) => setOrgSlug(e.target.value)}
+            />
           </div>
           <Button
-            className="self-end"
             onClick={() => createOrg.mutate()}
             disabled={!orgName || !orgSlug || createOrg.isPending}
           >
-            Create
+            {createOrg.isPending ? "Creating…" : "Create"}
           </Button>
         </CardContent>
       </Card>
@@ -139,7 +151,7 @@ function OrgCard({ org }: { org: Org }) {
   });
 
   return (
-    <Card className="flex flex-col">
+    <Card size="sm" className="flex flex-col">
       <CardHeader>
         <CardTitle>{org.name}</CardTitle>
         <CardDescription>

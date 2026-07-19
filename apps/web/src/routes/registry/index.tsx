@@ -441,7 +441,7 @@ function RegistryRow({ item }: { item: RegistryItem }) {
             <Link
               to="/$org/$repo"
               params={{ org: item.orgSlug, repo: item.skillRepo }}
-              className="rounded-none font-semibold hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+              className="rounded-none font-semibold outline-none transition-colors hover:text-signal focus-visible:text-signal focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               {item.name}
             </Link>
@@ -499,14 +499,17 @@ function RegistryRow({ item }: { item: RegistryItem }) {
 function RegistryCard({ item }: { item: RegistryItem }) {
   const installCmd = item.installCommand ?? `skillist install ${item.orgSlug}/${item.skillRepo}`;
   return (
-    <Card data-size="sm" className="w-full">
+    <Card
+      data-size="sm"
+      className="group w-full transition-[background-color,box-shadow] duration-200 hover:bg-[color-mix(in_oklch,var(--card),var(--foreground)_3%)] hover:ring-foreground/15"
+    >
       <CardContent className="flex flex-1 flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <Link
               to="/$org/$repo"
               params={{ org: item.orgSlug, repo: item.skillRepo }}
-              className="rounded-none font-semibold hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+              className="rounded-none font-semibold outline-none transition-colors hover:text-signal focus-visible:text-signal focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               {item.name}
             </Link>

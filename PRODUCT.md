@@ -32,7 +32,7 @@ Directional references (the *specific* quality to borrow): Linear (density that 
 
 Explicitly avoid all four:
 
-- **Generic shadcn / AI-default.** The current stock grayscale-neutral + Inter + default-purple-accent look. It has no committed identity; that is the thing to leave behind.
+- **Generic shadcn / AI-default.** The current stock grayscale-neutral + Inter + *default*-purple-accent look — a scattered, decorative blue-violet with no committed identity; that is the thing to leave behind. (Distinct from Skillist's **signal violet**, a deliberate live/realtime accent used narrowly at ≤10% — see DESIGN.md.)
 - **Playful / consumer / rounded.** Bubbly illustrations, oversized rounded cards, emoji-forward, gamified. Too casual for infrastructure people stake production on.
 - **Cluttered enterprise dashboard.** Legacy-admin density: heavy borders, cramped gray-on-gray tables, no hierarchy (old Jira / SAP). Dense is fine; cluttered is not.
 - **Loud SaaS marketing.** Gradient heroes, decorative glassmorphism, hero-metric templates, buzzword copy. The brand surface earns attention through substance, not spectacle.

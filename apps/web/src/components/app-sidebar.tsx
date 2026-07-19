@@ -4,6 +4,7 @@ import {
   Activity,
   GitBranch,
   LayoutDashboard,
+  Lock,
   type LucideIcon,
   PackageSearch,
   Settings2,
@@ -27,8 +28,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { api, type Org, type Skill } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 
 type NavItem = {
   title: string;
@@ -115,9 +118,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild className="md:h-8 md:p-0">
+              <SidebarMenuButton
+                size="lg"
+                asChild
+                className="md:h-8 md:p-0"
+                tooltip={{ children: "Skillist — Dashboard", hidden: false }}
+              >
                 <Link to="/dashboard">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-none bg-sidebar-primary text-sidebar-primary-foreground">
                     <span className="text-sm font-bold tracking-[-0.04em]">S</span>
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
@@ -162,15 +170,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarHeader className="gap-3.5 border-b p-4">
             <div className="flex w-full items-center justify-between">
               <div className="text-base font-medium text-foreground">{activeItem.title}</div>
-              <Label htmlFor="sidebar-private-only" className="flex items-center gap-2 text-sm">
-                <span>Private only</span>
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Label
+                      htmlFor="sidebar-private-only"
+                      className={cn(
+                        "flex cursor-help items-center transition-colors",
+                        privateOnly ? "text-signal" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Lock className="size-4" />
+                      <span className="sr-only">Private only</span>
+                    </Label>
+                  </TooltipTrigger>
+                  <TooltipContent>Private only — show only private skills</TooltipContent>
+                </Tooltip>
                 <Switch
                   id="sidebar-private-only"
+                  aria-label="Private only"
                   className="shadow-none"
                   checked={privateOnly}
                   onCheckedChange={setPrivateOnly}
                 />
-              </Label>
+              </div>
             </div>
             <SidebarInput
               placeholder="Filter orgs and skills..."
