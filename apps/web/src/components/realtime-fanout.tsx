@@ -1,3 +1,4 @@
+import { RuleEdge } from "@skillist/ui";
 import { useEffect, useState } from "react";
 
 const AGENTS = ["Cursor", "Claude Code", "VS Code", "MCP"] as const;
@@ -40,7 +41,10 @@ export function RealtimeFanout() {
   const event = EVENTS[index] ?? EVENTS[0];
 
   return (
-    <div className="w-full max-w-md border border-border bg-background text-left" aria-hidden>
+    <div className="relative w-full max-w-md bg-background text-left" aria-hidden>
+      {/* The instrument's outer frame — a lit panel edge rather than a flat
+          hairline. Internal dividers stay flat so the frame reads as the edge. */}
+      <RuleEdge />
       {/* Header — instrument label + live indicator, endpoint on the right. */}
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <span className="flex items-center gap-2 text-[0.65rem] font-semibold tracking-widest text-signal uppercase">

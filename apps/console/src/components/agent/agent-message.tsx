@@ -2,6 +2,7 @@ import { getToolInput, getToolPartState } from "@cloudflare/ai-chat/react";
 import { cn } from "@skillist/ui";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
+import { splitContext } from "@/lib/agent-context";
 import { ToolCallRow } from "./tool-call-row";
 
 /** One rendered turn: user prompt (right, squared block) or agent reply (left,
@@ -16,10 +17,18 @@ export function AgentMessage({ message }: { message: UIMessage }) {
       .filter((p) => p.type === "text")
       .map((p) => ("text" in p ? p.text : ""))
       .join("");
+    // The page context travels inside the message, so show it as a readout
+    // above the prompt rather than as a raw line the user has to parse.
+    const { context, body } = splitContext(text);
     return (
-      <div className="flex justify-end" data-role="user">
+      <div className="flex flex-col items-end gap-1" data-role="user">
+        {context && (
+          <span className="max-w-[min(85%,60ch)] truncate font-mono text-[0.6875rem] text-muted-foreground">
+            {context}
+          </span>
+        )}
         <div className="max-w-[min(85%,60ch)] border border-border bg-muted px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap">
-          {text}
+          {body}
         </div>
       </div>
     );

@@ -1,8 +1,9 @@
 import {
   Button,
-  CanvasBackdrop,
-  canvasBackdropClass,
   consoleUrl,
+  RuleEdge,
+  SignalField,
+  signalFieldClass,
   TooltipProvider,
   useSession,
 } from "@skillist/ui";
@@ -116,8 +117,11 @@ function HomePage() {
       <div className="flex flex-col">
         {/* Hero — two-column composure. Text carries the left axis, the live
             fan-out readout anchors the right. Capped display per DESIGN.md. */}
-        <section className="relative overflow-hidden border-b border-border">
-          <CanvasBackdrop className={canvasBackdropClass} />
+        <section className="panel-noise relative overflow-hidden border-b border-border">
+          {/* The ruled grid, but live — publish packets travel it. Same texture
+              and fade as the dashboard's <CanvasBackdrop>, so the marketing and
+              product surfaces still read as one instrument. */}
+          <SignalField className={signalFieldClass} />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-1 py-16 md:py-24 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="flex flex-col items-start gap-6">
               <span className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
@@ -127,16 +131,22 @@ function HomePage() {
                 </span>
                 Live registry · sub-10ms fan-out
               </span>
-              <h1 className="text-balance font-bold text-[clamp(2.5rem,5.5vw,4rem)] leading-[1.02] tracking-[-0.03em] text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
+              {/* `text-hero` is the sanctioned marketing display step — it carries
+                  its own weight, tracking, and line-height (see styles.css), so this
+                  no longer hand-rolls a clamp that silently outgrew the token scale. */}
+              <h1 className="text-balance text-hero text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
                 The realtime registry{" "}
                 <span className="text-muted-foreground">for Agent Skills</span>
               </h1>
               <p className="max-w-xl text-lg leading-relaxed text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:delay-100 motion-safe:fill-mode-both">
                 Publish, version, govern, and deliver SKILL.md bundles that run and improve
                 themselves. Works with Claude Code, Cursor, VS Code, Gemini, Codex, and any{" "}
+                {/* Hover strengthens the rule rather than changing the ink. The
+                    old `hover:text-signal` spent live/realtime violet on a
+                    decorative hover, which the ≤10% budget reserves for state. */}
                 <a
                   href="https://agentskills.io/home"
-                  className="text-foreground underline underline-offset-4 hover:text-signal"
+                  className="text-foreground underline decoration-foreground/40 underline-offset-4 transition-colors duration-200 hover:decoration-foreground"
                 >
                   agentskills.io
                 </a>{" "}
@@ -168,7 +178,10 @@ function HomePage() {
         {/* Capabilities — ruled columns, not a card grid. Numbered like a spec
             sheet, each cell closing on a small mono instrument readout. */}
         <section className="mx-auto w-full max-w-6xl px-1 py-16">
-          <div className="grid gap-px border border-border bg-border sm:grid-cols-3">
+          {/* The `bg-border` + `gap-px` trick draws the internal rules; RuleEdge
+              supplies the outer frame so the grid reads as one milled panel. */}
+          <div className="relative grid gap-px bg-border sm:grid-cols-3">
+            <RuleEdge />
             {CAPABILITIES.map((c, i) => (
               <div key={c.title} className="flex flex-col gap-4 bg-background p-6">
                 <span className="font-mono text-xs text-muted-foreground">{`0${i + 1}`}</span>
