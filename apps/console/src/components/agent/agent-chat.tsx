@@ -1,9 +1,10 @@
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { Button, cn, Textarea } from "@skillist/ui";
 import { useAgent } from "agents/react";
-import { ArrowUp, Bot, Square } from "lucide-react";
+import { ArrowUp, Bot, Square, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { agentHost } from "@/lib/agent-connection";
+import { type AgentContext, describeContext, formatContext } from "@/lib/agent-context";
 import { AgentMessage } from "./agent-message";
 
 const SUGGESTIONS = [
@@ -15,10 +16,25 @@ const SUGGESTIONS = [
 
 type ConnState = "connecting" | "connected" | "disconnected";
 
-export function AgentChat({ orgId, orgName }: { orgId: string; orgName: string }) {
+export function AgentChat({
+  orgId,
+  orgName,
+  context,
+  compact = false,
+}: {
+  orgId: string;
+  orgName: string;
+  /** Where the user is standing. Attached to the next message when present. */
+  context?: AgentContext;
+  /** Narrow layout for the drawer — drops the reading-width cap and padding. */
+  compact?: boolean;
+}) {
   const [connState, setConnState] = useState<ConnState>("connecting");
   const [connError, setConnError] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  // Attached by default when we have context, but detachable — a question about
+  // something else shouldn't drag the current page along with it.
+  const [attachContext, setAttachContext] = useState(true);
 
   const agent = useAgent({
     agent: "skillist-agent",
@@ -48,10 +64,14 @@ export function AgentChat({ orgId, orgName }: { orgId: string; orgName: string }
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || connState !== "connected" || isBusy) return;
-      sendMessage({ text: trimmed });
+      // The context line goes into the message body rather than a side channel,
+      // and the transcript renders it back as a chip — so the agent receives
+      // exactly what the sender can see.
+      const payload = context && attachContext ? `${formatContext(context)}\n${trimmed}` : trimmed;
+      sendMessage({ text: payload });
       setInput("");
     },
-    [connState, isBusy, sendMessage],
+    [attachContext, connState, context, isBusy, sendMessage],
   );
 
   // Auto-scroll: pin to bottom as messages stream in. Respects reduced motion
@@ -78,7 +98,12 @@ export function AgentChat({ orgId, orgName }: { orgId: string; orgName: string }
         onScroll={onScroll}
         className="min-h-0 flex-1 overflow-y-auto scroll-smooth motion-reduce:scroll-auto"
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+        <div
+          className={cn(
+            "mx-auto flex w-full flex-col gap-6 px-4 py-6",
+            compact ? "max-w-none" : "max-w-3xl",
+          )}
+        >
           {isEmpty ? (
             <EmptyState orgName={orgName} disabled={!canSend} onPick={submit} />
           ) : (
@@ -111,8 +136,44 @@ export function AgentChat({ orgId, orgName }: { orgId: string; orgName: string }
       <ConnectionBanner state={connState} reason={connError} />
 
       <div className="border-t border-border bg-background/80 backdrop-blur">
+        {context && (
+          <div
+            className={cn(
+              "mx-auto flex w-full items-center gap-2 px-4 pt-2",
+              compact ? "max-w-none" : "max-w-3xl",
+            )}
+          >
+            <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+              Context
+            </span>
+            {attachContext ? (
+              <span className="flex items-center gap-1.5 border border-border px-2 py-0.5 font-mono text-xs text-foreground">
+                {describeContext(context)}
+                <button
+                  type="button"
+                  onClick={() => setAttachContext(false)}
+                  aria-label="Don't send the current page as context"
+                  className="text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <X className="size-3" aria-hidden />
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAttachContext(true)}
+                className="font-mono text-xs text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:decoration-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                attach {describeContext(context)}
+              </button>
+            )}
+          </div>
+        )}
         <form
-          className="mx-auto flex w-full max-w-3xl items-end gap-2 px-4 py-3"
+          className={cn(
+            "mx-auto flex w-full items-end gap-2 px-4 py-3",
+            compact ? "max-w-none" : "max-w-3xl",
+          )}
           onSubmit={(e) => {
             e.preventDefault();
             submit(input);

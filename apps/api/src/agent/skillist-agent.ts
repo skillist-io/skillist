@@ -34,6 +34,13 @@ const SYSTEM_PROMPT = [
   "You help governing teams manage their agent skills: coverage of required skills,",
   "recurring execution failures, eval health, and improvements.",
   "Be precise, technical, and calm. Never invent skills or numbers — call a tool.",
+  // The console attaches where the user is standing so that deictic questions
+  // ("what's drifting here?") resolve. It says what they are looking at, never
+  // what the values are — those still come from tools.
+  'A user message may begin with a "[context] page: …, path: …" line describing the',
+  "console screen the user is looking at. Use it to resolve references like",
+  '"this skill" or "here", and to prefer the matching tool. It never carries live',
+  "values — always call a tool for numbers. Do not mention the context line itself.",
 ].join(" ");
 
 type SkillistAgentState = { orgId: string | null };

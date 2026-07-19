@@ -49,26 +49,30 @@
           "oklch(0.93 0.04 24)"
         ]
       },
-      "signal-reserved": {
+      "signal": {
         "role": "secondary",
-        "displayName": "Signal Amber (Reserved)",
-        "canonical": "oklch(0.65 0.146 60)",
+        "displayName": "Signal Violet",
+        "canonical": "oklch(0.52 0.21 293)",
         "tonalRamp": [
-          "oklch(0.3 0.07 60)",
-          "oklch(0.4 0.1 60)",
-          "oklch(0.5 0.13 60)",
-          "oklch(0.65 0.146 60)",
-          "oklch(0.74 0.13 62)",
-          "oklch(0.82 0.1 64)",
-          "oklch(0.89 0.06 66)",
-          "oklch(0.95 0.03 68)"
+          "oklch(0.28 0.11 293)",
+          "oklch(0.36 0.15 293)",
+          "oklch(0.44 0.19 293)",
+          "oklch(0.52 0.21 293)",
+          "oklch(0.62 0.21 293)",
+          "oklch(0.72 0.19 293)",
+          "oklch(0.83 0.12 293)",
+          "oklch(0.93 0.05 293)"
         ]
       }
     },
     "typographyMeta": {
+      "hero": {
+        "displayName": "Hero",
+        "purpose": "The landing headline only, capped ~4rem. Marketing surface; never in the console."
+      },
       "display": {
         "displayName": "Display",
-        "purpose": "Page and hero headings only. Capped ~3rem."
+        "purpose": "Page headings everywhere else, including all product pages. Capped ~3rem."
       },
       "label": {
         "displayName": "Equipment Label",
@@ -153,7 +157,7 @@
       "refersTo": "card",
       "description": "Squared surface with a single hairline ring, roomy 2rem padding, no drop shadow.",
       "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">web-perf-audit</div><p class=\"ds-card-body\">Audits Core Web Vitals and flags render-blocking resources. Delivered from KV at the edge.</p><div class=\"ds-card-meta\">v2.4.1 · 1,204 installs</div></div>",
-      "css": ".ds-card { display: flex; flex-direction: column; gap: 0.75rem; border-radius: 0; background: oklch(1 0 0); padding: 2rem; box-shadow: 0 0 0 1px oklch(0.145 0 0 / 0.05), 0 1px 2px 0 rgb(0 0 0 / 0.05); font-family: 'Inter Variable', system-ui, sans-serif; } .ds-card-title { font-size: 1rem; font-weight: 600; color: oklch(0.145 0 0); } .ds-card-body { font-size: 0.875rem; line-height: 1.55; color: oklch(0.145 0 0); margin: 0; } .ds-card-meta { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; color: oklch(0.556 0 0); }"
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 0.75rem; border-radius: 0; background: oklch(1 0 0); padding: 2rem; box-shadow: 0 0 0 1px oklch(0.145 0 0 / 0.05), 0 1px 2px 0 rgb(0 0 0 / 0.05); font-family: 'Inter Variable', system-ui, sans-serif; } .ds-card-title { font-size: 1rem; font-weight: 600; color: oklch(0.145 0 0); } .ds-card-body { font-size: 0.875rem; line-height: 1.55; color: oklch(0.145 0 0); margin: 0; } .ds-card-meta { font-family: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; color: oklch(0.556 0 0); }"
     },
     {
       "name": "Underline Input",
@@ -174,7 +178,7 @@
   ],
   "narrative": {
     "northStar": "The Control Surface",
-    "overview": "Skillist is an instrument panel for production agent behavior. It looks the way a well-built piece of engineering hardware looks: monochrome, squared, precisely ruled, nothing on the surface that isn't a control or a readout. The people using it are staking production agents on the skills catalogued here, so the interface earns trust the way an instrument does, by being legible, honest about state, and free of decoration that could be mistaken for meaning. The system is deliberately quiet. Hierarchy comes from scale, weight, and space, not from color or heavy borders. Chrome is treated as a cost: surfaces are flat with a single hairline ring, depth is implied rather than dramatized, and the one chromatic voice on screen (destructive red) means exactly one thing.",
+    "overview": "Skillist is an instrument panel for production agent behavior. It looks the way a well-built piece of engineering hardware looks: monochrome, squared, precisely ruled, nothing on the surface that isn't a control or a readout. The people using it are staking production agents on the skills catalogued here, so the interface earns trust the way an instrument does, by being legible, honest about state, and free of decoration that could be mistaken for meaning. The system is deliberately quiet. Hierarchy comes from scale, weight, and space, not from color or heavy borders. Chrome is treated as a cost: surfaces are flat with a single hairline ring, depth is implied rather than dramatized, and the two chromatic voices on screen (destructive red for failure, signal violet for live/realtime) each mean exactly one thing.",
     "keyCharacteristics": [
       "Monochrome by default; grayscale ink ramp carries the entire UI.",
       "Squared geometry everywhere (0px radius on controls, cards, and images).",
@@ -215,7 +219,7 @@
       "Do build hierarchy from scale, weight, and space (400 -> 600 -> 700), then a hairline, then tonal layering. Reach for color last.",
       "Do set every machine value in mono, and every short control label in uppercase tracked micro-type.",
       "Do hold the surface at literal white oklch(1 0 0) in light mode and near-black oklch(0.145 0 0) in dark; both themes must pass 4.5:1 for body text.",
-      "Do keep the reserved signal amber out of active use until introduced deliberately, and cap it at <=10% of any screen.",
+      "Do use the signal violet only for live/realtime and active/selected state, and cap it at <=10% of any screen.",
       "Do pair every status with a word or shape, and give every animation a prefers-reduced-motion fallback."
     ],
     "donts": [
