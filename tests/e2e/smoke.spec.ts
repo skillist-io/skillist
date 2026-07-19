@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test("homepage shows hero and registry MCP section", async ({ page }) => {
+test("homepage shows hero and connect section", async ({ page }) => {
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "The realtime registry for Agent Skills" }),
   ).toBeVisible();
-  await expect(page.getByText("Connect over MCP")).toBeVisible();
-  await expect(page.getByText("registry_search")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connect your agent" })).toBeVisible();
+  await expect(page.getByText("Available for these agents")).toBeVisible();
 });
 
 test("registry lists skills", async ({ page }) => {
