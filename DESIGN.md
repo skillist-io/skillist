@@ -221,6 +221,7 @@ The product's distinctive surfaces are its live readouts: eval panels, run histo
 - **Do** hold the surface at literal white `oklch(1 0 0)` in light mode and near-black `oklch(0.145 0 0)` in dark; both themes must pass 4.5:1 for body text.
 - **Do** use the signal violet only for live/realtime and active/selected state, and cap it at ≤10% of any screen.
 - **Do** pair every status with a word or shape, and give every animation a `prefers-reduced-motion: reduce` fallback.
+- **Do** confine ambient motion to surfaces you pass *through* — the marketing hero, the registry header, sign-in. The authenticated workspace gets the same grid as a **static** texture. Two reasons, and the first is the serious one: perpetual signal-violet motion spends the accent on decoration, so a real fan-out ends up competing with wallpaper for the same colour and the signal stops meaning anything. Second, a surface read for hours pays the attention cost on every screen, and indefinitely-running motion is exactly what WCAG 2.2.2 (Pause, Stop, Hide) targets — `prefers-reduced-motion` is the floor, not the answer.
 
 ### Don't:
 - **Don't** ship the **generic shadcn / AI-default** look: no soft rounded cards, no *decorative* / scattered purple (delete the stray dark-sidebar `oklch(0.488 0.243 264.376)`) — the only sanctioned violet is the signal, used for live/active state, no gray-on-tinted body text.

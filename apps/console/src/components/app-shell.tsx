@@ -6,12 +6,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
+  CanvasBackdrop,
+  canvasBackdropClass,
   Separator,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-  SignalField,
-  signalFieldClass,
   ThemeToggle,
   Tooltip,
   TooltipContent,
@@ -39,14 +39,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
       >
         <AppSidebar />
-        {/* isolate: own stacking context so the -z-10 SignalField paints
+        {/* isolate: own stacking context so the -z-10 CanvasBackdrop paints
             above this pane's bg-background instead of escaping behind it. */}
         {/* panel-noise: dark-mode grain over the whole product surface, in the
             same decorative layer as the grid below. One edit covers every route. */}
         <SidebarInset className="panel-noise isolate">
-          {/* Shared canvas — the same live grid as the homepage hero, so the
-              product surface reads as the same instrument. Behind all content. */}
-          <SignalField className={`-z-10 ${signalFieldClass}`} />
+          {/* Shared canvas — the same hairline grid as the homepage hero, so the
+              product surface reads as the same instrument. Behind all content.
+              Deliberately the STATIC grid, not <SignalField>: the workspace is
+              read for hours, and perpetual motion here would both cost attention
+              on every screen and spend the signal violet on decoration, leaving
+              a real fan-out competing with wallpaper for the same colour. Motion
+              belongs on the surfaces you pass through — the hero and sign-in. */}
+          <CanvasBackdrop className={`-z-10 ${canvasBackdropClass}`} />
           <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
