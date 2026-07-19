@@ -1,0 +1,138 @@
+---
+title: Required-skill coverage
+description: Track your org's required skills across three layers — published, covered, and activated — and surface drift.
+---
+
+import { DocAlert } from "@/components/docs/DocAlert";
+import { DocTable } from "@/components/docs/DocTable";
+import { SectionHeading } from "@/components/docs/SectionHeading";
+
+**Required skills** are the governance baseline your org expects every agent to have — the skills that should be published, present, and switched on across your estate. **Coverage** answers a single question about that baseline: are we actually covered, and where are we drifting?
+
+<DocAlert title="Requires sign-in" client:load>
+  Coverage is org-scoped. The route lives under `/v1/orgs/{orgId}/coverage` and needs a session or org API key with `viewer` standing (API key scope `skills:read`).
+</DocAlert>
+
+## The three layers
+
+Coverage grades each required skill through three progressively stronger layers. A skill can be published but never covered, or covered but never activated — the gap between layers is what governance cares about.
+
+<DocTable
+  client:load
+  columns={["Layer", "Meaning", "Signal"]}
+  rows={[
+    ["published", "The skill exists in the registry and is installable", "A matching registry entry"],
+    ["covered", "It is actually present in your scanned inventory and/or curated into a project", "Skill inventory matches or project curation"],
+    ["activated", "Agents have turned it on", "Telemetry activation events"],
+  ]}
+/>
+
+**Drift** is the shortfall: a required skill that is *not* covered — it exists nowhere in your scanned repos and no project curates it. Drift is the first thing to fix.
+
+## Required skills
+
+Required skills are the input to coverage. Owners manage the baseline; any viewer can read it.
+
+```
+GET    /v1/orgs/{orgId}/required-skills
+POST   /v1/orgs/{orgId}/required-skills
+DELETE /v1/orgs/{orgId}/required-skills/{id}
+```
+
+Add a skill by its registry `orgSlug` and `skillRepo`:
+
+```json
+// POST /v1/orgs/{orgId}/required-skills   (owner only)
+{ "orgSlug": "skillist", "skillRepo": "sql-review" }
+```
+
+Two read-only helpers support CI enforcement:
+
+```
+GET /v1/orgs/{orgId}/required-skills/check?installed=org/repo,org/repo
+GET /v1/orgs/{orgId}/required-skills/workflow
+```
+
+`check` compares a comma-separated `installed` list against the baseline and returns `{ required, installed, missing, compliant }`. `workflow` returns a ready-to-commit GitHub Actions YAML that installs each required skill and runs `skillist required-skills check`. The [CLI](/getting-started/cli/) exposes the same check as `skillist required-skills check --org <slug>`.
+
+## Coverage report
+
+```
+GET /v1/orgs/{orgId}/coverage
+```
+
+Returns a `summary`, a per-skill breakdown, and the `drift` list:
+
+```json
+{
+  "summary": {
+    "required": 8,
+    "published": 8,
+    "covered": 6,
+    "activated": 4,
+    "drifted": 2,
+    "coveragePct": 75
+  },
+  "skills": [
+    {
+      "ref": "skillist/sql-review",
+      "orgSlug": "skillist",
+      "skillRepo": "sql-review",
+      "published": true,
+      "inventoryCount": 3,
+      "projectCount": 1,
+      "covered": true,
+      "installs": 12,
+      "activations": 5,
+      "activated": true,
+      "lastActivatedAt": "2026-07-10T09:00:00.000Z"
+    }
+  ],
+  "drift": ["acme/deploy-guard"]
+}
+```
+
+`coveragePct` is the share of required skills that reached the **covered** layer (rounded). An org with no required skills reports `coveragePct: 100` and empty `skills`/`drift`.
+
+### Summary fields
+
+<DocTable
+  client:load
+  columns={["Field", "Meaning"]}
+  rows={[
+    ["required", "Total required skills in the baseline"],
+    ["published", "How many exist in the registry"],
+    ["covered", "How many are present in inventory and/or a project"],
+    ["activated", "How many have at least one activation event"],
+    ["drifted", "Required but not covered (length of drift)"],
+    ["coveragePct", "covered ÷ required, as a rounded percentage"],
+  ]}
+/>
+
+### Per-skill fields
+
+<DocTable
+  client:load
+  columns={["Field", "Type", "Meaning"]}
+  rows={[
+    ["ref", "string", "orgSlug/skillRepo identity"],
+    ["published", "boolean", "Has a registry entry"],
+    ["inventoryCount", "number", "Distinct scanned repos carrying this managed skill"],
+    ["projectCount", "number", "Distinct projects in this org curating it"],
+    ["covered", "boolean", "inventoryCount > 0 or projectCount > 0"],
+    ["installs", "number", "Install telemetry events"],
+    ["activations", "number", "Activation telemetry events"],
+    ["activated", "boolean", "activations > 0"],
+    ["lastActivatedAt", "string | null", "Timestamp of the most recent activation"],
+  ]}
+/>
+
+The same computation backs the [platform agent's](/platform/agent/) `get_coverage` tool, so an "are we covered?" chat answer and this endpoint always agree.
+
+## Related
+
+- [Platform agent](/platform/agent/) — ask about coverage and drift conversationally
+- [Self-improving skills](/platform/self-improving/) — recurring-failure mining and auto-feedback
+- [Skill inventory](/platform/inventory/) — how the **covered** layer is populated
+- [Projects](/platform/projects/) — curation that also satisfies **covered**
+- [Full API reference](https://api.skillist.io/docs) — every parameter and response

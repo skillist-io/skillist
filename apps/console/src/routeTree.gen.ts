@@ -15,6 +15,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CoverageRouteImport } from './routes/coverage'
+import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminMirrorsRouteImport } from './routes/admin/mirrors'
@@ -52,6 +54,16 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CoverageRoute = CoverageRouteImport.update({
+  id: '/coverage',
+  path: '/coverage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountRoute = AccountRouteImport.update({
   id: '/account',
   path: '/account',
@@ -87,6 +99,8 @@ const OrgsOrgIdProjectsProjectIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/agent': typeof AgentRoute
+  '/coverage': typeof CoverageRoute
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
   '/inventory': typeof InventoryRoute
@@ -101,6 +115,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/agent': typeof AgentRoute
+  '/coverage': typeof CoverageRoute
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
   '/inventory': typeof InventoryRoute
@@ -116,6 +132,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
+  '/agent': typeof AgentRoute
+  '/coverage': typeof CoverageRoute
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
   '/inventory': typeof InventoryRoute
@@ -132,6 +150,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/account'
+    | '/agent'
+    | '/coverage'
     | '/dashboard'
     | '/governance'
     | '/inventory'
@@ -146,6 +166,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
+    | '/agent'
+    | '/coverage'
     | '/dashboard'
     | '/governance'
     | '/inventory'
@@ -160,6 +182,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/account'
+    | '/agent'
+    | '/coverage'
     | '/dashboard'
     | '/governance'
     | '/inventory'
@@ -175,6 +199,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
+  AgentRoute: typeof AgentRoute
+  CoverageRoute: typeof CoverageRoute
   DashboardRoute: typeof DashboardRoute
   GovernanceRoute: typeof GovernanceRoute
   InventoryRoute: typeof InventoryRoute
@@ -231,6 +257,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/coverage': {
+      id: '/coverage'
+      path: '/coverage'
+      fullPath: '/coverage'
+      preLoaderRoute: typeof CoverageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/account': {
       id: '/account'
       path: '/account'
@@ -279,6 +319,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
+  AgentRoute: AgentRoute,
+  CoverageRoute: CoverageRoute,
   DashboardRoute: DashboardRoute,
   GovernanceRoute: GovernanceRoute,
   InventoryRoute: InventoryRoute,

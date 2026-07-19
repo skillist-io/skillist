@@ -39,6 +39,14 @@ export default defineConfig({
       "/v1": "http://localhost:8787",
       "/docs": "http://localhost:8787",
       "/openapi.json": "http://localhost:8787",
+      // Skillist Agent (per-org AIChatAgent DO) lives on the API worker. Proxy
+      // the WebSocket handshake + /get-messages same-origin so the session
+      // cookie flows first-party. `ws: true` upgrades the socket to :8787.
+      "/agents": {
+        target: "http://localhost:8787",
+        changeOrigin: true,
+        ws: true,
+      },
       // GitHub-style apex API: /{org}/{repo}/SKILL.md|meta|bundle|scripts|run|runs
       "^/[^/]+/[^/]+/(SKILL\\.md|meta|bundle|scripts|run|runs)(/.*)?$": {
         target: "http://localhost:8787",
