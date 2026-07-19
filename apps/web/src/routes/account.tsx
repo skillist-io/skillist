@@ -215,7 +215,7 @@ function AccountPage() {
   const currentToken = session?.session?.token;
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <div>
         <PageTitle>Account</PageTitle>
         <p className="text-muted-foreground">
@@ -236,7 +236,7 @@ function AccountPage() {
         </p>
       ) : null}
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Profile</CardTitle>
           <CardDescription>
@@ -281,7 +281,7 @@ function AccountPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Sign-in methods</CardTitle>
           <CardDescription>
@@ -335,7 +335,7 @@ function AccountPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Passkeys</CardTitle>
           <CardDescription>
@@ -385,7 +385,7 @@ function AccountPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <div className="space-y-1.5">
             <CardTitle>Sessions</CardTitle>
