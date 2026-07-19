@@ -1,11 +1,7 @@
+import { api, Button, type RegistryItem, ScoreReadout } from "@skillist/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { PublicEvalBadge } from "@/components/public-eval-badge";
-import { ScoreReadout } from "@/components/score-readout";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { api, type RegistryItem } from "@/lib/api";
 
 const FEATURED = [
   {
@@ -65,36 +61,35 @@ export function RegistryFeatured() {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-px border border-border bg-border sm:grid-cols-2">
       {data?.map(({ org, slug, pitch, item }) => (
-        <Card
+        <article
           key={`${org}/${slug}`}
-          size="sm"
-          className="group flex flex-col transition-[background-color,box-shadow] duration-200 hover:bg-[color-mix(in_oklch,var(--card),var(--foreground)_3%)] hover:ring-foreground/15"
+          className="group flex flex-col gap-3 bg-background p-5 transition-colors hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_3%)]"
         >
-          <CardHeader className="space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <CardTitle className="text-base">
-                  <Link
-                    to="/$org/$repo"
-                    params={{ org, repo: slug }}
-                    className="outline-none transition-colors hover:text-signal focus-visible:text-signal"
-                  >
-                    {item.name}
-                  </Link>
-                </CardTitle>
-                <CardDescription>
-                  {org}/{slug}
-                </CardDescription>
-              </div>
-              {item.runtime && item.runtime !== "local" && (
-                <Badge variant="secondary">Hosted {item.runtime}</Badge>
-              )}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-headline text-foreground">
+                <Link
+                  to="/$org/$repo"
+                  params={{ org, repo: slug }}
+                  className="outline-none transition-colors hover:text-signal focus-visible:text-signal"
+                >
+                  {item.name}
+                </Link>
+              </h3>
+              <p className="truncate font-mono text-xs text-muted-foreground">
+                {org}/{slug}
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground">{pitch}</p>
-          </CardHeader>
-          <CardContent className="mt-auto space-y-3">
+            {item.runtime && item.runtime !== "local" && (
+              <span className="shrink-0 font-mono text-[0.65rem] tracking-wide text-muted-foreground uppercase">
+                hosted:{item.runtime}
+              </span>
+            )}
+          </div>
+          <p className="text-sm leading-relaxed text-muted-foreground">{pitch}</p>
+          <div className="mt-auto flex flex-col gap-3 pt-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <ScoreReadout
                 quality={item.qualityScore}
@@ -118,9 +113,28 @@ export function RegistryFeatured() {
                 </span>
               </Link>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </article>
       ))}
+      {/* Trailing cell fills the ruled grid (5 skills + this = 6) and doubles as
+          a way into the full registry. */}
+      <Link
+        to="/registry"
+        className="group flex flex-col items-start justify-center gap-1 bg-background p-5 transition-colors hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_3%)]"
+      >
+        <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+          More
+        </span>
+        <span className="inline-flex items-center gap-1 text-headline text-foreground transition-colors group-hover:text-signal">
+          Browse the registry
+          <span
+            aria-hidden
+            className="transition-transform duration-200 group-hover:translate-x-0.5"
+          >
+            →
+          </span>
+        </span>
+      </Link>
     </div>
   );
 }

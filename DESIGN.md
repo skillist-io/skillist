@@ -124,7 +124,7 @@ It explicitly rejects four things. It is not the **generic shadcn / AI-default**
 
 ## 2. Colors
 
-A pure grayscale ink ramp from paper-white to near-black, with a single chromatic exception for danger and one reserved accent held in the wings.
+A pure grayscale ink ramp from paper-white to near-black, plus exactly two committed chromatic voices: destructive red for failure and signal violet for live/realtime.
 
 ### Primary
 - **Ink** (`oklch(0.145 0 0)`): The near-black foreground. All primary text, icon strokes, and the fill of primary buttons (as `Primary`, `oklch(0.205 0 0)`). This is the darkest voice and the default for anything that must be read first.
@@ -138,13 +138,13 @@ A pure grayscale ink ramp from paper-white to near-black, with a single chromati
 - **Ring** (`oklch(0.708 0 0)`): Focus indication, distinct from hairline so keyboard focus is unmistakable.
 
 ### Tertiary
-- **Destructive** (`oklch(0.577 0.245 27.325)` light / `oklch(0.704 0.191 22.216)` dark): The single chromatic color in normal use. Deletion, failed evals, error state, invalid fields. Its rarity is what makes it legible.
+- **Destructive** (`oklch(0.577 0.245 27.325)` light / `oklch(0.704 0.191 22.216)` dark): One of the two chromatic voices — the color of failure. Deletion, failed evals, error state, invalid fields. Its rarity is what makes it legible.
 - **Signal** (`oklch(0.52 0.21 293)` light / `oklch(0.72 0.19 293)` dark): A deliberate violet (hue ~293), the one chromatic voice for **live / realtime** moments — publish fan-out, presence, a running eval, active/selected state. This is a specific, committed violet used narrowly and on purpose; it is not the generic shadcn *default* purple (a scattered, decorative blue-violet ~264) the system rejects. Do not scatter it; it stays ≤10% of any screen.
 
 ### Named Rules
 **The Chromatic Voice Rule.** In normal operation the screen is grayscale plus at most two saturated voices: **destructive red** (failure) and the **signal violet** (live/realtime, ≤10%). Any other hue is a bug — including the generic default purple (`oklch(0.488 0.243 264.376)`), a different, decorative blue-violet that must not appear. The signal violet is the *only* sanctioned violet, and only for live/active state.
 
-**The Literal White Rule.** Light surface is exactly `oklch(1 0 0)`. Never warm-tint the background toward cream, sand, or paper. Warmth, if it ever arrives, lives in the reserved accent, never in the canvas.
+**The Literal White Rule.** Light surface is exactly `oklch(1 0 0)`. Never warm-tint the background toward cream, sand, or paper. Color on screen lives in the two signals (red, violet), never in the canvas.
 
 ## 3. Typography
 

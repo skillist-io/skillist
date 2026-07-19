@@ -1,30 +1,64 @@
+import {
+  Button,
+  CanvasBackdrop,
+  canvasBackdropClass,
+  consoleUrl,
+  TooltipProvider,
+  useSession,
+} from "@skillist/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { AgentConnect } from "@/components/agent-connect";
 import { AgentLogos } from "@/components/agent-logos";
 import { RealtimeFanout } from "@/components/realtime-fanout";
 import { RegistryFeatured } from "@/components/registry-featured";
 import { RegistryTrending } from "@/components/registry-trending";
-import { Button } from "@/components/ui/button";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useSession } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
 });
 
-const CAPABILITIES = [
+const CAPABILITIES: { title: string; desc: string; preview: ReactNode }[] = [
   {
     title: "Hosted execution",
     desc: "Run skill scripts in isolated sandboxes with streaming output, quotas, and per-run access control.",
+    preview: (
+      <>
+        <span aria-hidden className="inline-flex size-1.5 shrink-0 bg-signal" />
+        <span className="text-foreground">skillist run</span>
+        <span className="truncate">web-perf-audit</span>
+        <span className="ml-auto shrink-0 text-muted-foreground/70">exit 0</span>
+      </>
+    ),
   },
   {
     title: "Evals & observability",
     desc: "Measure skill uplift, track regression across versions, and watch every run as it happens.",
+    preview: (
+      <>
+        <span className="text-foreground">uplift</span>
+        <span>+11.4%</span>
+        <span aria-hidden className="ml-auto flex items-end gap-0.5">
+          {[4, 7, 5, 9, 6, 11].map((h) => (
+            <span key={h} className="w-1 bg-muted-foreground/45" style={{ height: `${h}px` }} />
+          ))}
+        </span>
+      </>
+    ),
   },
   {
     title: "Registry discovery",
     desc: "Search by tag, agent, and runtime. Install from the CLI, an MCP client, or the apex URL.",
+    preview: (
+      <>
+        <span>tag:security</span>
+        <span className="text-muted-foreground/40">·</span>
+        <span>agent:claude</span>
+        <span className="text-muted-foreground/40">·</span>
+        <span>runtime:node</span>
+      </>
+    ),
   },
 ];
 
@@ -44,15 +78,7 @@ function HomePage() {
         {/* Hero — two-column composure. Text carries the left axis, the live
             fan-out readout anchors the right. Capped display per DESIGN.md. */}
         <section className="relative overflow-hidden border-b border-border">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(120%_100%_at_15%_0%,black,transparent_70%)]"
-            style={{
-              backgroundImage:
-                "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
-              backgroundSize: "64px 64px",
-            }}
-          />
+          <CanvasBackdrop className={canvasBackdropClass} />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-1 py-16 md:py-24 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="flex flex-col items-start gap-6">
               <span className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
@@ -63,11 +89,12 @@ function HomePage() {
                 Live registry · sub-10ms fan-out
               </span>
               <h1 className="text-balance font-bold text-[clamp(2.5rem,5.5vw,4rem)] leading-[1.02] tracking-[-0.03em] text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
-                The realtime registry for Agent Skills
+                The realtime registry{" "}
+                <span className="text-muted-foreground">for Agent Skills</span>
               </h1>
               <p className="max-w-xl text-lg leading-relaxed text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:delay-100 motion-safe:fill-mode-both">
                 Publish, version, govern, and deliver SKILL.md bundles that run and improve
-                themselves. Works with Cursor, Claude Code, VS Code, and any{" "}
+                themselves. Works with Claude Code, Cursor, VS Code, Gemini, Codex, and any{" "}
                 <a
                   href="https://agentskills.io/home"
                   className="text-foreground underline underline-offset-4 hover:text-signal"
@@ -82,13 +109,11 @@ function HomePage() {
                 </Button>
                 {session?.user ? (
                   <Button size="lg" variant="outline" asChild>
-                    <Link to="/dashboard">Open dashboard</Link>
+                    <a href={consoleUrl("/dashboard")}>Open dashboard</a>
                   </Button>
                 ) : (
                   <Button size="lg" variant="outline" asChild>
-                    <Link to="/login" search={{ redirect: undefined }}>
-                      Start publishing
-                    </Link>
+                    <a href={consoleUrl("/login")}>Start publishing</a>
                   </Button>
                 )}
               </div>
@@ -101,14 +126,20 @@ function HomePage() {
 
         <AgentLogos onPick={pickAgent} />
 
-        {/* Capabilities — ruled columns, not a card grid. Hairline dividers
-            carry the structure the way rules do on a spec sheet. */}
+        {/* Capabilities — ruled columns, not a card grid. Numbered like a spec
+            sheet, each cell closing on a small mono instrument readout. */}
         <section className="mx-auto w-full max-w-6xl px-1 py-16">
           <div className="grid gap-px border border-border bg-border sm:grid-cols-3">
-            {CAPABILITIES.map((c) => (
-              <div key={c.title} className="flex flex-col gap-2 bg-background p-6">
-                <h2 className="text-headline text-foreground">{c.title}</h2>
-                <p className="text-sm leading-relaxed text-muted-foreground">{c.desc}</p>
+            {CAPABILITIES.map((c, i) => (
+              <div key={c.title} className="flex flex-col gap-4 bg-background p-6">
+                <span className="font-mono text-xs text-muted-foreground">{`0${i + 1}`}</span>
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-headline text-foreground">{c.title}</h2>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{c.desc}</p>
+                </div>
+                <div className="mt-auto flex items-center gap-2 border-t border-border pt-4 font-mono text-xs text-muted-foreground">
+                  {c.preview}
+                </div>
               </div>
             ))}
           </div>

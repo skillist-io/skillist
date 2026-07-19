@@ -1,6 +1,5 @@
+import { CopyButton, cn } from "@skillist/ui";
 import { AGENT_MARKS, AgentMark } from "@/components/agent-marks";
-import { CopyButton } from "@/components/copy-button";
-import { cn } from "@/lib/utils";
 
 /**
  * "Connect your agent" — the credible proof behind the logo row. Skillist
