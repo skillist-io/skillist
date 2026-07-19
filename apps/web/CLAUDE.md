@@ -11,7 +11,7 @@ React 19, Vite 8, TanStack Router (file-based) + Query, shadcn/ui, Tailwind v4. 
 
 ## Design system (identity — do not drift toward stock shadcn)
 
-"The Control Surface": squared geometry (0 radius), monochrome ink + exactly two accents (destructive **red** = failure, signal **amber** = live), text-only badges, underline inputs, hairline rings not shadows. **WCAG 2.2 AA in both light and dark**; never status-by-color-alone. Full detail: `DESIGN.md` / `PRODUCT.md`. → skill: `/design-system`, agent: `web-ui-builder`. Live visual iteration: `/impeccable`.
+"The Control Surface": squared geometry (0 radius), monochrome ink + exactly two accents (destructive **red** = failure, signal **violet** = live), text-only badges, underline inputs, hairline rings not shadows. **WCAG 2.2 AA in both light and dark**; never status-by-color-alone. Full detail: `DESIGN.md` / `PRODUCT.md`. → skill: `/design-system`, agent: `web-ui-builder`. Live visual iteration: `/impeccable`.
 
 ## Dev / test
 

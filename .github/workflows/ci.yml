@@ -34,10 +34,6 @@ jobs:
 
       - run: pnpm test
 
-      - run: pnpm exec playwright install chromium --with-deps
-
-      - run: pnpm test:e2e
-
       - run: pnpm build
 
   smoke:
@@ -59,6 +55,12 @@ jobs:
       - run: pnpm smoke
         env:
           SKILLIST_E2E_API_KEY: ${{ secrets.SKILLIST_E2E_API_KEY }}
+
+      # e2e runs post-deploy against prod (skillist.io), not in the PR gate —
+      # a PR can't be validated against a not-yet-deployed landing.
+      - run: pnpm exec playwright install chromium --with-deps
+
+      - run: pnpm test:e2e
 
   deploy-api:
     needs: check

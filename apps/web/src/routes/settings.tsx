@@ -58,7 +58,7 @@ function SettingsPage() {
   const activeOrgId = selectedOrgId || ownerOrgs[0]?.id || "";
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <div>
         <PageTitle>Settings</PageTitle>
         <p className="text-muted-foreground">
@@ -70,7 +70,7 @@ function SettingsPage() {
         </p>
       </div>
 
-      <Card id="github-oauth">
+      <Card size="sm" id="github-oauth">
         <CardHeader>
           <CardTitle>GitHub OAuth</CardTitle>
           <CardDescription>
@@ -95,7 +95,7 @@ function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Google OAuth</CardTitle>
           <CardDescription>
@@ -120,7 +120,7 @@ function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card id="api-keys">
+      <Card size="sm" id="api-keys">
         <CardHeader>
           <CardTitle>Agent API keys</CardTitle>
           <CardDescription>
@@ -454,7 +454,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
 
   return (
     <div className="space-y-4">
-      <Card id="governance">
+      <Card size="sm" id="governance">
         <CardHeader>
           <CardTitle>Publish policies</CardTitle>
           <CardDescription>
@@ -514,7 +514,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         </CardContent>
       </Card>
 
-      <Card id="install-policy">
+      <Card size="sm" id="install-policy">
         <CardHeader>
           <CardTitle>Install policies</CardTitle>
           <CardDescription>
@@ -586,7 +586,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Execution quotas</CardTitle>
           <CardDescription>Limit hosted script runs per organization</CardDescription>
@@ -643,7 +643,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Required skills</CardTitle>
           <CardDescription>Skills every project in this org should install</CardDescription>
@@ -683,7 +683,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Telemetry funnel</CardTitle>
           <CardDescription>Published → installed → activated (last 30 days)</CardDescription>
@@ -704,7 +704,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <CardTitle>Audit log</CardTitle>
           <CardDescription>Recent governance and publish events</CardDescription>
