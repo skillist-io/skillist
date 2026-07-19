@@ -116,12 +116,15 @@
       {
         "queue": "skillist-ai-jobs",
         "max_batch_size": 1,
-        "max_retries": 3
+        "max_retries": 3,
+        // Capture poison messages instead of dropping them after retries.
+        "dead_letter_queue": "skillist-ai-jobs-dlq"
       },
       {
         "queue": "skillist-sync-jobs",
         "max_batch_size": 5,
-        "max_retries": 5
+        "max_retries": 5,
+        "dead_letter_queue": "skillist-sync-jobs-dlq"
       }
     ]
   },
