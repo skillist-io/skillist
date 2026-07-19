@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { createFileRoute } from "@tanstack/react-router";
 import { WifiOff } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
+import { AddToProjectButton } from "@/components/add-to-project";
 import { AgentInstallButtons } from "@/components/agent-install-buttons";
 import { CopyButton } from "@/components/copy-button";
 import { PublicEvalBadge } from "@/components/public-eval-badge";
@@ -125,6 +126,19 @@ function SkillRepoPage() {
             </div>
             <div className="flex items-center gap-2">
               <LiveIndicator connected={connected} />
+              <AddToProjectButton
+                target={
+                  entry?.skillId
+                    ? { kind: "skill", skillId: entry.skillId, label: entry.name ?? repo }
+                    : {
+                        kind: "external",
+                        externalUrl: `https://skillist.io/${org}/${repo}`,
+                        externalName: entry?.name ?? repo,
+                      }
+                }
+                variant="outline"
+                size="sm"
+              />
               <Button
                 variant="outline"
                 onClick={() => subscribe.mutate()}

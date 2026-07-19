@@ -42,7 +42,22 @@ export const authMiddleware = createMiddleware<{
       apiKeyOrgId = record.orgId;
       apiKeyCreatedBy = record.createdBy;
       apiKeyScopes = (record.scopes as string[]) ?? [];
-      await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, record.id));
+      // `lastUsedAt` is approximate and on the hot auth path: only write when it
+      // is stale (>5 min), and fire-and-forget so it never adds a blocking DB
+      // round-trip to the request.
+      const lastUsed = record.lastUsedAt?.getTime() ?? 0;
+      if (Date.now() - lastUsed > 5 * 60_000) {
+        const write = db
+          .update(apiKeys)
+          .set({ lastUsedAt: new Date() })
+          .where(eq(apiKeys.id, record.id));
+        try {
+          c.executionCtx.waitUntil(write.catch(() => {}));
+        } catch {
+          // No executionCtx (e.g. in tests): fall back to awaiting inline.
+          await write.catch(() => {});
+        }
+      }
     }
   }
 

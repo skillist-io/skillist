@@ -2,13 +2,15 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { apiReference } from "@scalar/hono-api-reference";
 import type { SyncQueueMessage } from "@skillist/contracts";
 import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
 import type { AiJobMessage, Env } from "./env";
 import { runAiJob } from "./lib/ai";
 import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
-import { createWorkerDb } from "./lib/db";
+import { assertProductionBindings, createWorkerDb } from "./lib/db";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
 import { rateLimit } from "./lib/rate-limit";
 import { handleMcpRequest } from "./mcp/handler";
@@ -18,6 +20,7 @@ import { executionRoutes } from "./routes/execution";
 import { feedbackRoutes } from "./routes/feedback";
 import { governanceRoutes } from "./routes/governance";
 import { orgRoutes } from "./routes/orgs";
+import { projectRoutes } from "./routes/projects";
 import { realtimeRoutes } from "./routes/realtime";
 import { registryRoutes } from "./routes/registry";
 import { skillRoutes } from "./routes/skills";
@@ -30,6 +33,45 @@ export { SyncSourceWorkflow } from "./workflows/sync-source";
 export { SkillRealtimeHub };
 
 const app = new OpenAPIHono<{ Bindings: Env }>();
+
+// Fail loud on production config drift (missing cache-disabled Hyperdrive /
+// distributed rate limiter) before handling any request.
+app.use("*", async (c, next) => {
+  assertProductionBindings(c.env);
+  await next();
+});
+
+// Security response headers (HSTS, nosniff, frame-ancestors, etc.) on every
+// response. No CSP by default — the API is JSON + the Scalar docs page.
+app.use("*", secureHeaders());
+
+// Cap request bodies. Skill bundles are the largest legitimate payload; per-file
+// and file-count limits live in the Zod schema, this is the outer ceiling.
+app.use(
+  "*",
+  bodyLimit({
+    maxSize: 25 * 1024 * 1024,
+    onError: (c) => c.json({ error: "Payload too large" }, 413),
+  }),
+);
+
+// Global error handler: log a correlation id (CF ray) with the failure and
+// return a sanitized body instead of leaking a stack trace via Hono's default.
+app.onError((err, c) => {
+  const correlationId = c.req.header("cf-ray") ?? crypto.randomUUID();
+  console.error(
+    JSON.stringify({
+      msg: "unhandled_error",
+      correlationId,
+      method: c.req.method,
+      path: c.req.path,
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
+  return c.json({ error: "Internal Server Error", correlationId }, 500);
+});
+
+app.notFound((c) => c.json({ error: "Not found" }, 404));
 
 app.use(
   "/mcp",
@@ -101,6 +143,7 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
 const v1 = new OpenAPIHono<{ Bindings: Env }>();
 v1.route("/", orgRoutes);
 v1.route("/", skillRoutes);
+v1.route("/", projectRoutes);
 v1.route("/", registryRoutes);
 v1.route("/", feedbackRoutes);
 v1.route("/", governanceRoutes);

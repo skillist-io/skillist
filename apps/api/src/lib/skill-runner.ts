@@ -25,6 +25,8 @@ export type RunSkillInput = {
   actorId?: string | null;
   actorType?: "user" | "api_key" | "system";
   onOutput?: (stream: "stdout" | "stderr", chunk: string) => void;
+  /** Aborted when the client disconnects, so a hosted run doesn't outlive its reader. */
+  signal?: AbortSignal;
 };
 
 export type RunSkillResult = {
@@ -57,6 +59,7 @@ type SandboxHandle = {
       env?: Record<string, string | undefined>;
       stream?: boolean;
       onOutput?: (stream: "stdout" | "stderr", data: string) => void;
+      signal?: AbortSignal;
     },
   ): Promise<{
     stdout: string;
@@ -191,6 +194,7 @@ export async function runSkillScript(
       timeout,
       env: validatedUrl ? { SKILLIST_TARGET_URL: validatedUrl } : undefined,
       stream: !!input.onOutput,
+      signal: input.signal,
       onOutput: input.onOutput
         ? (stream, data) => {
             streamChunks[stream].push(data);

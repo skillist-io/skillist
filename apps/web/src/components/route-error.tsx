@@ -52,7 +52,7 @@ export function RouteErrorFallback({ error, reset }: ErrorComponentProps) {
     <div className="flex min-h-[50vh] items-center justify-center p-6">
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <div className="mb-2 flex size-10 items-center justify-center bg-destructive/10 text-destructive">
             <AlertCircle className="size-5" />
           </div>
           <CardTitle>{title}</CardTitle>
@@ -74,7 +74,7 @@ export function RouteErrorFallback({ error, reset }: ErrorComponentProps) {
         </CardContent>
         {import.meta.env.DEV ? (
           <CardContent>
-            <pre className="max-h-48 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
+            <pre className="max-h-48 overflow-auto bg-muted p-3 text-xs whitespace-pre-wrap">
               {detail}
             </pre>
           </CardContent>

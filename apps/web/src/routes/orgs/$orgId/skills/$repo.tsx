@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { Check, X } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { AddToProjectButton } from "@/components/add-to-project";
 import { FeedbackInbox } from "@/components/feedback-inbox";
 import { ScoreReadout } from "@/components/score-readout";
 import type { CodeEditorHandle } from "@/components/skill-editor/code-editor";
@@ -358,6 +359,13 @@ function SkillEditorPage() {
               </option>
             </NativeSelect>
           </div>
+          {versions?.[0]?.skillId && (
+            <AddToProjectButton
+              target={{ kind: "skill", skillId: versions[0].skillId, label: repo }}
+              variant="outline"
+              size="default"
+            />
+          )}
           <Button variant="outline" onClick={() => setPublic.mutate()}>
             Make public
           </Button>

@@ -11,6 +11,23 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split large, rarely-changing vendors into their own chunks so an app
+        // code change doesn't bust the whole vendor cache. TanStack Router still
+        // code-splits per route on top of this.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("react-dom") || id.includes("/react/") || id.includes("scheduler"))
+            return "react";
+          if (id.includes("@tanstack")) return "tanstack";
+          if (id.includes("radix-ui") || id.includes("@radix-ui")) return "radix";
+          if (id.includes("better-auth") || id.includes("better-call")) return "auth";
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

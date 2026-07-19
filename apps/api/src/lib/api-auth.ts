@@ -37,8 +37,15 @@ export function createApiEmailSender(env: Env): EmailSender {
         html,
         text,
       });
-    } catch {
-      console.log(`Email to ${to}: ${subject} — ${text}`);
+    } catch (err) {
+      // Never log the body/subject: magic-link and OTP emails carry live auth
+      // credentials, and logs are sampled/retained. Record the failure only.
+      console.error(
+        JSON.stringify({
+          msg: "email_send_failed",
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
     }
   };
 }

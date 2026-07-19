@@ -49,13 +49,23 @@ const telemetryIngestRoute = createRoute({
   request: {
     body: { content: { "application/json": { schema: telemetryEventSchema } } },
   },
-  responses: { 201: { description: "Recorded" } },
+  responses: {
+    201: { description: "Recorded" },
+    401: { description: "Unauthorized" },
+  },
 });
 
 observabilityRoutes.openapi(telemetryIngestRoute, async (c) => {
   const body = c.req.valid("json");
   const userId = await resolveUserId(c);
   const apiKeyId = c.var.auth.apiKeyId ?? null;
+
+  // Require an authenticated identity (session or API key). Telemetry drives
+  // public registry ranking (install/activation counts), so anonymous ingestion
+  // lets anyone inflate any skill's standing and write unbounded rows.
+  if (!userId && !apiKeyId) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
 
   await c.var.db.insert(telemetryEvents).values({
     orgSlug: body.orgSlug,

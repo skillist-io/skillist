@@ -93,6 +93,7 @@ export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQ
 
   const items = await db
     .select({
+      skillId: registryEntries.skillId,
       orgSlug: registryEntries.orgSlug,
       skillRepo: registryEntries.skillRepo,
       name: registryEntries.name,
@@ -142,38 +143,34 @@ export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQ
 }
 
 export async function getRegistryFacets(db: WorkerDb) {
-  const categoryRows = await db
-    .selectDistinct({ category: registryEntries.category })
-    .from(registryEntries)
-    .where(sql`${registryEntries.category} IS NOT NULL`);
+  // Dedupe tags/agents in SQL (unnest + DISTINCT) instead of streaming every
+  // row's arrays into the isolate, and run all three facet queries in parallel.
+  const [categoryRows, tagRows, agentRows] = await Promise.all([
+    db
+      .selectDistinct({ category: registryEntries.category })
+      .from(registryEntries)
+      .where(sql`${registryEntries.category} IS NOT NULL`),
+    db.execute(
+      sql`SELECT DISTINCT jsonb_array_elements_text(${registryEntries.tags}) AS value FROM ${registryEntries}`,
+    ),
+    db.execute(
+      sql`SELECT DISTINCT jsonb_array_elements_text(${registryEntries.compatibleAgents}) AS value FROM ${registryEntries}`,
+    ),
+  ]);
 
-  const tagRows = await db.select({ tags: registryEntries.tags }).from(registryEntries);
-
-  const tagSet = new Set<string>();
-  for (const row of tagRows) {
-    for (const tag of row.tags ?? []) {
-      if (tag) tagSet.add(tag);
-    }
-  }
-
-  const agentRows = await db
-    .select({ agents: registryEntries.compatibleAgents })
-    .from(registryEntries);
-
-  const agentSet = new Set<string>();
-  for (const row of agentRows) {
-    for (const agent of row.agents ?? []) {
-      if (agent) agentSet.add(agent);
-    }
-  }
+  const toSortedValues = (rows: unknown): string[] =>
+    (rows as { value: string | null }[])
+      .map((r) => r.value)
+      .filter((v): v is string => Boolean(v))
+      .sort();
 
   return {
     categories: categoryRows
       .map((r) => r.category)
-      .filter(Boolean)
+      .filter((c): c is string => Boolean(c))
       .sort(),
-    tags: [...tagSet].sort(),
-    agents: [...agentSet].sort(),
+    tags: toSortedValues(tagRows),
+    agents: toSortedValues(agentRows),
     sourceTypes: ["native", "mirror"] as const,
   };
 }
@@ -197,45 +194,43 @@ export async function getRegistrySkill(
     .limit(1);
   if (!row) return null;
 
-  let starred = false;
-  if (userId) {
-    const [star] = await db
-      .select({ id: registryStars.id })
-      .from(registryStars)
-      .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, row.skillId)))
-      .limit(1);
-    starred = !!star;
-  }
+  const versionId = row.latestPublishedVersionId;
+  // star, plugin manifest, and eval summary all depend only on `row` — fetch
+  // them concurrently instead of in a waterfall.
+  const [starRows, versionRows, evalRows] = await Promise.all([
+    userId
+      ? db
+          .select({ id: registryStars.id })
+          .from(registryStars)
+          .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, row.skillId)))
+          .limit(1)
+      : Promise.resolve([]),
+    versionId
+      ? db
+          .select({ pluginManifest: skillVersions.pluginManifest })
+          .from(skillVersions)
+          .where(eq(skillVersions.id, versionId))
+          .limit(1)
+      : Promise.resolve([]),
+    versionId
+      ? db
+          .select({
+            status: skillEvals.status,
+            uplift: skillEvals.uplift,
+            baselineScore: skillEvals.baselineScore,
+            withSkillScore: skillEvals.withSkillScore,
+            completedAt: skillEvals.completedAt,
+          })
+          .from(skillEvals)
+          .where(and(eq(skillEvals.versionId, versionId), eq(skillEvals.status, "completed")))
+          .orderBy(desc(skillEvals.completedAt))
+          .limit(1)
+      : Promise.resolve([]),
+  ]);
 
-  let pluginManifest = null;
-  let evalSummary = null;
-  if (row.latestPublishedVersionId) {
-    const [version] = await db
-      .select({ pluginManifest: skillVersions.pluginManifest })
-      .from(skillVersions)
-      .where(eq(skillVersions.id, row.latestPublishedVersionId))
-      .limit(1);
-    pluginManifest = version?.pluginManifest ?? null;
-
-    const [evalRow] = await db
-      .select({
-        status: skillEvals.status,
-        uplift: skillEvals.uplift,
-        baselineScore: skillEvals.baselineScore,
-        withSkillScore: skillEvals.withSkillScore,
-        completedAt: skillEvals.completedAt,
-      })
-      .from(skillEvals)
-      .where(
-        and(
-          eq(skillEvals.versionId, row.latestPublishedVersionId),
-          eq(skillEvals.status, "completed"),
-        ),
-      )
-      .orderBy(desc(skillEvals.completedAt))
-      .limit(1);
-    if (evalRow) evalSummary = evalRow;
-  }
+  const starred = starRows.length > 0;
+  const pluginManifest = versionRows[0]?.pluginManifest ?? null;
+  const evalSummary = evalRows[0] ?? null;
 
   const entry = row.entry;
   return {

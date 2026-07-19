@@ -78,6 +78,24 @@ export async function listBundlePaths(bucket: R2Bucket, prefix: string): Promise
   return listed.objects.map((o) => o.key.replace(`${prefix}/`, ""));
 }
 
+/**
+ * Deletes every object written under a version prefix (the per-file tree and the
+ * materialized bundle object). Used to roll back an R2 upload when the following
+ * DB writes fail, so a failed publish/upload doesn't leave orphaned objects.
+ * Paginates the list in case a bundle has more than one page of objects.
+ */
+export async function deleteBundleFromR2(bucket: R2Bucket, prefix: string): Promise<void> {
+  let cursor: string | undefined;
+  do {
+    const listed = await bucket.list({ prefix: `${prefix}/`, cursor });
+    if (listed.objects.length > 0) {
+      await bucket.delete(listed.objects.map((o) => o.key));
+    }
+    cursor = listed.truncated ? listed.cursor : undefined;
+  } while (cursor);
+  await bucket.delete(bundleObjectKey(prefix));
+}
+
 function contentTypeForPath(path: string): string {
   if (isBinaryAssetPath(path)) return binaryAssetMimeType(path);
   if (path.endsWith(".md")) return "text/markdown";

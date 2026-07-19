@@ -47,6 +47,10 @@ const githubWebhookRoute = createRoute({
       description: "Invalid signature",
       content: { "application/json": { schema: z.object({ error: z.string() }) } },
     },
+    503: {
+      description: "Webhook verification not configured",
+      content: { "application/json": { schema: z.object({ error: z.string() }) } },
+    },
   },
 });
 
@@ -54,10 +58,14 @@ webhookRoutes.openapi(githubWebhookRoute, async (c) => {
   const secret = c.env.GITHUB_WEBHOOK_SECRET;
   const raw = await c.req.text();
 
-  if (secret) {
-    const ok = await verifyGithubSignature(secret, raw, c.req.header("X-Hub-Signature-256"));
-    if (!ok) return c.json({ error: "Invalid signature" }, 401);
+  // Fail closed: without a configured secret we cannot authenticate the payload,
+  // so reject rather than accepting forged push events for arbitrary repos.
+  if (!secret) {
+    console.error(JSON.stringify({ msg: "github_webhook_secret_missing" }));
+    return c.json({ error: "Webhook verification not configured" }, 503);
   }
+  const ok = await verifyGithubSignature(secret, raw, c.req.header("X-Hub-Signature-256"));
+  if (!ok) return c.json({ error: "Invalid signature" }, 401);
 
   const event = c.req.header("X-GitHub-Event") ?? "";
   if (event === "ping") return c.json({ ok: true }, 202);

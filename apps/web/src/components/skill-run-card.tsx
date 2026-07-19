@@ -126,7 +126,7 @@ export function SkillRunCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Play className="h-4 w-4" /> Run in Sandbox
+          <Play className="h-4 w-4" aria-hidden="true" /> Run in Sandbox
         </CardTitle>
         <CardDescription>
           Execute bundled scripts in an isolated environment — sign in required

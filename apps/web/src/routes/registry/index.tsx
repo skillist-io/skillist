@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowDown, Check, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AddToProjectButton } from "@/components/add-to-project";
 import { CopyButton } from "@/components/copy-button";
 import { QueryError } from "@/components/query-error";
 import { ScoreReadout } from "@/components/score-readout";
@@ -480,6 +481,19 @@ function RegistryRow({ item }: { item: RegistryItem }) {
       </td>
       <td className="px-3 py-4">
         <div className="flex items-center justify-end gap-2">
+          <AddToProjectButton
+            target={
+              item.skillId
+                ? { kind: "skill", skillId: item.skillId, label: item.name }
+                : {
+                    kind: "external",
+                    externalUrl: `https://skillist.io/${item.orgSlug}/${item.skillRepo}`,
+                    externalName: item.name,
+                  }
+            }
+            variant="ghost"
+            iconOnly
+          />
           <CopyButton value={installCmd} label="Install" size="sm" />
           <Button asChild variant="ghost" size="sm">
             <Link
@@ -547,6 +561,19 @@ function RegistryCard({ item }: { item: RegistryItem }) {
               label="Install"
               size="default"
               className="flex-1 pointer-coarse:min-h-11"
+            />
+            <AddToProjectButton
+              target={
+                item.skillId
+                  ? { kind: "skill", skillId: item.skillId, label: item.name }
+                  : {
+                      kind: "external",
+                      externalUrl: `https://skillist.io/${item.orgSlug}/${item.skillRepo}`,
+                      externalName: item.name,
+                    }
+              }
+              variant="ghost"
+              iconOnly
             />
             <Button asChild variant="ghost" size="default" className="pointer-coarse:min-h-11">
               <Link

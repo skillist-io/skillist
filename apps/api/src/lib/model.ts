@@ -20,7 +20,14 @@ export async function runModel(env: Env, prompt: string): Promise<string> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
+      // Bound the call so a hung gateway can't stall the queue consumer.
+      signal: AbortSignal.timeout(30_000),
     });
+    // A non-2xx would otherwise parse to `{}` and silently return "" — an empty
+    // model output treated as valid. Surface it so the caller's fallback runs.
+    if (!res.ok) {
+      throw new Error(`AI Gateway returned ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    }
     const data = (await res.json()) as { result?: { response?: string } };
     return data.result?.response ?? "";
   }

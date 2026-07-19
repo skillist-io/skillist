@@ -2,16 +2,26 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  ChevronRight,
+  ExternalLink,
+  Folder,
+  FolderOpen,
   GitBranch,
   LayoutDashboard,
+  Lock,
   type LucideIcon,
   PackageSearch,
+  Plus,
   Settings2,
   Shield,
 } from "lucide-react";
 import * as React from "react";
 import { NavUser } from "@/components/nav-user";
+import { NewProjectDialog } from "@/components/new-project-dialog";
+import { ProjectVisibilityIcon } from "@/components/project-visibility";
+import type { TreeNode } from "@/components/skill-editor/paths";
 import { SkillistLogo } from "@/components/skillist-logo";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import {
   Sidebar,
@@ -27,8 +37,17 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
-import { api, type Org, type Skill } from "@/lib/api";
+import {
+  api,
+  type Org,
+  type Project,
+  type ProjectDetail,
+  type ProjectItem,
+  type Skill,
+} from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
+import { buildProjectTree, projectItemLeafName } from "@/lib/project-tree";
+import { cn } from "@/lib/utils";
 
 type NavItem = {
   title: string;
@@ -163,6 +182,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <div className="flex w-full items-center justify-between">
               <div className="text-base font-medium text-foreground">{activeItem.title}</div>
               <Label htmlFor="sidebar-private-only" className="flex items-center gap-2 text-sm">
+                <Lock className="size-3.5 text-muted-foreground" aria-hidden />
                 <span>Private only</span>
                 <Switch
                   id="sidebar-private-only"
@@ -225,9 +245,10 @@ function OrgSkillNav({
         org.slug.toLowerCase().includes(needle),
     )
     .map((org) => (
-      <OrgSkills
+      <OrgBlock
         key={org.id}
         org={org}
+        orgs={orgs}
         filter={needle}
         privateOnly={privateOnly}
         pathname={pathname}
@@ -246,13 +267,15 @@ function OrgSkillNav({
   return <>{orgBlocks}</>;
 }
 
-function OrgSkills({
+function OrgBlock({
   org,
+  orgs,
   filter,
   privateOnly,
   pathname,
 }: {
   org: Org;
+  orgs: Org[];
   filter: string;
   privateOnly: boolean;
   pathname: string;
@@ -291,27 +314,331 @@ function OrgSkills({
       <div className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {org.name}
       </div>
-      {visibleSkills.length ? (
-        visibleSkills.map((skill) => {
-          const href = `/orgs/${org.id}/skills/${skill.repo}`;
-          const active = pathname === href;
-          return (
-            <Link
-              key={skill.id}
-              to="/orgs/$orgId/skills/$repo"
-              params={{ orgId: org.id, repo: skill.repo }}
-              className={`flex flex-col items-start gap-1 px-4 py-3 text-sm leading-tight hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-                active ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
-              }`}
+      {/* Projects axis: curated trees. Private-only is a skills-focused view, so
+          curation is hidden while it's engaged. */}
+      {!privateOnly && (
+        <OrgProjectsSection org={org} orgs={orgs} filter={filter} pathname={pathname} />
+      )}
+      <div className="pb-1">
+        <div className="px-4 pt-1 pb-1 text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+          Skills
+        </div>
+        {visibleSkills.length ? (
+          visibleSkills.map((skill) => {
+            const href = `/orgs/${org.id}/skills/${skill.repo}`;
+            const active = pathname === href;
+            return (
+              <Link
+                key={skill.id}
+                to="/orgs/$orgId/skills/$repo"
+                params={{ orgId: org.id, repo: skill.repo }}
+                className={`flex flex-col items-start gap-1 px-4 py-3 text-sm leading-tight hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+                  active ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
+                }`}
+              >
+                <span className="font-medium">{skill.repo}</span>
+                <span className="text-xs text-muted-foreground">{skill.visibility}</span>
+              </Link>
+            );
+          })
+        ) : (
+          <p className="px-4 pb-3 text-xs text-muted-foreground">No skills yet</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OrgProjectsSection({
+  org,
+  orgs,
+  filter,
+  pathname,
+}: {
+  org: Org;
+  orgs: Org[];
+  filter: string;
+  pathname: string;
+}) {
+  const { data: projects } = useQuery({
+    queryKey: ["projects", org.id],
+    queryFn: () => api<Project[]>(`/v1/orgs/${org.id}/projects`),
+  });
+
+  const visible = (projects ?? []).filter(
+    (p) =>
+      !filter ||
+      p.name.toLowerCase().includes(filter) ||
+      p.slug.toLowerCase().includes(filter) ||
+      org.slug.toLowerCase().includes(filter),
+  );
+
+  // When a filter is active and nothing matches, stay out of the way. With no
+  // filter, always render the header + "New" affordance so an org with zero
+  // projects still has a discoverable entry point to create its first one.
+  if (filter && !visible.length) return null;
+
+  return (
+    <div className="pb-1">
+      <div className="flex items-center justify-between px-4 pt-1 pb-1">
+        <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+          Projects
+        </span>
+        <NewProjectDialog
+          orgId={org.id}
+          trigger={
+            <button
+              type="button"
+              className="flex items-center gap-1 text-[0.625rem] font-semibold tracking-wide text-muted-foreground uppercase hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
             >
-              <span className="font-medium">{skill.repo}</span>
-              <span className="text-xs text-muted-foreground">{skill.visibility}</span>
-            </Link>
-          );
-        })
+              <Plus className="size-3" aria-hidden />
+              New
+            </button>
+          }
+        />
+      </div>
+      {visible.length ? (
+        visible.map((project) => (
+          <SidebarProjectNode
+            key={project.id}
+            org={org}
+            orgs={orgs}
+            project={project}
+            pathname={pathname}
+          />
+        ))
       ) : (
-        <p className="px-4 pb-3 text-xs text-muted-foreground">No skills yet</p>
+        <NewProjectDialog
+          orgId={org.id}
+          trigger={
+            <button
+              type="button"
+              className="block w-full px-4 py-1.5 text-left text-xs text-muted-foreground hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
+            >
+              No projects yet, create one
+            </button>
+          }
+        />
       )}
     </div>
+  );
+}
+
+function SidebarProjectNode({
+  org,
+  orgs,
+  project,
+  pathname,
+}: {
+  org: Org;
+  orgs: Org[];
+  project: Project;
+  pathname: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const { data: detail } = useQuery({
+    queryKey: ["project", org.id, project.id],
+    queryFn: () => api<ProjectDetail>(`/v1/orgs/${org.id}/projects/${project.id}`),
+    enabled: open,
+  });
+  const tree = detail ? buildProjectTree(detail.items) : null;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="group/proj flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none">
+        <ChevronRight
+          className="size-3 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/proj:rotate-90 motion-reduce:transition-none"
+          aria-hidden
+        />
+        {open ? (
+          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        ) : (
+          <Folder className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        )}
+        <span className="truncate">{project.name}</span>
+        <ProjectVisibilityIcon visibility={project.visibility} className="ml-auto" />
+        <span className="font-mono text-xs text-muted-foreground tabular-nums">
+          {project.itemCount}
+        </span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {tree ? (
+          tree.nodes.length ? (
+            <SidebarTreeNodes
+              nodes={tree.nodes}
+              itemByPath={tree.itemByPath}
+              org={org}
+              orgs={orgs}
+              depth={1}
+              pathname={pathname}
+            />
+          ) : (
+            <p className="py-1 pr-4 pl-9 text-xs text-muted-foreground">Empty project</p>
+          )
+        ) : (
+          <p className="py-1 pr-4 pl-9 text-xs text-muted-foreground">Loading…</p>
+        )}
+        <Link
+          to="/orgs/$orgId/projects/$projectId"
+          params={{ orgId: org.id, projectId: project.id }}
+          className="block py-1 pr-4 pl-9 text-xs text-muted-foreground hover:text-foreground hover:underline"
+        >
+          Manage project →
+        </Link>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function SidebarTreeNodes({
+  nodes,
+  itemByPath,
+  org,
+  orgs,
+  depth,
+  pathname,
+}: {
+  nodes: TreeNode[];
+  itemByPath: Map<string, ProjectItem>;
+  org: Org;
+  orgs: Org[];
+  depth: number;
+  pathname: string;
+}) {
+  return (
+    <>
+      {nodes.map((node) =>
+        node.children ? (
+          <SidebarTreeDir
+            key={node.path}
+            node={node}
+            itemByPath={itemByPath}
+            org={org}
+            orgs={orgs}
+            depth={depth}
+            pathname={pathname}
+          />
+        ) : (
+          <SidebarLeaf
+            key={node.path}
+            item={itemByPath.get(node.path)}
+            org={org}
+            orgs={orgs}
+            depth={depth}
+            pathname={pathname}
+          />
+        ),
+      )}
+    </>
+  );
+}
+
+function SidebarTreeDir({
+  node,
+  itemByPath,
+  org,
+  orgs,
+  depth,
+  pathname,
+}: {
+  node: TreeNode;
+  itemByPath: Map<string, ProjectItem>;
+  org: Org;
+  orgs: Org[];
+  depth: number;
+  pathname: string;
+}) {
+  const [open, setOpen] = React.useState(true);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger
+        className="group/dir flex w-full items-center gap-1.5 py-1 pr-4 text-left text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
+        style={{ paddingLeft: `${depth * 12 + 20}px` }}
+      >
+        <ChevronRight
+          className="size-3 shrink-0 transition-transform group-data-[state=open]/dir:rotate-90 motion-reduce:transition-none"
+          aria-hidden
+        />
+        <Folder className="size-3.5 shrink-0" aria-hidden />
+        <span className="truncate">{node.name}/</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <SidebarTreeNodes
+          nodes={node.children ?? []}
+          itemByPath={itemByPath}
+          org={org}
+          orgs={orgs}
+          depth={depth + 1}
+          pathname={pathname}
+        />
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function SidebarLeaf({
+  item,
+  org,
+  orgs,
+  depth,
+  pathname,
+}: {
+  item: ProjectItem | undefined;
+  org: Org;
+  orgs: Org[];
+  depth: number;
+  pathname: string;
+}) {
+  if (!item) return null;
+  const pad = { paddingLeft: `${depth * 12 + 20}px` } as React.CSSProperties;
+  const label = projectItemLeafName(item);
+  const leafClass =
+    "flex items-center gap-1.5 py-1.5 pr-4 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none";
+
+  if (item.kind === "external") {
+    return (
+      <a
+        href={item.externalUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={leafClass}
+        style={pad}
+      >
+        <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="truncate">{label}</span>
+        <span className="sr-only"> (external link, opens in new tab)</span>
+      </a>
+    );
+  }
+
+  if (item.visibility === "public") {
+    return (
+      <Link
+        to="/$org/$repo"
+        params={{ org: item.orgSlug, repo: item.repo }}
+        className={leafClass}
+        style={pad}
+      >
+        <Folder className="size-3.5 shrink-0 text-muted-foreground opacity-0" aria-hidden />
+        <span className="truncate">{label}</span>
+      </Link>
+    );
+  }
+
+  // Internal skill: resolve the owning org's id from its slug so we can deep-link
+  // into the workspace editor. Fall back to the public route if unresolved.
+  const ownerOrgId = orgs.find((o) => o.slug === item.orgSlug)?.id ?? org.id;
+  const href = `/orgs/${ownerOrgId}/skills/${item.repo}`;
+  const active = pathname === href;
+  return (
+    <Link
+      to="/orgs/$orgId/skills/$repo"
+      params={{ orgId: ownerOrgId, repo: item.repo }}
+      className={cn(leafClass, active && "bg-sidebar-accent text-sidebar-accent-foreground")}
+      style={pad}
+    >
+      <Folder className="size-3.5 shrink-0 text-muted-foreground opacity-0" aria-hidden />
+      <span className="truncate">{label}</span>
+    </Link>
   );
 }

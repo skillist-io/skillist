@@ -116,6 +116,7 @@ const listRegistryRoute = createRoute({
           schema: z.object({
             items: z.array(
               z.object({
+                skillId: z.string(),
                 orgSlug: z.string(),
                 skillRepo: z.string(),
                 name: z.string(),
@@ -322,6 +323,7 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
   return c.json(
     {
       ...entry,
+      skillId: row.skillId,
       runtime: row.runtime,
       starred,
       cliInstall: CLI_INSTALL,
@@ -358,21 +360,25 @@ registryRoutes.openapi(starSkillRoute, async (c) => {
     .limit(1);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
-  const inserted = await c.var.db
-    .insert(registryStars)
-    .values({ userId, skillId: entry.skillId })
-    .onConflictDoNothing()
-    .returning();
+  // Star row + denormalized counter must move together, or a crash between them
+  // drifts registry_entries.stars from the true registry_stars count.
+  await c.var.db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(registryStars)
+      .values({ userId, skillId: entry.skillId })
+      .onConflictDoNothing()
+      .returning();
 
-  if (inserted.length > 0) {
-    await c.var.db
-      .update(registryEntries)
-      .set({
-        stars: sql`${registryEntries.stars} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(registryEntries.skillId, entry.skillId));
-  }
+    if (inserted.length > 0) {
+      await tx
+        .update(registryEntries)
+        .set({
+          stars: sql`${registryEntries.stars} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(registryEntries.skillId, entry.skillId));
+    }
+  });
 
   return c.json({ ok: true, starred: true }, 201);
 });
@@ -399,20 +405,22 @@ registryRoutes.openapi(unstarSkillRoute, async (c) => {
     .limit(1);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
-  const removed = await c.var.db
-    .delete(registryStars)
-    .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, entry.skillId)))
-    .returning();
+  await c.var.db.transaction(async (tx) => {
+    const removed = await tx
+      .delete(registryStars)
+      .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, entry.skillId)))
+      .returning();
 
-  if (removed.length > 0) {
-    await c.var.db
-      .update(registryEntries)
-      .set({
-        stars: sql`GREATEST(${registryEntries.stars} - 1, 0)`,
-        updatedAt: new Date(),
-      })
-      .where(eq(registryEntries.skillId, entry.skillId));
-  }
+    if (removed.length > 0) {
+      await tx
+        .update(registryEntries)
+        .set({
+          stars: sql`GREATEST(${registryEntries.stars} - 1, 0)`,
+          updatedAt: new Date(),
+        })
+        .where(eq(registryEntries.skillId, entry.skillId));
+    }
+  });
 
   return c.json({ ok: true, starred: false }, 200);
 });

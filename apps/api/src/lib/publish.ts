@@ -73,6 +73,10 @@ export async function purgePublishedSkill(
   ]);
 }
 
+// Keep hot delivery reads in each colo's edge cache so repeat reads skip the
+// central KV store. Safe because publish/purge rewrite these keys immediately.
+const DELIVERY_KV_CACHE_TTL = 300;
+
 export async function getPublishedSkillMd(
   kv: KVNamespace,
   orgSlug: string,
@@ -80,6 +84,7 @@ export async function getPublishedSkillMd(
 ): Promise<{ skillMd: string; meta: SkillMdKvMetadata } | null> {
   const { value: skillMd, metadata } = await kv.getWithMetadata<SkillMdKvMetadata>(
     skillMdKey(orgSlug, skillRepo),
+    { cacheTtl: DELIVERY_KV_CACHE_TTL },
   );
   if (!skillMd) return null;
   if (metadata?.etag) {
@@ -87,7 +92,9 @@ export async function getPublishedSkillMd(
   }
   // Pre-metadata cache entry: fall back to the separate meta key until the
   // skill is republished (which writes per-key metadata).
-  const metaRaw = await kv.get(skillMetaKey(orgSlug, skillRepo));
+  const metaRaw = await kv.get(skillMetaKey(orgSlug, skillRepo), {
+    cacheTtl: DELIVERY_KV_CACHE_TTL,
+  });
   if (!metaRaw) return null;
   return { skillMd, meta: JSON.parse(metaRaw) };
 }
@@ -97,7 +104,9 @@ export async function getPublishedMeta(
   orgSlug: string,
   skillRepo: string,
 ): Promise<SkillKvContent["meta"] | null> {
-  const metaRaw = await kv.get(skillMetaKey(orgSlug, skillRepo));
+  const metaRaw = await kv.get(skillMetaKey(orgSlug, skillRepo), {
+    cacheTtl: DELIVERY_KV_CACHE_TTL,
+  });
   if (!metaRaw) return null;
   return JSON.parse(metaRaw);
 }

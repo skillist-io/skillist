@@ -19,7 +19,10 @@ const router = createRouter({
   // the time the click lands — combined with route loaders, this is what
   // turns "click, see skeletons" into "click, see content."
   defaultPreload: "intent",
-  defaultPreloadStaleTime: 0,
+  // Reuse the Query cache's staleness window for preloads so hovering a link
+  // whose data is already fresh doesn't fire a redundant refetch. Realtime
+  // publish events still invalidate, so this can't serve indefinitely-stale data.
+  defaultPreloadStaleTime: 5 * 60_000,
 });
 
 declare module "@tanstack/react-router" {

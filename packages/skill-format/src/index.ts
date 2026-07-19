@@ -350,6 +350,7 @@ export {
 } from "./security.js";
 export {
   bumpSemver,
+  compareSemver,
   resolveNextSemver,
   type SemverBump,
 } from "./semver.js";

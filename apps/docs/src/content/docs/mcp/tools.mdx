@@ -109,6 +109,68 @@ Returns CLI install commands, SKILL.md URL, and skill page URL for a skill.
 - `skillMdUrl` — `https://skillist.io/{org}/{repo}/SKILL.md`
 - `registryUrl` — `https://skillist.io/{org}/{repo}`
 
+## Authenticated project tools
+
+The following tools require an authenticated MCP session (Better Auth OAuth token
+on the `Authorization: Bearer` header). Calling them without a session returns a
+JSON-RPC error with code `-32001`; the transport also sets the `WWW-Authenticate`
+header pointing at the OAuth resource metadata. The four registry tools above
+remain public.
+
+## my_projects
+
+List the projects the authenticated user can access across every organization
+they belong to. No parameters. Returns only readable projects: every project in
+orgs the user owns, plus shared projects and projects the user is a member of in
+their other orgs. Each entry: `orgId`, `orgSlug`, `projectId`, `slug`, `name`,
+`description`, `visibility`, `itemCount`.
+
+```json
+{
+  "name": "my_projects",
+  "arguments": {}
+}
+```
+
+## project_skills
+
+List the curated items in a project, grouped by folder `path` and resolved for
+agent use. Requires read access to the project: org owner, a member of the
+project, or a project marked `shared`. Callers without access get a
+"Not found or no access" tool error.
+
+<DocTable
+  client:load
+  columns={["Field", "Type", "Description"]}
+  rows={[
+    ["projectId", "string", "Project id (preferred)"],
+    ["orgSlug", "string", "Organization slug (use with projectSlug)"],
+    ["projectSlug", "string", "Project slug (use with orgSlug)"],
+  ]}
+/>
+
+Skill items return `{org}/{repo}`, `visibility`, and install/run commands;
+external items return `externalUrl` and `externalName`.
+
+## add_skill_to_project
+
+Add a skill or external reference to a project. Requires write access to the
+project: org owner, a project editor/admin, or an org editor (or higher) when the
+project is marked `shared`. Provide exactly one of `skillId` or `externalUrl`.
+Duplicates return the existing item id with `duplicate: true`.
+
+<DocTable
+  client:load
+  columns={["Field", "Type", "Required"]}
+  rows={[
+    ["projectId", "string", "yes"],
+    ["skillId", "string", "one of skillId / externalUrl"],
+    ["externalUrl", "string", "one of skillId / externalUrl"],
+    ["externalName", "string", "optional display name for external items"],
+    ["path", "string", "optional folder path"],
+  ]}
+/>
+
 <SectionHeading title="Agent workflow" client:load />
 
 1. `registry_facets` — when the user needs browse filters

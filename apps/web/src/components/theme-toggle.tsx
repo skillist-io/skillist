@@ -34,7 +34,13 @@ export function ThemeToggle({ variant = "icon" }: ThemeToggleProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" className="size-8">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label="Change theme"
+        >
           {theme === "system" ? (
             <Monitor className="h-4 w-4" />
           ) : resolvedTheme === "dark" ? (
