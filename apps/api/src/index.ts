@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { apiReference } from "@scalar/hono-api-reference";
 import type { SyncQueueMessage } from "@skillist/contracts";
+import { routeAgentRequest } from "agents";
 import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
@@ -12,7 +13,9 @@ import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
 import { assertProductionBindings, createWorkerDb } from "./lib/db";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
+import { getOrgMembership } from "./lib/org-access";
 import { rateLimit } from "./lib/rate-limit";
+import { resolveSessionUserId } from "./lib/session";
 import { handleMcpRequest } from "./mcp/handler";
 import { mcpServerInfo } from "./mcp/registry-server";
 import { deliveryRoutes } from "./routes/delivery";
@@ -28,7 +31,9 @@ import { sourcesRoutes } from "./routes/sources";
 import { webhookRoutes } from "./routes/webhooks";
 
 export { Sandbox } from "@cloudflare/sandbox";
+export { SkillistAgent } from "./agent/skillist-agent";
 export { SandboxHeavy } from "./durable-objects/sandbox-heavy";
+export { FailureMiningWorkflow } from "./workflows/failure-mining";
 export { SyncSourceWorkflow } from "./workflows/sync-source";
 export { SkillRealtimeHub };
 
@@ -98,7 +103,14 @@ app.get("/.well-known/oauth-protected-resource", async (c) => {
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:5173", "https://skillist.io", "https://api.skillist.io"],
+    origin: [
+      "http://localhost:5173",
+      "https://skillist.io",
+      "https://api.skillist.io",
+      // Console opens the platform agent WebSocket/RPC cross-subdomain; cookies
+      // are already scoped to .skillist.io so the session rides along.
+      "https://console.skillist.io",
+    ],
     credentials: true,
   }),
 );
@@ -138,6 +150,30 @@ app.get("/health", (c) =>
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const auth = createApiAuth(c.env, createApiEmailSender(c.env));
   return auth.handler(c.req.raw);
+});
+
+// Platform agent (Cloudflare Agents SDK). Auth-gated on the Better Auth session
+// and org membership before `routeAgentRequest` resolves the DO. The instance
+// name is the orgId (`/agents/skillist-agent/{orgId}`), so the verified uid is
+// injected as a query param the client can't spoof — we delete any client value
+// first, mirroring fold.run's gateAgentRequest.
+app.all("/agents/*", async (c) => {
+  const url = new URL(c.req.url);
+  const parts = url.pathname.split("/").filter(Boolean); // ["agents", "{class}", "{orgId}", ...]
+  const orgId = parts[2];
+  if (!orgId) return c.json({ error: "Missing agent instance" }, 400);
+
+  const db = createWorkerDb(c.env);
+  const userId = await resolveSessionUserId(db, c.env, c.req.raw.headers);
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+
+  const membership = await getOrgMembership(db, orgId, userId);
+  if (!membership) return c.json({ error: "Forbidden" }, 403);
+
+  url.searchParams.delete("uid");
+  url.searchParams.set("uid", userId);
+  const res = await routeAgentRequest(new Request(url.toString(), c.req.raw), c.env);
+  return res ?? c.notFound();
 });
 
 const v1 = new OpenAPIHono<{ Bindings: Env }>();
@@ -189,6 +225,26 @@ export default {
     const cron = controller.cron;
     if (cron === "0 7 * * sun") {
       ctx.waitUntil(env.SYNC_QUEUE.send({ type: "discover_sources" }));
+      return;
+    }
+    // Every 6h → mine recent execution failures per skill. Pick the skills with
+    // the most failed runs in the last 24h (bounded) and kick a durable
+    // FailureMiningWorkflow for each.
+    if (cron === "0 */6 * * *") {
+      const db = createWorkerDb(env);
+      const { skillRuns } = await import("@skillist/db/schema");
+      const { and, desc, eq, gte, sql } = await import("drizzle-orm");
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const rows = await db
+        .select({ skillId: skillRuns.skillId })
+        .from(skillRuns)
+        .where(and(eq(skillRuns.status, "failed"), gte(skillRuns.createdAt, since)))
+        .groupBy(skillRuns.skillId)
+        .orderBy(desc(sql`count(*)`))
+        .limit(25);
+      for (const { skillId } of rows) {
+        ctx.waitUntil(env.FAILURE_WORKFLOW.create({ params: { skillId } }));
+      }
       return;
     }
     ctx.waitUntil(env.SYNC_QUEUE.send({ type: "sync_all" }));

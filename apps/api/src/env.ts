@@ -26,6 +26,8 @@ export type Env = {
   SKILL_HUB: DurableObjectNamespace;
   SANDBOX: DurableObjectNamespace;
   SANDBOX_HEAVY: DurableObjectNamespace;
+  /** Per-org platform agent (AIChatAgent DO). Instance name = orgId. */
+  SKILLIST_AGENT: DurableObjectNamespace;
   AI: Ai;
   EMAIL: SendEmail;
   /** Native Workers Rate Limiting binding (distributed). Optional so local dev
@@ -34,6 +36,10 @@ export type Env = {
   AI_QUEUE: Queue<AiJobMessage>;
   SYNC_QUEUE: Queue<SyncQueueMessage>;
   SYNC_WORKFLOW: Workflow;
+  /** Durable failure-mining pipeline (recurring run/eval failures → feedback). */
+  FAILURE_WORKFLOW: Workflow;
+  /** Vectorize index for clustering skill-run/eval failure embeddings. */
+  VECTORIZE: VectorizeIndex;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
   WEB_URL?: string;

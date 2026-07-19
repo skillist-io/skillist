@@ -172,6 +172,39 @@ export type ObservabilitySummary = {
   };
 };
 
+/**
+ * Required-skill coverage across three layers: published (in registry) →
+ * covered (present in scanned inventory repos and/or curated into projects) →
+ * activated (agents actually ran it, from telemetry). `drift` lists refs that
+ * are required but not covered — the actionable set a governing team must fix.
+ */
+export type CoverageSkill = {
+  ref: string;
+  orgSlug: string;
+  skillRepo: string;
+  published: boolean;
+  inventoryCount: number;
+  projectCount: number;
+  covered: boolean;
+  installs: number;
+  activations: number;
+  activated: boolean;
+  lastActivatedAt: string | null;
+};
+
+export type Coverage = {
+  summary: {
+    required: number;
+    published: number;
+    covered: number;
+    activated: number;
+    drifted: number;
+    coveragePct: number;
+  };
+  skills: CoverageSkill[];
+  drift: string[];
+};
+
 export type ReviewPreview = {
   qualityScore: number;
   impactScore: number;
@@ -225,6 +258,24 @@ export type Feedback = {
     completedAt: string | null;
     draftSemver: string | null;
   } | null;
+};
+
+/**
+ * A recurring skill-run/eval failure surfaced by the failure-mining pipeline.
+ * The miner clusters failed runs and weak evals; once a cluster reaches ~3
+ * occurrences it drafts an improvement as a pending `feedback` item, linked
+ * here via `feedbackId` (and reflected as `status: "drafted"`).
+ */
+export type FailurePattern = {
+  id: string;
+  skillRepo: string;
+  orgSlug: string;
+  summary: string;
+  suggestedFix: string | null;
+  occurrences: number;
+  status: "open" | "drafted" | "dismissed";
+  feedbackId: string | null;
+  updatedAt: string;
 };
 
 export type SkillInventoryItem = {

@@ -42,6 +42,10 @@ function useBreadcrumbs(): Crumb[] {
     return [{ label: "Dashboard", href: "/dashboard", current: true }];
   }
 
+  if (segments[0] === "agent") {
+    return [{ label: "Agent", href: "/agent", current: true }];
+  }
+
   if (segments[0] === "account") {
     return [{ label: "Account", href: "/account", current: true }];
   }

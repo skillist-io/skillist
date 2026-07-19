@@ -65,7 +65,7 @@ export function FeedbackInbox({
   });
 
   return (
-    <Card>
+    <Card id="feedback">
       <CardHeader>
         <CardTitle>Feedback inbox</CardTitle>
         <CardDescription>Approve feedback to queue an AI-improved SKILL.md draft</CardDescription>

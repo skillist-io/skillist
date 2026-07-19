@@ -1,6 +1,8 @@
 /**
  * Proxies API traffic to the API Worker via service binding:
  * - /v1/*, /api/* (same-origin SPA fetches)
+ * - /agents/* (Skillist Agent WebSocket + get-messages; service bindings
+ *   forward the Upgrade so the socket rides same-origin with the session cookie)
  * - /{org}/{repo}/SKILL.md|meta|bundle|scripts|run|runs (apex delivery;
  *   zone routes cannot use mid-path wildcards)
  * - /runs/*
@@ -24,6 +26,7 @@ export default {
     if (
       url.pathname.startsWith("/v1/") ||
       url.pathname.startsWith("/api/") ||
+      url.pathname.startsWith("/agents/") ||
       url.pathname.startsWith("/runs/") ||
       APEX_API_PATH.test(url.pathname)
     ) {
