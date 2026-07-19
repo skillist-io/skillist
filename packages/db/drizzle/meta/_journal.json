@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1784419533260,
-      "tag": "0000_charming_unus",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1784422026268,
-      "tag": "0001_sturdy_warhawk",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1784429059872,
-      "tag": "0002_odd_drax",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1784486685133,
-      "tag": "0003_careful_mephisto",
+      "when": 1784492113734,
+      "tag": "0000_ambitious_tony_stark",
       "breakpoints": true
     }
   ]

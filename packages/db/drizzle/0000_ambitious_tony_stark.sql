@@ -1,9 +1,12 @@
 CREATE TYPE "public"."ai_job_status" AS ENUM('queued', 'running', 'completed', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."eval_status" AS ENUM('queued', 'running', 'completed', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."failure_pattern_status" AS ENUM('open', 'drafted', 'dismissed');--> statement-breakpoint
 CREATE TYPE "public"."feedback_source" AS ENUM('human', 'agent');--> statement-breakpoint
 CREATE TYPE "public"."feedback_status" AS ENUM('pending', 'approved', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."org_role" AS ENUM('owner', 'editor', 'publisher', 'viewer');--> statement-breakpoint
 CREATE TYPE "public"."project_item_kind" AS ENUM('skill', 'external');--> statement-breakpoint
+CREATE TYPE "public"."project_role" AS ENUM('viewer', 'editor', 'admin');--> statement-breakpoint
+CREATE TYPE "public"."project_visibility" AS ENUM('private', 'shared');--> statement-breakpoint
 CREATE TYPE "public"."security_status" AS ENUM('pass', 'advisory', 'fail');--> statement-breakpoint
 CREATE TYPE "public"."skill_run_status" AS ENUM('queued', 'running', 'completed', 'failed');--> statement-breakpoint
 CREATE TYPE "public"."skill_runtime" AS ENUM('local', 'sandbox', 'container');--> statement-breakpoint
@@ -207,12 +210,22 @@ CREATE TABLE "project_items" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "project_members" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"project_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
+	"role" "project_role" DEFAULT 'viewer' NOT NULL,
+	"added_by" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "projects" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"org_id" uuid NOT NULL,
 	"slug" text NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
+	"visibility" "project_visibility" DEFAULT 'private' NOT NULL,
 	"created_by" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -275,6 +288,22 @@ CREATE TABLE "skill_evals" (
 	"error" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"completed_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "skill_failure_patterns" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"skill_id" uuid NOT NULL,
+	"org_slug" text NOT NULL,
+	"skill_repo" text NOT NULL,
+	"signature" text NOT NULL,
+	"summary" text NOT NULL,
+	"suggested_fix" text,
+	"occurrences" integer DEFAULT 1 NOT NULL,
+	"exemplar_run_ids" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"status" "failure_pattern_status" DEFAULT 'open' NOT NULL,
+	"feedback_id" uuid,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "skill_files" (
@@ -467,6 +496,9 @@ ALTER TABLE "passkeys" ADD CONSTRAINT "passkeys_user_id_users_id_fk" FOREIGN KEY
 ALTER TABLE "project_items" ADD CONSTRAINT "project_items_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "project_items" ADD CONSTRAINT "project_items_skill_id_skills_id_fk" FOREIGN KEY ("skill_id") REFERENCES "public"."skills"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "project_items" ADD CONSTRAINT "project_items_added_by_users_id_fk" FOREIGN KEY ("added_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_members" ADD CONSTRAINT "project_members_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_members" ADD CONSTRAINT "project_members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "project_members" ADD CONSTRAINT "project_members_added_by_users_id_fk" FOREIGN KEY ("added_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "projects" ADD CONSTRAINT "projects_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "projects" ADD CONSTRAINT "projects_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "registry_entries" ADD CONSTRAINT "registry_entries_skill_id_skills_id_fk" FOREIGN KEY ("skill_id") REFERENCES "public"."skills"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -475,6 +507,7 @@ ALTER TABLE "registry_stars" ADD CONSTRAINT "registry_stars_skill_id_skills_id_f
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "skill_evals" ADD CONSTRAINT "skill_evals_skill_id_skills_id_fk" FOREIGN KEY ("skill_id") REFERENCES "public"."skills"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "skill_evals" ADD CONSTRAINT "skill_evals_version_id_skill_versions_id_fk" FOREIGN KEY ("version_id") REFERENCES "public"."skill_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "skill_failure_patterns" ADD CONSTRAINT "skill_failure_patterns_skill_id_skills_id_fk" FOREIGN KEY ("skill_id") REFERENCES "public"."skills"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "skill_files" ADD CONSTRAINT "skill_files_version_id_skill_versions_id_fk" FOREIGN KEY ("version_id") REFERENCES "public"."skill_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "skill_inventory" ADD CONSTRAINT "skill_inventory_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "skill_provenance" ADD CONSTRAINT "skill_provenance_skill_id_skills_id_fk" FOREIGN KEY ("skill_id") REFERENCES "public"."skills"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -490,10 +523,14 @@ ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_skill_id_skills_id_fk"
 ALTER TABLE "telemetry_events" ADD CONSTRAINT "telemetry_events_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "ai_jobs_feedback_idx" ON "ai_jobs" USING btree ("feedback_id");--> statement-breakpoint
 CREATE INDEX "api_keys_org_idx" ON "api_keys" USING btree ("org_id");--> statement-breakpoint
+CREATE INDEX "approvals_feedback_idx" ON "approvals" USING btree ("feedback_id");--> statement-breakpoint
+CREATE INDEX "approvals_approved_by_idx" ON "approvals" USING btree ("approved_by");--> statement-breakpoint
 CREATE INDEX "audit_events_org_idx" ON "audit_events" USING btree ("org_id");--> statement-breakpoint
 CREATE INDEX "audit_events_created_idx" ON "audit_events" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "audit_events_org_created_idx" ON "audit_events" USING btree ("org_id","created_at");--> statement-breakpoint
 CREATE INDEX "feedback_skill_idx" ON "feedback" USING btree ("skill_id");--> statement-breakpoint
 CREATE INDEX "feedback_status_idx" ON "feedback" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "feedback_target_version_idx" ON "feedback" USING btree ("target_version_id");--> statement-breakpoint
 CREATE INDEX "oauth_access_token_client_idx" ON "oauth_access_token" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauth_access_token_user_idx" ON "oauth_access_token" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "oauth_application_user_idx" ON "oauth_application" USING btree ("user_id");--> statement-breakpoint
@@ -508,21 +545,30 @@ CREATE UNIQUE INDEX "organizations_slug_idx" ON "organizations" USING btree ("sl
 CREATE INDEX "project_items_project_idx" ON "project_items" USING btree ("project_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "project_items_project_skill_idx" ON "project_items" USING btree ("project_id","skill_id") WHERE skill_id is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "project_items_project_external_idx" ON "project_items" USING btree ("project_id","external_url") WHERE external_url is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "project_members_project_user_idx" ON "project_members" USING btree ("project_id","user_id");--> statement-breakpoint
+CREATE INDEX "project_members_user_idx" ON "project_members" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "projects_org_slug_idx" ON "projects" USING btree ("org_id","slug");--> statement-breakpoint
 CREATE INDEX "projects_org_idx" ON "projects" USING btree ("org_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "registry_org_skill_idx" ON "registry_entries" USING btree ("org_slug","skill_repo");--> statement-breakpoint
 CREATE INDEX "registry_search_idx" ON "registry_entries" USING btree ("name","description");--> statement-breakpoint
 CREATE INDEX "registry_name_trgm_idx" ON "registry_entries" USING gin ("name" gin_trgm_ops);--> statement-breakpoint
 CREATE INDEX "registry_description_trgm_idx" ON "registry_entries" USING gin ("description" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "registry_repo_trgm_idx" ON "registry_entries" USING gin ("skill_repo" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "registry_org_slug_trgm_idx" ON "registry_entries" USING gin ("org_slug" gin_trgm_ops);--> statement-breakpoint
 CREATE INDEX "registry_category_idx" ON "registry_entries" USING btree ("category");--> statement-breakpoint
 CREATE INDEX "registry_source_type_idx" ON "registry_entries" USING btree ("source_type");--> statement-breakpoint
 CREATE UNIQUE INDEX "registry_stars_user_skill_idx" ON "registry_stars" USING btree ("user_id","skill_id");--> statement-breakpoint
 CREATE INDEX "skill_evals_skill_idx" ON "skill_evals" USING btree ("skill_id");--> statement-breakpoint
+CREATE INDEX "skill_evals_version_idx" ON "skill_evals" USING btree ("version_id","status","completed_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "skill_failure_patterns_sig_idx" ON "skill_failure_patterns" USING btree ("skill_id","signature");--> statement-breakpoint
+CREATE INDEX "skill_failure_patterns_skill_idx" ON "skill_failure_patterns" USING btree ("skill_id");--> statement-breakpoint
+CREATE INDEX "skill_failure_patterns_status_idx" ON "skill_failure_patterns" USING btree ("status");--> statement-breakpoint
 CREATE UNIQUE INDEX "skill_files_version_path_idx" ON "skill_files" USING btree ("version_id","path");--> statement-breakpoint
 CREATE UNIQUE INDEX "skill_inventory_repo_path_idx" ON "skill_inventory" USING btree ("org_id","repo_full_name","file_path");--> statement-breakpoint
 CREATE INDEX "skill_provenance_source_idx" ON "skill_provenance" USING btree ("source_id");--> statement-breakpoint
 CREATE INDEX "skill_runs_skill_idx" ON "skill_runs" USING btree ("skill_id");--> statement-breakpoint
 CREATE INDEX "skill_runs_created_idx" ON "skill_runs" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "skill_runs_skill_created_idx" ON "skill_runs" USING btree ("skill_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "skill_source_suggestions_owner_repo_idx" ON "skill_source_suggestions" USING btree ("github_owner","github_repo");--> statement-breakpoint
 CREATE INDEX "skill_source_suggestions_status_idx" ON "skill_source_suggestions" USING btree ("status");--> statement-breakpoint
 CREATE UNIQUE INDEX "skill_sources_owner_repo_idx" ON "skill_sources" USING btree ("github_owner","github_repo");--> statement-breakpoint
@@ -533,4 +579,5 @@ CREATE UNIQUE INDEX "skills_org_repo_idx" ON "skills" USING btree ("org_id","rep
 CREATE INDEX "skills_visibility_idx" ON "skills" USING btree ("visibility");--> statement-breakpoint
 CREATE UNIQUE INDEX "subscriptions_user_skill_idx" ON "subscriptions" USING btree ("user_id","skill_id");--> statement-breakpoint
 CREATE INDEX "telemetry_skill_idx" ON "telemetry_events" USING btree ("org_slug","skill_repo");--> statement-breakpoint
-CREATE INDEX "telemetry_type_idx" ON "telemetry_events" USING btree ("event_type");
+CREATE INDEX "telemetry_type_idx" ON "telemetry_events" USING btree ("event_type");--> statement-breakpoint
+CREATE INDEX "telemetry_skill_created_idx" ON "telemetry_events" USING btree ("org_slug","skill_repo","created_at");
