@@ -1,3 +1,4 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { AIChatAgent } from "@cloudflare/ai-chat";
 import {
   feedback,
@@ -16,12 +17,14 @@ import { computeCoverage } from "../lib/coverage";
 import { createWorkerDb, type WorkerDb } from "../lib/db";
 
 /**
- * Tool-capable Workers AI model. Kept in one constant so it's swappable without
- * touching the tool wiring below. Llama 4 Scout supports function calling, which
- * the governance tools require. If Workers AI can't serve it, swap this for
- * another tool-capable id (e.g. "@cf/meta/llama-3.3-70b-instruct-fp8-fast").
+ * The agent prefers Claude — small Workers AI models narrate tool calls instead
+ * of invoking them, which breaks the governance toolset. Claude is used when
+ * ANTHROPIC_API_KEY is configured (routed through the Cloudflare AI Gateway when
+ * AI_GATEWAY_ACCOUNT_ID is set, for caching + observability), and we fall back
+ * to a tool-capable Workers AI model so the agent still runs without the secret.
  */
-const MODEL_ID = "@cf/meta/llama-4-scout-17b-16e-instruct";
+const CLAUDE_MODEL_ID = "claude-sonnet-5";
+const WORKERS_MODEL_ID = "@cf/meta/llama-4-scout-17b-16e-instruct";
 
 /** Evals older than this (or never run) count as stale. */
 const STALE_EVAL_DAYS = 30;
@@ -77,8 +80,29 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
   }
 
   async onChatMessage() {
-    const workersai = createWorkersAI({ binding: this.env.AI });
-    const model = workersai(MODEL_ID, { sessionAffinity: this.sessionAffinity });
+    // Prefer Claude for reliable tool-calling; fall back to Workers AI when no
+    // Anthropic key is configured so the agent still runs (with weaker tool use).
+    const model = this.env.ANTHROPIC_API_KEY
+      ? createAnthropic({
+          apiKey: this.env.ANTHROPIC_API_KEY,
+          // When an AI Gateway account is set, route Anthropic through the
+          // Cloudflare AI Gateway for caching + observability ("skillist" is the
+          // gateway name). Otherwise the provider calls the Anthropic API directly.
+          ...(this.env.AI_GATEWAY_ACCOUNT_ID
+            ? {
+                baseURL: `https://gateway.ai.cloudflare.com/v1/${this.env.AI_GATEWAY_ACCOUNT_ID}/skillist/anthropic`,
+                // Authenticates to a secured gateway. The Anthropic key itself
+                // still travels as x-api-key (set by the provider) to the upstream.
+                headers: this.env.AI_GATEWAY_TOKEN
+                  ? { "cf-aig-authorization": `Bearer ${this.env.AI_GATEWAY_TOKEN}` }
+                  : undefined,
+              }
+            : {}),
+        })(CLAUDE_MODEL_ID)
+      : // sessionAffinity pins this DO's turns to one Workers AI replica.
+        createWorkersAI({ binding: this.env.AI })(WORKERS_MODEL_ID, {
+          sessionAffinity: this.sessionAffinity,
+        });
     const orgId = this.orgId();
     const db = createWorkerDb(this.env);
     const tools = this.buildTools(db, orgId, this.currentUserId);
