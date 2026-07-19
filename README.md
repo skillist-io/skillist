@@ -50,9 +50,13 @@ Copy `apps/api/.dev.vars.example` → `apps/api/.dev.vars` and set `GITHUB_CLIEN
 
 ```bash
 pnpm install
-pnpm setup:local   # creates .env, .dev.vars, wrangler.local.jsonc
+pnpm setup:local        # creates .env, .dev.vars, wrangler.local.jsonc
+# then set NEON_API_KEY in .env (see .env.example) — needed by Neon Local
 
-pnpm db:migrate
+pnpm db:up              # Neon Local: fresh ephemeral branch at localhost:5432 (needs Docker)
+pnpm db:migrate:local   # apply migrations to that branch
+# ... work ...
+# pnpm db:down          # stop Neon Local (the ephemeral branch is deleted)
 
 # Terminal 1 — API
 pnpm dev:api
@@ -72,7 +76,7 @@ pnpm dev:docs
 - Web (marketing): http://localhost:5173
 - Console (product): http://localhost:5174
 
-Neon project `lively-dew-31540211` is provisioned; migrations run against `DATABASE_URL` in `.env`. Local API dev merges `wrangler.jsonc` with gitignored `wrangler.local.jsonc` (Hyperdrive → Neon). Run `pnpm setup:local` to sync `DATABASE_URL` into the local overlay.
+Local dev uses **Neon Local** (`docker-compose.yml`): `pnpm db:up` spawns an ephemeral branch off the clean `local-baseline` parent of Neon project `lively-dew-31540211` at `localhost:5432`, and `pnpm db:down` deletes it — so each run gets an isolated, throwaway database. `setup:local` points `DATABASE_URL` (and the Hyperdrive local connection) at it; migrations run via `db:migrate:local`. To use a Neon cloud branch directly instead, set `DATABASE_URL` in `.env` and skip `db:up`.
 
 ## Smoke tests
 
