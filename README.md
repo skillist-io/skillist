@@ -13,7 +13,7 @@ Built on Cloudflare Workers with Hono, Durable Objects, KV, R2, Worker AI, AI Ga
 | Storage | R2 (bundles), KV (published SKILL.md), Neon + Hyperdrive |
 | Auth | Better Auth — OAuth, magic link, passkeys (no passwords) |
 | AI | Worker AI + AI Gateway, Queues for async jobs |
-| Web | Vite, TanStack Router/Query, shadcn/ui, Tailwind CSS v4 |
+| Front-end | Vite, TanStack Router/Query, shadcn/ui, Tailwind CSS v4 — split into `apps/web` (marketing) + `apps/console` (product) over shared `packages/ui` |
 
 ## Dependencies
 
@@ -57,16 +57,20 @@ pnpm db:migrate
 # Terminal 1 — API
 pnpm dev:api
 
-# Terminal 2 — Web
+# Terminal 2 — Web (public marketing site)
 pnpm dev:web
 
-# Terminal 3 — Docs (optional)
+# Terminal 3 — Console (authenticated product)
+pnpm dev:console
+
+# Terminal 4 — Docs (optional)
 pnpm dev:docs
 ```
 
 - API: http://localhost:8787
 - Docs: http://localhost:4321 (user docs) · http://localhost:8787/docs (API reference)
-- Web: http://localhost:5173
+- Web (marketing): http://localhost:5173
+- Console (product): http://localhost:5174
 
 Neon project `lively-dew-31540211` is provisioned; migrations run against `DATABASE_URL` in `.env`. Local API dev merges `wrangler.jsonc` with gitignored `wrangler.local.jsonc` (Hyperdrive → Neon). Run `pnpm setup:local` to sync `DATABASE_URL` into the local overlay.
 
@@ -110,15 +114,19 @@ Or trigger **Publish npm packages** in GitHub Actions after adding the `NPM_TOKE
 
 ```
 apps/
-  api/     Cloudflare Worker (Hono API + SkillRealtimeHub DO)
-  web/     React SPA (registry, editor, feedback inbox)
+  api/      Cloudflare Worker (Hono API + SkillRealtimeHub DO)
+  web/      React SPA — public marketing site (skillist.io): landing, registry browse, public skill pages
+  console/  React SPA — authenticated product (console.skillist.io): dashboard, inventory, editor, governance, feedback
 packages/
+  ui/           Shared design system + UI primitives + clients, consumed as source (@skillist/ui)
   auth/         Better Auth config
   cli/          Agent skill pull/push CLI
   contracts/    Shared Zod schemas
   db/           Drizzle schema + migrations
   skill-format/ agentskills.io validator
 ```
+
+Each front-end app is a Cloudflare Worker serving static assets with a **service binding** to the API worker — `src/worker.ts` proxies `/api`, `/v1`, and apex delivery paths same-origin, so there's no CORS or cross-subdomain-cookie complexity. Cross-app links use `consoleUrl()` / `webUrl()` (`@skillist/ui`), keyed off `VITE_CONSOLE_URL` / `VITE_WEB_URL`.
 
 ## Key API endpoints
 
@@ -144,10 +152,11 @@ wrangler hyperdrive create skillist-db --connection-string="$DATABASE_URL"
 wrangler secret put BETTER_AUTH_SECRET
 
 ./scripts/deploy-api.sh
-cd ../web && pnpm build && pnpm deploy
+cd ../web && pnpm build && pnpm deploy         # marketing → skillist.io
+cd ../console && pnpm build && pnpm deploy     # product → console.skillist.io
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on every PR; deploys API + web to Cloudflare on `main` when `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are set.
+GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on every PR; deploys API + web + console + docs to Cloudflare on `main` when `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are set.
 
 **Provisioned resources** (General Account `2d19b3b18648f0776ff1435cba466210`):
 
@@ -158,7 +167,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on 
 | R2 bucket | `skillist-skills` |
 | Queue | `skillist-ai-jobs` |
 
-Configure `skillist.io` and `api.skillist.io` routes in Cloudflare dashboard. Email Sending is enabled on `skillist.io`.
+Configure `skillist.io` (marketing web), `console.skillist.io` (product console), and `api.skillist.io` routes in Cloudflare dashboard; both front-end workers hold a service binding to the API worker. Email Sending is enabled on `skillist.io`.
 
 ### OAuth & secrets
 
