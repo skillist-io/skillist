@@ -1,9 +1,23 @@
+# Worker secrets for local dev — copy to apps/api/.dev.vars (gitignored, never
+# commit the real file). Set production values with:
+#   pnpm --filter @skillist/api exec wrangler secret put <NAME>
+
+# Better Auth signing secret — any long random string. `pnpm setup:local` fills
+# this in automatically.
 BETTER_AUTH_SECRET=dev-secret-change-me
+
+# GitHub OAuth sign-in. Create at https://github.com/settings/developers
+# Callback URL: http://localhost:8787/api/auth/callback/github
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
+
+# Google OAuth sign-in. https://console.cloud.google.com/apis/credentials
+# Callback URL: http://localhost:8787/api/auth/callback/google
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-# Enterprise OIDC SSO (optional) — discovery URL or auth+token URLs
+
+# Enterprise OIDC SSO (optional). Set the discovery URL, or the explicit
+# authorization + token + userinfo URLs below when there's no discovery endpoint.
 SSO_PROVIDER_ID=sso
 SSO_CLIENT_ID=
 SSO_CLIENT_SECRET=
@@ -12,8 +26,24 @@ SSO_DISCOVERY_URL=
 # SSO_TOKEN_URL=
 # SSO_USERINFO_URL=
 # SSO_SCOPES=openid email profile
+
+# Cloudflare AI Gateway (optional) — routes Workers AI + Claude calls through a
+# gateway for caching + observability. Account id + a gateway auth token.
 AI_GATEWAY_ACCOUNT_ID=
 AI_GATEWAY_TOKEN=
+
+# Platform agent model (console → /agent). When set, the agent uses Claude via
+# the Anthropic API — through the AI Gateway above when configured. Left blank,
+# it falls back to Workers AI (weaker tool-calling). https://console.anthropic.com/
+ANTHROPIC_API_KEY=
+
+# GitHub API token for the mirror-sync pipeline (reads public repos). A classic
+# PAT with `public_repo` is enough. https://github.com/settings/tokens
 GITHUB_TOKEN=
+
+# Shared secret that verifies inbound GitHub webhooks for mirror sources; must
+# match the secret set on the webhook. Fail-closed: unset → webhooks are rejected.
 GITHUB_WEBHOOK_SECRET=
+
+# Comma-separated Better Auth user ids allowed to manage official mirrors.
 SKILLIST_ADMIN_USER_IDS=
