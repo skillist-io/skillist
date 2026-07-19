@@ -13,18 +13,26 @@ const pushBody = JSON.stringify({
 
 describe("GitHub webhook signature enforcement", () => {
   it("rejects a push with no valid signature (401) when a secret is configured", async () => {
-    const res = await SELF.fetch("http://localhost/v1/webhooks/github", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-GitHub-Event": "push" },
-      body: pushBody,
-    });
-    expect(res.status).toBe(401);
+    // Set the secret explicitly: it comes from .dev.vars locally but is absent
+    // in CI, and without it the handler correctly fails closed with 503 (covered
+    // by the next test). Pin it here so this case always exercises the 401 path.
+    const saved = env.GITHUB_WEBHOOK_SECRET;
+    (env as Record<string, unknown>).GITHUB_WEBHOOK_SECRET = "test-webhook-secret";
+    try {
+      const res = await SELF.fetch("http://localhost/v1/webhooks/github", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-GitHub-Event": "push" },
+        body: pushBody,
+      });
+      expect(res.status).toBe(401);
+    } finally {
+      (env as Record<string, unknown>).GITHUB_WEBHOOK_SECRET = saved;
+    }
   });
 
   it("fails closed with 503 when GITHUB_WEBHOOK_SECRET is unset (no fail-open)", async () => {
     const saved = env.GITHUB_WEBHOOK_SECRET;
-    // biome-ignore lint/suspicious/noExplicitAny: test-only env override
-    (env as any).GITHUB_WEBHOOK_SECRET = undefined;
+    (env as Record<string, unknown>).GITHUB_WEBHOOK_SECRET = undefined;
     try {
       const res = await SELF.fetch("http://localhost/v1/webhooks/github", {
         method: "POST",
@@ -33,8 +41,7 @@ describe("GitHub webhook signature enforcement", () => {
       });
       expect(res.status).toBe(503);
     } finally {
-      // biome-ignore lint/suspicious/noExplicitAny: test-only env restore
-      (env as any).GITHUB_WEBHOOK_SECRET = saved;
+      (env as Record<string, unknown>).GITHUB_WEBHOOK_SECRET = saved;
     }
   });
 });
