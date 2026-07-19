@@ -1,4 +1,4 @@
-# apps/web — React SPA (@skillist/web)
+# apps/console — React SPA (@skillist/console)
 
 React 19, Vite 8, TanStack Router (file-based) + Query, shadcn/ui, Tailwind v4. Better Auth client + passkeys.
 
@@ -15,5 +15,5 @@ React 19, Vite 8, TanStack Router (file-based) + Query, shadcn/ui, Tailwind v4. 
 
 ## Dev / test
 
-- `pnpm dev:web` (:5173). The Vite dev server proxies `/api`, `/v1`, `/docs`, `/openapi.json`, and the apex `/{org}/{repo}/...` paths to `:8787` — that proxy's path regex mirrors the API's apex auth regex; keep them in sync.
+- `pnpm dev:console` (:5173). The Vite dev server proxies `/api`, `/v1`, `/docs`, `/openapi.json`, and the apex `/{org}/{repo}/...` paths to `:8787` — that proxy's path regex mirrors the API's apex auth regex; keep them in sync.
 - Tests: Vitest + jsdom + Testing Library. One file: `pnpm --filter @skillist/web exec vitest run <path>`.
