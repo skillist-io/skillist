@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { MenuIcon } from "lucide-react";
+import { ArrowUpRight, MenuIcon } from "lucide-react";
 import { useState } from "react";
 import { SkillistLogo } from "@/components/skillist-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,6 +15,8 @@ import { apiUrl } from "@/lib/api-url";
 import { signOutAndRedirect, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
+const GITHUB_URL = "https://github.com/skillist";
+
 // Data-dense surfaces run full-bleed like the app shell; marketing pages stay
 // centered and measure-capped. The registry and skill-detail (/{org}/{repo},
 // the only two-segment public path) are the dense surfaces.
@@ -24,48 +26,105 @@ function isFluidRoute(pathname: string): boolean {
   return pathname.split("/").filter(Boolean).length === 2;
 }
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
-  const { data: session } = useSession();
+/** GitHub Octocat mark, shared by the header action and the footer. */
+function GitHubMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
+  );
+}
+
+type NavItem = { label: string; to: string } | { label: string; href: string };
+
+// Registry is an in-app route; Docs and API live on other origins. The nav marks
+// that difference so a click's destination is never a surprise.
+const PRIMARY_NAV: NavItem[] = [
+  { label: "Registry", to: "/registry" },
+  { label: "Docs", href: "https://docs.skillist.io" },
+  { label: "API", href: apiUrl("/docs") },
+];
+
+function PrimaryNav({
+  onNavigate,
+  orientation = "horizontal",
+}: {
+  onNavigate?: () => void;
+  orientation?: "horizontal" | "vertical";
+}) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const vertical = orientation === "vertical";
 
   return (
     <>
-      <Button variant="ghost" asChild onClick={onNavigate}>
-        <Link to="/registry">Registry</Link>
-      </Button>
-      <Button variant="ghost" asChild onClick={onNavigate}>
-        <a href="https://docs.skillist.io" target="_blank" rel="noreferrer">
-          Docs
-        </a>
-      </Button>
-      <Button variant="ghost" asChild onClick={onNavigate}>
-        <a href={apiUrl("/docs")} target="_blank" rel="noreferrer">
-          API
-        </a>
-      </Button>
-      {session?.user ? (
-        <>
-          <Button variant="ghost" asChild onClick={onNavigate}>
-            <Link to="/dashboard">Dashboard</Link>
-          </Button>
+      {PRIMARY_NAV.map((item) => {
+        if ("to" in item) {
+          const active = pathname === item.to || pathname.startsWith(`${item.to}/`);
+          return (
+            <Button
+              key={item.label}
+              variant="ghost"
+              asChild
+              onClick={onNavigate}
+              data-active={active}
+              className={cn(
+                "text-muted-foreground data-[active=true]:bg-muted data-[active=true]:text-foreground",
+                vertical && "justify-start",
+              )}
+            >
+              <Link to={item.to}>{item.label}</Link>
+            </Button>
+          );
+        }
+        return (
           <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              onNavigate?.();
-              void signOutAndRedirect();
-            }}
+            key={item.label}
+            variant="ghost"
+            asChild
+            onClick={onNavigate}
+            className={cn("gap-1 text-muted-foreground", vertical && "justify-between")}
           >
-            Sign out
+            <a href={item.href} target="_blank" rel="noreferrer">
+              {item.label}
+              <ArrowUpRight className="size-3 opacity-50" aria-hidden="true" />
+            </a>
           </Button>
-        </>
-      ) : (
-        <Button asChild onClick={onNavigate}>
-          <Link to="/login" search={{ redirect: undefined }}>
-            Sign in
-          </Link>
-        </Button>
-      )}
+        );
+      })}
     </>
+  );
+}
+
+function AuthActions({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
+  const { data: session } = useSession();
+
+  if (session?.user) {
+    return (
+      <>
+        <Button variant="ghost" size="sm" asChild onClick={onNavigate} className={className}>
+          <Link to="/dashboard">Dashboard</Link>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={className}
+          onClick={() => {
+            onNavigate?.();
+            void signOutAndRedirect();
+          }}
+        >
+          Sign out
+        </Button>
+      </>
+    );
+  }
+
+  return (
+    <Button asChild size="sm" onClick={onNavigate} className={className}>
+      <Link to="/login" search={{ redirect: undefined }}>
+        Sign in
+      </Link>
+    </Button>
   );
 }
 
@@ -77,15 +136,30 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <Link to="/" className="flex items-center">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
+          <Link to="/" className="flex items-center" aria-label="Skillist home">
             <SkillistLogo />
           </Link>
-          <nav className="hidden items-center gap-2 md:flex">
-            <ThemeToggle />
-            <NavLinks />
+          <nav className="ml-6 hidden items-center gap-0.5 md:flex lg:ml-10">
+            <PrimaryNav />
           </nav>
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="ml-auto hidden items-center gap-0.5 md:flex">
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              aria-label="Skillist on GitHub"
+              className="size-8 text-muted-foreground hover:text-foreground"
+            >
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                <GitHubMark className="size-4" />
+              </a>
+            </Button>
+            <ThemeToggle />
+            <span aria-hidden="true" className="mx-2 h-5 w-px bg-border" />
+            <AuthActions />
+          </div>
+          <div className="ml-auto flex items-center gap-1 md:hidden">
             <ThemeToggle />
             <Button
               variant="ghost"
@@ -104,8 +178,21 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <SheetTitle>Menu</SheetTitle>
             <SheetDescription>Skillist navigation</SheetDescription>
           </SheetHeader>
-          <nav className="flex flex-col items-stretch gap-2 px-8 pb-8">
-            <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+          <nav className="flex flex-col items-stretch gap-1 px-8 pb-8">
+            <PrimaryNav orientation="vertical" onNavigate={() => setMobileNavOpen(false)} />
+            <span aria-hidden="true" className="my-3 h-px w-full bg-border" />
+            <AuthActions onNavigate={() => setMobileNavOpen(false)} className="justify-start" />
+            <Button
+              variant="ghost"
+              asChild
+              onClick={() => setMobileNavOpen(false)}
+              className="justify-between text-muted-foreground"
+            >
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                GitHub
+                <GitHubMark className="size-4" />
+              </a>
+            </Button>
           </nav>
         </SheetContent>
       </Sheet>
@@ -178,7 +265,7 @@ function SiteFooter() {
         className={cn("grid gap-10 px-4 py-14 md:grid-cols-[1.4fr_repeat(3,1fr)] md:px-6", width)}
       >
         <div className="flex flex-col gap-4">
-          <Link to="/" className="flex w-fit items-center">
+          <Link to="/" className="flex w-fit items-center" aria-label="Skillist home">
             <SkillistLogo />
           </Link>
           <p className="max-w-xs text-sm text-muted-foreground">
@@ -220,19 +307,22 @@ function SiteFooter() {
           </p>
           <div className="flex items-center gap-5">
             <a
-              href="https://github.com/skillist"
+              href={GITHUB_URL}
               target="_blank"
               rel="noreferrer"
               aria-label="Skillist on GitHub"
-              className="text-muted-foreground transition-colors hover:text-signal"
+              className="text-muted-foreground transition-colors hover:text-foreground"
             >
-              <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden>
-                <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-              </svg>
+              <GitHubMark className="size-4" />
             </a>
-            <span className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+            <a
+              href="https://agentskills.io"
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-semibold tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground"
+            >
               agentskills.io
-            </span>
+            </a>
           </div>
         </div>
       </div>
