@@ -127,7 +127,10 @@ function HomePage() {
                 </span>
                 Live registry · sub-10ms fan-out
               </span>
-              <h1 className="text-balance font-bold text-[clamp(2.5rem,5.5vw,4rem)] leading-[1.02] tracking-[-0.03em] text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
+              {/* `text-hero` is the sanctioned marketing display step — it carries
+                  its own weight, tracking, and line-height (see styles.css), so this
+                  no longer hand-rolls a clamp that silently outgrew the token scale. */}
+              <h1 className="text-balance text-hero text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
                 The realtime registry{" "}
                 <span className="text-muted-foreground">for Agent Skills</span>
               </h1>

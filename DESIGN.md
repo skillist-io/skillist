@@ -50,7 +50,7 @@ typography:
     lineHeight: 1
     letterSpacing: "0.1em"
   mono:
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace"
+    fontFamily: "Geist Mono Variable, ui-monospace, SFMono-Regular, Menlo, monospace"
     fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.5
@@ -150,12 +150,15 @@ A pure grayscale ink ramp from paper-white to near-black, plus exactly two commi
 
 **Display Font:** Inter Variable (with system-ui, sans-serif fallback)
 **Body Font:** Inter Variable (same family, weight-differentiated)
-**Label/Mono Font:** system monospace stack (ui-monospace, SFMono-Regular, Menlo) for values and code
+**Mono Font:** Geist Mono Variable (SIL OFL 1.1, self-hosted, falling back to ui-monospace, SFMono-Regular, Menlo) for values and code
 
-**Character:** One family, worked across weight and case rather than paired with a second typeface. Inter's neutrality is the point: it disappears, letting numbers, IDs, and status do the talking. Hierarchy is built from a ≥1.25 scale ratio and a hard weight jump (400 body → 600 labels → 700 display), plus the uppercase/tracked treatment on the smallest labels.
+**Character:** One *proportional* family, worked across weight and case, plus one mono companion. Inter's neutrality is the point: it disappears, letting numbers, IDs, and status do the talking. The mono pairing is functional rather than decorative — it is the Machine-Voice Rule made literal, so a reader can tell at a glance whether a human or a machine is speaking. That is the only sanctioned reason to add a face; a second *proportional* family remains prohibited. Hierarchy is built from a ≥1.25 scale ratio and a hard weight jump (400 body → 600 labels → 700 display), plus the uppercase/tracked treatment on the smallest labels.
+
+**Tracking rides size.** The larger the type, the tighter it is set, so the display steps sit on one optical curve instead of sharing a flat value (hero -0.035em → display -0.025em → headline -0.01em → body normal). Uppercase micro-labels invert this and take positive tracking (+0.1em); at small sizes and in caps, letterforms need air, not compression.
 
 ### Hierarchy
-- **Display** (700, `clamp(2.25rem, 5vw, 3rem)`, 1.05, -0.02em): Page and hero headings only. Capped at ~3rem; this product states, it doesn't shout. Use `text-wrap: balance`.
+- **Hero** (700, `clamp(2.5rem, 5.5vw, 4rem)`, 1.02, -0.035em): The landing hero headline, and nothing else. This is the one place the system is allowed to raise its voice, because a first-time visitor has no other cue. **Marketing surface only** — it must never appear in the console. Use `text-wrap: balance`.
+- **Display** (700, `clamp(2.25rem, 5vw, 3rem)`, 1.05, -0.025em): Page headings everywhere else, including every product page. Capped at ~3rem; inside the product this system states, it doesn't shout. Use `text-wrap: balance`.
 - **Headline** (600, 1.125rem, 1.3): Section and card titles.
 - **Title** (600, 1rem, 1.4): Sub-section headings, list group headers.
 - **Body** (400, 0.875rem, 1.55): Default running text, descriptions, table cells. Cap prose measure at 65–75ch.
@@ -225,4 +228,4 @@ The product's distinctive surfaces are its live readouts: eval panels, run histo
 - **Don't** become a **cluttered enterprise dashboard**: no heavy borders, no gray-on-gray tables without hierarchy, no density for its own sake. Roomy padding stays.
 - **Don't** dress up like **loud SaaS marketing**: no gradient heroes, no `background-clip: text` gradient headings, no glassmorphism (the one `backdrop-blur` on the top bar is the only sanctioned use), no hero-metric template.
 - **Don't** use a shadow larger than `shadow-sm`, a colored background chip for a badge, or a boxed input; those are the three fastest ways off-register.
-- **Don't** encode status in color alone, set body copy in all caps, or introduce a second typeface. One family, worked hard.
+- **Don't** encode status in color alone, set body copy in all caps, or introduce a second *proportional* typeface. One proportional family worked hard, plus the mono companion for machine output — nothing else.

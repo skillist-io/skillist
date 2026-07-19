@@ -16,17 +16,35 @@
  */
 
 @import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist-mono";
 
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Inter Variable", sans-serif;
+  /* The Machine-Voice Rule made literal (DESIGN.md §3): proportional type for
+     humans, mono for anything a machine emitted — skill ids, versions, hashes,
+     paths, eval numbers. Geist Mono is SIL OFL 1.1; subsets are unicode-range
+     gated so a latin reader fetches ~24KB. */
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Fluid type scale — DESIGN.md §3. Hierarchy is scale + weight, not color.
-     `text-display/headline/title` carry their own weight, tracking, and
-     line-height so headings need only add `text-balance`. */
+     `text-hero/display/headline/title` carry their own weight, tracking, and
+     line-height so headings need only add `text-balance`.
+
+     Tracking rides the size: the larger the type, the tighter it is set, so the
+     steps sit on one optical curve rather than sharing a flat value. Uppercase
+     micro-labels invert this and take positive tracking (see Badge). */
+
+  /* Marketing-surface only — the landing hero. Product pages cap at `display`;
+     this exists so the hero is a sanctioned step instead of an arbitrary
+     one-off clamp. */
+  --text-hero: clamp(2.5rem, 5.5vw, 4rem);
+  --text-hero--line-height: 1.02;
+  --text-hero--letter-spacing: -0.035em;
+  --text-hero--font-weight: 700;
   --text-display: clamp(2.25rem, 5vw, 3rem);
   --text-display--line-height: 1.05;
-  --text-display--letter-spacing: -0.02em;
+  --text-display--letter-spacing: -0.025em;
   --text-display--font-weight: 700;
   --text-headline: 1.125rem;
   --text-headline--line-height: 1.3;
