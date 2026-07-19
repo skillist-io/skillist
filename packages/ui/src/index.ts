@@ -11,6 +11,7 @@ export * from "./components/query-error";
 export * from "./components/route-error";
 export * from "./components/rule-edge";
 export * from "./components/score-readout";
+export * from "./components/signal-field";
 export * from "./components/skill-analytics-chart";
 export * from "./components/skill-readme";
 export * from "./components/skill-run-card";
@@ -18,6 +19,7 @@ export * from "./components/skill-run-history";
 export * from "./components/skillist-logo";
 export * from "./components/theme-provider";
 export * from "./components/theme-toggle";
+export * from "./hooks/use-in-viewport";
 export * from "./hooks/use-mobile";
 export * from "./hooks/use-skill-realtime";
 // Shared clients + composite components (exported after the primitives so

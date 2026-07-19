@@ -1,9 +1,9 @@
 import {
   Button,
-  CanvasBackdrop,
-  canvasBackdropClass,
   consoleUrl,
   RuleEdge,
+  SignalField,
+  signalFieldClass,
   TooltipProvider,
   useSession,
 } from "@skillist/ui";
@@ -118,7 +118,10 @@ function HomePage() {
         {/* Hero — two-column composure. Text carries the left axis, the live
             fan-out readout anchors the right. Capped display per DESIGN.md. */}
         <section className="panel-noise relative overflow-hidden border-b border-border">
-          <CanvasBackdrop className={canvasBackdropClass} />
+          {/* The ruled grid, but live — publish packets travel it. Same texture
+              and fade as the dashboard's <CanvasBackdrop>, so the marketing and
+              product surfaces still read as one instrument. */}
+          <SignalField className={signalFieldClass} />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-1 py-16 md:py-24 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="flex flex-col items-start gap-6">
               <span className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
