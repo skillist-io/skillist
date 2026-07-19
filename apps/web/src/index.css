@@ -284,3 +284,28 @@
     display: none;
   }
 }
+
+@layer components {
+  /* Engineering-paper cross-hatch behind the authed workspace. Scoped to the
+     app-shell's main pane ([data-slot=sidebar-inset], only rendered by the
+     authenticated AppShell); cards sit on top, so the texture reads in the
+     gutters. Subtle in light, more present on the near-black dark surface. */
+  [data-slot="sidebar-inset"] {
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        color-mix(in oklch, var(--border) 50%, transparent) 0 1px,
+        transparent 1px 12px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        color-mix(in oklch, var(--border) 50%, transparent) 0 1px,
+        transparent 1px 12px
+      );
+  }
+  .dark [data-slot="sidebar-inset"] {
+    background-image:
+      repeating-linear-gradient(45deg, var(--border) 0 1px, transparent 1px 12px),
+      repeating-linear-gradient(-45deg, var(--border) 0 1px, transparent 1px 12px);
+  }
+}
