@@ -37,7 +37,7 @@ jobs:
       - run: pnpm build
 
   smoke:
-    needs: [check, deploy-api, deploy-web, deploy-docs]
+    needs: [check, deploy-api, deploy-web, deploy-console, deploy-docs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -116,6 +116,35 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/web
+          command: deploy
+
+  deploy-console:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # skill-format emits the .d.ts the console tsc build needs.
+      - run: pnpm --filter @skillist/skill-format build && pnpm --filter @skillist/console build
+        env:
+          VITE_API_URL: https://api.skillist.io
+
+      - name: Deploy Console
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/console
           command: deploy
 
   deploy-docs:

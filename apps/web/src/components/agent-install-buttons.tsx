@@ -1,4 +1,4 @@
-import { CopyButton } from "@/components/copy-button";
+import { CopyButton } from "@skillist/ui";
 
 const AGENT_PATHS: Record<string, { label: string; path: string }> = {
   cursor: {

@@ -1,6 +1,22 @@
 import type { DiscoveredSkill, GithubTreeEntry } from "./fetch";
 
-const DEFAULT_ROOTS = ["skills", ".cursor/skills", ".claude/skills", ".vscode/skills"];
+/**
+ * Canonical skill-root directories discovered on a GitHub import. Kept in sync
+ * with the CLI scanner's `DEFAULT_PROJECT_ROOTS`
+ * (packages/cli/src/scanner.ts) so a repo mirrored here surfaces the same
+ * skills the local `skillist inventory scan` would find — including Gemini,
+ * Codex, `.agents`, and Claude plugin marketplaces. Update both lists together.
+ */
+export const DEFAULT_ROOTS = [
+  ".cursor/skills",
+  ".claude/skills",
+  ".claude/plugins/marketplaces",
+  ".agents/skills",
+  ".gemini/skills",
+  ".codex/skills",
+  ".vscode/skills",
+  "skills",
+];
 
 /**
  * Find directories containing SKILL.md under configured roots.

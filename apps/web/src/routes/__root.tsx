@@ -1,42 +1,12 @@
+import { RouteErrorFallback } from "@skillist/ui";
 import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Outlet, useRouterState } from "@tanstack/react-router";
-import { AppShell } from "@/components/app-shell";
-import { AuthShell } from "@/components/auth-shell";
+import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { PublicLayout } from "@/components/public-layout";
-import { RouteErrorFallback } from "@/components/route-error";
 
-function isAppRoute(pathname: string) {
-  return (
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/account") ||
-    pathname.startsWith("/settings") ||
-    pathname.startsWith("/governance") ||
-    pathname.startsWith("/inventory") ||
-    pathname.startsWith("/observability") ||
-    pathname.startsWith("/admin/mirrors") ||
-    pathname.startsWith("/orgs/")
-  );
-}
-
+// Marketing site (skillist.io): every route is public and rendered inside the
+// PublicLayout. Authenticated surfaces live on the console app
+// (console.skillist.io); links there are external.
 function RootLayout() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-
-  if (pathname === "/login") {
-    return (
-      <AuthShell>
-        <Outlet />
-      </AuthShell>
-    );
-  }
-
-  if (isAppRoute(pathname)) {
-    return (
-      <AppShell>
-        <Outlet />
-      </AppShell>
-    );
-  }
-
   return (
     <PublicLayout>
       <Outlet />

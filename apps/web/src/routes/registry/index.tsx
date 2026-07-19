@@ -1,20 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowDown, Check, Search, SlidersHorizontal, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { AddToProjectButton } from "@/components/add-to-project";
-import { CopyButton } from "@/components/copy-button";
-import { QueryError } from "@/components/query-error";
-import { ScoreReadout } from "@/components/score-readout";
-import { StarStat } from "@/components/star-stat";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
-import { PageTitle } from "@/components/ui/page-title";
 import {
+  api,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CopyButton,
+  cn,
+  formatCount,
+  Input,
+  Label,
+  NativeSelect,
+  PageTitle,
+  QueryError,
+  type RegistryItem,
+  ScoreReadout,
   Sheet,
   SheetClose,
   SheetContent,
@@ -22,11 +21,15 @@ import {
   SheetFooter,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { api, type RegistryItem } from "@/lib/api";
-import { cn, formatCount } from "@/lib/utils";
+  Skeleton,
+  TooltipProvider,
+} from "@skillist/ui";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowDown, Check, Search, SlidersHorizontal, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { SignInToAddButton as AddToProjectButton } from "@/components/sign-in-cta";
+import { StarStat } from "@/components/star-stat";
 
 type Sort =
   | "quality"

@@ -1,5 +1,5 @@
+import { Badge } from "@skillist/ui";
 import { TrendingUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 type PublicEval = {
   status: string;

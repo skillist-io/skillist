@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { discoverSkillsFromTree, listSkillFileEntries } from "./discover";
+import { DEFAULT_ROOTS, discoverSkillsFromTree, listSkillFileEntries } from "./discover";
 import type { GithubTreeEntry } from "./fetch";
 
 describe("discoverSkillsFromTree", () => {
@@ -48,6 +48,34 @@ describe("discoverSkillsFromTree", () => {
   it("ignores SKILL.md outside skills roots", () => {
     const found = discoverSkillsFromTree(tree, ["skills"]);
     expect(found.some((s) => s.sourcePath.startsWith("docs/"))).toBe(false);
+  });
+
+  it("discovers every canonical root via DEFAULT_ROOTS (matches the CLI scanner)", () => {
+    const multiRoot: GithubTreeEntry[] = [
+      { path: ".cursor/skills/cursor-tool/SKILL.md", type: "blob", sha: "1" },
+      { path: ".claude/skills/claude-tool/SKILL.md", type: "blob", sha: "2" },
+      { path: ".gemini/skills/gemini-tool/SKILL.md", type: "blob", sha: "3" },
+      { path: ".codex/skills/codex-tool/SKILL.md", type: "blob", sha: "4" },
+      { path: ".agents/skills/agents-tool/SKILL.md", type: "blob", sha: "5" },
+      { path: ".vscode/skills/vscode-tool/SKILL.md", type: "blob", sha: "6" },
+      {
+        path: ".claude/plugins/marketplaces/acme/plugins/foo/skills/market-tool/SKILL.md",
+        type: "blob",
+        sha: "7",
+      },
+      { path: "skills/plain-tool/SKILL.md", type: "blob", sha: "8" },
+    ];
+    const found = discoverSkillsFromTree(multiRoot, DEFAULT_ROOTS);
+    expect(found.map((s) => s.skillSlug).sort()).toEqual([
+      "agents-tool",
+      "claude-tool",
+      "codex-tool",
+      "cursor-tool",
+      "gemini-tool",
+      "market-tool",
+      "plain-tool",
+      "vscode-tool",
+    ]);
   });
 });
 
