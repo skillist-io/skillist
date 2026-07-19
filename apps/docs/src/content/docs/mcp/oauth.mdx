@@ -20,7 +20,7 @@ Skillist also serves metadata under `/api/auth/.well-known/…` for clients that
 
 1. Your MCP client reads `WWW-Authenticate` from an MCP response (or fetches protected-resource metadata).
 2. The client opens the OAuth authorization URL.
-3. You sign in at **[skillist.io/login](https://skillist.io/login)** (GitHub, Google, magic link, or email OTP).
+3. You sign in at **[console.skillist.io/login](https://console.skillist.io/login)** (GitHub, Google, magic link, or email OTP).
 4. The client receives an access token and sends `Authorization: Bearer <token>` on subsequent MCP requests.
 
 ## Public vs authenticated access
@@ -44,9 +44,9 @@ When running the API locally (`http://localhost:8787`):
 |---------|-------|
 | MCP endpoint | `http://localhost:8787/mcp` |
 | Auth server | `http://localhost:8787/api/auth` |
-| Login page | `http://localhost:5173/login` |
+| Login page | `http://localhost:5174/login` |
 
-Run `pnpm dev:api` and `pnpm dev:web` together for end-to-end OAuth testing.
+Run `pnpm dev:api` and `pnpm dev:console` together for end-to-end OAuth testing.
 
 ## Implementation notes
 
