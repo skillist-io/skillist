@@ -3,12 +3,30 @@ import { cn } from "@skillist/ui";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { splitContext } from "@/lib/agent-context";
+import { BranchSelector } from "./branch-selector";
+import { MessageActions } from "./message-actions";
 import { ToolCallRow } from "./tool-call-row";
 
 /** One rendered turn: user prompt (right, squared block) or agent reply (left,
  *  markdown + inline tool-call status rows). Prose is never mono; machine
- *  status rows are. */
-export function AgentMessage({ message }: { message: UIMessage }) {
+ *  status rows are. Assistant replies carry copy/regenerate actions and, when
+ *  the reply has regenerated variants, a `‹ n / N ›` cycler. */
+export function AgentMessage({
+  message,
+  onRegenerate,
+  branchIndex = 0,
+  branchTotal = 0,
+  onPrevVariant,
+  onNextVariant,
+}: {
+  message: UIMessage;
+  /** Present on assistant messages whose preceding user turn can be regenerated. */
+  onRegenerate?: () => void;
+  branchIndex?: number;
+  branchTotal?: number;
+  onPrevVariant?: () => void;
+  onNextVariant?: () => void;
+}) {
   const isUser = message.role === "user";
   const parts = message.parts ?? [];
 
@@ -35,7 +53,7 @@ export function AgentMessage({ message }: { message: UIMessage }) {
   }
 
   return (
-    <div className="flex flex-col gap-2" data-role="assistant">
+    <div className="group/msg flex flex-col gap-2" data-role="assistant">
       <div className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
         Agent
       </div>
@@ -72,6 +90,16 @@ export function AgentMessage({ message }: { message: UIMessage }) {
           return null;
         })}
       </div>
+      {(onRegenerate || branchTotal > 1) && (
+        <MessageActions message={message} onRegenerate={onRegenerate}>
+          <BranchSelector
+            index={branchIndex}
+            total={branchTotal}
+            onPrev={() => onPrevVariant?.()}
+            onNext={() => onNextVariant?.()}
+          />
+        </MessageActions>
+      )}
     </div>
   );
 }
