@@ -1,61 +1,50 @@
 #!/usr/bin/env npx tsx
 /**
  * Embed Skillist's own docs (apps/docs/src/content/docs/**\/*.mdx) into the
- * existing `skillist-failures` Vectorize index, so the platform agent's
- * `search_docs` tool can ground how-to answers.
+ * `skillist-failures` Vectorize index so the platform agent's `search_docs`
+ * tool can ground how-to answers.
  *
- * It walks each .mdx page, strips frontmatter + MDX scaffolding, chunks by
- * heading (~700 tokens), embeds each chunk with @cf/baai/bge-base-en-v1.5 (via
- * the Workers AI REST API), and UPSERTS the vectors (deterministic ids →
- * idempotent) with metadata `{ kind: "doc", page, heading, text }`. Doc vectors
- * carry `kind: "doc"` so they never collide with the failure-mining vectors in
- * the same index (which have `skillId`/`signature` and no `kind`).
+ * This script does the filesystem-side work only — walk each .mdx page, strip
+ * frontmatter + MDX scaffolding, and chunk by heading (~700 tokens) — then POSTs
+ * the passages to the deployed API's `POST /v1/admin/reindex-docs`. The Worker
+ * embeds (via the `env.AI` binding) and upserts (via `env.VECTORIZE`), so there
+ * is NO Workers-AI API token to manage here: the binding handles inference.
+ * Deterministic chunk ids → the upsert is idempotent, so re-running after a docs
+ * edit overwrites in place rather than duplicating.
  *
- * ── One-time index prep (filtering on `kind` needs a metadata index) ─────────
+ * Filtering doc vectors on `kind` needs a one-time metadata index (already
+ * created in prod):
  *   wrangler vectorize create-metadata-index skillist-failures \
  *     --property-name=kind --type=string
- *   # (the index itself already exists:
- *   #  wrangler vectorize create skillist-failures --dimensions=768 --metric=cosine)
  *
  * ── Run ──────────────────────────────────────────────────────────────────────
- *   CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... pnpm embed:docs
- *   # API token needs Workers AI (read) + Vectorize (edit). Requires `wrangler`
- *   # authenticated (or CLOUDFLARE_API_TOKEN in env) for the upsert step.
+ *   SKILLIST_API_KEY=sk_...  pnpm embed:docs
+ *   # SKILLIST_API_KEY must be an API key created by a platform admin (a user id
+ *   # in SKILLIST_ADMIN_USER_IDS). Override the target with SKILLIST_API_URL
+ *   # (defaults to https://api.skillist.io).
  */
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  chunkDocByHeading,
-  DOC_KIND,
-  DOCS_EMBEDDING_MODEL,
-  docChunkId,
-  stripMdx,
-} from "../src/lib/docs-rag.ts";
+import { chunkDocByHeading, docChunkId, stripMdx } from "../src/lib/docs-rag.ts";
 
 const API_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const REPO_ROOT = join(API_ROOT, "..", "..");
 const DOCS_DIR = join(REPO_ROOT, "apps", "docs", "src", "content", "docs");
-const VECTORIZE_INDEX = "skillist-failures";
-const EMBED_BATCH = 50;
 
-const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
-const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const API_URL = (process.env.SKILLIST_API_URL ?? "https://api.skillist.io").replace(/\/$/, "");
+const API_KEY = process.env.SKILLIST_API_KEY;
+// The endpoint caps a request at 100 chunks; stay under it and keep each embed
+// batch a reasonable size for Workers AI.
+const UPLOAD_BATCH = 50;
 
-type DocVector = {
-  id: string;
-  values: number[];
-  metadata: { kind: string; page: string; heading: string; text: string };
-};
+type Chunk = { id: string; page: string; heading: string; text: string };
 
-async function walkMdx(dir: string, base = dir): Promise<string[]> {
+async function walkMdx(dir: string): Promise<string[]> {
   const out: string[] = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...(await walkMdx(full, base)));
+    if (entry.isDirectory()) out.push(...(await walkMdx(full)));
     else if (entry.name.endsWith(".mdx") || entry.name.endsWith(".md")) out.push(full);
   }
   return out;
@@ -70,91 +59,52 @@ function pageId(fullPath: string): string {
     .join("/");
 }
 
-async function embedBatch(texts: string[]): Promise<number[][]> {
-  const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/${DOCS_EMBEDDING_MODEL}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text: texts }),
+async function postBatch(chunks: Chunk[]): Promise<{ upserted: number; skipped: number }> {
+  const res = await fetch(`${API_URL}/v1/admin/reindex-docs`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${API_KEY}`,
     },
-  );
+    body: JSON.stringify({ chunks }),
+  });
   if (!res.ok) {
-    throw new Error(`Workers AI embed failed: ${res.status} ${await res.text()}`);
+    throw new Error(`reindex-docs failed: ${res.status} ${await res.text()}`);
   }
-  const json = (await res.json()) as { result?: { data?: number[][] }; success?: boolean };
-  const data = json.result?.data;
-  if (!data || data.length !== texts.length) {
-    throw new Error(`Unexpected embed response: ${JSON.stringify(json).slice(0, 300)}`);
-  }
-  return data;
+  return (await res.json()) as { upserted: number; skipped: number };
 }
 
 async function main() {
-  if (!ACCOUNT_ID || !API_TOKEN) {
-    throw new Error("Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN.");
+  if (!API_KEY) {
+    throw new Error("Set SKILLIST_API_KEY to an admin's API key (sk_...).");
   }
 
   const files = (await walkMdx(DOCS_DIR)).sort();
   console.log(`Found ${files.length} doc pages under ${DOCS_DIR}`);
 
-  // 1. Chunk every page (pure helpers shared with the agent's search_docs).
-  const chunks: { id: string; page: string; heading: string; text: string }[] = [];
+  // Chunk every page (pure helpers shared with the agent's search_docs).
+  const chunks: Chunk[] = [];
   for (const file of files) {
     const page = pageId(file);
     const raw = await readFile(file, "utf8");
     const { title, body } = stripMdx(raw);
-    const pageChunks = chunkDocByHeading(body, title ?? page);
-    pageChunks.forEach((c, i) => {
-      chunks.push({ id: docChunkId(page, i), page, heading: c.heading, text: c.text });
+    chunkDocByHeading(body, title ?? page).forEach((ch, i) => {
+      chunks.push({ id: docChunkId(page, i), page, heading: ch.heading, text: ch.text });
     });
   }
-  console.log(`Chunked into ${chunks.length} passages`);
+  console.log(`Chunked into ${chunks.length} passages → ${API_URL}`);
 
-  // 2. Embed in batches, then build the upsert payload.
-  const vectors: DocVector[] = [];
-  for (let i = 0; i < chunks.length; i += EMBED_BATCH) {
-    const batch = chunks.slice(i, i + EMBED_BATCH);
-    const embeddings = await embedBatch(batch.map((c) => c.text));
-    batch.forEach((c, j) => {
-      const values = embeddings[j];
-      if (!values) return;
-      vectors.push({
-        id: c.id,
-        values,
-        metadata: { kind: DOC_KIND, page: c.page, heading: c.heading, text: c.text },
-      });
-    });
-    console.log(`Embedded ${Math.min(i + EMBED_BATCH, chunks.length)}/${chunks.length}`);
+  // Upload in batches; the Worker embeds + upserts each batch.
+  let upserted = 0;
+  let skipped = 0;
+  for (let i = 0; i < chunks.length; i += UPLOAD_BATCH) {
+    const batch = chunks.slice(i, i + UPLOAD_BATCH);
+    const r = await postBatch(batch);
+    upserted += r.upserted;
+    skipped += r.skipped;
+    console.log(`Upserted ${Math.min(i + UPLOAD_BATCH, chunks.length)}/${chunks.length}`);
   }
-
-  // 3. Upsert via wrangler (NDJSON file). Upsert + deterministic ids = idempotent.
-  const tmp = mkdtempSync(join(tmpdir(), "skillist-docs-"));
-  const ndjsonPath = join(tmp, "doc-vectors.ndjson");
-  writeFileSync(ndjsonPath, vectors.map((v) => JSON.stringify(v)).join("\n"));
-  try {
-    execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "vectorize",
-        "upsert",
-        VECTORIZE_INDEX,
-        "--file",
-        ndjsonPath,
-        "--batch-size",
-        "100",
-      ],
-      { cwd: API_ROOT, stdio: "inherit" },
-    );
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
-  }
-  console.log(`Upserted ${vectors.length} doc vectors into ${VECTORIZE_INDEX}.`);
+  console.log(`Done. Upserted ${upserted} doc vectors${skipped ? `, skipped ${skipped}` : ""}.`);
 }
 
 main().catch((err) => {
