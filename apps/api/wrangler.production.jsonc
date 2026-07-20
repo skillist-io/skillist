@@ -111,9 +111,15 @@
   "ai": {
     "binding": "AI"
   },
-  // Shared by failure-mining vectors and docs-RAG vectors (kind:"doc", seeded by
-  // `pnpm embed:docs`). Docs filtering needs a `kind` metadata index:
+  // Shared by failure-mining (kind:"failure", skillId) and docs-RAG (kind:"doc",
+  // seeded by `pnpm embed:docs`) vectors. Metadata FILTERS enforce both the
+  // doc/failure split and per-skill/per-tenant scoping — and Vectorize only
+  // enforces a filter when a metadata index exists for that property. BOTH are
+  // REQUIRED (without `skillId`, a failure query isn't tenant-scoped). Provision
+  // with `bash scripts/provision-vectorize.sh` before any vectors are written:
+  //   wrangler vectorize create skillist-failures --dimensions=768 --metric=cosine
   //   wrangler vectorize create-metadata-index skillist-failures --property-name=kind --type=string
+  //   wrangler vectorize create-metadata-index skillist-failures --property-name=skillId --type=string
   "vectorize": [
     {
       "binding": "VECTORIZE",

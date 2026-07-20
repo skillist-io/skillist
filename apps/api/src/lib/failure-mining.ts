@@ -24,6 +24,15 @@ const MIN_OCCURRENCES = 3;
 const MAX_EXEMPLARS = 5;
 /** BGE base produces 768-dim embeddings. */
 const EMBEDDING_MODEL = "@cf/baai/bge-base-en-v1.5";
+/**
+ * Discriminator on every failure vector's metadata. The `skillist-failures`
+ * Vectorize index is shared with docs-RAG vectors (`kind:"doc"`); tagging
+ * failures `kind:"failure"` and filtering on it makes the two datasets provably
+ * disjoint by `kind`, so tenant isolation doesn't rest on skillId presence
+ * alone. Filtering on both `kind` and `skillId` requires metadata indexes on
+ * BOTH properties (see wrangler.jsonc).
+ */
+const FAILURE_KIND = "failure";
 
 /**
  * Embeds a single failure text into a 768-dim vector via Workers AI (BGE base).
@@ -193,7 +202,7 @@ export async function mineSkillFailures(
       {
         id: `${skillId}:${signature}`,
         values,
-        metadata: { skillId, signature },
+        metadata: { kind: FAILURE_KIND, skillId, signature },
       },
     ]);
   }
@@ -214,7 +223,9 @@ export async function mineSkillFailures(
 
     const result = await env.VECTORIZE.query(values, {
       topK: 10,
-      filter: { skillId },
+      // Scope to this skill's own failure vectors: `skillId` is the tenant
+      // boundary (a skill belongs to one org), `kind` keeps doc vectors out.
+      filter: { kind: FAILURE_KIND, skillId },
       returnMetadata: true,
     });
 
