@@ -32,6 +32,8 @@ const listRegistryRoute = createRoute({
   method: "get",
   path: "/registry",
   tags: ["Registry"],
+  // Public browse: no credentials. Overrides the document-level default.
+  security: [],
   request: { query: registryQuerySchema },
   responses: {
     200: {
@@ -86,6 +88,8 @@ const registryFacetsRoute = createRoute({
   method: "get",
   path: "/registry/facets",
   tags: ["Registry"],
+  // Public browse: no credentials. Overrides the document-level default.
+  security: [],
   responses: { 200: { description: "Registry filter facets" } },
 });
 
@@ -138,6 +142,8 @@ const getRegistrySkillRoute = createRoute({
   method: "get",
   path: "/registry/{org}/{repo}",
   tags: ["Registry"],
+  // Public browse: no credentials. Overrides the document-level default.
+  security: [],
   request: {
     params: z.object({ org: z.string(), repo: z.string() }),
   },
