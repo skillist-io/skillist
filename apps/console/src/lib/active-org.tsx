@@ -94,3 +94,22 @@ export function useActiveOrg(): ActiveOrgValue {
   if (!ctx) throw new Error("useActiveOrg must be used within <ActiveOrgProvider>");
   return ctx;
 }
+
+/**
+ * Point the global active org at the org in the URL, for `/orgs/$orgId/*` routes
+ * (projects, skill editor). Landing on a deep link then reflects that org in the
+ * top-bar switcher and every other surface.
+ *
+ * Keyed on the param (and org list) only — NOT on `activeOrgId` — so a later
+ * manual switch via the top-bar switcher (which changes `activeOrgId`, not the
+ * URL) isn't immediately reverted here; the switcher handles that case by
+ * navigating. A param that isn't one of the caller's orgs is ignored (the route
+ * itself gates access).
+ */
+export function useSyncActiveOrgFromParam(orgId: string | undefined): void {
+  const { orgs, setActiveOrgId } = useActiveOrg();
+  useEffect(() => {
+    if (!orgId || !orgs.some((o) => o.id === orgId)) return;
+    setActiveOrgId(orgId);
+  }, [orgId, orgs, setActiveOrgId]);
+}

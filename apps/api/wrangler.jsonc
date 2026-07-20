@@ -107,12 +107,18 @@
   "ai": {
     "binding": "AI"
   },
-  // 768-dim cosine index (matches @cf/baai/bge-base-en-v1.5 embeddings). Create with:
+  // 768-dim cosine index (matches @cf/baai/bge-base-en-v1.5 embeddings), shared by
+  // two vector kinds: failure-mining (kind:"failure", skillId/signature) and docs
+  // RAG (kind:"doc", page/heading/text — seeded by `pnpm embed:docs`, read by the
+  // agent's search_docs tool). Isolation between them, AND per-skill/per-tenant
+  // scoping of failures, rely on metadata FILTERS — which Vectorize only enforces
+  // when a metadata index exists on that property. So both indexes below are
+  // REQUIRED, not optional: without `skillId`, a failure query is not tenant-scoped.
+  // Provision a fresh index (DR / new env) with `bash scripts/provision-vectorize.sh`,
+  // or by hand — order matters, indexes must exist before any vectors are written:
   //   wrangler vectorize create skillist-failures --dimensions=768 --metric=cosine
-  // Shared by two vector kinds: failure-mining (skillId/signature) and docs RAG
-  // (kind:"doc", page/heading/text — seeded by `pnpm embed:docs`, read by the
-  // agent's search_docs tool). Filtering docs by `kind` needs a metadata index:
   //   wrangler vectorize create-metadata-index skillist-failures --property-name=kind --type=string
+  //   wrangler vectorize create-metadata-index skillist-failures --property-name=skillId --type=string
   "vectorize": [
     {
       "binding": "VECTORIZE",

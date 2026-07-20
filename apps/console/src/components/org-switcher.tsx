@@ -1,7 +1,12 @@
 import { Button, cn, Input, Popover, PopoverContent, PopoverTrigger, Skeleton } from "@skillist/ui";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { ChevronsUpDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useActiveOrg } from "@/lib/active-org";
+
+// `/orgs/{id}/...` routes (projects, skill editor) are org-scoped via the URL;
+// switching org there must move the URL too, or the switcher and page disagree.
+const ORG_ROUTE = /^\/orgs\/[^/]+/;
 
 // Show the name-filter only once the list is long enough to be worth scanning.
 const FILTER_THRESHOLD = 7;
@@ -18,6 +23,22 @@ export function OrgSwitcher() {
   const { orgs, activeOrg, setActiveOrgId, isPending } = useActiveOrg();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const selectOrg = useCallback(
+    (id: string) => {
+      setActiveOrgId(id);
+      setOpen(false);
+      // On an org-scoped route, follow the switch to that org's projects (the
+      // current projectId/repo won't exist under the new org) so URL + switcher
+      // stay coherent; elsewhere the global state change is enough.
+      if (ORG_ROUTE.test(pathname)) {
+        void navigate({ to: "/orgs/$orgId/projects", params: { orgId: id } });
+      }
+    },
+    [setActiveOrgId, navigate, pathname],
+  );
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -83,10 +104,7 @@ export function OrgSwitcher() {
                 <li key={org.id}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveOrgId(org.id);
-                      setOpen(false);
-                    }}
+                    onClick={() => selectOrg(org.id)}
                     aria-current={isActive ? "true" : undefined}
                     className={cn(
                       "flex w-full items-center justify-between gap-3 border-l-2 py-1.5 pr-2.5 pl-2.5 text-left transition-colors",

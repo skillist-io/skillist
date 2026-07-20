@@ -35,6 +35,7 @@ import { useSkillBundle } from "@/components/skill-editor/use-skill-bundle";
 import { ValidationPanel } from "@/components/skill-editor/validation-panel";
 import { SkillEvalPanel } from "@/components/skill-eval-panel";
 import { SkillEvalRegression } from "@/components/skill-eval-regression";
+import { useSyncActiveOrgFromParam } from "@/lib/active-org";
 import { diffLines, diffStats } from "@/lib/diff";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -101,6 +102,7 @@ function EditorSkeleton() {
 
 function SkillEditorPage() {
   const { orgId, repo } = Route.useParams();
+  useSyncActiveOrgFromParam(orgId);
   const queryClient = useQueryClient();
   const [feedbackBody, setFeedbackBody] = useState("");
   const [versionBump, setVersionBump] = useState<SemverBump>("patch");
