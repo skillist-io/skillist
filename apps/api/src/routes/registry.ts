@@ -53,6 +53,7 @@ const listRegistryRoute = createRoute({
                 installCount: z.number(),
                 activationCount: z.number(),
                 runtime: z.string().nullable(),
+                updatedAt: z.string().nullable(),
               }),
             ),
             page: z.number(),

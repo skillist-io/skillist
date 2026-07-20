@@ -149,6 +149,9 @@ export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQ
       sourceType: registryEntries.sourceType,
       upstreamRepo: registryEntries.upstreamRepo,
       upstreamUrl: registryEntries.upstreamUrl,
+      // Exposed so the sitemap can carry an accurate <lastmod>. For a registry
+      // where skills republish often, lastmod is what earns fast recrawls.
+      updatedAt: registryEntries.updatedAt,
       runtime: skills.runtime,
     })
     .from(registryEntries)
@@ -167,6 +170,8 @@ export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQ
   return {
     items: items.map((item) => ({
       ...item,
+      // Serialized for JSON transport; consumers (sitemap lastmod) need ISO-8601.
+      updatedAt: item.updatedAt?.toISOString() ?? null,
       cliInstall: CLI_INSTALL,
       installCommand: `skillist install ${item.orgSlug}/${item.skillRepo}`,
       runCommand:
