@@ -26,9 +26,9 @@ import {
   signalFieldClass,
   TooltipProvider,
 } from "@skillist/ui";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowDown, Check, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDown, Check, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { SignInToAddButton as AddToProjectButton } from "@/components/sign-in-cta";
@@ -245,9 +245,13 @@ function RegistryPage() {
       ),
   });
 
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, isLoading, isError, isPlaceholderData, refetch } = useQuery({
     queryKey: ["registry", queryString],
     queryFn: () => api<{ items: RegistryItem[]; total: number }>(`/v1/registry?${queryString}`),
+    // Every filter change is a new query key, so without this the list unmounts
+    // to a skeleton on each interaction. Holding the previous page lets it dim
+    // in place instead — no layout shift, no lost scroll position.
+    placeholderData: keepPreviousData,
   });
 
   const activeFilterCount = useMemo(() => {
@@ -386,8 +390,18 @@ function RegistryPage() {
             <FilterRail {...railProps} />
           </aside>
 
-          {/* Results */}
-          <section aria-busy={isFetching} className="min-w-0">
+          {/* Results. A re-query dims the standing list rather than replacing it
+              with skeletons: on a filter-heavy page the result set changes on
+              nearly every interaction, and unmounting each time flashes the
+              whole column and loses scroll position. Skeletons are kept for the
+              first load, when there is genuinely nothing to keep. */}
+          <section
+            aria-busy={isPlaceholderData}
+            className={cn(
+              "min-w-0 transition-opacity duration-150",
+              isPlaceholderData && "opacity-50",
+            )}
+          >
             {isError ? (
               <QueryError title="Could not load registry" onRetry={() => void refetch()} />
             ) : isLoading ? (
@@ -425,6 +439,10 @@ function Results({
   /** Active search term, so each row can explain a non-obvious match. */
   query: string;
 }) {
+  // One row open at a time: the panel is a detour, not a mode, and several open
+  // at once turns the ledger back into a wall of text.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   return (
     <>
       {/* Desktop: ledger table */}
@@ -466,9 +484,18 @@ function Results({
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <RegistryRow key={`${item.orgSlug}/${item.skillRepo}`} item={item} query={query} />
-            ))}
+            {items.map((item) => {
+              const id = `${item.orgSlug}/${item.skillRepo}`;
+              return (
+                <RegistryRow
+                  key={id}
+                  item={item}
+                  query={query}
+                  expanded={expandedId === id}
+                  onToggle={() => setExpandedId(expandedId === id ? null : id)}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -543,87 +570,163 @@ function matchedField(item: RegistryItem, q: string): string | null {
   return null;
 }
 
-function RegistryRow({ item, query }: { item: RegistryItem; query: string }) {
+function RegistryRow({
+  item,
+  query,
+  expanded,
+  onToggle,
+}: {
+  item: RegistryItem;
+  query: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const installCmd = item.installCommand ?? `skillist install ${item.orgSlug}/${item.skillRepo}`;
   const matched = matchedField(item, query);
+  const panelId = `install-${item.orgSlug}-${item.skillRepo}`;
   return (
-    <tr className="border-b border-border align-top transition-colors hover:bg-muted/40">
-      <td className="w-full px-3 py-4">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <Link
-              to="/$org/$repo"
-              params={{ org: item.orgSlug, repo: item.skillRepo }}
-              className="rounded-none font-semibold outline-none transition-colors hover:text-signal focus-visible:text-signal focus-visible:ring-2 focus-visible:ring-ring/40"
-            >
-              {item.name}
-            </Link>
-            {item.latestVersion && (
-              <span className="font-mono text-xs text-muted-foreground">v{item.latestVersion}</span>
+    <>
+      <tr
+        className={cn(
+          "border-b border-border align-top transition-colors hover:bg-muted/40",
+          expanded && "bg-muted/40",
+        )}
+      >
+        <td className="w-full px-3 py-4">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              {/* A dedicated control rather than a click-anywhere row: this row
+                already holds a link and two buttons, so a row-level handler
+                would fight them and leave the affordance unreachable by
+                keyboard. */}
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={expanded}
+                aria-controls={panelId}
+                aria-label={`${expanded ? "Hide" : "Show"} install commands for ${item.name}`}
+                className="-ml-1 flex size-5 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <ChevronRight
+                  className={cn("size-3.5 transition-transform", expanded && "rotate-90")}
+                  aria-hidden
+                />
+              </button>
+              <Link
+                to="/$org/$repo"
+                params={{ org: item.orgSlug, repo: item.skillRepo }}
+                className="rounded-none font-semibold outline-none transition-colors hover:text-signal focus-visible:text-signal focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                {item.name}
+              </Link>
+              {item.latestVersion && (
+                <span className="font-mono text-xs text-muted-foreground">
+                  v{item.latestVersion}
+                </span>
+              )}
+            </div>
+            <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+              {item.orgSlug}/{item.skillRepo}
+              {matched && (
+                <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+                  matched {matched}
+                </span>
+              )}
+            </span>
+            {item.description && (
+              <p className="line-clamp-2 max-w-prose text-sm text-muted-foreground text-pretty">
+                {item.description}
+              </p>
             )}
+            <MetaTags item={item} />
           </div>
-          <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-            {item.orgSlug}/{item.skillRepo}
-            {matched && (
-              <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-                matched {matched}
-              </span>
-            )}
-          </span>
-          {item.description && (
-            <p className="line-clamp-2 max-w-prose text-sm text-muted-foreground text-pretty">
-              {item.description}
-            </p>
-          )}
-          <MetaTags item={item} />
-        </div>
-      </td>
-      <td className="px-3 py-4">
-        <ScoreReadout
-          quality={item.qualityScore}
-          impact={item.impactScore}
-          security={item.securityStatus}
-        />
-      </td>
-      <td className="px-3 py-4 text-right font-mono tabular-nums">
-        {formatCount(item.installCount)}
-      </td>
-      <td className="px-3 py-4 text-right font-mono tabular-nums">
-        <StarStat
-          org={item.orgSlug}
-          repo={item.skillRepo}
-          stars={item.stars}
-          starred={item.starred}
-        />
-      </td>
-      <td className="px-3 py-4">
-        <div className="flex items-center justify-end gap-2">
-          <AddToProjectButton
-            target={
-              item.skillId
-                ? { kind: "skill", skillId: item.skillId, label: item.name }
-                : {
-                    kind: "external",
-                    externalUrl: `https://skillist.io/${item.orgSlug}/${item.skillRepo}`,
-                    externalName: item.name,
-                  }
-            }
-            variant="ghost"
-            iconOnly
+        </td>
+        <td className="px-3 py-4">
+          <ScoreReadout
+            quality={item.qualityScore}
+            impact={item.impactScore}
+            security={item.securityStatus}
           />
-          <CopyButton value={installCmd} label="Install" size="sm" />
-          <Button asChild variant="ghost" size="sm">
-            <Link
-              to="/$org/$repo"
-              params={{ org: item.orgSlug, repo: item.skillRepo }}
-              aria-label={`View ${item.name}`}
-            >
-              View
-            </Link>
-          </Button>
+        </td>
+        <td className="px-3 py-4 text-right font-mono tabular-nums">
+          {formatCount(item.installCount)}
+        </td>
+        <td className="px-3 py-4 text-right font-mono tabular-nums">
+          <StarStat
+            org={item.orgSlug}
+            repo={item.skillRepo}
+            stars={item.stars}
+            starred={item.starred}
+          />
+        </td>
+        <td className="px-3 py-4">
+          <div className="flex items-center justify-end gap-2">
+            <AddToProjectButton
+              target={
+                item.skillId
+                  ? { kind: "skill", skillId: item.skillId, label: item.name }
+                  : {
+                      kind: "external",
+                      externalUrl: `https://skillist.io/${item.orgSlug}/${item.skillRepo}`,
+                      externalName: item.name,
+                    }
+              }
+              variant="ghost"
+              iconOnly
+            />
+            <CopyButton value={installCmd} label="Install" size="sm" />
+            <Button asChild variant="ghost" size="sm">
+              <Link
+                to="/$org/$repo"
+                params={{ org: item.orgSlug, repo: item.skillRepo }}
+                aria-label={`View ${item.name}`}
+              >
+                View
+              </Link>
+            </Button>
+          </div>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-b border-border bg-muted/40">
+          <td colSpan={5} className="px-3 pt-0 pb-4" id={panelId}>
+            <InstallPanel item={item} installCmd={installCmd} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/**
+ * What you actually have to run, shown rather than copied blind.
+ *
+ * The row's Install button copies a command you never see; this panel spells out
+ * the whole sequence — the one-off CLI prerequisite, the install itself, and the
+ * run command when the skill has a runtime — each separately copyable, so a
+ * first-time reader is not left wondering why `skillist` is not on their PATH.
+ */
+function InstallPanel({ item, installCmd }: { item: RegistryItem; installCmd: string }) {
+  const steps = [
+    { label: "CLI (one-off)", value: item.cliInstall ?? "npm install -g @skillist/cli" },
+    { label: "Install", value: installCmd },
+    ...(item.runCommand ? [{ label: "Run", value: item.runCommand }] : []),
+  ];
+
+  return (
+    <div className="ml-5 flex max-w-3xl flex-col gap-2 border-l border-border pl-4">
+      {steps.map((step) => (
+        <div key={step.label} className="flex items-center gap-3">
+          <span className="w-28 shrink-0 text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+            {step.label}
+          </span>
+          <code className="min-w-0 flex-1 truncate border border-border bg-background px-2 py-1 font-mono text-xs text-foreground">
+            {step.value}
+          </code>
+          <CopyButton value={step.value} label="" size="sm" />
         </div>
-      </td>
-    </tr>
+      ))}
+    </div>
   );
 }
 
