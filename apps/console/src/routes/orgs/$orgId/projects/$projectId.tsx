@@ -32,6 +32,7 @@ import {
   VISIBILITY_LABEL,
 } from "@/components/project-visibility";
 import type { TreeNode } from "@/components/skill-editor/paths";
+import { useSyncActiveOrgFromParam } from "@/lib/active-org";
 import { buildProjectTree, projectFolderPaths, projectItemLeafName } from "@/lib/project-tree";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -57,6 +58,7 @@ function RailLabel({ children }: { children: React.ReactNode }) {
 
 function ProjectDetailPage() {
   const { orgId, projectId } = Route.useParams();
+  useSyncActiveOrgFromParam(orgId);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
