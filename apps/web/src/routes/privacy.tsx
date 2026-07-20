@@ -140,21 +140,46 @@ function PrivacyPage() {
           </Section>
 
           <Section title="Retention">
-            <p>
-              Account data is kept while your account exists. Audit events are retained for security
-              and are intentionally not deleted when other data is, so that a record of privileged
-              actions survives. Automated pruning of session, run, and telemetry records is being
-              introduced; until then those rows are retained indefinitely, and we would rather say
-              so than imply a schedule we do not yet enforce.
+            <p className="mb-4">
+              Account data is kept while your account exists. Everything else is pruned daily on the
+              schedule below.
             </p>
+            <Table
+              head={["Data", "Kept for"]}
+              rows={[
+                ["Expired sessions", "7 days past expiry"],
+                ["Magic-link and verification challenges", "1 day past expiry"],
+                ["MCP OAuth tokens", "7 days past expiry"],
+                [
+                  "Skill run output (stdout/stderr)",
+                  "30 days, then blanked — the run's status and timing are kept for reporting",
+                ],
+                ["Skill run records", "180 days"],
+                ["Install and activation events", "90 days. Published counts are unaffected"],
+                [
+                  "Audit events",
+                  "400 days. Deliberately longer than everything else: it is a security record, so an incident review should outlive the events it examines",
+                ],
+              ]}
+            />
           </Section>
 
           <Section title="Your rights">
             <p>
-              You can ask for a copy of your data, correction, or deletion by emailing{" "}
-              <Mail to="privacy@skillist.io" />. Self-service account deletion is not built yet, so
-              requests are handled manually — we will confirm when it is done. If you are in the UK
-              or EU, you also have the right to complain to your data protection authority.
+              You can delete your account yourself, which removes your profile, sessions, OAuth
+              links, and passkeys, and deletes any organisation where you are the only member. If
+              you are the sole owner of an organisation that has other members, we ask you to
+              promote another owner first rather than silently orphaning their work.
+            </p>
+            <p className="mt-4">
+              Audit events are the one exception: they record who performed privileged actions and
+              are kept as a security record, referencing your user id after the account itself is
+              gone.
+            </p>
+            <p className="mt-4">
+              For a copy of your data, a correction, or anything else, email{" "}
+              <Mail to="privacy@skillist.io" />. If you are in the UK or EU, you also have the right
+              to complain to your data protection authority.
             </p>
           </Section>
 
