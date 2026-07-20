@@ -111,6 +111,11 @@ function SkillRepoPage() {
   const hosted = entry?.runtime && entry.runtime !== "local";
   const description = (meta?.description as string) ?? entry?.description;
   const version = (meta?.version as string) ?? entry?.latestVersion ?? "—";
+  // The category already shows as a badge in the trust row; repeating it in the
+  // tag list below reads as a duplicate rather than extra signal.
+  const tags = (entry?.tags ?? []).filter(
+    (tag) => tag.toLowerCase() !== entry?.category?.toLowerCase(),
+  );
 
   if (isError) {
     return (
@@ -188,9 +193,9 @@ function SkillRepoPage() {
             <p className="max-w-prose text-sm text-muted-foreground text-pretty">{description}</p>
           )}
 
-          {entry?.tags?.length ? (
+          {tags.length ? (
             <div className="flex flex-wrap gap-x-3 gap-y-1">
-              {entry.tags.map((tag) => (
+              {tags.map((tag) => (
                 <Badge key={tag} variant="outline">
                   {tag}
                 </Badge>
@@ -337,24 +342,28 @@ function SkillRepoPage() {
                     </>
                   )}
                 </dl>
-                {entry?.upstreamUrl && (
+                {/* Stacked: both links are inline-flex, so without a flex column
+                    they collapse onto one line and read as a single run-on link. */}
+                <div className="flex flex-col items-start gap-2">
+                  {entry?.upstreamUrl && (
+                    <a
+                      href={entry.upstreamUrl}
+                      className="inline-flex rounded-none text-primary hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View on GitHub →
+                    </a>
+                  )}
                   <a
-                    href={entry.upstreamUrl}
+                    href={`/${org}/${repo}/SKILL.md`}
                     className="inline-flex rounded-none text-primary hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
                     target="_blank"
                     rel="noreferrer"
                   >
-                    View on GitHub →
+                    Fetch SKILL.md →
                   </a>
-                )}
-                <a
-                  href={`/${org}/${repo}/SKILL.md`}
-                  className="inline-flex rounded-none text-primary hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Fetch SKILL.md →
-                </a>
+                </div>
               </CardContent>
             </Card>
           </aside>

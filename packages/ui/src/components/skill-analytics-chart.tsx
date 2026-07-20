@@ -23,6 +23,29 @@ export function SkillAnalyticsChart({ org, repo }: SkillAnalyticsChartProps) {
 
   if (!data?.series?.installs || !data.series.activations) return null;
 
+  // A brand-new skill returns a full 30-point series of zeroes. Rendering that
+  // as two empty plot areas reads as a broken chart, so say what's true instead.
+  const total = [...data.series.installs, ...data.series.activations].reduce(
+    (sum, point) => sum + point.count,
+    0,
+  );
+
+  if (total === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Usage (30 days)</CardTitle>
+          <CardDescription>No installs or activations yet</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Usage appears here once agents install and activate this skill.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
