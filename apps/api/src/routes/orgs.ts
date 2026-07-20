@@ -6,7 +6,7 @@ import type { Env } from "../env";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
-import { errorResponses } from "../lib/openapi";
+import { errorResponses, okSchema } from "../lib/openapi";
 import { requireOrgRole } from "../lib/org-access";
 import { sha256 } from "../lib/r2";
 import { resolveUserId } from "../lib/session";
@@ -136,7 +136,10 @@ const inviteRoute = createRoute({
     },
   },
   responses: {
-    201: { description: "Member invited" },
+    201: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Member invited",
+    },
     ...errorResponses(),
   },
 });
@@ -361,7 +364,10 @@ const revokeApiKeyRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "API key revoked" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "API key revoked",
+    },
     ...errorResponses(),
   },
 });

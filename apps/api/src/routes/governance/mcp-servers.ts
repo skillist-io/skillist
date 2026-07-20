@@ -9,6 +9,18 @@ import type { AppEnv } from "./shared";
 
 export const mcpServersRoutes = new OpenAPIHono<AppEnv>();
 
+/**
+ * The non-secret projection of `org_mcp_servers` these routes hand back —
+ * OAuth client secrets and tokens are deliberately never in it.
+ */
+const mcpServerSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  upstreamUrl: z.string(),
+  transport: z.string(),
+  status: z.string(),
+});
+
 const listMcpServersRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/mcp-servers",
@@ -17,7 +29,16 @@ const listMcpServersRoute = createRoute({
   summary: "List an organization's gateway MCP servers",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Org MCP gateway servers" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            items: z.array(mcpServerSummarySchema.extend({ createdAt: z.string() })),
+          }),
+        },
+      },
+      description: "Org MCP gateway servers",
+    },
     ...errorResponses({ validates: false, notFound: false }),
   },
 });
@@ -53,7 +74,10 @@ const createMcpServerRoute = createRoute({
     body: { content: { "application/json": { schema: mcpServerSchema } } },
   },
   responses: {
-    201: { description: "MCP server registered" },
+    201: {
+      content: { "application/json": { schema: mcpServerSummarySchema } },
+      description: "MCP server registered",
+    },
     ...errorResponses({ notFound: false, conflict: true }),
   },
 });
@@ -119,7 +143,14 @@ const authorizeMcpServerRoute = createRoute({
     },
   },
   responses: {
-    200: { description: "MCP server authorized" },
+    200: {
+      content: {
+        "application/json": {
+          schema: mcpServerSummarySchema.pick({ id: true, name: true, status: true }),
+        },
+      },
+      description: "MCP server authorized",
+    },
     ...errorResponses(),
   },
 });
@@ -153,7 +184,23 @@ const getMcpProxyConfigRoute = createRoute({
   summary: "Get the proxy connection config for an authorized MCP server",
   request: { params: z.object({ orgId: z.string().uuid(), name: z.string() }) },
   responses: {
-    200: { description: "MCP proxy connection config" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            name: z.string(),
+            upstreamUrl: z.string(),
+            transport: z.string(),
+            // The stored upstream OAuth access token — this route is the one
+            // place it is handed back, and only to an org member.
+            accessToken: z.string(),
+            // Omitted entirely if the org row has vanished under the caller.
+            orgSlug: z.string().optional(),
+          }),
+        },
+      },
+      description: "MCP proxy connection config",
+    },
     ...errorResponses({ conflict: true }),
   },
 });

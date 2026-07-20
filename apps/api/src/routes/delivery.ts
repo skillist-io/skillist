@@ -28,6 +28,26 @@ const orgRepoParams = z.object({
   repo: z.string().min(1),
 });
 
+/**
+ * The public projection of the KV meta entry (`SkillKvMeta` in lib/kv.ts) —
+ * `bundleKey` is stripped by the handler as an internal storage pointer.
+ */
+const skillMetaResponseSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  version: z.string(),
+  versionId: z.string(),
+  etag: z.string(),
+  org: z.string(),
+  repo: z.string(),
+  publishedAt: z.string(),
+  visibility: z.enum(["private", "org", "public"]).optional(),
+  sourceType: z.enum(["native", "mirror"]).optional(),
+  upstreamRepo: z.string().optional(),
+  upstreamUrl: z.string().optional(),
+  contentSha256: z.string().optional(),
+});
+
 function badSpecifier(): Response {
   return Response.json(
     { error: "Not found" },
@@ -135,7 +155,11 @@ const getSkillMdRoute = createRoute({
   security: [],
   request: { params: orgRepoParams },
   responses: {
-    200: { description: "SKILL.md content" },
+    200: {
+      // Served as raw markdown, not JSON — this is the agent-facing hot path.
+      content: { "text/markdown": { schema: z.string() } },
+      description: "SKILL.md content",
+    },
     ...errorResponses({ isPublic: true }),
   },
 });
@@ -169,7 +193,10 @@ const getSkillMetaRoute = createRoute({
   security: [],
   request: { params: orgRepoParams },
   responses: {
-    200: { description: "Discovery metadata" },
+    200: {
+      content: { "application/json": { schema: skillMetaResponseSchema } },
+      description: "Discovery metadata",
+    },
     ...errorResponses({ isPublic: true }),
   },
 });
@@ -203,7 +230,18 @@ const getBundleRoute = createRoute({
   security: [],
   request: { params: orgRepoParams },
   responses: {
-    200: { description: "Skill bundle" },
+    200: {
+      content: {
+        "application/json": {
+          // Every bundle path mapped to its text content, plus the semver served.
+          schema: z.object({
+            files: z.record(z.string(), z.string()),
+            version: z.string(),
+          }),
+        },
+      },
+      description: "Skill bundle",
+    },
     ...errorResponses({ isPublic: true }),
   },
 });

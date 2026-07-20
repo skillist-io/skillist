@@ -20,7 +20,29 @@ const listRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Recurring skill-run/eval failure patterns mined for this org" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            patterns: z.array(
+              z.object({
+                id: z.string().uuid(),
+                skillRepo: z.string(),
+                orgSlug: z.string(),
+                summary: z.string(),
+                suggestedFix: z.string().nullable(),
+                occurrences: z.number(),
+                status: z.enum(["open", "drafted", "dismissed"]),
+                // Set once an agent-drafted feedback row is opened for this pattern.
+                feedbackId: z.string().uuid().nullable(),
+                updatedAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "Recurring skill-run/eval failure patterns mined for this org",
+    },
     ...errorResponses({ notFound: false }),
   },
 });

@@ -10,6 +10,39 @@ import type { AppEnv } from "./shared";
 
 export const inventoryRoutes = new OpenAPIHono<AppEnv>();
 
+/** A row of `skill_inventory`; timestamps serialize to ISO strings. */
+const inventoryItemSchema = z.object({
+  id: z.string().uuid(),
+  orgId: z.string().uuid(),
+  repoFullName: z.string(),
+  filePath: z.string(),
+  localSlug: z.string().nullable(),
+  managed: z.boolean(),
+  registryOrgSlug: z.string().nullable(),
+  registryRepo: z.string().nullable(),
+  sourceType: z.string().nullable(),
+  scope: z.string().nullable(),
+  marketplace: z.string().nullable(),
+  pluginName: z.string().nullable(),
+  isSymlink: z.boolean(),
+  conformanceStatus: z.string().nullable(),
+  conformanceIssues: z
+    .array(
+      z.object({
+        level: z.string(),
+        field: z.string().optional(),
+        message: z.string(),
+      }),
+    )
+    .nullable(),
+  contentHash: z.string().nullable(),
+  securityStatus: z.string().nullable(),
+  securityIssues: z
+    .array(z.object({ severity: z.string(), path: z.string(), message: z.string() }))
+    .nullable(),
+  scannedAt: z.string(),
+});
+
 const inventoryScanRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/inventory/scan",
@@ -21,7 +54,26 @@ const inventoryScanRoute = createRoute({
     body: { content: { "application/json": { schema: inventoryScanSchema } } },
   },
   responses: {
-    200: { description: "Inventory updated" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            upserted: z.number(),
+            diff: z.object({
+              created: z.number(),
+              updated: z.number(),
+              // Rows previously seen for the scanned repos that this scan dropped.
+              removed: z.number(),
+            }),
+            duplicates: z.object({
+              slugs: z.array(z.string()),
+              contentHashes: z.array(z.string()),
+            }),
+          }),
+        },
+      },
+      description: "Inventory updated",
+    },
     ...errorResponses({ notFound: false }),
   },
 });
@@ -174,7 +226,22 @@ const listInventoryRoute = createRoute({
   summary: "List an organization's scanned skill inventory",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Skill inventory" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            // `skillId` is the registry-backed skill this row resolves to, or
+            // null when the row is unmanaged / has no registry match.
+            items: z.array(inventoryItemSchema.extend({ skillId: z.string().uuid().nullable() })),
+            duplicates: z.object({
+              slugs: z.array(z.object({ slug: z.string(), count: z.number() })),
+              contentHashes: z.array(z.object({ hash: z.string(), count: z.number() })),
+            }),
+          }),
+        },
+      },
+      description: "Skill inventory",
+    },
     ...errorResponses({ validates: false, notFound: false }),
   },
 });
@@ -259,7 +326,26 @@ const promoteInventoryRoute = createRoute({
     },
   },
   responses: {
-    201: { description: "Skill created from inventory item" },
+    201: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            skill: z.object({
+              id: z.string().uuid(),
+              orgId: z.string().uuid(),
+              repo: z.string(),
+              visibility: z.string(),
+              description: z.string().nullable(),
+              runtime: z.string(),
+              latestPublishedVersionId: z.string().uuid().nullable(),
+              createdAt: z.string(),
+              updatedAt: z.string(),
+            }),
+          }),
+        },
+      },
+      description: "Skill created from inventory item",
+    },
     ...errorResponses({ conflict: true }),
   },
 });

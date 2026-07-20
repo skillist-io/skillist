@@ -6,6 +6,7 @@ import {
   publishPolicySchema,
   requiredSkillSchema,
   reviewRubricSchema,
+  securitySeveritySchema,
 } from "@skillist/contracts";
 import {
   organizations,
@@ -17,11 +18,20 @@ import {
 import { and, eq } from "drizzle-orm";
 import { logAudit } from "../../lib/audit";
 import { evaluateInstallPolicy } from "../../lib/install-policy";
-import { errorResponses } from "../../lib/openapi";
+import { errorResponses, okSchema } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import type { AppEnv } from "./shared";
 
 export const policiesRoutes = new OpenAPIHono<AppEnv>();
+
+/** A row of `org_required_skills`. */
+const requiredSkillRowSchema = z.object({
+  id: z.string().uuid(),
+  orgId: z.string().uuid(),
+  orgSlug: z.string(),
+  skillRepo: z.string(),
+  createdAt: z.string(),
+});
 
 const publishPolicyRoute = createRoute({
   method: "patch",
@@ -34,7 +44,15 @@ const publishPolicyRoute = createRoute({
     body: { content: { "application/json": { schema: publishPolicySchema } } },
   },
   responses: {
-    200: { description: "Policy updated" },
+    200: {
+      content: {
+        "application/json": {
+          // Echoes the policy that was just persisted.
+          schema: z.object({ ok: z.boolean(), publishPolicy: publishPolicySchema }),
+        },
+      },
+      description: "Policy updated",
+    },
     ...errorResponses(),
   },
 });
@@ -71,7 +89,15 @@ const getPublishPolicyRoute = createRoute({
   summary: "Get an organization's publish policy",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Publish policy" },
+    200: {
+      content: {
+        "application/json": {
+          // `{}` when the org has never set one.
+          schema: z.object({ publishPolicy: publishPolicySchema }),
+        },
+      },
+      description: "Publish policy",
+    },
     ...errorResponses(),
   },
 });
@@ -101,7 +127,14 @@ const patchInstallPolicyRoute = createRoute({
     body: { content: { "application/json": { schema: installPolicySchema } } },
   },
   responses: {
-    200: { description: "Install policy updated" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ ok: z.boolean(), installPolicy: installPolicySchema }),
+        },
+      },
+      description: "Install policy updated",
+    },
     ...errorResponses(),
   },
 });
@@ -138,7 +171,18 @@ const getInstallPolicyRoute = createRoute({
   summary: "Get an organization's install policy",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Install policy" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            installPolicy: installPolicySchema,
+            // Omitted entirely if the org row has vanished under the caller.
+            orgSlug: z.string().optional(),
+          }),
+        },
+      },
+      description: "Install policy",
+    },
     ...errorResponses(),
   },
 });
@@ -168,7 +212,21 @@ const installCheckRoute = createRoute({
     body: { content: { "application/json": { schema: installCheckSchema } } },
   },
   responses: {
-    200: { description: "Install policy evaluation" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            allowed: z.boolean(),
+            decision: z.enum(["allow", "warn", "block"]),
+            reasons: z.array(z.string()),
+            severity: securitySeveritySchema,
+            headline: z.enum(["Passed", "Advisory", "Risky", "Critical"]),
+            securityStatus: z.string().nullable(),
+          }),
+        },
+      },
+      description: "Install policy evaluation",
+    },
     ...errorResponses(),
   },
 });
@@ -236,7 +294,14 @@ const patchReviewRubricRoute = createRoute({
     body: { content: { "application/json": { schema: reviewRubricSchema } } },
   },
   responses: {
-    200: { description: "Review rubric updated" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ ok: z.boolean(), reviewRubric: reviewRubricSchema }),
+        },
+      },
+      description: "Review rubric updated",
+    },
     ...errorResponses(),
   },
 });
@@ -273,7 +338,10 @@ const getReviewRubricRoute = createRoute({
   summary: "Get an organization's review rubric",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Review rubric" },
+    200: {
+      content: { "application/json": { schema: z.object({ reviewRubric: reviewRubricSchema }) } },
+      description: "Review rubric",
+    },
     ...errorResponses(),
   },
 });
@@ -303,7 +371,14 @@ const patchExecutionPolicyRoute = createRoute({
     body: { content: { "application/json": { schema: executionPolicySchema } } },
   },
   responses: {
-    200: { description: "Execution policy updated" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ ok: z.boolean(), executionPolicy: executionPolicySchema }),
+        },
+      },
+      description: "Execution policy updated",
+    },
     ...errorResponses(),
   },
 });
@@ -340,7 +415,12 @@ const getExecutionPolicyRoute = createRoute({
   summary: "Get an organization's execution policy",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Execution policy" },
+    200: {
+      content: {
+        "application/json": { schema: z.object({ executionPolicy: executionPolicySchema }) },
+      },
+      description: "Execution policy",
+    },
     ...errorResponses(),
   },
 });
@@ -367,7 +447,12 @@ const listRequiredSkillsRoute = createRoute({
   summary: "List the skills an organization requires",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Required skills" },
+    200: {
+      content: {
+        "application/json": { schema: z.object({ items: z.array(requiredSkillRowSchema) }) },
+      },
+      description: "Required skills",
+    },
     ...errorResponses({ validates: false, notFound: false }),
   },
 });
@@ -396,7 +481,15 @@ const addRequiredSkillRoute = createRoute({
     body: { content: { "application/json": { schema: requiredSkillSchema } } },
   },
   responses: {
-    201: { description: "Added" },
+    201: {
+      content: {
+        "application/json": {
+          // Null when the entry already existed (insert ... on conflict do nothing).
+          schema: z.object({ item: requiredSkillRowSchema.nullable() }),
+        },
+      },
+      description: "Added",
+    },
     ...errorResponses({ notFound: false }),
   },
 });
@@ -433,7 +526,10 @@ const removeRequiredSkillRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Removed" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Removed",
+    },
     ...errorResponses(),
   },
 });
@@ -463,7 +559,20 @@ const requiredSkillsCheckRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Required skills compliance" },
+    200: {
+      content: {
+        "application/json": {
+          // All three lists hold "org/repo" refs.
+          schema: z.object({
+            required: z.array(z.string()),
+            installed: z.array(z.string()),
+            missing: z.array(z.string()),
+            compliant: z.boolean(),
+          }),
+        },
+      },
+      description: "Required skills compliance",
+    },
     ...errorResponses({ notFound: false }),
   },
 });
@@ -509,7 +618,20 @@ const requiredSkillsWorkflowRoute = createRoute({
   summary: "Generate a GitHub Actions workflow that enforces required skills",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Suggested GitHub Actions workflow for required skills" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            // Omitted entirely if the org row has vanished under the caller.
+            orgSlug: z.string().optional(),
+            requiredCount: z.number(),
+            /** The workflow YAML, ready to drop into .github/workflows/. */
+            workflow: z.string(),
+          }),
+        },
+      },
+      description: "Suggested GitHub Actions workflow for required skills",
+    },
     ...errorResponses({ validates: false, notFound: false }),
   },
 });
