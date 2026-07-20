@@ -3,7 +3,7 @@ title: Sandbox execution
 description: Run skill scripts in isolated hosted sandboxes with streaming output and quotas.
 ---
 
-Skills can declare hosted scripts in `plugin.json` with runtime `sandbox` or `container`. Skillist runs these in isolated sandboxes on the API worker.
+Skills can declare hosted scripts under `scripts/`. The runtime (`local`, `sandbox`, or `container`) is derived from the bundle — see [how the runtime is chosen](/getting-started/skill-format/#how-the-runtime-is-chosen). Skillist runs `sandbox` and `container` skills in isolated sandboxes on the API worker.
 
 ## Requirements
 
