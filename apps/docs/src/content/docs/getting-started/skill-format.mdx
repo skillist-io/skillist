@@ -1,0 +1,156 @@
+---
+title: Skill format
+description: The SKILL.md bundle format — frontmatter fields, directory layout, plugin.json, and the rules the validator enforces at publish time.
+---
+
+import { DocAlert } from "@/components/docs/DocAlert";
+
+A skill is a **bundle**: a `SKILL.md` file plus optional scripts, references, and assets. The format is the [agentskills.io](https://agentskills.io) spec, and Skillist validates against it at publish time.
+
+Everything on this page is enforced by [`@skillist/skill-format`](https://www.npmjs.com/package/@skillist/skill-format) — the same validator the registry runs. Check a bundle before you push it:
+
+```bash
+skillist review ./my-skill
+```
+
+## Minimal skill
+
+```markdown title="SKILL.md"
+---
+name: web-perf-audit
+description: Audits Core Web Vitals and reports render-blocking resources.
+---
+
+# Web Perf Audit
+
+Instructions the agent reads when this skill is active.
+```
+
+That is a complete, valid skill. Everything else is optional.
+
+## Frontmatter
+
+YAML between `---` fences at the very top of `SKILL.md`. Two fields are required.
+
+| Field | Required | Rules |
+|-------|----------|-------|
+| `name` | **yes** | Lowercase alphanumeric and hyphens, 1–64 characters. No leading, trailing, or consecutive hyphens. **Must equal the repo slug** you publish to. |
+| `description` | **yes** | 1–1024 characters. Shown in registry listings and used for discovery — write it for someone deciding whether to install. |
+| `license` | no | SPDX identifier, e.g. `MIT`. |
+| `compatibility` | no | Free text, up to 500 characters. What this skill assumes about its environment. |
+| `metadata` | no | A flat map of string keys to string values. See below. |
+| `allowed-tools` | no | Restricts which tools an agent may use while this skill is active. |
+
+<DocAlert title="name must match the repo" client:load>
+  Publishing `acme/widget` requires `name: widget`. A mismatch fails validation rather than being
+  silently corrected, because the name is what agents resolve against.
+</DocAlert>
+
+### metadata
+
+`metadata` is a flat string map. Three keys drive registry discovery:
+
+```yaml
+metadata:
+  category: quality
+  level: intermediate
+  tags: audit, performance, lighthouse
+```
+
+- **`category`** — a single grouping, used as a registry filter.
+- **`level`** — free text, e.g. `beginner` / `intermediate` / `advanced`.
+- **`tags`** — comma or semicolon separated.
+
+All three are lowercased, and `category` and `level` are folded into the searchable tag set alongside `tags` — so a skill with `category: quality` is findable by searching `quality` without repeating it.
+
+Any other keys are preserved but ignored by discovery.
+
+## Bundle layout
+
+```
+SKILL.md        required
+plugin.json     optional — runtime, agent compatibility, MCP servers
+scripts/        optional — executable scripts
+references/     optional — supporting documents the agent can read
+assets/         optional — binary files, base64-encoded
+```
+
+Only those three directories and `plugin.json` are allowed beside `SKILL.md`. A file anywhere else fails validation with `use scripts/, references/, or assets/`.
+
+### Path rules
+
+Rejected outright, because a bundle is extracted into a sandbox workspace where a stray path can clobber runtime files:
+
+- anything containing `..`
+- absolute paths (`/etc/passwd`)
+- Windows drive letters (`C:\...`)
+- null bytes
+
+### Binary assets
+
+Files under `assets/` with a binary extension must be **base64-encoded** and at most **5 MB** each. Invalid base64 or an oversized asset fails validation.
+
+## plugin.json
+
+Optional. It declares how the skill runs and which agents it targets.
+
+```json title="plugin.json"
+{
+  "name": "web-perf-audit",
+  "version": "1.2.3",
+  "description": "Audits Core Web Vitals.",
+  "skills": ["SKILL.md"],
+  "agents": ["claude", "cursor", "vscode"],
+  "metadata": { "runtime": "container" },
+  "mcp": {
+    "servers": [{ "name": "skillist", "url": "https://api.skillist.io/mcp" }]
+  }
+}
+```
+
+| Field | Notes |
+|-------|-------|
+| `name` | 1–128 characters. |
+| `version` | Informational. The published version comes from the registry, not this file. |
+| `skills` | Which files are skill entrypoints. Defaults to `["SKILL.md"]`. |
+| `agents` | Compatible agents. Drives the registry's agent filter. |
+| `rules` | Optional rule files. |
+| `mcp.servers` | MCP servers this skill expects, each with a `name` plus `command` or `url`. |
+| `metadata.runtime` | Set to `"container"` to force the heavier runtime. Read directly from the file rather than through the manifest schema, so it is the one key here that will not appear in a parsed manifest. |
+
+## How the runtime is chosen
+
+You do not pick a runtime directly — it is derived from the bundle:
+
+1. **No runnable scripts** → `local`. The skill is instructions only; the agent reads it and acts.
+2. **`metadata.runtime` is `"container"` in `plugin.json`** → `container`.
+3. **Scripts whose path contains `wrangler`, `deploy`, or `preflight`**, or an `assets/wrangler.template.jsonc` → `container`. These need a heavier image with more tooling.
+4. **Otherwise** → `sandbox`.
+
+`sandbox` and `container` both execute in isolated Cloudflare containers; `container` gets the larger image. See [Sandbox execution](/platform/sandbox/) for quotas and access rules.
+
+## Validating locally
+
+```bash
+skillist review ./my-skill --threshold 80 --fail-on high
+```
+
+Reports the quality score and security findings, and exits non-zero below the threshold — suitable for CI. See [Install policy](/platform/install-policy/) for wiring it into a workflow.
+
+To validate programmatically:
+
+```ts
+import { validateSkillBundle } from "@skillist/skill-format";
+
+const result = validateSkillBundle(bundle, "web-perf-audit");
+if (!result.valid) console.error(result.errors); // [{ path, message }]
+```
+
+## Publishing
+
+```bash
+export SKILLIST_API_KEY=sk_...
+skillist publish acme/web-perf-audit ./my-skill
+```
+
+Versions are immutable once published, and `name` must match the repo slug. See the [CLI reference](/getting-started/cli/) for `push`, `publish`, and `rollback`.

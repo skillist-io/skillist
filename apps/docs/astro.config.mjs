@@ -50,6 +50,7 @@ export default defineConfig({
           items: [
             { label: "Introduction", slug: "index" },
             { label: "Quick start", slug: "getting-started/quick-start" },
+            { label: "Skill format", slug: "getting-started/skill-format" },
             { label: "CLI", slug: "getting-started/cli" },
           ],
         },
