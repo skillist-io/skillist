@@ -180,7 +180,9 @@ describe("versioned delivery", () => {
     const res = await serveSkillMdAtVersion(env(kv), dbNotNeeded, "acme", "widget", "1.0.0");
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(SKILL_MD);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=31536000, immutable, s-maxage=300",
+    );
     expect(res.headers.get("ETag")).toBe('"etag123"');
     expect(res.headers.get("X-Skillist-Version")).toBe("1.0.0");
   });
@@ -213,7 +215,9 @@ describe("versioned delivery", () => {
     });
     const res = await serveSkillMetaAtVersion(env(kv), dbNotNeeded, "acme", "widget", "1.0.0");
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=31536000, immutable, s-maxage=300",
+    );
   });
 });
 
@@ -277,7 +281,9 @@ describe("versioned delivery backfill", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.text()).toBe(SKILL_MD);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=31536000, immutable, s-maxage=300",
+    );
     expect(res.headers.get("ETag")).toBe('"oldetag"');
     expect(puts.get("skill:acme:widget:v:0.9.0")).toBe(SKILL_MD);
     const meta = JSON.parse(puts.get("skill:acme:widget:v:0.9.0:meta") ?? "{}");

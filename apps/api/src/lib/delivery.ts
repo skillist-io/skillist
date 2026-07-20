@@ -24,8 +24,13 @@ const LATEST_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300, st
 // Bundles are heavier and change only on publish; give them a longer window.
 const BUNDLE_CACHE_CONTROL =
   "public, max-age=300, stale-while-revalidate=3600, stale-if-error=86400";
-// Exact-version URLs pin content that never changes once published.
-const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
+// Exact-version URLs pin content that never changes once published — but the
+// skill's VISIBILITY can still change. `max-age` is for private browser caches
+// (that requester already had access, so a later flip to private is not a new
+// exposure); `s-maxage` bounds SHARED caches, so a public→private flip stops
+// being served to new requesters within 5 minutes rather than persisting for
+// the immutable lifetime.
+const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable, s-maxage=300";
 
 type DeliveryEnv = { SKILLS_KV: KVNamespace; SKILLS_R2: R2Bucket };
 
