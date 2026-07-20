@@ -54,6 +54,7 @@ import { NewProjectDialog } from "@/components/new-project-dialog";
 import { ProjectVisibilityIcon } from "@/components/project-visibility";
 import type { TreeNode } from "@/components/skill-editor/paths";
 import { buildProjectTree, projectItemLeafName } from "@/lib/project-tree";
+import { useAutoExpand } from "@/lib/use-auto-expand";
 
 type NavItem = {
   title: string;
@@ -379,9 +380,11 @@ function OrgBlock({
                 key={skill.id}
                 to="/orgs/$orgId/skills/$repo"
                 params={{ orgId: org.id, repo: skill.repo }}
-                className={`flex flex-col items-start gap-1 px-4 py-3 text-sm leading-tight hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-                  active ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
-                }`}
+                className={cn(
+                  "flex flex-col items-start gap-1 px-4 py-3 text-sm leading-tight hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  active &&
+                    "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_2px_0_0_0_currentColor]",
+                )}
               >
                 <span className="font-medium">{skill.repo}</span>
                 <span className="text-xs text-muted-foreground">{skill.visibility}</span>
@@ -482,7 +485,17 @@ function SidebarProjectNode({
   project: Project;
   pathname: string;
 }) {
-  const [open, setOpen] = React.useState(false);
+  // A branch containing where you are should reveal itself, rather than leaving
+  // the reader to guess which project they are inside. The project route names
+  // its project, so that case resolves from the URL alone.
+  //
+  // A *skill* route does not say which project contains it, and the detail query
+  // is deliberately lazy (`enabled: open`) — knowing would mean eagerly fetching
+  // every project in every org on each page load. That trade is not worth it, so
+  // a skill reached from elsewhere still needs one click to locate.
+  const isActiveProject = pathname.startsWith(`/orgs/${org.id}/projects/${project.id}`);
+  const [open, setOpen] = useAutoExpand(isActiveProject);
+
   const { data: detail } = useQuery({
     queryKey: ["project", org.id, project.id],
     queryFn: () => api<ProjectDetail>(`/v1/orgs/${org.id}/projects/${project.id}`),
@@ -676,7 +689,14 @@ function SidebarLeaf({
     <Link
       to="/orgs/$orgId/skills/$repo"
       params={{ orgId: ownerOrgId, repo: item.repo }}
-      className={cn(leafClass, active && "bg-sidebar-accent text-sidebar-accent-foreground")}
+      className={cn(
+        leafClass,
+        // Inset rule rather than a border: it marks the active row without
+        // shifting its text, and at depth a left edge traces back to the parent
+        // far better than a fill alone.
+        active &&
+          "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_2px_0_0_0_currentColor]",
+      )}
       style={pad}
     >
       <Folder className="size-3.5 shrink-0 text-muted-foreground opacity-0" aria-hidden />

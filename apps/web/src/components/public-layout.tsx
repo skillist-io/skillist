@@ -112,7 +112,11 @@ function AuthActions({ onNavigate, className }: { onNavigate?: () => void; class
           className={className}
           onClick={() => {
             onNavigate?.();
-            void signOutAndRedirect();
+            // Home, not the shared "/login" default: this app has no /login
+            // route (sign-in lives on the console), so the default resolved to
+            // skillist.io/login and 404'd. Signing out of a public browsing
+            // surface should leave you on it.
+            void signOutAndRedirect("/");
           }}
         >
           Sign out
