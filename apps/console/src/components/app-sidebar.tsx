@@ -169,7 +169,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 tooltip={{ children: "Skillist — Dashboard", hidden: false }}
               >
                 <Link to="/dashboard">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-none bg-sidebar-primary text-sidebar-primary-foreground">
+                  {/* Round for the same reason the avatar is: an identity mark, not a
+                      control or a readout. Everything you can operate stays squared. */}
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
                     <span className="text-sm font-bold tracking-[-0.04em]">S</span>
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
