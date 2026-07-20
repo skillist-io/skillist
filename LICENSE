@@ -1,0 +1,18 @@
+Copyright (c) 2026 Blake Bauman. All rights reserved.
+
+This repository — the Skillist platform, comprising the API worker, the web and
+console applications, the documentation site, and all shared packages except
+those named below — is proprietary. No licence is granted to use, copy, modify,
+distribute, or create derivative works from it without prior written permission.
+
+The following packages are published to npm and licensed separately under the
+MIT licence. Each carries its own LICENSE file, which governs that package:
+
+  - packages/cli           (@skillist/cli)
+  - packages/skill-format  (@skillist/skill-format)
+
+They are MIT because they are client-side tools: you install the CLI to talk to
+the registry, and the format validator implements the public agentskills.io
+spec. Both are meant to be read, forked, and vendored.
+
+Questions about licensing: privacy@skillist.io
