@@ -16,7 +16,6 @@ import {
   type InstallPolicy,
   Label,
   NativeSelect,
-  type Org,
   PageTitle,
   type PublishPolicy,
   Switch,
@@ -24,6 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useActiveOrg } from "@/lib/active-org";
 import { requireAuth } from "@/lib/require-auth";
 
 const API_SCOPES = [
@@ -52,14 +52,9 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const { data: orgs } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => api<Org[]>("/v1/orgs"),
-  });
-  const ownerOrgs = orgs?.filter((o) => o.role === "owner") ?? [];
-  const [selectedOrgId, setSelectedOrgId] = useState("");
-
-  const activeOrgId = selectedOrgId || ownerOrgs[0]?.id || "";
+  const { activeOrg } = useActiveOrg();
+  // Settings management (org OAuth + API keys) is owner-only.
+  const isOwner = activeOrg?.role === "owner";
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8">
@@ -140,40 +135,30 @@ function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {ownerOrgs.length === 0 ? (
+          {!activeOrg ? (
             <p className="text-sm text-muted-foreground">
               Create an organization on the dashboard to manage API keys.
             </p>
+          ) : !isOwner ? (
+            // Permission state (not an error) — the global switcher lists every
+            // org, so surface the gate here instead of switching orgs.
+            <div className="border border-border p-6">
+              <h3 className="text-sm font-semibold text-foreground">Owner access required</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Managing settings for {activeOrg.name} needs an owner role. You have the{" "}
+                {activeOrg.role} role.
+              </p>
+            </div>
           ) : (
             <>
-              {ownerOrgs.length > 1 && (
-                <div>
-                  <Label>Organization</Label>
-                  <NativeSelect
-                    className="mt-1 w-full"
-                    value={activeOrgId}
-                    onChange={(e) => setSelectedOrgId(e.target.value)}
-                  >
-                    {ownerOrgs.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name} ({org.slug})
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
-              )}
-              {activeOrgId && (
-                <>
-                  <ApiKeyManager orgId={activeOrgId} />
-                  <p className="text-sm text-muted-foreground">
-                    Publish policies, quotas, and audit logs are on the{" "}
-                    <a href="/governance" className="text-primary underline">
-                      Governance
-                    </a>{" "}
-                    page.
-                  </p>
-                </>
-              )}
+              <ApiKeyManager orgId={activeOrg.id} />
+              <p className="text-sm text-muted-foreground">
+                Publish policies, quotas, and audit logs are on the{" "}
+                <a href="/governance" className="text-primary underline">
+                  Governance
+                </a>{" "}
+                page.
+              </p>
             </>
           )}
         </CardContent>

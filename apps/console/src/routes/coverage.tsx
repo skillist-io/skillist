@@ -8,9 +8,6 @@ import {
   type Coverage,
   type CoverageSkill,
   cn,
-  Label,
-  NativeSelect,
-  type Org,
   PageTitle,
   QueryError,
   Skeleton,
@@ -18,7 +15,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, Check, Minus } from "lucide-react";
-import { useState } from "react";
+import { useActiveOrg } from "@/lib/active-org";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/coverage")({
@@ -32,12 +29,8 @@ const ROW_GRID =
   "grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-[minmax(0,1fr)_7rem_13rem_14rem_8rem] md:items-baseline";
 
 function CoveragePage() {
-  const { data: orgs } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => api<Org[]>("/v1/orgs"),
-  });
-  const [selectedOrgId, setSelectedOrgId] = useState("");
-  const activeOrgId = selectedOrgId || orgs?.[0]?.id || "";
+  const { activeOrg } = useActiveOrg();
+  const activeOrgId = activeOrg?.id ?? "";
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["coverage", activeOrgId],
@@ -54,24 +47,6 @@ function CoveragePage() {
           and projects, then activated by agents in the field
         </p>
       </div>
-
-      {orgs && orgs.length > 1 ? (
-        <div className="max-w-xs space-y-2">
-          <Label htmlFor="coverage-org">Organization</Label>
-          <NativeSelect
-            id="coverage-org"
-            className="w-full"
-            value={activeOrgId}
-            onChange={(e) => setSelectedOrgId(e.target.value)}
-          >
-            {orgs.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-      ) : null}
 
       {!activeOrgId ? (
         <p className="text-muted-foreground">Select an organization to view coverage.</p>

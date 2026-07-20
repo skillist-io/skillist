@@ -1,7 +1,6 @@
 import type { Org } from "@skillist/ui";
 import {
   Button,
-  NativeSelect,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -19,9 +18,9 @@ import { LazyAgentChat, prefetchAgentChat } from "@/components/agent/agent-chat-
 import { ApprovalsPanel } from "@/components/agent/approvals-panel";
 import { ChatHistoryList } from "@/components/agent/chat-history";
 import { MemoryPanel } from "@/components/agent/memory-panel";
+import { useActiveOrg } from "@/lib/active-org";
 import { useAgentContext } from "@/lib/agent-context";
 import { useAgentChats } from "@/lib/use-agent-chats";
-import { useAgentOrg } from "@/lib/use-agent-org";
 
 /**
  * The platform agent, reachable from every authenticated route.
@@ -41,7 +40,7 @@ export function AgentDrawer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { orgs, activeOrg, setOrgId, isPending, isError, refetch } = useAgentOrg();
+  const { activeOrg, isPending, isError, refetch } = useActiveOrg();
   const context = useAgentContext();
 
   return (
@@ -61,19 +60,13 @@ export function AgentDrawer({
             <SheetDescription className="text-sm font-medium text-foreground">
               Org intelligence
             </SheetDescription>
-            {orgs.length > 1 && activeOrg && (
-              <NativeSelect
-                aria-label="Active organization"
-                value={activeOrg.id}
-                onChange={(e) => setOrgId(e.target.value)}
-                className="h-8 w-auto min-w-28"
-              >
-                {orgs.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </NativeSelect>
+            {/* Read-only indicator of the active org — switching is done from the
+                global top-bar switcher. A plain chip keeps clear of the Sheet's
+                absolutely-positioned close button (the header's pr-14). */}
+            {activeOrg && (
+              <span className="max-w-[10rem] shrink-0 truncate border border-border px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                {activeOrg.name}
+              </span>
             )}
           </div>
         </div>
