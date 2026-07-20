@@ -29,22 +29,15 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowDown, Check, Search, SlidersHorizontal, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 import { SignInToAddButton as AddToProjectButton } from "@/components/sign-in-cta";
 import { StarStat } from "@/components/star-stat";
 
-type Sort =
-  | "quality"
-  | "impact"
-  | "installs"
-  | "activations"
-  | "stars"
-  | "trending"
-  | "recent"
-  | "name";
-type Runtime = "all" | "local" | "sandbox" | "container";
-type Security = "all" | "pass" | "advisory" | "fail";
-type SourceType = "all" | "native" | "mirror";
+type Sort = (typeof SORT_VALUES)[number];
+type Runtime = (typeof RUNTIME_VALUES)[number];
+type Security = (typeof SECURITY_VALUES)[number];
+type SourceType = (typeof SOURCE_TYPE_VALUES)[number];
 
 type RegistryFilters = {
   q: string;
@@ -57,6 +50,22 @@ type RegistryFilters = {
   agent: string;
   sourceType: SourceType;
 };
+
+// Tuples shared by the TS unions and the URL schema, so an unknown ?sort= value
+// is rejected at the route boundary rather than reaching the API.
+const SORT_VALUES = [
+  "quality",
+  "impact",
+  "installs",
+  "activations",
+  "stars",
+  "trending",
+  "recent",
+  "name",
+] as const;
+const RUNTIME_VALUES = ["all", "local", "sandbox", "container"] as const;
+const SECURITY_VALUES = ["all", "pass", "advisory", "fail"] as const;
+const SOURCE_TYPE_VALUES = ["all", "native", "mirror"] as const;
 
 const SORT_OPTIONS: { value: Sort; label: string }[] = [
   { value: "quality", label: "Quality" },
@@ -110,10 +119,6 @@ function buildRegistryQuery(filters: RegistryFilters): string {
   return params.toString();
 }
 
-export const Route = createFileRoute("/registry/")({
-  component: RegistryPage,
-});
-
 const INITIAL: RegistryFilters = {
   q: "",
   sort: "quality",
@@ -126,35 +131,105 @@ const INITIAL: RegistryFilters = {
   sourceType: "all",
 };
 
+/**
+ * TanStack Router types the querystring by inspecting it, so a digits-only
+ * value (`?minQuality=80`, or a search for `?q=2024`) arrives as a **number**.
+ * A plain `z.string()` rejects those and throws the whole route. Accept either
+ * and normalise to string — every consumer downstream wants a string.
+ */
+const looseString = z.union([z.string(), z.number()]).transform(String);
+
+/**
+ * Filters live in the URL, not in component state, so a filtered view is a
+ * place: shareable, bookmarkable, and restored by the back button. Every field
+ * is optional and defaults are omitted when writing, which keeps `/registry`
+ * clean until the reader actually narrows something.
+ */
+const searchSchema = z.object({
+  q: looseString.optional(),
+  sort: z.enum(SORT_VALUES).optional(),
+  runtime: z.enum(RUNTIME_VALUES).optional(),
+  // A number, not a string: TanStack JSON-encodes any string that looks
+  // numeric, which would put `minQuality="80"` in a link meant to be shared.
+  minQuality: z.coerce.number().int().min(0).max(100).optional(),
+  security: z.enum(SECURITY_VALUES).optional(),
+  category: looseString.optional(),
+  tag: looseString.optional(),
+  agent: looseString.optional(),
+  sourceType: z.enum(SOURCE_TYPE_VALUES).optional(),
+});
+
+type RegistrySearch = z.infer<typeof searchSchema>;
+
+/** Drop defaults and empties so the querystring only carries real narrowing. */
+function toSearchParams(filters: RegistryFilters): RegistrySearch {
+  const next: RegistrySearch = {};
+  if (filters.q) next.q = filters.q;
+  if (filters.sort !== INITIAL.sort) next.sort = filters.sort;
+  if (filters.runtime !== INITIAL.runtime) next.runtime = filters.runtime;
+  if (filters.minQuality) next.minQuality = Number(filters.minQuality);
+  if (filters.security !== INITIAL.security) next.security = filters.security;
+  if (filters.category) next.category = filters.category;
+  if (filters.tag) next.tag = filters.tag;
+  if (filters.agent) next.agent = filters.agent;
+  if (filters.sourceType !== INITIAL.sourceType) next.sourceType = filters.sourceType;
+  return next;
+}
+
+export const Route = createFileRoute("/registry/")({
+  validateSearch: searchSchema,
+  component: RegistryPage,
+});
+
 function RegistryPage() {
-  const [search, setSearch] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [sort, setSort] = useState<Sort>(INITIAL.sort);
-  const [runtime, setRuntime] = useState<Runtime>(INITIAL.runtime);
-  const [minQuality, setMinQuality] = useState(INITIAL.minQuality);
-  const [security, setSecurity] = useState<Security>(INITIAL.security);
-  const [category, setCategory] = useState(INITIAL.category);
-  const [tag, setTag] = useState(INITIAL.tag);
-  const [agent, setAgent] = useState(INITIAL.agent);
-  const [sourceType, setSourceType] = useState<SourceType>(INITIAL.sourceType);
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQ(search), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
+  // The URL is the source of truth; unset params fall back to defaults.
+  // Memoised so `setFilters` — and therefore the debounce effect that depends
+  // on it — is stable between renders rather than rebuilt on every one.
+  const filters: RegistryFilters = useMemo(
+    () => ({
+      ...INITIAL,
+      ...urlSearch,
+      // The rail's option values are strings ("", "60", "80", "90").
+      minQuality: urlSearch.minQuality === undefined ? "" : String(urlSearch.minQuality),
+    }),
+    [urlSearch],
+  );
+  const { sort, runtime, minQuality, security, category, tag, agent, sourceType } = filters;
 
-  const queryString = buildRegistryQuery({
-    q: debouncedQ,
-    sort,
-    runtime,
-    minQuality,
-    security,
-    category,
-    tag,
-    agent,
-    sourceType,
-  });
+  // The text input is the one control that cannot read straight from the URL:
+  // it must echo every keystroke, while the URL should only record where the
+  // reader stopped typing. Local state drives the field, debounced into the URL.
+  const [search, setSearch] = useState(filters.q);
+  const debouncedQ = filters.q;
+
+  const setFilters = useCallback(
+    (patch: Partial<RegistryFilters>) => {
+      navigate({
+        search: toSearchParams({ ...filters, ...patch }),
+        // Filter tweaks are not distinct destinations — replacing keeps Back
+        // as "leave the registry" rather than "undo one checkbox".
+        replace: true,
+      });
+    },
+    [filters, navigate],
+  );
+
+  // Reflect an externally-changed q (back/forward, a shared link) into the field.
+  useEffect(() => {
+    setSearch(filters.q);
+  }, [filters.q]);
+
+  useEffect(() => {
+    if (search === filters.q) return;
+    const timer = setTimeout(() => setFilters({ q: search }), 300);
+    return () => clearTimeout(timer);
+  }, [search, filters.q, setFilters]);
+
+  const queryString = buildRegistryQuery(filters);
 
   const { data: facets } = useQuery({
     queryKey: ["registry-facets"],
@@ -182,33 +257,28 @@ function RegistryPage() {
     return n;
   }, [runtime, security, minQuality, category, tag, agent, sourceType, debouncedQ]);
 
-  function clearFilters() {
+  const clearFilters = useCallback(() => {
     setSearch("");
-    setDebouncedQ("");
-    setRuntime(INITIAL.runtime);
-    setMinQuality(INITIAL.minQuality);
-    setSecurity(INITIAL.security);
-    setCategory(INITIAL.category);
-    setTag(INITIAL.tag);
-    setAgent(INITIAL.agent);
-    setSourceType(INITIAL.sourceType);
-  }
+    navigate({ search: {}, replace: true });
+  }, [navigate]);
 
+  // The rail keeps its `setX` prop shape; each setter now writes one field of
+  // the URL instead of one piece of component state.
   const railProps = {
     runtime,
-    setRuntime,
+    setRuntime: (v: Runtime) => setFilters({ runtime: v }),
     security,
-    setSecurity,
+    setSecurity: (v: Security) => setFilters({ security: v }),
     minQuality,
-    setMinQuality,
+    setMinQuality: (v: string) => setFilters({ minQuality: v }),
     category,
-    setCategory,
+    setCategory: (v: string) => setFilters({ category: v }),
     tag,
-    setTag,
+    setTag: (v: string) => setFilters({ tag: v }),
     agent,
-    setAgent,
+    setAgent: (v: string) => setFilters({ agent: v }),
     sourceType,
-    setSourceType,
+    setSourceType: (v: SourceType) => setFilters({ sourceType: v }),
     facets,
     activeFilterCount,
     onClear: clearFilters,
@@ -258,7 +328,7 @@ function RegistryPage() {
             <NativeSelect
               id="registry-sort"
               value={sort}
-              onChange={(e) => setSort(e.target.value as Sort)}
+              onChange={(e) => setFilters({ sort: e.target.value as Sort })}
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -317,7 +387,11 @@ function RegistryPage() {
             ) : isLoading ? (
               <ResultsSkeleton />
             ) : data && data.items.length > 0 ? (
-              <Results items={data.items} sort={sort} setSort={setSort} />
+              <Results
+                items={data.items}
+                sort={sort}
+                setSort={(s: Sort) => setFilters({ sort: s })}
+              />
             ) : (
               <EmptyState hasFilters={activeFilterCount > 0} onClear={clearFilters} />
             )}
