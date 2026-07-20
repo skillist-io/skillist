@@ -10,10 +10,11 @@ import {
   subscriptions,
   telemetryEvents,
 } from "@skillist/db/schema";
-import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import { createWorkerDbCached, type WorkerDb } from "../lib/db";
+import { listRegistry } from "../lib/registry-service";
 import { resolveUserId } from "../lib/session";
 import { addDayBucket, buildDayBuckets, toDaySeries } from "../lib/time-series";
 
@@ -25,84 +26,6 @@ type AppEnv = {
 };
 
 export const registryRoutes = new OpenAPIHono<AppEnv>();
-
-function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
-  const clauses = [];
-
-  if (query.q) {
-    clauses.push(
-      or(
-        ilike(registryEntries.name, `%${query.q}%`),
-        ilike(registryEntries.description, `%${query.q}%`),
-        ilike(registryEntries.skillRepo, `%${query.q}%`),
-        ilike(registryEntries.orgSlug, `%${query.q}%`),
-      ),
-    );
-  }
-
-  if (query.minQuality != null) {
-    clauses.push(gte(registryEntries.qualityScore, query.minQuality));
-  }
-
-  if (query.security !== "all") {
-    clauses.push(eq(registryEntries.securityStatus, query.security));
-  }
-
-  if (query.runtime !== "all") {
-    clauses.push(eq(skills.runtime, query.runtime));
-  }
-
-  if (query.category) {
-    clauses.push(eq(registryEntries.category, query.category.toLowerCase()));
-  }
-
-  if (query.tag) {
-    clauses.push(
-      sql`${registryEntries.tags} @> ${JSON.stringify([query.tag.toLowerCase()])}::jsonb`,
-    );
-  }
-
-  if (query.agent) {
-    clauses.push(
-      sql`${registryEntries.compatibleAgents} @> ${JSON.stringify([query.agent.toLowerCase()])}::jsonb`,
-    );
-  }
-
-  if (query.sourceType && query.sourceType !== "all") {
-    clauses.push(eq(registryEntries.sourceType, query.sourceType));
-  }
-
-  return clauses.length ? and(...clauses) : undefined;
-}
-
-function registryOrderBy(query: z.infer<typeof registryQuerySchema>) {
-  switch (query.sort) {
-    case "impact":
-      return desc(registryEntries.impactScore);
-    case "installs":
-      return desc(registryEntries.installCount);
-    case "activations":
-      return desc(registryEntries.activationCount);
-    case "stars":
-      return desc(registryEntries.stars);
-    case "trending":
-      return desc(
-        sql`(
-          SELECT count(*)::int FROM ${telemetryEvents}
-          WHERE ${telemetryEvents.orgSlug} = ${registryEntries.orgSlug}
-            AND ${telemetryEvents.skillRepo} = ${registryEntries.skillRepo}
-            AND ${telemetryEvents.createdAt} >= now() - interval '7 days'
-        ) * 2 + ${registryEntries.stars} * 3 + ${registryEntries.installCount}`,
-      );
-    case "recent":
-      return desc(registryEntries.updatedAt);
-    case "name":
-      return asc(registryEntries.name);
-    case "quality":
-    default:
-      return desc(registryEntries.qualityScore);
-  }
-}
 
 const listRegistryRoute = createRoute({
   method: "get",
@@ -144,65 +67,12 @@ const listRegistryRoute = createRoute({
 
 registryRoutes.openapi(listRegistryRoute, async (c) => {
   const query = c.req.valid("query");
-  const { page, limit } = query;
-  const offset = (page - 1) * limit;
-  const where = buildRegistryWhere(query);
-  const orderBy = registryOrderBy(query);
-
   // Public registry browse is high-volume and tolerates ~60s staleness, so it
-  // uses the caching-enabled Hyperdrive binding.
-  const db = createWorkerDbCached(c.env);
-
-  const items = await db
-    .select({
-      id: registryEntries.id,
-      skillId: registryEntries.skillId,
-      orgSlug: registryEntries.orgSlug,
-      skillRepo: registryEntries.skillRepo,
-      name: registryEntries.name,
-      description: registryEntries.description,
-      latestVersion: registryEntries.latestVersion,
-      qualityScore: registryEntries.qualityScore,
-      impactScore: registryEntries.impactScore,
-      securityStatus: registryEntries.securityStatus,
-      installCount: registryEntries.installCount,
-      activationCount: registryEntries.activationCount,
-      stars: registryEntries.stars,
-      category: registryEntries.category,
-      tags: registryEntries.tags,
-      compatibleAgents: registryEntries.compatibleAgents,
-      sourceType: registryEntries.sourceType,
-      upstreamRepo: registryEntries.upstreamRepo,
-      upstreamUrl: registryEntries.upstreamUrl,
-      runtime: skills.runtime,
-    })
-    .from(registryEntries)
-    .innerJoin(skills, eq(registryEntries.skillId, skills.id))
-    .where(where)
-    .orderBy(orderBy)
-    .limit(limit)
-    .offset(offset);
-
-  const [countRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(registryEntries)
-    .innerJoin(skills, eq(registryEntries.skillId, skills.id))
-    .where(where);
-
-  return c.json({
-    items: items.map((item) => ({
-      ...item,
-      cliInstall: CLI_INSTALL,
-      installCommand: `skillist install ${item.orgSlug}/${item.skillRepo}`,
-      runCommand:
-        item.runtime && item.runtime !== "local"
-          ? `skillist run ${item.orgSlug}/${item.skillRepo} --script scripts/...`
-          : null,
-    })),
-    page,
-    limit,
-    total: countRow?.count ?? 0,
-  });
+  // uses the caching-enabled Hyperdrive binding. The query itself is the shared
+  // listRegistry() — this route previously kept a byte-for-byte copy of the
+  // filter and ordering logic, so a change to one silently did nothing in the
+  // other.
+  return c.json(await listRegistry(createWorkerDbCached(c.env), query));
 });
 
 const registryFacetsRoute = createRoute({

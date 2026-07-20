@@ -61,27 +61,65 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
   return clauses.length ? and(...clauses) : undefined;
 }
 
+/**
+ * Relevance score for a search term, as SQL so it can rank the *whole* match
+ * set rather than whichever 20 rows a page happens to contain — client-side
+ * ranking would reorder one page and hide the best hit sitting at rank 21.
+ *
+ * The tiers follow the shape Neon uses in its command index: an exact name
+ * beats a name prefix beats a name substring, identifier fields (repo, org)
+ * outrank prose, and a description match is the weakest signal that still
+ * counts. Quality breaks ties, so equally-relevant skills surface best-first.
+ */
+function relevanceScore(q: string) {
+  const term = q.toLowerCase();
+  return sql<number>`(
+    CASE WHEN lower(${registryEntries.name}) = ${term} THEN 120
+         WHEN lower(${registryEntries.name}) LIKE ${`${term}%`} THEN 90
+         WHEN lower(${registryEntries.name}) LIKE ${`%${term}%`} THEN 55
+         ELSE 0 END
+    + CASE WHEN lower(${registryEntries.skillRepo}) = ${term} THEN 60
+           WHEN lower(${registryEntries.skillRepo}) LIKE ${`%${term}%`} THEN 40
+           ELSE 0 END
+    + CASE WHEN lower(${registryEntries.orgSlug}) = ${term} THEN 45
+           WHEN lower(${registryEntries.orgSlug}) LIKE ${`%${term}%`} THEN 25
+           ELSE 0 END
+    + CASE WHEN lower(${registryEntries.description}) LIKE ${`%${term}%`} THEN 20
+           ELSE 0 END
+  )`;
+}
+
 function registryOrderBy(query: z.infer<typeof registryQuerySchema>) {
+  // Relevance is only meaningful with a term; without one it would score every
+  // row 0 and collapse to an arbitrary order, so fall through to quality.
+  if (query.sort === "relevance") {
+    return query.q
+      ? [desc(relevanceScore(query.q)), desc(registryEntries.qualityScore)]
+      : [desc(registryEntries.qualityScore)];
+  }
+
   switch (query.sort) {
     case "impact":
-      return desc(registryEntries.impactScore);
+      return [desc(registryEntries.impactScore)];
     case "installs":
-      return desc(registryEntries.installCount);
+      return [desc(registryEntries.installCount)];
     case "activations":
-      return desc(registryEntries.activationCount);
+      return [desc(registryEntries.activationCount)];
     case "stars":
-      return desc(registryEntries.stars);
+      return [desc(registryEntries.stars)];
     case "trending":
-      return desc(
-        sql`(${registryEntries.stars} * 3 + ${registryEntries.installCount} + ${registryEntries.activationCount})`,
-      );
+      return [
+        desc(
+          sql`(${registryEntries.stars} * 3 + ${registryEntries.installCount} + ${registryEntries.activationCount})`,
+        ),
+      ];
     case "recent":
-      return desc(registryEntries.updatedAt);
+      return [desc(registryEntries.updatedAt)];
     case "name":
-      return asc(registryEntries.name);
+      return [asc(registryEntries.name)];
     case "quality":
     default:
-      return desc(registryEntries.qualityScore);
+      return [desc(registryEntries.qualityScore)];
   }
 }
 
@@ -116,7 +154,7 @@ export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQ
     .from(registryEntries)
     .innerJoin(skills, eq(registryEntries.skillId, skills.id))
     .where(where)
-    .orderBy(orderBy)
+    .orderBy(...orderBy)
     .limit(limit)
     .offset(offset);
 

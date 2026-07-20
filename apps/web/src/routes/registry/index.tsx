@@ -54,6 +54,7 @@ type RegistryFilters = {
 // Tuples shared by the TS unions and the URL schema, so an unknown ?sort= value
 // is rejected at the route boundary rather than reaching the API.
 const SORT_VALUES = [
+  "relevance",
   "quality",
   "impact",
   "installs",
@@ -68,6 +69,7 @@ const SECURITY_VALUES = ["all", "pass", "advisory", "fail"] as const;
 const SOURCE_TYPE_VALUES = ["all", "native", "mirror"] as const;
 
 const SORT_OPTIONS: { value: Sort; label: string }[] = [
+  { value: "relevance", label: "Relevance" },
   { value: "quality", label: "Quality" },
   { value: "impact", label: "Impact" },
   { value: "installs", label: "Installs" },
@@ -193,6 +195,10 @@ function RegistryPage() {
     () => ({
       ...INITIAL,
       ...urlSearch,
+      // A search wants best-match first; a browse wants best-quality first.
+      // Applies only when the reader has not chosen a sort themselves, and sits
+      // after the spread because an absent ?sort= arrives as undefined.
+      sort: urlSearch.sort ?? (urlSearch.q ? "relevance" : INITIAL.sort),
       // The rail's option values are strings ("", "60", "80", "90").
       minQuality: urlSearch.minQuality === undefined ? "" : String(urlSearch.minQuality),
     }),
@@ -391,6 +397,7 @@ function RegistryPage() {
                 items={data.items}
                 sort={sort}
                 setSort={(s: Sort) => setFilters({ sort: s })}
+                query={debouncedQ}
               />
             ) : (
               <EmptyState hasFilters={activeFilterCount > 0} onClear={clearFilters} />
@@ -410,10 +417,13 @@ function Results({
   items,
   sort,
   setSort,
+  query,
 }: {
   items: RegistryItem[];
   sort: Sort;
   setSort: (s: Sort) => void;
+  /** Active search term, so each row can explain a non-obvious match. */
+  query: string;
 }) {
   return (
     <>
@@ -457,7 +467,7 @@ function Results({
           </thead>
           <tbody>
             {items.map((item) => (
-              <RegistryRow key={`${item.orgSlug}/${item.skillRepo}`} item={item} />
+              <RegistryRow key={`${item.orgSlug}/${item.skillRepo}`} item={item} query={query} />
             ))}
           </tbody>
         </table>
@@ -517,8 +527,25 @@ function SortHeader({
   );
 }
 
-function RegistryRow({ item }: { item: RegistryItem }) {
+/**
+ * Why this row matched, when the reason is not visible in the name.
+ *
+ * The registry searches description and slug as well as name, so a result whose
+ * title looks unrelated is otherwise inexplicable — the chip is what stops a
+ * good match reading as a bad one.
+ */
+function matchedField(item: RegistryItem, q: string): string | null {
+  const term = q.trim().toLowerCase();
+  if (!term) return null;
+  if (item.name?.toLowerCase().includes(term)) return null; // self-evident
+  if (`${item.orgSlug}/${item.skillRepo}`.toLowerCase().includes(term)) return "repo";
+  if (item.description?.toLowerCase().includes(term)) return "description";
+  return null;
+}
+
+function RegistryRow({ item, query }: { item: RegistryItem; query: string }) {
   const installCmd = item.installCommand ?? `skillist install ${item.orgSlug}/${item.skillRepo}`;
+  const matched = matchedField(item, query);
   return (
     <tr className="border-b border-border align-top transition-colors hover:bg-muted/40">
       <td className="w-full px-3 py-4">
@@ -535,8 +562,13 @@ function RegistryRow({ item }: { item: RegistryItem }) {
               <span className="font-mono text-xs text-muted-foreground">v{item.latestVersion}</span>
             )}
           </div>
-          <span className="font-mono text-xs text-muted-foreground">
+          <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
             {item.orgSlug}/{item.skillRepo}
+            {matched && (
+              <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+                matched {matched}
+              </span>
+            )}
           </span>
           {item.description && (
             <p className="line-clamp-2 max-w-prose text-sm text-muted-foreground text-pretty">

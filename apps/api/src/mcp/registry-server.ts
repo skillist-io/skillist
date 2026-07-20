@@ -63,7 +63,8 @@ export const REGISTRY_MCP_TOOLS: McpTool[] = [
         },
         sort: {
           type: "string",
-          description: "quality, trending, stars, installs, recent, name",
+          description:
+            "relevance (best match for `query`), quality, impact, trending, stars, installs, activations, recent, name",
         },
       },
     },
@@ -465,6 +466,7 @@ async function callTool(
         page: 1,
         limit,
         sort: (typeof args.sort === "string" ? args.sort : "quality") as
+          | "relevance"
           | "quality"
           | "trending"
           | "stars"
