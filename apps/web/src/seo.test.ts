@@ -128,6 +128,15 @@ describe("sitemapXml", () => {
   it("still emits valid XML for an empty registry", () => {
     expect(sitemapXml([])).toContain("<urlset");
   });
+
+  it("includes the static pages, including privacy", () => {
+    // /privacy is linked from the consent banner on all three surfaces, so it
+    // must be indexable rather than an orphan.
+    const xml = sitemapXml([]);
+    expect(xml).toContain("<loc>https://skillist.io/</loc>");
+    expect(xml).toContain("<loc>https://skillist.io/registry</loc>");
+    expect(xml).toContain("<loc>https://skillist.io/privacy</loc>");
+  });
 });
 
 describe("llmsTxt", () => {

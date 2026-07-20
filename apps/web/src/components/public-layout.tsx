@@ -229,6 +229,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "agentskills.io", href: "https://agentskills.io" },
       { label: "SKILL.md spec", href: "https://agentskills.io/spec" },
       { label: "Examples", to: "/registry" },
+      { label: "Privacy", to: "/privacy" },
     ],
   },
 ];
