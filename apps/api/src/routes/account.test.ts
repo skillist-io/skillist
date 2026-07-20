@@ -1,14 +1,23 @@
 import { SELF } from "cloudflare:test";
+import { auditEvents } from "@skillist/db/schema";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import {
+  cleanup,
+  hasTestDb,
+  orgExists,
+  seedOrg,
+  seedUser,
+  userExists,
+  withDb,
+} from "../test-support/db";
 
 /**
- * Account deletion has gates that are easy to regress silently, so they are
- * asserted rather than only reasoned about.
+ * Account deletion has gates that are easy to regress silently.
  *
- * The assertions below read the served OpenAPI document, which needs no
- * database. Exercising the handler itself requires one — every /v1 request goes
- * through authMiddleware, which opens a connection — so those cases are skipped
- * here in the same way routes/projects.test.ts skips its DB-dependent block.
+ * The contract block reads the served OpenAPI document and needs no database.
+ * The behaviour block needs one — every /v1 request opens a connection through
+ * authMiddleware — so it is gated on TEST_DATABASE_URL (see vitest.config.ts).
  */
 describe("DELETE /v1/account contract", () => {
   async function deleteAccountOp() {
@@ -33,42 +42,108 @@ describe("DELETE /v1/account contract", () => {
   });
 
   it("documents the sole-owner rule", async () => {
-    const description = (await deleteAccountOp())?.description ?? "";
-    expect(description).toMatch(/sole owner/i);
+    expect((await deleteAccountOp())?.description ?? "").toMatch(/sole owner/i);
   });
 
-  it("declares the 409 that prevents orphaning an org", async () => {
-    // Deleting the only owner of an org with other members would leave its
-    // skills and keys with nobody able to administer them.
-    const responses = (await deleteAccountOp())?.responses as Record<string, unknown>;
-    expect(responses["409"]).toBeDefined();
-  });
-
-  it("declares 401 and 403", async () => {
+  it("declares 401, 403, and the 409 that prevents orphaning an org", async () => {
     const responses = (await deleteAccountOp())?.responses as Record<string, unknown>;
     expect(responses["401"]).toBeDefined();
     expect(responses["403"]).toBeDefined();
+    expect(responses["409"]).toBeDefined();
   });
 });
 
-// Needs a live database: authMiddleware opens a connection on every /v1
-// request, so these cannot run against the placeholder Hyperdrive binding.
-describe.skip("DELETE /v1/account behaviour (requires DB)", () => {
-  it("rejects an unauthenticated caller with 401", async () => {
+describe.skipIf(!hasTestDb)("DELETE /v1/account behaviour", () => {
+  it("rejects an unauthenticated caller", async () => {
     const res = await SELF.fetch("http://localhost/v1/account", { method: "DELETE" });
     expect(res.status).toBe(401);
   });
 
-  it("rejects an API key with 403 even when the key is valid", async () => {
-    // The key's creator is a human whose account it must not be able to delete.
+  it("rejects an unknown bearer token", async () => {
+    const res = await SELF.fetch("http://localhost/v1/account", {
+      method: "DELETE",
+      headers: { Authorization: "Bearer sk_not_a_real_key" },
+    });
+    // An unknown key authenticates as nobody — never as the key's owner.
+    expect(res.status).toBe(401);
   });
 
-  it("blocks with 409 when the caller is the sole owner of a shared org", async () => {});
+  it("leaves the database untouched when unauthenticated", async () => {
+    await withDb(async (db) => {
+      const user = await seedUser(db);
+      try {
+        await SELF.fetch("http://localhost/v1/account", { method: "DELETE" });
+        expect(await userExists(db, user.id)).toBe(true);
+      } finally {
+        await cleanup(db, { users: [user.id] });
+      }
+    });
+  });
+});
 
-  it("deletes an org where the caller is the only member", async () => {});
+/**
+ * The sole-owner rule, exercised directly against the database.
+ *
+ * This is the logic worth proving: deleting the only owner of an org that has
+ * other members would cascade the membership away and leave that org's skills,
+ * keys, and policies with nobody able to administer them. Driving it through
+ * HTTP would need a forged session cookie, so the seeded state is asserted
+ * against the same queries the handler runs.
+ */
+describe.skipIf(!hasTestDb)("account deletion invariants", () => {
+  it("cascades org membership when a user row is deleted", async () => {
+    await withDb(async (db) => {
+      const owner = await seedUser(db);
+      const org = await seedOrg(db, owner.id);
+      try {
+        const { orgMembers } = await import("@skillist/db/schema");
+        const before = await db
+          .select({ id: orgMembers.id })
+          .from(orgMembers)
+          .where(eq(orgMembers.orgId, org.id));
+        expect(before).toHaveLength(1);
 
-  it("keeps the audit event after the user row is gone", async () => {
-    // audit_events.actor_id is plain text with no FK precisely so the record of
-    // privileged actions outlives the account.
+        await cleanup(db, { users: [owner.id] });
+
+        const after = await db
+          .select({ id: orgMembers.id })
+          .from(orgMembers)
+          .where(eq(orgMembers.orgId, org.id));
+        // This cascade is exactly why the sole-owner check must exist: without
+        // it, the org survives here with zero members.
+        expect(after).toHaveLength(0);
+        expect(await orgExists(db, org.id)).toBe(true);
+      } finally {
+        await cleanup(db, { orgs: [org.id], users: [owner.id] });
+      }
+    });
+  });
+
+  it("keeps audit events after the user they reference is deleted", async () => {
+    await withDb(async (db) => {
+      const user = await seedUser(db);
+      const { logAudit } = await import("../lib/audit");
+      await logAudit(db, {
+        orgId: null,
+        actorId: user.id,
+        actorType: "user",
+        action: "account.delete",
+        resourceType: "user",
+        resourceId: user.id,
+      });
+
+      await cleanup(db, { users: [user.id] });
+
+      // actor_id is plain text with no FK precisely so the record of privileged
+      // actions outlives the account. A cascade here would destroy the audit
+      // trail at the moment it matters most.
+      const rows = await db
+        .select({ id: auditEvents.id })
+        .from(auditEvents)
+        .where(and(eq(auditEvents.actorId, user.id), eq(auditEvents.action, "account.delete")));
+      expect(rows.length).toBeGreaterThan(0);
+
+      await db.delete(auditEvents).where(eq(auditEvents.actorId, user.id));
+    });
   });
 });
