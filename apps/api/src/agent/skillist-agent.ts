@@ -34,6 +34,7 @@ import { searchDocs } from "../lib/docs-rag";
 import { getRegistryFacets, getRegistrySkill, listRegistry } from "../lib/registry-service";
 import { validateSkillMd } from "../lib/skill-validation";
 import { parseAgentName, shouldGenerateTitle } from "./agent-name";
+import { CLAUDE_MODEL_ID, WORKERS_MODEL_ID } from "./model-config";
 import { workersAiFallback } from "./model-fallback";
 
 /**
@@ -43,8 +44,6 @@ import { workersAiFallback } from "./model-fallback";
  * AI_GATEWAY_ACCOUNT_ID is set, for caching + observability), and we fall back
  * to a tool-capable Workers AI model so the agent still runs without the secret.
  */
-const CLAUDE_MODEL_ID = "claude-sonnet-5";
-const WORKERS_MODEL_ID = "@cf/meta/llama-4-scout-17b-16e-instruct";
 
 /** Evals older than this (or never run) count as stale. */
 const STALE_EVAL_DAYS = 30;
