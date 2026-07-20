@@ -60,13 +60,16 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             <SkillistLogo />
           </Link>
           <div className="ml-auto flex items-center gap-1">
-            <ThemeToggle />
             <a
               href={webUrl("/registry")}
               className="px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               Registry
             </a>
+            {/* Sign-in is an anonymous surface too, so Settings is not yet
+                reachable — and someone who needs light mode needs it to read
+                this page, not after they get in. */}
+            <ThemeToggle variant="menu" />
           </div>
         </header>
 

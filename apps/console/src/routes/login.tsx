@@ -80,7 +80,7 @@ function LoginPage() {
       await sendMagicLink(email, redirect ?? "/dashboard");
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send magic link");
+      setError(err instanceof Error ? err.message : "Failed to send sign-in link");
     } finally {
       setLoading(null);
     }

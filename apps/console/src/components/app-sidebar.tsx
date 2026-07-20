@@ -1,10 +1,10 @@
 import {
   api,
+  Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   cn,
-  Label,
   type Org,
   type Project,
   type ProjectDetail,
@@ -21,7 +21,6 @@ import {
   SidebarMenuItem,
   type Skill,
   SkillistLogo,
-  Switch,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -170,7 +169,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 tooltip={{ children: "Skillist — Dashboard", hidden: false }}
               >
                 <Link to="/dashboard">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-none bg-sidebar-primary text-sidebar-primary-foreground">
+                  {/* Round for the same reason the avatar is: an identity mark, not a
+                      control or a readout. Everything you can operate stays squared. */}
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
                     <span className="text-sm font-bold tracking-[-0.04em]">S</span>
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
@@ -213,38 +214,47 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {open ? (
         <Sidebar collapsible="none" className="hidden flex-1 md:flex">
           <SidebarHeader className="gap-3.5 border-b p-4">
-            <div className="flex w-full items-center justify-between">
-              <div className="text-base font-medium text-foreground">Skillist</div>
-              <div className="flex items-center gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Label
-                      htmlFor="sidebar-private-only"
+            <div className="text-base font-medium text-foreground">Skillist</div>
+            {/* The lock sits with the search box because they do the same job —
+                both narrow this tree. It also keeps it off the panel's right
+                edge, where it landed next to the sidebar collapse trigger and
+                the two icon buttons read as a pair despite being unrelated.
+
+                The lock *is* the control rather than a label beside a switch:
+                one binary needs one affordance, and a switch earns its width
+                only when the states need naming. aria-pressed carries the
+                on/off the switch used to; the tooltip names it. */}
+            <div className="flex items-center gap-2">
+              <SidebarInput
+                className="flex-1"
+                placeholder="Filter orgs and skills..."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0"
+                    aria-pressed={privateOnly}
+                    aria-label="Show only private skills"
+                    onClick={() => setPrivateOnly((v) => !v)}
+                  >
+                    <Lock
                       className={cn(
-                        "flex cursor-help items-center transition-colors",
-                        privateOnly ? "text-signal" : "text-muted-foreground hover:text-foreground",
+                        "size-4 transition-colors",
+                        privateOnly ? "text-signal" : "text-muted-foreground",
                       )}
-                    >
-                      <Lock className="size-4" />
-                      <span className="sr-only">Private only</span>
-                    </Label>
-                  </TooltipTrigger>
-                  <TooltipContent>Private only — show only private skills</TooltipContent>
-                </Tooltip>
-                <Switch
-                  id="sidebar-private-only"
-                  aria-label="Private only"
-                  className="shadow-none"
-                  checked={privateOnly}
-                  onCheckedChange={setPrivateOnly}
-                />
-              </div>
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {privateOnly ? "Showing private skills only" : "Show only private skills"}
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <SidebarInput
-              placeholder="Filter orgs and skills..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup className="px-0">
