@@ -23,7 +23,7 @@ import {
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { WifiOff } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { AgentInstallButtons } from "@/components/agent-install-buttons";
 import { PublicEvalBadge } from "@/components/public-eval-badge";
 import { SignInToAddButton } from "@/components/sign-in-cta";
@@ -36,6 +36,7 @@ type PluginManifest = {
 };
 
 const SkillReadme = lazy(() => import("@skillist/ui/skill-readme"));
+const SkillBundleBrowser = lazy(() => import("@skillist/ui/skill-bundle-browser"));
 
 // Shared between the loader (prefetch) and the component (render) so both
 // sides hit the exact same cache entry.
@@ -75,6 +76,7 @@ function SkillRepoPage() {
   const { org, repo } = Route.useParams();
   const queryClient = useQueryClient();
   const { connected, lastEvent } = useSkillRealtime(org, repo);
+  const [viewedBundlePath, setViewedBundlePath] = useState<string | null>(null);
 
   const {
     data: entry,
@@ -212,10 +214,15 @@ function SkillRepoPage() {
         {/* Body: primary adopt/run column + secondary reference rail */}
         <div className="space-y-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8 lg:space-y-0">
           <div className="space-y-8">
-            {/* No onOpenFile: the public page has no bundle viewer, so a
-                file reference must not render as a clickable no-op. */}
+            {/* A bundled-file reference in the README opens that file in the
+                bundle browser in the rail. */}
             <Suspense fallback={null}>
-              <SkillReadme org={org} repo={repo} etag={lastEvent?.etag} />
+              <SkillReadme
+                org={org}
+                repo={repo}
+                etag={lastEvent?.etag}
+                onOpenFile={setViewedBundlePath}
+              />
             </Suspense>
 
             <Card>
@@ -267,6 +274,15 @@ function SkillRepoPage() {
 
           {/* Reference rail */}
           <aside className="space-y-6 lg:sticky lg:top-20">
+            <Suspense fallback={null}>
+              <SkillBundleBrowser
+                org={org}
+                repo={repo}
+                etag={lastEvent?.etag}
+                viewedPath={viewedBundlePath}
+                onViewPath={setViewedBundlePath}
+              />
+            </Suspense>
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Agent compatibility</CardTitle>

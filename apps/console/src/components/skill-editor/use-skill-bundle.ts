@@ -1,5 +1,5 @@
+import { isAllowedPath, isProtectedPath, pathsUnder } from "@skillist/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isAllowedPath, isProtectedPath, pathsUnder } from "./paths";
 
 export type SkillBundleState = {
   files: Record<string, string>;
