@@ -49,14 +49,21 @@ const registryQueryOptions = (org: string, repo: string) => ({
 const metaQueryOptions = (org: string, repo: string, etag?: string) => ({
   queryKey: ["skill-meta", org, repo, etag] as const,
   queryFn: () => api<Record<string, unknown>>(`/${org}/${repo}/meta`),
+  // Supplementary KV read — absent means absent, so don't retry a 404. The page
+  // renders from the registry entry either way.
+  retry: false,
 });
 
 export const Route = createFileRoute("/$org/$repo")({
-  loader: ({ params: { org, repo }, context: { queryClient } }) =>
-    Promise.all([
-      queryClient.ensureQueryData(registryQueryOptions(org, repo)),
-      queryClient.ensureQueryData(metaQueryOptions(org, repo)),
-    ]),
+  loader: ({ params: { org, repo }, context: { queryClient } }) => {
+    // The registry entry is the source of truth for this page — await it. The KV
+    // meta is supplementary (the component falls back to registry fields for
+    // description/version), so prefetch it best-effort: a missing or late KV
+    // entry must not 404 an otherwise-valid skill page. (Also unblocks local dev,
+    // whose KV is empty while the registry comes from the shared DB.)
+    void queryClient.ensureQueryData(metaQueryOptions(org, repo)).catch(() => {});
+    return queryClient.ensureQueryData(registryQueryOptions(org, repo));
+  },
   pendingComponent: () => {
     const { org, repo } = Route.useParams();
     return <SkillDetailSkeleton org={org} repo={repo} />;
