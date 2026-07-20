@@ -18,7 +18,10 @@ import {
   NativeSelect,
   PageTitle,
   type PublishPolicy,
+  SegmentedControl,
   Switch,
+  type Theme,
+  useTheme,
 } from "@skillist/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -68,6 +71,8 @@ function SettingsPage() {
           .
         </p>
       </div>
+
+      <AppearanceCard />
 
       <Card size="sm" id="github-oauth">
         <CardHeader>
@@ -164,6 +169,52 @@ function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/**
+ * Theme lives here rather than in the app chrome.
+ *
+ * A toggle in the header invites fiddling with a setting most people choose
+ * once, and it spent a slot in a bar reserved for things you act on often. It
+ * is a preference, so it sits with the other preferences.
+ *
+ * The choice is stored in a cookie scoped to the parent domain, so it applies
+ * to the marketing site as well as the console.
+ */
+const THEME_OPTIONS = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+] as const;
+
+function AppearanceCard() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+
+  return (
+    <Card size="sm" id="appearance">
+      <CardHeader>
+        <CardTitle>Appearance</CardTitle>
+        <CardDescription>
+          Skillist is dark by default. Choose light, or follow your operating system. Applies to the
+          public site too.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center gap-3">
+        <SegmentedControl
+          label="Theme"
+          value={theme}
+          onChange={(next) => setTheme(next as Theme)}
+          options={THEME_OPTIONS}
+        />
+        {/* "System" alone does not say which way it resolved right now. */}
+        {theme === "system" && (
+          <span className="font-mono text-xs text-muted-foreground">
+            following your system · currently {resolvedTheme}
+          </span>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

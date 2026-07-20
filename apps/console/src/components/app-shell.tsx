@@ -12,7 +12,6 @@ import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-  ThemeToggle,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -104,7 +103,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     Ask the agent <kbd className="ml-1 font-mono text-[0.6875rem]">⌘K</kbd>
                   </TooltipContent>
                 </Tooltip>
-                <ThemeToggle />
               </div>
             </header>
             <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>

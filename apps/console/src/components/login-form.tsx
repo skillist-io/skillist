@@ -82,9 +82,17 @@ export function LoginForm({
       {...props}
     >
       <div className="mb-8 flex flex-col gap-2">
-        <PageTitle>Sign in to Skillist</PageTitle>
+        {/* "Welcome to" rather than "Welcome back": this form is both sign-in
+            and sign-up — an email link or provider creates the account on first
+            use — so a returning-user greeting would be wrong for anyone
+            arriving for the first time.
+
+            The copy names neither "passwordless" nor "magic link": both are
+            implementation words. The reader wants to know what to do, and the
+            buttons below already say it. */}
+        <PageTitle>Welcome to Skillist</PageTitle>
         <p className="text-sm text-muted-foreground">
-          Passwordless access. Pick a provider or use a magic link.
+          Sign in or create an account. Continue with a provider, or use your email.
         </p>
       </div>
 
@@ -180,7 +188,7 @@ export function LoginForm({
 
         <Field>
           <Button type="submit" className="w-full" disabled={!email || busy}>
-            {loading === "magic" ? "Sending…" : "Send magic link"}
+            {loading === "magic" ? "Sending…" : "Email me a sign-in link"}
           </Button>
           {sent && (
             <FieldDescription className="text-center font-medium text-foreground">
