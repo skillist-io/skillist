@@ -3,6 +3,7 @@ import { mcpServerSchema } from "@skillist/contracts";
 import { organizations, orgMcpServers } from "@skillist/db/schema";
 import { and, eq } from "drizzle-orm";
 import { logAudit } from "../../lib/audit";
+import { errorResponses } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import type { AppEnv } from "./shared";
 
@@ -12,8 +13,13 @@ const listMcpServersRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/mcp-servers",
   tags: ["MCP Gateway"],
+  operationId: "listMcpServers",
+  summary: "List an organization's gateway MCP servers",
   request: { params: z.object({ orgId: z.string().uuid() }) },
-  responses: { 200: { description: "Org MCP gateway servers" } },
+  responses: {
+    200: { description: "Org MCP gateway servers" },
+    ...errorResponses({ validates: false, notFound: false }),
+  },
 });
 
 mcpServersRoutes.openapi(listMcpServersRoute, async (c) => {
@@ -40,11 +46,16 @@ const createMcpServerRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/mcp-servers",
   tags: ["MCP Gateway"],
+  operationId: "createMcpServer",
+  summary: "Register an upstream MCP server for an organization",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: mcpServerSchema } } },
   },
-  responses: { 201: { description: "MCP server registered" } },
+  responses: {
+    201: { description: "MCP server registered" },
+    ...errorResponses({ notFound: false, conflict: true }),
+  },
 });
 
 mcpServersRoutes.openapi(createMcpServerRoute, async (c) => {
@@ -92,6 +103,8 @@ const authorizeMcpServerRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/mcp-servers/{name}/authorize",
   tags: ["MCP Gateway"],
+  operationId: "authorizeMcpServer",
+  summary: "Store OAuth credentials for a registered MCP server",
   request: {
     params: z.object({ orgId: z.string().uuid(), name: z.string() }),
     body: {
@@ -105,7 +118,10 @@ const authorizeMcpServerRoute = createRoute({
       },
     },
   },
-  responses: { 200: { description: "MCP server authorized" } },
+  responses: {
+    200: { description: "MCP server authorized" },
+    ...errorResponses(),
+  },
 });
 
 mcpServersRoutes.openapi(authorizeMcpServerRoute, async (c) => {
@@ -133,8 +149,13 @@ const getMcpProxyConfigRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/mcp-servers/{name}/proxy",
   tags: ["MCP Gateway"],
+  operationId: "getMcpProxyConfig",
+  summary: "Get the proxy connection config for an authorized MCP server",
   request: { params: z.object({ orgId: z.string().uuid(), name: z.string() }) },
-  responses: { 200: { description: "MCP proxy connection config" } },
+  responses: {
+    200: { description: "MCP proxy connection config" },
+    ...errorResponses({ conflict: true }),
+  },
 });
 
 mcpServersRoutes.openapi(getMcpProxyConfigRoute, async (c) => {

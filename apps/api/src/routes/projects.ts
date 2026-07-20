@@ -21,6 +21,7 @@ import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 import { canWriteProject, requireProjectAccess } from "../lib/project-access";
 
@@ -30,11 +31,6 @@ type AppEnv = {
 };
 
 export const projectRoutes = new OpenAPIHono<AppEnv>();
-
-const jsonError = (description: string) => ({
-  content: { "application/json": { schema: z.object({ error: z.any() }) } },
-  description,
-});
 
 const orgParam = z.object({ orgId: z.string().uuid() });
 const projectParam = z.object({ orgId: z.string().uuid(), projectId: z.string().uuid() });
@@ -67,6 +63,8 @@ const listProjectsRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/projects",
   tags: ["Projects"],
+  operationId: "listProjects",
+  summary: "List projects visible to the caller in an organization",
   request: { params: orgParam },
   responses: {
     200: {
@@ -89,8 +87,7 @@ const listProjectsRoute = createRoute({
       },
       description: "List org projects",
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
+    ...errorResponses({ validates: false, notFound: false }),
   },
 });
 
@@ -175,6 +172,8 @@ const createProjectRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/projects",
   tags: ["Projects"],
+  operationId: "createProject",
+  summary: "Create a project",
   request: {
     params: orgParam,
     body: { content: { "application/json": { schema: createProjectSchema } } },
@@ -193,10 +192,7 @@ const createProjectRoute = createRoute({
       },
       description: "Project created",
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    409: jsonError("Project slug already exists"),
-    500: jsonError("Failed to create project"),
+    ...errorResponses({ notFound: false, conflict: true }),
   },
 });
 
@@ -257,12 +253,12 @@ const getProjectRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/projects/{projectId}",
   tags: ["Projects"],
+  operationId: "getProject",
+  summary: "Get a project and its resolved items",
   request: { params: projectParam },
   responses: {
     200: { description: "Project with resolved items" },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Project not found"),
+    ...errorResponses(),
   },
 });
 
@@ -352,16 +348,15 @@ const updateProjectRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/projects/{projectId}",
   tags: ["Projects"],
+  operationId: "updateProject",
+  summary: "Rename, describe, or change the visibility of a project",
   request: {
     params: projectParam,
     body: { content: { "application/json": { schema: updateProjectSchema } } },
   },
   responses: {
     200: { description: "Project updated" },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Project not found"),
-    500: jsonError("Failed to update project"),
+    ...errorResponses(),
   },
 });
 
@@ -399,12 +394,12 @@ const deleteProjectRoute = createRoute({
   method: "delete",
   path: "/orgs/{orgId}/projects/{projectId}",
   tags: ["Projects"],
+  operationId: "deleteProject",
+  summary: "Delete a project and its items",
   request: { params: projectParam },
   responses: {
     200: { description: "Project deleted" },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Project not found"),
+    ...errorResponses(),
   },
 });
 
@@ -428,6 +423,8 @@ const addItemRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/projects/{projectId}/items",
   tags: ["Projects"],
+  operationId: "addProjectItem",
+  summary: "Add a skill or external link to a project",
   request: {
     params: projectParam,
     body: { content: { "application/json": { schema: addProjectItemSchema } } },
@@ -437,11 +434,7 @@ const addItemRoute = createRoute({
       content: { "application/json": { schema: z.object({ id: z.string().uuid() }) } },
       description: "Item added",
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Project or skill not found"),
-    409: jsonError("Item already in project"),
-    500: jsonError("Failed to add item"),
+    ...errorResponses({ conflict: true }),
   },
 });
 
@@ -502,16 +495,15 @@ const updateItemRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/projects/{projectId}/items/{itemId}",
   tags: ["Projects"],
+  operationId: "updateProjectItem",
+  summary: "Move or relabel a project item",
   request: {
     params: itemParam,
     body: { content: { "application/json": { schema: updateProjectItemSchema } } },
   },
   responses: {
     200: { description: "Item updated" },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Item not found"),
-    500: jsonError("Failed to update item"),
+    ...errorResponses(),
   },
 });
 
@@ -560,12 +552,12 @@ const deleteItemRoute = createRoute({
   method: "delete",
   path: "/orgs/{orgId}/projects/{projectId}/items/{itemId}",
   tags: ["Projects"],
+  operationId: "removeProjectItem",
+  summary: "Remove an item from a project",
   request: { params: itemParam },
   responses: {
     200: { description: "Item removed" },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Item not found"),
+    ...errorResponses(),
   },
 });
 
@@ -604,6 +596,8 @@ const listMembersRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/projects/{projectId}/members",
   tags: ["Projects"],
+  operationId: "listProjectMembers",
+  summary: "List a project's members",
   request: { params: projectParam },
   responses: {
     200: {
@@ -623,9 +617,7 @@ const listMembersRoute = createRoute({
       },
       description: "Project members",
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Project not found"),
+    ...errorResponses(),
   },
 });
 
@@ -664,6 +656,8 @@ const addMemberRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/projects/{projectId}/members",
   tags: ["Projects"],
+  operationId: "addProjectMember",
+  summary: "Add an org member to a project",
   request: {
     params: projectParam,
     body: { content: { "application/json": { schema: addProjectMemberSchema } } },
@@ -673,12 +667,7 @@ const addMemberRoute = createRoute({
       content: { "application/json": { schema: z.object({ ok: z.boolean() }) } },
       description: "Member added",
     },
-    400: jsonError("User is not a member of this org"),
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Project not found"),
-    409: jsonError("User is already a project member"),
-    500: jsonError("Failed to add member"),
+    ...errorResponses({ conflict: true }),
   },
 });
 
@@ -723,17 +712,15 @@ const updateMemberRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/projects/{projectId}/members/{userId}",
   tags: ["Projects"],
+  operationId: "updateProjectMember",
+  summary: "Change a project member's role",
   request: {
     params: memberParam,
     body: { content: { "application/json": { schema: updateProjectMemberSchema } } },
   },
   responses: {
     200: { description: "Member updated" },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Member not found"),
-    409: jsonError("Cannot demote the last admin"),
-    500: jsonError("Failed to update member"),
+    ...errorResponses({ conflict: true }),
   },
 });
 
@@ -782,13 +769,12 @@ const deleteMemberRoute = createRoute({
   method: "delete",
   path: "/orgs/{orgId}/projects/{projectId}/members/{userId}",
   tags: ["Projects"],
+  operationId: "removeProjectMember",
+  summary: "Remove a member from a project",
   request: { params: memberParam },
   responses: {
     200: { description: "Member removed" },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Member not found"),
-    409: jsonError("Cannot remove the last admin"),
+    ...errorResponses({ conflict: true }),
   },
 });
 

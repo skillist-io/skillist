@@ -16,6 +16,7 @@ import type { Env } from "../env";
 import { publishVersion, rollbackVersion } from "../lib/ai";
 import type { AuthContext } from "../lib/auth-middleware";
 import { isUniqueViolation, type WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 import { queueSkillEval } from "../lib/queue-eval";
 import {
@@ -43,6 +44,8 @@ const createSkillRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/skills",
   tags: ["Skills"],
+  operationId: "createSkill",
+  summary: "Create a skill from the starter template",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: createSkillSchema } } },
@@ -60,10 +63,9 @@ const createSkillRoute = createRoute({
       },
       description: "Skill created",
     },
+    ...errorResponses({ notFound: false }),
+    // Bundle validation returns a list of messages, not the plain string envelope.
     400: jsonError("Invalid skill bundle"),
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    500: jsonError("Failed to create skill"),
   },
 });
 
@@ -125,6 +127,8 @@ const listSkillsRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/skills",
   tags: ["Skills"],
+  operationId: "listSkills",
+  summary: "List an organization's skills",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
     200: {
@@ -142,8 +146,7 @@ const listSkillsRoute = createRoute({
       },
       description: "List skills",
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
+    ...errorResponses({ validates: false, notFound: false }),
   },
 });
 
@@ -161,6 +164,8 @@ const uploadVersionRoute = createRoute({
   method: "put",
   path: "/orgs/{orgId}/skills/{repo}/versions",
   tags: ["Skills"],
+  operationId: "uploadSkillVersion",
+  summary: "Upload a new draft version of a skill",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
@@ -183,11 +188,9 @@ const uploadVersionRoute = createRoute({
       },
       description: "Version uploaded",
     },
+    ...errorResponses({ conflict: true }),
+    // Bundle validation returns a list of messages, not the plain string envelope.
     400: jsonError("Invalid skill bundle"),
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Skill not found"),
-    409: jsonError("Version conflict"),
   },
 });
 
@@ -330,10 +333,15 @@ const listVersionsRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/skills/{repo}/versions",
   tags: ["Skills"],
+  operationId: "listSkillVersions",
+  summary: "List every version of a skill",
   request: {
     params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
   },
-  responses: { 200: { description: "Version list" } },
+  responses: {
+    200: { description: "Version list" },
+    ...errorResponses(),
+  },
 });
 
 skillRoutes.openapi(listVersionsRoute, async (c) => {
@@ -361,6 +369,8 @@ const publishRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/publish",
   tags: ["Skills"],
+  operationId: "publishSkillVersion",
+  summary: "Publish a skill version to the delivery edge",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
@@ -383,10 +393,7 @@ const publishRoute = createRoute({
       },
       description: "Published",
     },
-    400: jsonError("Publish failed"),
-    401: jsonError("Unauthorized"),
-    403: jsonError("Forbidden"),
-    404: jsonError("Not found"),
+    ...errorResponses(),
   },
 });
 
@@ -424,6 +431,8 @@ const rollbackRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/rollback",
   tags: ["Skills"],
+  operationId: "rollbackSkillVersion",
+  summary: "Roll the published pointer back to an earlier version",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
@@ -431,7 +440,10 @@ const rollbackRoute = createRoute({
       versionId: z.string().uuid(),
     }),
   },
-  responses: { 200: { description: "Rolled back" } },
+  responses: {
+    200: { description: "Rolled back" },
+    ...errorResponses(),
+  },
 });
 
 skillRoutes.openapi(rollbackRoute, async (c) => {
@@ -467,6 +479,8 @@ const getVersionFilesRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/files",
   tags: ["Skills"],
+  operationId: "getSkillVersionFiles",
+  summary: "Read every file in a skill version's bundle",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
@@ -474,7 +488,10 @@ const getVersionFilesRoute = createRoute({
       versionId: z.string().uuid(),
     }),
   },
-  responses: { 200: { description: "Version files" } },
+  responses: {
+    200: { description: "Version files" },
+    ...errorResponses(),
+  },
 });
 
 skillRoutes.openapi(getVersionFilesRoute, async (c) => {
@@ -511,6 +528,8 @@ const previewVersionRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/preview",
   tags: ["Skills"],
+  operationId: "previewSkillVersion",
+  summary: "Preview review and security findings for a skill version",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
@@ -518,7 +537,10 @@ const previewVersionRoute = createRoute({
       versionId: z.string().uuid(),
     }),
   },
-  responses: { 200: { description: "Review and security preview" } },
+  responses: {
+    200: { description: "Review and security preview" },
+    ...errorResponses(),
+  },
 });
 
 skillRoutes.openapi(previewVersionRoute, async (c) => {

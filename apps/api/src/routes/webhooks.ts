@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Env } from "../env";
 import { enqueueSyncForGithubRepo } from "../lib/github-sync/queue-handler";
+import { errorResponses } from "../lib/openapi";
 
 type AppEnv = { Bindings: Env };
 
@@ -34,19 +35,14 @@ const githubWebhookRoute = createRoute({
   method: "post",
   path: "/webhooks/github",
   tags: ["Webhooks"],
+  operationId: "receiveGithubWebhook",
+  summary: "Receive a GitHub push webhook and queue a source sync",
   responses: {
     202: {
       description: "Accepted",
       content: { "application/json": { schema: z.object({ ok: z.boolean() }) } },
     },
-    400: {
-      description: "Invalid payload",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
-    401: {
-      description: "Invalid signature",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
+    ...errorResponses({ notFound: false }),
     503: {
       description: "Webhook verification not configured",
       content: { "application/json": { schema: z.object({ error: z.string() }) } },

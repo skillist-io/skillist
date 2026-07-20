@@ -4,6 +4,7 @@ import type { Env } from "../env";
 import { decideApproval, listApprovals } from "../lib/agent/approvals";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 
 type AppEnv = {
@@ -29,6 +30,7 @@ const listRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/agent/approvals",
   tags: ["Agent"],
+  operationId: "listAgentApprovals",
   summary: "List the caller's platform-agent approval requests",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
@@ -41,8 +43,7 @@ const listRoute = createRoute({
         "application/json": { schema: z.object({ approvals: z.array(approvalSchema) }) },
       },
     },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
+    ...errorResponses({ notFound: false }),
   },
 });
 
@@ -80,6 +81,7 @@ const decideRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/agent/approvals/{id}",
   tags: ["Agent"],
+  operationId: "decideAgentApproval",
   summary: "Approve or deny a pending platform-agent approval request",
   request: {
     params: z.object({ orgId: z.string().uuid(), id: z.string().uuid() }),
@@ -100,9 +102,7 @@ const decideRoute = createRoute({
         },
       },
     },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
-    404: { description: "Not found or already decided" },
+    ...errorResponses(),
   },
 });
 

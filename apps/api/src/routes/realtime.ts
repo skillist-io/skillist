@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 
 type AppEnv = {
@@ -53,10 +54,15 @@ const wsRoute = createRoute({
   method: "get",
   path: "/realtime/skills/{org}/{repo}",
   tags: ["Realtime"],
+  operationId: "subscribeSkillEventsWebSocket",
+  summary: "Open a WebSocket stream of a skill's publish events",
   request: {
     params: z.object({ org: z.string(), repo: z.string() }),
   },
-  responses: { 101: { description: "WebSocket upgrade" }, 404: { description: "Not found" } },
+  responses: {
+    101: { description: "WebSocket upgrade" },
+    ...errorResponses(),
+  },
 });
 
 realtimeRoutes.openapi(wsRoute, async (c) => {
@@ -72,10 +78,15 @@ const sseRoute = createRoute({
   method: "get",
   path: "/events/skills/{org}/{repo}",
   tags: ["Realtime"],
+  operationId: "subscribeSkillEventsSse",
+  summary: "Open a server-sent-events stream of a skill's publish events",
   request: {
     params: z.object({ org: z.string(), repo: z.string() }),
   },
-  responses: { 200: { description: "SSE stream" }, 404: { description: "Not found" } },
+  responses: {
+    200: { description: "SSE stream" },
+    ...errorResponses(),
+  },
 });
 
 realtimeRoutes.openapi(sseRoute, async (c) => {
