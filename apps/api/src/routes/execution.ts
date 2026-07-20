@@ -5,6 +5,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { checkRunQuota } from "../lib/run-quota";
 import { assertSkillRunAccess } from "../lib/skill-execution-access";
 import {
@@ -44,8 +45,13 @@ const listScriptsRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/scripts",
   tags: ["Execution"],
+  operationId: "listSkillScripts",
+  summary: "List a published skill's runnable scripts",
   request: { params: orgRepoParams },
-  responses: { 200: { description: "Runnable scripts" } },
+  responses: {
+    200: { description: "Runnable scripts" },
+    ...errorResponses(),
+  },
 });
 
 executionRoutes.openapi(listScriptsRoute, async (c) => {
@@ -76,11 +82,16 @@ const runScriptRoute = createRoute({
   method: "post",
   path: "/{org}/{repo}/run",
   tags: ["Execution"],
+  operationId: "runSkill",
+  summary: "Run a skill script in a hosted sandbox",
   request: {
     params: orgRepoParams,
     body: { content: { "application/json": { schema: runSkillSchema } } },
   },
-  responses: { 200: { description: "Execution result" } },
+  responses: {
+    200: { description: "Execution result" },
+    ...errorResponses(),
+  },
 });
 
 executionRoutes.openapi(runScriptRoute, async (c) => {
@@ -190,13 +201,18 @@ const listRunsRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/runs",
   tags: ["Execution"],
+  operationId: "listSkillRuns",
+  summary: "List recent runs of a skill",
   request: {
     params: orgRepoParams,
     query: z.object({
       limit: z.coerce.number().int().min(1).max(50).default(20),
     }),
   },
-  responses: { 200: { description: "Run history" } },
+  responses: {
+    200: { description: "Run history" },
+    ...errorResponses(),
+  },
 });
 
 executionRoutes.openapi(listRunsRoute, async (c) => {
@@ -230,8 +246,13 @@ const getRunRoute = createRoute({
   method: "get",
   path: "/runs/{id}",
   tags: ["Execution"],
+  operationId: "getSkillRun",
+  summary: "Get a single skill run's detail",
   request: { params: z.object({ id: z.string().uuid() }) },
-  responses: { 200: { description: "Run detail" } },
+  responses: {
+    200: { description: "Run detail" },
+    ...errorResponses(),
+  },
 });
 
 executionRoutes.openapi(getRunRoute, async (c) => {

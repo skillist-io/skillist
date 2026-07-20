@@ -6,6 +6,7 @@ import type { SkillistAgent } from "../agent/skillist-agent";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 
 type AppEnv = {
@@ -26,6 +27,7 @@ const listRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/agent/chats",
   tags: ["Agent"],
+  operationId: "listAgentChats",
   summary: "List the caller's platform-agent conversations",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
@@ -33,8 +35,7 @@ const listRoute = createRoute({
       description: "The caller's conversations in this org, newest first",
       content: { "application/json": { schema: z.object({ chats: z.array(chatSummarySchema) }) } },
     },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
+    ...errorResponses({ validates: false, notFound: false }),
   },
 });
 
@@ -83,6 +84,7 @@ const deleteRoute = createRoute({
   method: "delete",
   path: "/orgs/{orgId}/agent/chats/{chatId}",
   tags: ["Agent"],
+  operationId: "deleteAgentChat",
   summary: "Delete one of the caller's platform-agent conversations",
   request: {
     params: z.object({ orgId: z.string().uuid(), chatId: z.string().uuid() }),
@@ -92,9 +94,7 @@ const deleteRoute = createRoute({
       description: "Deleted",
       content: { "application/json": { schema: z.object({ ok: z.boolean() }) } },
     },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
-    404: { description: "Not found" },
+    ...errorResponses(),
   },
 });
 

@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { runEvalSchema } from "@skillist/contracts";
 import { organizations, skillEvals, skills, skillVersions } from "@skillist/db/schema";
 import { and, desc, eq } from "drizzle-orm";
+import { errorResponses } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import { queueSkillEval } from "../../lib/queue-eval";
 import type { AppEnv } from "./shared";
@@ -12,6 +13,8 @@ const runEvalRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/eval",
   tags: ["Evals"],
+  operationId: "runSkillEval",
+  summary: "Queue an eval run for a skill version",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
@@ -22,7 +25,10 @@ const runEvalRoute = createRoute({
       content: { "application/json": { schema: runEvalSchema.optional() } },
     },
   },
-  responses: { 201: { description: "Eval queued" } },
+  responses: {
+    201: { description: "Eval queued" },
+    ...errorResponses(),
+  },
 });
 
 evalsRoutes.openapi(runEvalRoute, async (c) => {
@@ -74,10 +80,15 @@ const listEvalsRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/skills/{repo}/evals",
   tags: ["Evals"],
+  operationId: "listSkillEvals",
+  summary: "List a skill's eval history",
   request: {
     params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
   },
-  responses: { 200: { description: "Eval history" } },
+  responses: {
+    200: { description: "Eval history" },
+    ...errorResponses(),
+  },
 });
 
 evalsRoutes.openapi(listEvalsRoute, async (c) => {
@@ -121,6 +132,8 @@ const getEvalRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/skills/{repo}/evals/{evalId}",
   tags: ["Evals"],
+  operationId: "getSkillEval",
+  summary: "Get a single eval result",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
@@ -128,7 +141,10 @@ const getEvalRoute = createRoute({
       evalId: z.string().uuid(),
     }),
   },
-  responses: { 200: { description: "Eval detail" } },
+  responses: {
+    200: { description: "Eval detail" },
+    ...errorResponses(),
+  },
 });
 
 evalsRoutes.openapi(getEvalRoute, async (c) => {

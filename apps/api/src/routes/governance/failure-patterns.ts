@@ -1,6 +1,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { skillFailurePatterns, skills } from "@skillist/db/schema";
 import { and, desc, eq } from "drizzle-orm";
+import { errorResponses } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import type { AppEnv } from "./shared";
 
@@ -10,6 +11,8 @@ const listRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/failure-patterns",
   tags: ["Governance"],
+  operationId: "listFailurePatterns",
+  summary: "List mined recurring failure patterns for an organization's skills",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     query: z.object({
@@ -18,8 +21,7 @@ const listRoute = createRoute({
   },
   responses: {
     200: { description: "Recurring skill-run/eval failure patterns mined for this org" },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
+    ...errorResponses({ notFound: false }),
   },
 });
 

@@ -1,5 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { computeCoverage } from "../../lib/coverage";
+import { errorResponses } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import type { AppEnv } from "./shared";
 
@@ -9,11 +10,12 @@ const coverageRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/coverage",
   tags: ["Governance"],
+  operationId: "getRequiredSkillCoverage",
+  summary: "Get required-skill coverage and drift for an organization",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
     200: { description: "Required-skill coverage across the three layers" },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
+    ...errorResponses({ validates: false, notFound: false }),
   },
 });
 

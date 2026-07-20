@@ -15,6 +15,7 @@ import type { Env } from "../env";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import { closeWorkerDb, createWorkerDbCached, type WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { listRegistry } from "../lib/registry-service";
 import { resolveUserId } from "../lib/session";
 import { addDayBucket, buildDayBuckets, toDaySeries } from "../lib/time-series";
@@ -32,6 +33,8 @@ const listRegistryRoute = createRoute({
   method: "get",
   path: "/registry",
   tags: ["Registry"],
+  operationId: "listRegistry",
+  summary: "Browse the public skill registry",
   // Public browse: no credentials. Overrides the document-level default.
   security: [],
   request: { query: registryQuerySchema },
@@ -66,6 +69,7 @@ const listRegistryRoute = createRoute({
       },
       description: "Public skill registry",
     },
+    ...errorResponses({ notFound: false, isPublic: true }),
   },
 });
 
@@ -88,9 +92,14 @@ const registryFacetsRoute = createRoute({
   method: "get",
   path: "/registry/facets",
   tags: ["Registry"],
+  operationId: "listRegistryFacets",
+  summary: "List available registry filter facets",
   // Public browse: no credentials. Overrides the document-level default.
   security: [],
-  responses: { 200: { description: "Registry filter facets" } },
+  responses: {
+    200: { description: "Registry filter facets" },
+    ...errorResponses({ validates: false, notFound: false, isPublic: true }),
+  },
 });
 
 registryRoutes.openapi(registryFacetsRoute, async (c) => {
@@ -142,12 +151,17 @@ const getRegistrySkillRoute = createRoute({
   method: "get",
   path: "/registry/{org}/{repo}",
   tags: ["Registry"],
+  operationId: "getRegistrySkill",
+  summary: "Get a public registry skill's detail",
   // Public browse: no credentials. Overrides the document-level default.
   security: [],
   request: {
     params: z.object({ org: z.string(), repo: z.string() }),
   },
-  responses: { 200: { description: "Registry skill detail" } },
+  responses: {
+    200: { description: "Registry skill detail" },
+    ...errorResponses({ isPublic: true }),
+  },
 });
 
 registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
@@ -226,10 +240,15 @@ const starSkillRoute = createRoute({
   method: "post",
   path: "/registry/{org}/{repo}/star",
   tags: ["Registry"],
+  operationId: "starRegistrySkill",
+  summary: "Star a registry skill",
   request: {
     params: z.object({ org: z.string(), repo: z.string() }),
   },
-  responses: { 201: { description: "Starred" } },
+  responses: {
+    201: { description: "Starred" },
+    ...errorResponses(),
+  },
 });
 
 registryRoutes.openapi(starSkillRoute, async (c) => {
@@ -274,10 +293,15 @@ const unstarSkillRoute = createRoute({
   method: "delete",
   path: "/registry/{org}/{repo}/star",
   tags: ["Registry"],
+  operationId: "unstarRegistrySkill",
+  summary: "Remove a star from a registry skill",
   request: {
     params: z.object({ org: z.string(), repo: z.string() }),
   },
-  responses: { 200: { description: "Unstarred" } },
+  responses: {
+    200: { description: "Unstarred" },
+    ...errorResponses(),
+  },
 });
 
 registryRoutes.openapi(unstarSkillRoute, async (c) => {
@@ -316,11 +340,16 @@ const registryAnalyticsRoute = createRoute({
   method: "get",
   path: "/registry/{org}/{repo}/analytics",
   tags: ["Registry"],
+  operationId: "getRegistrySkillAnalytics",
+  summary: "Get install and activation time series for a skill",
   request: {
     params: z.object({ org: z.string(), repo: z.string() }),
     query: z.object({ days: z.coerce.number().min(1).max(90).default(30) }),
   },
-  responses: { 200: { description: "Per-skill telemetry time series" } },
+  responses: {
+    200: { description: "Per-skill telemetry time series" },
+    ...errorResponses(),
+  },
 });
 
 registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
@@ -382,10 +411,15 @@ const subscribeRoute = createRoute({
   method: "post",
   path: "/registry/{org}/{repo}/subscribe",
   tags: ["Registry"],
+  operationId: "subscribeToRegistrySkill",
+  summary: "Subscribe to a public skill's publish events",
   request: {
     params: z.object({ org: z.string(), repo: z.string() }),
   },
-  responses: { 201: { description: "Subscribed" } },
+  responses: {
+    201: { description: "Subscribed" },
+    ...errorResponses(),
+  },
 });
 
 registryRoutes.openapi(subscribeRoute, async (c) => {
@@ -418,6 +452,8 @@ const updateVisibilityRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/skills/{repo}/visibility",
   tags: ["Skills"],
+  operationId: "updateSkillVisibility",
+  summary: "Change a skill's visibility",
   request: {
     params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
     body: {
@@ -430,7 +466,10 @@ const updateVisibilityRoute = createRoute({
       },
     },
   },
-  responses: { 200: { description: "Visibility updated" } },
+  responses: {
+    200: { description: "Visibility updated" },
+    ...errorResponses(),
+  },
 });
 
 registryRoutes.openapi(updateVisibilityRoute, async (c) => {
