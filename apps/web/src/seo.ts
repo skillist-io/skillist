@@ -13,6 +13,9 @@
 
 export const SITE_ORIGIN = "https://skillist.io";
 
+/** Default social card. Committed at apps/web/public/og-default.png (1200×630). */
+export const OG_IMAGE = `${SITE_ORIGIN}/og-default.png`;
+
 /** Shape of the public `/{org}/{repo}/meta` payload we rely on. */
 export type SkillMeta = {
   name: string;
@@ -88,7 +91,15 @@ export function skillHeadTags(meta: SkillMeta): string {
     `<meta property="og:url" content="${escapeHtml(url)}" />`,
     `<meta property="og:title" content="${escapeHtml(title)}" />`,
     `<meta property="og:description" content="${escapeHtml(description)}" />`,
+    // Shared default card. Declaring summary_large_image without an image
+    // renders as a blank box, so these must stay together. Per-skill generated
+    // cards can replace OG_IMAGE later without touching the rest of this.
+    `<meta property="og:image" content="${OG_IMAGE}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta property="og:image:alt" content="${escapeHtml(`${meta.name} on Skillist`)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:image" content="${OG_IMAGE}" />`,
     `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
     `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
   ].join("\n    ");

@@ -51,6 +51,15 @@ describe("skillHeadTags", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
+  it("pairs summary_large_image with an actual image", () => {
+    // Declaring the large card without an image renders a blank box, so these
+    // two must never drift apart.
+    const html = skillHeadTags(meta);
+    expect(html).toContain('name="twitter:card" content="summary_large_image"');
+    expect(html).toContain('property="og:image" content="https://skillist.io/og-default.png"');
+    expect(html).toContain('name="twitter:image"');
+  });
+
   it("falls back to a generated description when the skill has none", () => {
     const bare = { ...meta, description: "" };
     expect(skillHeadTags(bare)).toContain("is an Agent Skill published by skillist");
