@@ -190,4 +190,9 @@ Google client lives in GCP project `studied-jigsaw-274214` — add Skillist redi
 
 ## License
 
-Proprietary — Skillist
+Proprietary — see [LICENSE](LICENSE).
+
+Two packages are published to npm under **MIT** and carry their own LICENSE
+files, because they are client-side tools meant to be read and forked:
+[`@skillist/cli`](packages/cli) and
+[`@skillist/skill-format`](packages/skill-format).

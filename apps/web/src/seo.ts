@@ -263,6 +263,7 @@ export function sitemapXml(entries: RegistryEntry[]): string {
   const urls = [
     `<url><loc>${SITE_ORIGIN}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>`,
     `<url><loc>${SITE_ORIGIN}/registry</loc><changefreq>hourly</changefreq><priority>0.9</priority></url>`,
+    `<url><loc>${SITE_ORIGIN}/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>`,
     ...entries.map((e) => {
       const loc = escapeHtml(skillUrl(e.orgSlug, e.skillRepo));
       const lastmod = e.updatedAt ? `<lastmod>${escapeHtml(e.updatedAt)}</lastmod>` : "";
