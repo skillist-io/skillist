@@ -4,8 +4,20 @@ type BarChartProps = {
   className?: string;
 };
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Axis ticks are label-agnostic: ISO dates collapse to MM-DD, anything else (a
+ * version like `v1.2.0`, a short run id) renders verbatim. Callers pass whatever
+ * their series is keyed by, so this must not assume dates.
+ */
+function tick(label: string): string {
+  return ISO_DATE.test(label) ? label.slice(5) : label;
+}
+
 export function MiniBarChart({ data, valueLabel, className = "" }: BarChartProps) {
   const max = Math.max(...data.map((d) => d.value), 1);
+  const first = data[0];
   const last = data[data.length - 1];
   const unit = valueLabel ? ` ${valueLabel}` : "";
   // Single text alternative for assistive tech: the bars themselves are
@@ -33,15 +45,12 @@ export function MiniBarChart({ data, valueLabel, className = "" }: BarChartProps
           </div>
         ))}
       </div>
-      <div className="flex gap-1 text-[10px] text-muted-foreground">
-        {data.map((point, index) => (
-          <span key={point.label} className="flex-1 truncate text-center">
-            {index === 0 || index === data.length - 1 || index % 7 === 0
-              ? point.label.slice(5)
-              : ""}
-          </span>
-        ))}
-      </div>
+      {first && (
+        <div className="flex justify-between gap-2 text-[10px] text-muted-foreground tabular-nums">
+          <span className="truncate">{tick(first.label)}</span>
+          {last && last !== first && <span className="truncate">{tick(last.label)}</span>}
+        </div>
+      )}
     </div>
   );
 }
