@@ -57,15 +57,20 @@ function buildWorkerDb(connectionString: string): import("@skillist/auth").Worke
  * request rate implies. Prefer passing `ctx` so the close happens after the
  * response is returned rather than delaying it; the close is best-effort and
  * must never surface as a request error.
+ *
+ * Returns the close promise so a caller with no `ctx` — a test, or any context
+ * that is about to end — can await it. Leaving it floating there means the
+ * runtime tears down mid-close and reports a cancelled stream.
  */
-export function closeWorkerDb(db: object, ctx?: WaitUntil): void {
+export function closeWorkerDb(db: object, ctx?: WaitUntil): Promise<void> {
   const client = clientsByDb.get(db);
-  if (!client) return;
+  if (!client) return Promise.resolve();
   clientsByDb.delete(db);
   const closing = client.end({ timeout: 5 }).catch(() => {});
   if (ctx) {
     ctx.waitUntil(closing);
   }
+  return closing;
 }
 
 /**

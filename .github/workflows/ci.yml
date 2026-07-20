@@ -12,6 +12,23 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      # Backs the DB-dependent test suites. Without it they skip and the run
+      # still goes green, which is exactly how org RBAC and account deletion
+      # went untested for so long.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: skillist
+          POSTGRES_PASSWORD: skillist
+          POSTGRES_DB: skillist_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       # Needed by the `wrangler deploy --dry-run` inside `pnpm build`.
       # E2E_AUTH_STATE_B64 is NOT here: this job never runs Playwright, and
@@ -35,7 +52,15 @@ jobs:
 
       - run: pnpm typecheck
 
+      # Applies the schema (and pg_trgm) to the service container, then runs the
+      # suite against it so nothing silently skips.
+      - run: pnpm db:migrate
+        env:
+          DATABASE_URL: postgresql://skillist:skillist@localhost:5432/skillist_test
+
       - run: pnpm test
+        env:
+          TEST_DATABASE_URL: postgresql://skillist:skillist@localhost:5432/skillist_test
 
       - run: pnpm build
 
