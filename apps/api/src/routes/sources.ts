@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { skillSourceSuggestions, skillSources } from "@skillist/db/schema";
 import { desc, eq } from "drizzle-orm";
 import type { Env } from "../env";
+import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { DEFAULT_ROOTS } from "../lib/github-sync/discover";
@@ -163,6 +164,24 @@ sourcesRoutes.openapi(approveSuggestionRoute, async (c) => {
     })
     .where(eq(skillSourceSuggestions.id, id));
 
+  // Platform-level action (orgId null): approving a suggestion starts mirroring
+  // third-party content into the public registry, so it belongs in the central
+  // audit log and not only in the suggestion row's reviewedBy.
+  await logAudit(db, {
+    orgId: null,
+    actorId: admin.userId,
+    actorType: "user",
+    action: "source.suggestion.approve",
+    resourceType: "skill_source",
+    resourceId: source!.id,
+    metadata: {
+      suggestionId: id,
+      githubOwner: suggestion.githubOwner,
+      githubRepo: suggestion.githubRepo,
+      license: suggestion.license,
+    },
+  });
+
   await c.env.SYNC_QUEUE.send({ type: "sync_source", sourceId: source!.id });
   return c.json({ sourceId: source!.id, status: "approved" }, 200);
 });
@@ -195,6 +214,14 @@ sourcesRoutes.openapi(rejectSuggestionRoute, async (c) => {
       updatedAt: new Date(),
     })
     .where(eq(skillSourceSuggestions.id, id));
+  await logAudit(c.var.db, {
+    orgId: null,
+    actorId: admin.userId,
+    actorType: "user",
+    action: "source.suggestion.reject",
+    resourceType: "skill_source_suggestion",
+    resourceId: id,
+  });
   return c.json({ status: "rejected" }, 200);
 });
 

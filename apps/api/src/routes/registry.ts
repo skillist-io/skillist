@@ -12,6 +12,7 @@ import {
 } from "@skillist/db/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { Env } from "../env";
+import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import { createWorkerDbCached, type WorkerDb } from "../lib/db";
 import { listRegistry } from "../lib/registry-service";
@@ -435,6 +436,18 @@ registryRoutes.openapi(updateVisibilityRoute, async (c) => {
     .update(skills)
     .set({ visibility, updatedAt: new Date() })
     .where(eq(skills.id, skill.id));
+
+  // Exposing a private skill publicly (or retracting one) is the highest-blast
+  // -radius change available here, so record the transition on both sides.
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: userId,
+    actorType: "user",
+    action: "skill.visibility.update",
+    resourceType: "skill",
+    resourceId: skill.id,
+    metadata: { repo, from: skill.visibility, to: visibility },
+  });
 
   // Re-sync the public edge cache for the new visibility (caches SKILL.md/meta
   // when public, purges it otherwise) so delivery reflects the change at once.
