@@ -1,7 +1,7 @@
 {
   "name": "skillist-api",
   "main": "src/index.ts",
-  "compatibility_date": "2025-01-15",
+  "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   // Smart Placement runs the Worker near the database so multi-query requests
   // don't pay a client<->origin round-trip per query. No-op in local dev.

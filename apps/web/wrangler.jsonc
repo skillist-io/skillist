@@ -1,11 +1,15 @@
 {
   "name": "skillist-web",
   "main": "src/worker.ts",
-  "compatibility_date": "2025-01-15",
+  "compatibility_date": "2026-07-01",
   // Serve only on the custom domain below — the *.workers.dev hostname would
   // otherwise serve this app (and proxy the API through it) outside the zone.
   "workers_dev": false,
   "preview_urls": false,
+  // This Worker proxies the API via service binding, so its failures are user-
+  // facing; it had no logging at all.
+  "observability": { "enabled": true },
+  "upload_source_maps": true,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

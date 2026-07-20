@@ -1,7 +1,7 @@
 {
   "name": "skillist-api-production",
   "main": "src/index.ts",
-  "compatibility_date": "2025-01-15",
+  "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   // Serve ONLY on the routes below. Left enabled, the default
   // skillist-api-production.<subdomain>.workers.dev hostname exposes the whole
@@ -29,6 +29,10 @@
     "enabled": true,
     "head_sampling_rate": 1
   },
+  // Without this the bundled output is minified, so the stack in a Workers Logs
+  // trace points at unreadable positions. onError already logs a cf-ray
+  // correlation id; this is what makes that id actionable.
+  "upload_source_maps": true,
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
@@ -162,6 +166,14 @@
         "queue": "skillist-ai-jobs",
         "max_batch_size": 1,
         "max_retries": 3,
+        // Unset, max_concurrency scales to the platform maximum: a backlog then
+        // fans out arbitrarily many consumers, each opening a Hyperdrive→Neon
+        // connection AND calling the AI provider. Bounded so a burst cannot
+        // exhaust the connection pool and the AI budget at the same time.
+        "max_concurrency": 3,
+        // Without a delay, message.retry() re-delivers immediately, so a poison
+        // AI job burns all 3 retries within seconds.
+        "retry_delay": 60,
         // Capture poison messages instead of dropping them after retries.
         "dead_letter_queue": "skillist-ai-jobs-dlq"
       },
@@ -169,6 +181,8 @@
         "queue": "skillist-sync-jobs",
         "max_batch_size": 5,
         "max_retries": 5,
+        "max_concurrency": 5,
+        "retry_delay": 120,
         "dead_letter_queue": "skillist-sync-jobs-dlq"
       }
     ]
