@@ -23,7 +23,7 @@ import {
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { WifiOff } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense } from "react";
 import { AgentInstallButtons } from "@/components/agent-install-buttons";
 import { PublicEvalBadge } from "@/components/public-eval-badge";
 import { SignInToAddButton } from "@/components/sign-in-cta";
@@ -75,7 +75,6 @@ function SkillRepoPage() {
   const { org, repo } = Route.useParams();
   const queryClient = useQueryClient();
   const { connected, lastEvent } = useSkillRealtime(org, repo);
-  const [viewedBundlePath, setViewedBundlePath] = useState<string | null>(null);
 
   const {
     data: entry,
@@ -213,13 +212,10 @@ function SkillRepoPage() {
         {/* Body: primary adopt/run column + secondary reference rail */}
         <div className="space-y-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8 lg:space-y-0">
           <div className="space-y-8">
+            {/* No onOpenFile: the public page has no bundle viewer, so a
+                file reference must not render as a clickable no-op. */}
             <Suspense fallback={null}>
-              <SkillReadme
-                org={org}
-                repo={repo}
-                etag={lastEvent?.etag}
-                onOpenFile={setViewedBundlePath}
-              />
+              <SkillReadme org={org} repo={repo} etag={lastEvent?.etag} />
             </Suspense>
 
             <Card>
