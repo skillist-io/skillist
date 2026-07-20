@@ -16,11 +16,15 @@ Package: [`@skillist/cli`](https://www.npmjs.com/package/@skillist/cli)
 
 ## Authentication
 
+The CLI authenticates with an **org API key** — there is no interactive sign-in command. Create a key under [Settings](https://console.skillist.io/settings) in the console, then export it:
+
 ```bash
-skillist login     # browser OAuth / magic link flow
-skillist logout
-skillist whoami
+export SKILLIST_API_KEY=sk_...
 ```
+
+Keys are shown once at creation and stored hashed. Each carries explicit [scopes](/platform/authentication/#scopes) and is refused outside them.
+
+Reads of public skills (`search`, `install`, `pull`) work without a key. A key is **required** by: `push`, `publish`, `eval`, `run`, `rollback`, `mcp proxy`, `inventory scan`, `inventory import`, `inventory list`, and `required-skills check`.
 
 ## Registry
 
@@ -61,7 +65,7 @@ For skills with hosted runtime scripts:
 skillist run <org>/<repo> --script scripts/<name> [--stream]
 ```
 
-Requires a signed-in session. Anonymous sandbox runs are not permitted. See [Sandbox execution](/platform/sandbox/).
+Requires `SKILLIST_API_KEY` with the `skills:run` scope — the CLI sends it as a Bearer token, and runs without one are rejected with 401. Anonymous sandbox runs are not permitted. See [Sandbox execution](/platform/sandbox/).
 
 ## Review & inventory
 

@@ -48,11 +48,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: blakebauman/skillist/.github/actions/skillist-review@main
+      - uses: actions/setup-node@v4
         with:
-          path: skills/my-skill
-          threshold: "80"
-          fail-on: high
+          node-version: 22
+      - run: npm install -g @skillist/cli
+      - run: skillist review skills/my-skill --threshold 80 --fail-on high
+        env:
+          # Optional: loads your org's review rubric instead of the defaults.
+          SKILLIST_API_KEY: ${{ secrets.SKILLIST_API_KEY }}
 ```
 
-Optional `api-url`, `api-key`, and `org` inputs load the org review rubric from the API.
+Pass `--org <slug>` to load the org review rubric from the API rather than using the built-in defaults.

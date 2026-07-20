@@ -128,6 +128,8 @@ const getSkillMdRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/SKILL.md",
   tags: ["Delivery"],
+  // Public: no credentials. Overrides the document-level security default.
+  security: [],
   request: { params: orgRepoParams },
   responses: { 200: { description: "SKILL.md content" } },
 });
@@ -155,6 +157,8 @@ const getSkillMetaRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/meta",
   tags: ["Delivery"],
+  // Public: no credentials. Overrides the document-level security default.
+  security: [],
   request: { params: orgRepoParams },
   responses: { 200: { description: "Discovery metadata" } },
 });
@@ -182,6 +186,8 @@ const getBundleRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/bundle",
   tags: ["Delivery"],
+  // Public: no credentials. Overrides the document-level security default.
+  security: [],
   request: { params: orgRepoParams },
   responses: { 200: { description: "Skill bundle" } },
 });
