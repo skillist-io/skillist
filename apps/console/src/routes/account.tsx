@@ -1,8 +1,10 @@
 import { getAuthenticatorName } from "@better-auth/passkey";
 import {
+  ApiError,
   Avatar,
   AvatarFallback,
   AvatarImage,
+  api,
   authClient,
   Badge,
   Button,
@@ -11,15 +13,18 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  clearPersistedQueryCache,
   Input,
   Label,
   linkSocialProvider,
   PageTitle,
   useSession,
+  webUrl,
 } from "@skillist/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { confirmsAccountDeletion } from "@/lib/account-deletion";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/account")({
@@ -456,6 +461,109 @@ function AccountPage() {
           })}
         </CardContent>
       </Card>
+
+      <DeleteAccountCard email={session?.user?.email ?? ""} />
     </div>
+  );
+}
+
+/**
+ * Permanent account deletion.
+ *
+ * Two-step by design: the button does nothing until the user types their own
+ * email address. Deletion cascades sessions, OAuth links, passkeys, and org
+ * memberships, and is not recoverable, so a single misclick must not do it.
+ *
+ * The API refuses (409) when the caller is the sole owner of an org that has
+ * other members — deleting them would leave that org's skills and keys with
+ * nobody able to administer them. That response lists the blocking orgs, and
+ * they are shown here rather than flattened into a generic failure.
+ */
+function DeleteAccountCard({ email }: { email: string }) {
+  const [confirmation, setConfirmation] = useState("");
+  const [blockingOrgs, setBlockingOrgs] = useState<
+    { slug: string; name: string; otherMembers: number }[]
+  >([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const confirmed = confirmsAccountDeletion(confirmation, email);
+
+  const deleteAccount = useMutation({
+    mutationFn: () =>
+      api<{ deleted: true; orgsDeleted: number }>("/v1/account", { method: "DELETE" }),
+    onMutate: () => {
+      setError(null);
+      setBlockingOrgs([]);
+    },
+    onSuccess: () => {
+      // The session is gone server-side; drop the persisted cache so no org
+      // data outlives it in this browser, then leave the console entirely.
+      clearPersistedQueryCache();
+      window.location.assign(webUrl("/"));
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 409) {
+        const body = err.body as { blockingOrgs?: typeof blockingOrgs };
+        setBlockingOrgs(body.blockingOrgs ?? []);
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Could not delete the account");
+    },
+  });
+
+  return (
+    <Card size="sm" className="border-destructive/40">
+      <CardHeader>
+        <CardTitle className="text-destructive">Delete account</CardTitle>
+        <CardDescription>
+          Permanently deletes your profile, sessions, linked providers, and passkeys. Organisations
+          where you are the only member are deleted too. This cannot be undone.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {blockingOrgs.length > 0 ? (
+          <div className="border border-destructive/40 p-3 text-sm">
+            <p className="font-medium">
+              You are the sole owner of{" "}
+              {blockingOrgs.length === 1 ? "an organisation" : "organisations"} with other members.
+            </p>
+            <ul className="mt-2 space-y-1 text-muted-foreground">
+              {blockingOrgs.map((org) => (
+                <li key={org.slug}>
+                  <span className="text-foreground">{org.name}</span> — {org.otherMembers} other{" "}
+                  {org.otherMembers === 1 ? "member" : "members"}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-muted-foreground">
+              Promote another owner, or remove the other members, then try again.
+            </p>
+          </div>
+        ) : null}
+
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+        <div className="space-y-2">
+          <Label htmlFor="delete-confirmation">
+            Type <span className="font-mono text-xs text-foreground">{email}</span> to confirm
+          </Label>
+          <Input
+            id="delete-confirmation"
+            value={confirmation}
+            autoComplete="off"
+            onChange={(e) => setConfirmation(e.target.value)}
+            placeholder={email}
+          />
+        </div>
+
+        <Button
+          variant="destructive"
+          disabled={!confirmed || deleteAccount.isPending}
+          onClick={() => deleteAccount.mutate()}
+        >
+          {deleteAccount.isPending ? "Deleting…" : "Delete my account"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
