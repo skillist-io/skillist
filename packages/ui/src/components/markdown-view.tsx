@@ -33,7 +33,8 @@ export default function MarkdownView({
         components={{
           a: ({ href, children, ...props }) => {
             const bundlePath = href ? resolveBundlePath(href) : null;
-            if (bundlePath && files && files[bundlePath] !== undefined && onOpenFile) {
+            const inBundle = !!bundlePath && !!files && files[bundlePath] !== undefined;
+            if (bundlePath && inBundle && onOpenFile) {
               return (
                 <button
                   type="button"
@@ -43,6 +44,12 @@ export default function MarkdownView({
                   {children}
                 </button>
               );
+            }
+            // The file ships in the bundle but this context has no viewer to open
+            // it in. Its href is bundle-relative, so an <a> would resolve against
+            // the page URL and 404 — name the file instead of linking nowhere.
+            if (inBundle) {
+              return <code>{children}</code>;
             }
             return (
               <a href={href} target="_blank" rel="noreferrer noopener" {...props}>
