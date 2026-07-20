@@ -1,7 +1,6 @@
-import { api, Label, NativeSelect, type Org, PageTitle } from "@skillist/ui";
-import { useQuery } from "@tanstack/react-query";
+import { PageTitle } from "@skillist/ui";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useActiveOrg } from "@/lib/active-org";
 import { requireAuth } from "@/lib/require-auth";
 import { GovernancePanel } from "@/routes/settings";
 
@@ -10,14 +9,14 @@ export const Route = createFileRoute("/governance")({
   component: GovernancePage,
 });
 
+// Governance is manageable by owners and admins (the previous owner+admin
+// filter semantics, now enforced as a per-org gate rather than by hiding orgs).
+function canManageGovernance(role: string): boolean {
+  return role === "owner" || role === "admin";
+}
+
 function GovernancePage() {
-  const { data: orgs } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => api<Org[]>("/v1/orgs"),
-  });
-  const ownerOrgs = orgs?.filter((o) => o.role === "owner" || o.role === "admin") ?? [];
-  const [selectedOrgId, setSelectedOrgId] = useState("");
-  const activeOrgId = selectedOrgId || ownerOrgs[0]?.id || "";
+  const { activeOrg } = useActiveOrg();
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8">
@@ -28,7 +27,7 @@ function GovernancePage() {
         </p>
       </div>
 
-      {ownerOrgs.length === 0 ? (
+      {!activeOrg ? (
         <p className="text-sm text-muted-foreground">
           Create an organization on the{" "}
           <Link to="/dashboard" className="text-primary underline">
@@ -36,26 +35,18 @@ function GovernancePage() {
           </Link>{" "}
           to manage governance.
         </p>
+      ) : canManageGovernance(activeOrg.role) ? (
+        <GovernancePanel orgId={activeOrg.id} />
       ) : (
-        <>
-          {ownerOrgs.length > 1 && (
-            <div>
-              <Label>Organization</Label>
-              <NativeSelect
-                className="mt-1 w-full max-w-md"
-                value={activeOrgId}
-                onChange={(e) => setSelectedOrgId(e.target.value)}
-              >
-                {ownerOrgs.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name} ({org.slug})
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-          )}
-          {activeOrgId && <GovernancePanel orgId={activeOrgId} />}
-        </>
+        // Permission state (not an error) — the global switcher lists every org,
+        // so surface the gate here instead of switching to a different org.
+        <div className="border border-border p-6">
+          <h2 className="text-sm font-semibold text-foreground">Owner or admin access required</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Managing governance for {activeOrg.name} needs an owner or admin role. You have the{" "}
+            {activeOrg.role} role.
+          </p>
+        </div>
       )}
     </div>
   );
