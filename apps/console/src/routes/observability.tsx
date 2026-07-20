@@ -16,9 +16,10 @@ import {
   NativeSelect,
   type ObservabilitySummary,
   PageTitle,
+  SegmentedControl,
   Skeleton,
 } from "@skillist/ui";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, ChevronRight, FilePen, Minus } from "lucide-react";
 import { useState } from "react";
@@ -52,28 +53,50 @@ function MetricCard({
   );
 }
 
+/** The API accepts 1-90 days; these are the windows worth one click. */
+const RANGE_OPTIONS = [
+  { value: 7, label: "7d", srLabel: "Last 7 days" },
+  { value: 30, label: "30d", srLabel: "Last 30 days" },
+  { value: 90, label: "90d", srLabel: "Last 90 days" },
+] as const;
+
 function ObservabilityPage() {
   const { activeOrg } = useActiveOrg();
   const activeOrgId = activeOrg?.id ?? "";
+  const [days, setDays] = useState<number>(30);
 
-  const { data } = useQuery({
-    queryKey: ["observability", activeOrgId],
-    queryFn: () => api<ObservabilitySummary>(`/v1/orgs/${activeOrgId}/observability?days=30`),
+  const { data, isPlaceholderData } = useQuery({
+    queryKey: ["observability", activeOrgId, days],
+    queryFn: () => api<ObservabilitySummary>(`/v1/orgs/${activeOrgId}/observability?days=${days}`),
     enabled: !!activeOrgId,
+    // Changing the window is a new key; hold the old numbers and dim rather
+    // than blanking every readout on the page.
+    placeholderData: keepPreviousData,
   });
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8">
-      <div>
-        <PageTitle>Observability</PageTitle>
-        <p className="text-muted-foreground">Hosted runs, install funnel, and activation trends</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <PageTitle>Observability</PageTitle>
+          <p className="text-muted-foreground">
+            Hosted runs, install funnel, and activation trends
+          </p>
+        </div>
+        <SegmentedControl label="Window" value={days} onChange={setDays} options={RANGE_OPTIONS} />
       </div>
 
       {data ? (
-        <>
+        <div
+          className={cn(
+            "space-y-8 transition-opacity duration-150",
+            isPlaceholderData && "opacity-50",
+          )}
+          aria-busy={isPlaceholderData}
+        >
           <div id="run-metrics" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard
-              title="Hosted runs (30d)"
+              title={`Hosted runs (${days}d)`}
               value={data.runs.total}
               hint={`${data.runs.succeeded} succeeded · ${data.runs.failed} failed`}
             />
@@ -87,12 +110,12 @@ function ObservabilityPage() {
               }
             />
             <MetricCard
-              title="Installs (30d)"
+              title={`Installs (${days}d)`}
               value={data.telemetry.installs}
               hint={`${data.telemetry.events} total telemetry events`}
             />
             <MetricCard
-              title="Activations (30d)"
+              title={`Activations (${days}d)`}
               value={data.telemetry.activations}
               hint="CLI install → first use"
             />
@@ -146,7 +169,7 @@ function ObservabilityPage() {
             <Card size="sm">
               <CardHeader>
                 <CardTitle>Runs by runtime</CardTitle>
-                <CardDescription>Last 30 days</CardDescription>
+                <CardDescription>Last {days} days</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {Object.entries(data.runs.byRuntime).length ? (
@@ -217,7 +240,7 @@ function ObservabilityPage() {
               )}
             </CardContent>
           </Card>
-        </>
+        </div>
       ) : (
         <p className="text-muted-foreground">Select an organization to view metrics.</p>
       )}

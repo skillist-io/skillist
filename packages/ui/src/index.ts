@@ -47,6 +47,7 @@ export * from "./ui/label";
 export * from "./ui/native-select";
 export * from "./ui/page-title";
 export * from "./ui/popover";
+export * from "./ui/segmented-control";
 export * from "./ui/separator";
 export * from "./ui/sheet";
 export * from "./ui/sidebar";
