@@ -17,6 +17,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { FolderOpen, Plus } from "lucide-react";
 import { NewProjectDialog } from "@/components/new-project-dialog";
 import { ProjectVisibilityBadge } from "@/components/project-visibility";
+import { useSyncActiveOrgFromParam } from "@/lib/active-org";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/orgs/$orgId/projects/")({
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/orgs/$orgId/projects/")({
 
 function ProjectsIndexPage() {
   const { orgId } = Route.useParams();
+  useSyncActiveOrgFromParam(orgId);
 
   const { data: orgs } = useQuery({
     queryKey: ["orgs"],
