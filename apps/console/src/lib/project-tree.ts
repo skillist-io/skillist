@@ -1,5 +1,5 @@
 import type { ProjectItem } from "@skillist/ui";
-import { buildPathTree, type TreeNode } from "@/components/skill-editor/paths";
+import { buildPathTree, type TreeNode } from "@skillist/ui";
 
 /** Human label for a curated item's leaf: explicit label, else repo/external name. */
 export function projectItemLeafName(item: ProjectItem): string {

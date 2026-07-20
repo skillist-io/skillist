@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import {
   Button,
   Card,
@@ -6,11 +7,10 @@ import {
   CardHeader,
   CardTitle,
   usePublicBundle,
-} from "@skillist/ui";
-import { ArrowLeft } from "lucide-react";
-import { AssetPreview } from "@/components/skill-editor/asset-preview";
-import { FileTree } from "@/components/skill-editor/file-tree";
-import { isBinaryAssetPath, isTextPath } from "@/components/skill-editor/paths";
+} from "..";
+import { isBinaryAssetPath, isTextPath } from "../lib/bundle-paths";
+import { AssetPreview } from "./asset-preview";
+import { FileTree } from "./file-tree";
 
 /** Read-only directory tree + file viewer for a published bundle (public page rail). */
 export default function SkillBundleBrowser({

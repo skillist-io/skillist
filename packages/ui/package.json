@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./markdown-view": "./src/components/markdown-view.tsx",
+    "./skill-bundle-browser": "./src/components/skill-bundle-browser.tsx",
     "./skill-readme": "./src/components/skill-readme.tsx",
     "./styles.css": "./src/styles.css"
   },

@@ -7,7 +7,7 @@ import {
   isTextPath,
   pathsUnder,
   sanitizeAssetFileName,
-} from "./paths";
+} from "./bundle-paths";
 
 describe("isAllowedPath", () => {
   it("allows spec root files", () => {

@@ -1,13 +1,4 @@
 import {
-  Button,
-  cn,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Input,
-} from "@skillist/ui";
-import {
   ChevronDown,
   ChevronRight,
   File,
@@ -19,6 +10,15 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import {
+  Button,
+  cn,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Input,
+} from "..";
+import {
   buildTree,
   bundleDirs,
   isAllowedPath,
@@ -26,7 +26,7 @@ import {
   isProtectedPath,
   isTextPath,
   type TreeNode,
-} from "./paths";
+} from "../lib/bundle-paths";
 
 type FileTreeProps = {
   files: Record<string, string>;

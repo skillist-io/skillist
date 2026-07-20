@@ -1,3 +1,4 @@
+import type { TreeNode } from "@skillist/ui";
 import {
   api,
   Button,
@@ -51,7 +52,6 @@ import * as React from "react";
 import { NavUser } from "@/components/nav-user";
 import { NewProjectDialog } from "@/components/new-project-dialog";
 import { ProjectVisibilityIcon } from "@/components/project-visibility";
-import type { TreeNode } from "@/components/skill-editor/paths";
 import { buildProjectTree, projectItemLeafName } from "@/lib/project-tree";
 import { useAutoExpand } from "@/lib/use-auto-expand";
 
