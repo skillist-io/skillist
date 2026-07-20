@@ -8,6 +8,7 @@ import {
   telemetryEvents,
 } from "@skillist/db/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { errorResponses } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import { resolveUserId } from "../../lib/session";
 import { addDayBucket, buildDayBuckets, toDaySeries } from "../../lib/time-series";
@@ -19,11 +20,16 @@ const auditRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/audit",
   tags: ["Governance"],
+  operationId: "listAuditEvents",
+  summary: "List an organization's audit log",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     query: z.object({ limit: z.coerce.number().int().min(1).max(100).default(50) }),
   },
-  responses: { 200: { description: "Audit log" } },
+  responses: {
+    200: { description: "Audit log" },
+    ...errorResponses({ notFound: false }),
+  },
 });
 
 observabilityRoutes.openapi(auditRoute, async (c) => {
@@ -46,12 +52,14 @@ const telemetryIngestRoute = createRoute({
   method: "post",
   path: "/telemetry",
   tags: ["Telemetry"],
+  operationId: "recordTelemetryEvent",
+  summary: "Record a skill install or activation event",
   request: {
     body: { content: { "application/json": { schema: telemetryEventSchema } } },
   },
   responses: {
     201: { description: "Recorded" },
-    401: { description: "Unauthorized" },
+    ...errorResponses({ notFound: false }),
   },
 });
 
@@ -94,11 +102,16 @@ const orgTelemetryRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/telemetry",
   tags: ["Governance"],
+  operationId: "getOrgTelemetry",
+  summary: "Summarize an organization's install and activation telemetry",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     query: z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }),
   },
-  responses: { 200: { description: "Telemetry summary" } },
+  responses: {
+    200: { description: "Telemetry summary" },
+    ...errorResponses(),
+  },
 });
 
 observabilityRoutes.openapi(orgTelemetryRoute, async (c) => {
@@ -156,11 +169,16 @@ const observabilityRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/observability",
   tags: ["Governance"],
+  operationId: "getOrgObservability",
+  summary: "Get an organization's run and telemetry observability dashboard",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     query: z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }),
   },
-  responses: { 200: { description: "Org observability" } },
+  responses: {
+    200: { description: "Org observability" },
+    ...errorResponses(),
+  },
 });
 
 observabilityRoutes.openapi(observabilityRoute, async (c) => {

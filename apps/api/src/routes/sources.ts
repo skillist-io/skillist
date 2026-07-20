@@ -6,6 +6,7 @@ import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { DEFAULT_ROOTS } from "../lib/github-sync/discover";
+import { errorResponses } from "../lib/openapi";
 
 type AppEnv = {
   Bindings: Env;
@@ -13,11 +14,6 @@ type AppEnv = {
 };
 
 export const sourcesRoutes = new OpenAPIHono<AppEnv>();
-
-const jsonError = (description: string) => ({
-  content: { "application/json": { schema: z.object({ error: z.any() }) } },
-  description,
-});
 
 function requireAdmin(c: { env: Env; get: (k: "auth") => AuthContext }) {
   const auth = c.get("auth");
@@ -36,13 +32,14 @@ const listSourcesRoute = createRoute({
   method: "get",
   path: "/admin/sources",
   tags: ["Admin"],
+  operationId: "listSkillSources",
+  summary: "List the curated GitHub skill sources",
   responses: {
     200: {
       description: "Curated skill sources",
       content: { "application/json": { schema: z.object({ items: z.array(z.unknown()) }) } },
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Admin only"),
+    ...errorResponses({ validates: false, notFound: false }),
   },
 });
 
@@ -57,6 +54,8 @@ const listSuggestionsRoute = createRoute({
   method: "get",
   path: "/admin/source-suggestions",
   tags: ["Admin"],
+  operationId: "listSkillSourceSuggestions",
+  summary: "List suggested GitHub skill repos awaiting review",
   request: {
     query: z.object({
       status: z.enum(["pending", "approved", "rejected", "all"]).optional().default("pending"),
@@ -67,8 +66,7 @@ const listSuggestionsRoute = createRoute({
       description: "Suggested GitHub skill repos",
       content: { "application/json": { schema: z.object({ items: z.array(z.unknown()) }) } },
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Admin only"),
+    ...errorResponses({ notFound: false }),
   },
 });
 
@@ -89,6 +87,8 @@ const approveSuggestionRoute = createRoute({
   method: "post",
   path: "/admin/source-suggestions/{id}/approve",
   tags: ["Admin"],
+  operationId: "approveSkillSourceSuggestion",
+  summary: "Approve a source suggestion and enqueue its first sync",
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: {
@@ -113,9 +113,7 @@ const approveSuggestionRoute = createRoute({
         },
       },
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Admin only"),
-    404: jsonError("Not found"),
+    ...errorResponses(),
   },
 });
 
@@ -190,14 +188,15 @@ const rejectSuggestionRoute = createRoute({
   method: "post",
   path: "/admin/source-suggestions/{id}/reject",
   tags: ["Admin"],
+  operationId: "rejectSkillSourceSuggestion",
+  summary: "Reject a source suggestion",
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
     200: {
       description: "Suggestion rejected",
       content: { "application/json": { schema: z.object({ status: z.string() }) } },
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Admin only"),
+    ...errorResponses(),
   },
 });
 
@@ -229,6 +228,8 @@ const syncSourceRoute = createRoute({
   method: "post",
   path: "/admin/sources/{id}/sync",
   tags: ["Admin"],
+  operationId: "syncSkillSource",
+  summary: "Enqueue a sync for one skill source",
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
     202: {
@@ -239,9 +240,7 @@ const syncSourceRoute = createRoute({
         },
       },
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Admin only"),
-    404: jsonError("Not found"),
+    ...errorResponses(),
   },
 });
 
@@ -263,13 +262,14 @@ const syncAllRoute = createRoute({
   method: "post",
   path: "/admin/sources/sync-all",
   tags: ["Admin"],
+  operationId: "syncAllSkillSources",
+  summary: "Enqueue a sync for every enabled skill source",
   responses: {
     202: {
       description: "Full sync enqueued",
       content: { "application/json": { schema: z.object({ status: z.string() }) } },
     },
-    401: jsonError("Unauthorized"),
-    403: jsonError("Admin only"),
+    ...errorResponses({ validates: false, notFound: false }),
   },
 });
 

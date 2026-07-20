@@ -11,6 +11,7 @@ import {
   serveSkillMeta,
   serveSkillMetaAtVersion,
 } from "../lib/delivery";
+import { errorResponses } from "../lib/openapi";
 
 type AppEnv = {
   Bindings: Env;
@@ -128,10 +129,15 @@ const getSkillMdRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/SKILL.md",
   tags: ["Delivery"],
+  operationId: "getSkillMd",
+  summary: "Fetch a published skill's SKILL.md",
   // Public: no credentials. Overrides the document-level security default.
   security: [],
   request: { params: orgRepoParams },
-  responses: { 200: { description: "SKILL.md content" } },
+  responses: {
+    200: { description: "SKILL.md content" },
+    ...errorResponses({ isPublic: true }),
+  },
 });
 
 deliveryRoutes.openapi(getSkillMdRoute, async (c) => {
@@ -157,10 +163,15 @@ const getSkillMetaRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/meta",
   tags: ["Delivery"],
+  operationId: "getSkillMeta",
+  summary: "Fetch a published skill's discovery metadata",
   // Public: no credentials. Overrides the document-level security default.
   security: [],
   request: { params: orgRepoParams },
-  responses: { 200: { description: "Discovery metadata" } },
+  responses: {
+    200: { description: "Discovery metadata" },
+    ...errorResponses({ isPublic: true }),
+  },
 });
 
 deliveryRoutes.openapi(getSkillMetaRoute, async (c) => {
@@ -186,10 +197,15 @@ const getBundleRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/bundle",
   tags: ["Delivery"],
+  operationId: "getSkillBundle",
+  summary: "Download a published skill's full bundle",
   // Public: no credentials. Overrides the document-level security default.
   security: [],
   request: { params: orgRepoParams },
-  responses: { 200: { description: "Skill bundle" } },
+  responses: {
+    200: { description: "Skill bundle" },
+    ...errorResponses({ isPublic: true }),
+  },
 });
 
 deliveryRoutes.openapi(getBundleRoute, async (c) => {

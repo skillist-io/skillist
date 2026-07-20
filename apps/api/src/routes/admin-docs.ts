@@ -3,6 +3,7 @@ import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { DOC_KIND, DOCS_EMBEDDING_MODEL } from "../lib/docs-rag";
+import { errorResponses } from "../lib/openapi";
 
 type AppEnv = {
   Bindings: Env;
@@ -53,6 +54,7 @@ const reindexRoute = createRoute({
   method: "post",
   path: "/admin/reindex-docs",
   tags: ["Admin"],
+  operationId: "reindexDocs",
   summary: "Embed and upsert docs passages into the Vectorize index (search_docs source)",
   request: {
     body: {
@@ -75,8 +77,7 @@ const reindexRoute = createRoute({
         },
       },
     },
-    401: { description: "Unauthorized" },
-    403: { description: "Admin only" },
+    ...errorResponses({ notFound: false }),
   },
 });
 

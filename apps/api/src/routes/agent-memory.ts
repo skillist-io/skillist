@@ -4,6 +4,7 @@ import type { Env } from "../env";
 import { forgetFact, rememberFact, searchMemory } from "../lib/agent/memory";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 
 type AppEnv = {
@@ -29,6 +30,7 @@ const listRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/agent/memory",
   tags: ["Agent"],
+  operationId: "listAgentMemories",
   summary: "List the durable governance memories visible to the caller",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
@@ -41,8 +43,7 @@ const listRoute = createRoute({
         "application/json": { schema: z.object({ memories: z.array(memorySchema) }) },
       },
     },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
+    ...errorResponses({ notFound: false }),
   },
 });
 
@@ -75,6 +76,7 @@ const upsertRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/agent/memory",
   tags: ["Agent"],
+  operationId: "upsertAgentMemory",
   summary: "Add or update a durable governance memory",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
@@ -89,8 +91,7 @@ const upsertRoute = createRoute({
         },
       },
     },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
+    ...errorResponses({ notFound: false }),
   },
 });
 
@@ -112,6 +113,7 @@ const deleteRoute = createRoute({
   method: "delete",
   path: "/orgs/{orgId}/agent/memory/{key}",
   tags: ["Agent"],
+  operationId: "deleteAgentMemory",
   summary: "Forget a durable governance memory by key",
   request: {
     params: z.object({ orgId: z.string().uuid(), key: z.string().min(1) }),
@@ -121,8 +123,7 @@ const deleteRoute = createRoute({
       description: "Deleted (idempotent)",
       content: { "application/json": { schema: z.object({ ok: z.boolean() }) } },
     },
-    401: { description: "Unauthorized" },
-    403: { description: "Forbidden" },
+    ...errorResponses({ notFound: false }),
   },
 });
 

@@ -9,6 +9,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { AiJobMessage, Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess, requireOrgRole } from "../lib/org-access";
 import { resolveUserId } from "../lib/session";
 
@@ -23,13 +24,18 @@ const submitFeedbackRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/skills/{repo}/feedback",
   tags: ["Feedback"],
+  operationId: "submitSkillFeedback",
+  summary: "Submit feedback on a skill",
   request: {
     params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
     body: {
       content: { "application/json": { schema: submitFeedbackSchema } },
     },
   },
-  responses: { 201: { description: "Feedback submitted" } },
+  responses: {
+    201: { description: "Feedback submitted" },
+    ...errorResponses(),
+  },
 });
 
 feedbackRoutes.openapi(submitFeedbackRoute, async (c) => {
@@ -81,13 +87,18 @@ const listFeedbackRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/skills/{repo}/feedback",
   tags: ["Feedback"],
+  operationId: "listSkillFeedback",
+  summary: "List feedback submitted against a skill",
   request: {
     params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
     query: z.object({
       status: z.enum(["pending", "approved", "rejected"]).optional(),
     }),
   },
-  responses: { 200: { description: "Feedback list" } },
+  responses: {
+    200: { description: "Feedback list" },
+    ...errorResponses(),
+  },
 });
 
 feedbackRoutes.openapi(listFeedbackRoute, async (c) => {
@@ -158,13 +169,18 @@ const approveRoute = createRoute({
   method: "post",
   path: "/feedback/{id}/approve",
   tags: ["Feedback"],
+  operationId: "approveFeedback",
+  summary: "Approve a feedback item and optionally queue an AI draft",
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: {
       content: { "application/json": { schema: approveFeedbackSchema } },
     },
   },
-  responses: { 200: { description: "Approved" } },
+  responses: {
+    200: { description: "Approved" },
+    ...errorResponses(),
+  },
 });
 
 feedbackRoutes.openapi(approveRoute, async (c) => {
@@ -224,13 +240,18 @@ const rejectRoute = createRoute({
   method: "post",
   path: "/feedback/{id}/reject",
   tags: ["Feedback"],
+  operationId: "rejectFeedback",
+  summary: "Reject a feedback item",
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: {
       content: { "application/json": { schema: rejectFeedbackSchema } },
     },
   },
-  responses: { 200: { description: "Rejected" } },
+  responses: {
+    200: { description: "Rejected" },
+    ...errorResponses(),
+  },
 });
 
 feedbackRoutes.openapi(rejectRoute, async (c) => {
@@ -259,8 +280,13 @@ const suggestRoute = createRoute({
   method: "post",
   path: "/feedback/{id}/suggest",
   tags: ["AI"],
+  operationId: "queueFeedbackSuggestion",
+  summary: "Queue an AI-drafted skill improvement from a feedback item",
   request: { params: z.object({ id: z.string().uuid() }) },
-  responses: { 202: { description: "AI job queued" } },
+  responses: {
+    202: { description: "AI job queued" },
+    ...errorResponses(),
+  },
 });
 
 feedbackRoutes.openapi(suggestRoute, async (c) => {
@@ -308,8 +334,13 @@ const getAiJobRoute = createRoute({
   method: "get",
   path: "/ai-jobs/{id}",
   tags: ["AI"],
+  operationId: "getAiJob",
+  summary: "Get the status of an AI drafting job",
   request: { params: z.object({ id: z.string().uuid() }) },
-  responses: { 200: { description: "AI job status" } },
+  responses: {
+    200: { description: "AI job status" },
+    ...errorResponses(),
+  },
 });
 
 feedbackRoutes.openapi(getAiJobRoute, async (c) => {

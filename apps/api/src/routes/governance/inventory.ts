@@ -4,6 +4,7 @@ import { organizations, registryEntries, skillInventory, skills } from "@skillis
 import { scanSkillSecurity } from "@skillist/skill-format";
 import { and, desc, eq, getTableColumns, inArray } from "drizzle-orm";
 import { logAudit } from "../../lib/audit";
+import { errorResponses } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import type { AppEnv } from "./shared";
 
@@ -13,11 +14,16 @@ const inventoryScanRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/inventory/scan",
   tags: ["Inventory"],
+  operationId: "scanSkillInventory",
+  summary: "Upsert a scanned skill inventory for an organization",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: inventoryScanSchema } } },
   },
-  responses: { 200: { description: "Inventory updated" } },
+  responses: {
+    200: { description: "Inventory updated" },
+    ...errorResponses({ notFound: false }),
+  },
 });
 
 inventoryRoutes.openapi(inventoryScanRoute, async (c) => {
@@ -164,8 +170,13 @@ const listInventoryRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/inventory",
   tags: ["Inventory"],
+  operationId: "listSkillInventory",
+  summary: "List an organization's scanned skill inventory",
   request: { params: z.object({ orgId: z.string().uuid() }) },
-  responses: { 200: { description: "Skill inventory" } },
+  responses: {
+    200: { description: "Skill inventory" },
+    ...errorResponses({ validates: false, notFound: false }),
+  },
 });
 
 inventoryRoutes.openapi(listInventoryRoute, async (c) => {
@@ -228,6 +239,8 @@ const promoteInventoryRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/inventory/{itemId}/promote",
   tags: ["Inventory"],
+  operationId: "promoteInventoryItem",
+  summary: "Promote an inventory item into a managed skill",
   request: {
     params: z.object({ orgId: z.string().uuid(), itemId: z.string().uuid() }),
     body: {
@@ -245,7 +258,10 @@ const promoteInventoryRoute = createRoute({
       },
     },
   },
-  responses: { 201: { description: "Skill created from inventory item" } },
+  responses: {
+    201: { description: "Skill created from inventory item" },
+    ...errorResponses({ conflict: true }),
+  },
 });
 
 inventoryRoutes.openapi(promoteInventoryRoute, async (c) => {

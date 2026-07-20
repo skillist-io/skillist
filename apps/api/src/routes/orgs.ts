@@ -6,6 +6,7 @@ import type { Env } from "../env";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { errorResponses } from "../lib/openapi";
 import { requireOrgRole } from "../lib/org-access";
 import { sha256 } from "../lib/r2";
 import { resolveUserId } from "../lib/session";
@@ -24,6 +25,8 @@ const listOrgsRoute = createRoute({
   method: "get",
   path: "/orgs",
   tags: ["Organizations"],
+  operationId: "listOrgs",
+  summary: "List organizations the caller belongs to",
   responses: {
     200: {
       content: {
@@ -40,10 +43,7 @@ const listOrgsRoute = createRoute({
       },
       description: "List organizations for current user",
     },
-    401: {
-      description: "Unauthorized",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
+    ...errorResponses({ validates: false, notFound: false }),
   },
 });
 
@@ -82,6 +82,8 @@ const createOrgRoute = createRoute({
   method: "post",
   path: "/orgs",
   tags: ["Organizations"],
+  operationId: "createOrg",
+  summary: "Create an organization",
   request: {
     body: {
       content: { "application/json": { schema: createOrgSchema } },
@@ -100,14 +102,7 @@ const createOrgRoute = createRoute({
       },
       description: "Organization created",
     },
-    401: {
-      description: "Unauthorized",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
-    500: {
-      description: "Failed to create organization",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
+    ...errorResponses({ notFound: false }),
   },
 });
 
@@ -132,13 +127,18 @@ const inviteRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/members",
   tags: ["Organizations"],
+  operationId: "inviteOrgMember",
+  summary: "Add an existing user to an organization",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: {
       content: { "application/json": { schema: inviteMemberSchema } },
     },
   },
-  responses: { 201: { description: "Member invited" } },
+  responses: {
+    201: { description: "Member invited" },
+    ...errorResponses(),
+  },
 });
 
 orgRoutes.openapi(inviteRoute, async (c) => {
@@ -171,6 +171,8 @@ const listMembersRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/members",
   tags: ["Organizations"],
+  operationId: "listOrgMembers",
+  summary: "List an organization's members",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
     200: {
@@ -188,14 +190,7 @@ const listMembersRoute = createRoute({
       },
       description: "List org members",
     },
-    401: {
-      description: "Unauthorized",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
-    403: {
-      description: "Forbidden",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
+    ...errorResponses(),
   },
 });
 
@@ -224,6 +219,8 @@ const createApiKeyRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/api-keys",
   tags: ["API Keys"],
+  operationId: "createOrgApiKey",
+  summary: "Mint an API key for an organization",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: {
@@ -243,14 +240,7 @@ const createApiKeyRoute = createRoute({
       },
       description: "API key created",
     },
-    401: {
-      description: "Unauthorized",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
-    403: {
-      description: "Forbidden",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
+    ...errorResponses(),
   },
 });
 
@@ -302,6 +292,8 @@ const listApiKeysRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/api-keys",
   tags: ["API Keys"],
+  operationId: "listOrgApiKeys",
+  summary: "List an organization's active API keys",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
   },
@@ -323,14 +315,7 @@ const listApiKeysRoute = createRoute({
       },
       description: "List API keys",
     },
-    401: {
-      description: "Unauthorized",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
-    403: {
-      description: "Forbidden",
-      content: { "application/json": { schema: z.object({ error: z.string() }) } },
-    },
+    ...errorResponses(),
   },
 });
 
@@ -366,13 +351,19 @@ const revokeApiKeyRoute = createRoute({
   method: "delete",
   path: "/orgs/{orgId}/api-keys/{keyId}",
   tags: ["API Keys"],
+  // Soft-revoke rather than a hard delete, hence "revoke" over "delete".
+  operationId: "revokeOrgApiKey",
+  summary: "Revoke an organization API key",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
       keyId: z.string().uuid(),
     }),
   },
-  responses: { 200: { description: "API key revoked" } },
+  responses: {
+    200: { description: "API key revoked" },
+    ...errorResponses(),
+  },
 });
 
 orgRoutes.openapi(revokeApiKeyRoute, async (c) => {

@@ -17,6 +17,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { logAudit } from "../../lib/audit";
 import { evaluateInstallPolicy } from "../../lib/install-policy";
+import { errorResponses } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import type { AppEnv } from "./shared";
 
@@ -26,11 +27,16 @@ const publishPolicyRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/publish-policy",
   tags: ["Governance"],
+  operationId: "updatePublishPolicy",
+  summary: "Update an organization's publish policy",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: publishPolicySchema } } },
   },
-  responses: { 200: { description: "Policy updated" } },
+  responses: {
+    200: { description: "Policy updated" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(publishPolicyRoute, async (c) => {
@@ -61,8 +67,13 @@ const getPublishPolicyRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/publish-policy",
   tags: ["Governance"],
+  operationId: "getPublishPolicy",
+  summary: "Get an organization's publish policy",
   request: { params: z.object({ orgId: z.string().uuid() }) },
-  responses: { 200: { description: "Publish policy" } },
+  responses: {
+    200: { description: "Publish policy" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(getPublishPolicyRoute, async (c) => {
@@ -83,11 +94,16 @@ const patchInstallPolicyRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/install-policy",
   tags: ["Governance"],
+  operationId: "updateInstallPolicy",
+  summary: "Update an organization's install policy",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: installPolicySchema } } },
   },
-  responses: { 200: { description: "Install policy updated" } },
+  responses: {
+    200: { description: "Install policy updated" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(patchInstallPolicyRoute, async (c) => {
@@ -118,8 +134,13 @@ const getInstallPolicyRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/install-policy",
   tags: ["Governance"],
+  operationId: "getInstallPolicy",
+  summary: "Get an organization's install policy",
   request: { params: z.object({ orgId: z.string().uuid() }) },
-  responses: { 200: { description: "Install policy" } },
+  responses: {
+    200: { description: "Install policy" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(getInstallPolicyRoute, async (c) => {
@@ -140,11 +161,16 @@ const installCheckRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/install-check",
   tags: ["Governance"],
+  operationId: "checkInstallPolicy",
+  summary: "Evaluate a skill against the org's install policy",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: installCheckSchema } } },
   },
-  responses: { 200: { description: "Install policy evaluation" } },
+  responses: {
+    200: { description: "Install policy evaluation" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(installCheckRoute, async (c) => {
@@ -203,11 +229,16 @@ const patchReviewRubricRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/review-rubric",
   tags: ["Governance"],
+  operationId: "updateReviewRubric",
+  summary: "Update an organization's review rubric",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: reviewRubricSchema } } },
   },
-  responses: { 200: { description: "Review rubric updated" } },
+  responses: {
+    200: { description: "Review rubric updated" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(patchReviewRubricRoute, async (c) => {
@@ -238,8 +269,13 @@ const getReviewRubricRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/review-rubric",
   tags: ["Governance"],
+  operationId: "getReviewRubric",
+  summary: "Get an organization's review rubric",
   request: { params: z.object({ orgId: z.string().uuid() }) },
-  responses: { 200: { description: "Review rubric" } },
+  responses: {
+    200: { description: "Review rubric" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(getReviewRubricRoute, async (c) => {
@@ -260,11 +296,16 @@ const patchExecutionPolicyRoute = createRoute({
   method: "patch",
   path: "/orgs/{orgId}/execution-policy",
   tags: ["Governance"],
+  operationId: "updateExecutionPolicy",
+  summary: "Update an organization's execution policy",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: executionPolicySchema } } },
   },
-  responses: { 200: { description: "Execution policy updated" } },
+  responses: {
+    200: { description: "Execution policy updated" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(patchExecutionPolicyRoute, async (c) => {
@@ -295,8 +336,13 @@ const getExecutionPolicyRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/execution-policy",
   tags: ["Governance"],
+  operationId: "getExecutionPolicy",
+  summary: "Get an organization's execution policy",
   request: { params: z.object({ orgId: z.string().uuid() }) },
-  responses: { 200: { description: "Execution policy" } },
+  responses: {
+    200: { description: "Execution policy" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(getExecutionPolicyRoute, async (c) => {
@@ -317,8 +363,13 @@ const listRequiredSkillsRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/required-skills",
   tags: ["Governance"],
+  operationId: "listRequiredSkills",
+  summary: "List the skills an organization requires",
   request: { params: z.object({ orgId: z.string().uuid() }) },
-  responses: { 200: { description: "Required skills" } },
+  responses: {
+    200: { description: "Required skills" },
+    ...errorResponses({ validates: false, notFound: false }),
+  },
 });
 
 policiesRoutes.openapi(listRequiredSkillsRoute, async (c) => {
@@ -338,11 +389,16 @@ const addRequiredSkillRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/required-skills",
   tags: ["Governance"],
+  operationId: "addRequiredSkill",
+  summary: "Mark a skill as required for an organization",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: { content: { "application/json": { schema: requiredSkillSchema } } },
   },
-  responses: { 201: { description: "Added" } },
+  responses: {
+    201: { description: "Added" },
+    ...errorResponses({ notFound: false }),
+  },
 });
 
 policiesRoutes.openapi(addRequiredSkillRoute, async (c) => {
@@ -368,13 +424,18 @@ const removeRequiredSkillRoute = createRoute({
   method: "delete",
   path: "/orgs/{orgId}/required-skills/{id}",
   tags: ["Governance"],
+  operationId: "removeRequiredSkill",
+  summary: "Remove a required-skill entry",
   request: {
     params: z.object({
       orgId: z.string().uuid(),
       id: z.string().uuid(),
     }),
   },
-  responses: { 200: { description: "Removed" } },
+  responses: {
+    200: { description: "Removed" },
+    ...errorResponses(),
+  },
 });
 
 policiesRoutes.openapi(removeRequiredSkillRoute, async (c) => {
@@ -393,13 +454,18 @@ const requiredSkillsCheckRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/required-skills/check",
   tags: ["Governance"],
+  operationId: "checkRequiredSkills",
+  summary: "Check installed skills against the org's required list",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     query: z.object({
       installed: z.string().optional().describe("Comma-separated org/repo refs"),
     }),
   },
-  responses: { 200: { description: "Required skills compliance" } },
+  responses: {
+    200: { description: "Required skills compliance" },
+    ...errorResponses({ notFound: false }),
+  },
 });
 
 policiesRoutes.openapi(requiredSkillsCheckRoute, async (c) => {
@@ -439,8 +505,13 @@ const requiredSkillsWorkflowRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/required-skills/workflow",
   tags: ["Governance"],
+  operationId: "getRequiredSkillsWorkflow",
+  summary: "Generate a GitHub Actions workflow that enforces required skills",
   request: { params: z.object({ orgId: z.string().uuid() }) },
-  responses: { 200: { description: "Suggested GitHub Actions workflow for required skills" } },
+  responses: {
+    200: { description: "Suggested GitHub Actions workflow for required skills" },
+    ...errorResponses({ validates: false, notFound: false }),
+  },
 });
 
 policiesRoutes.openapi(requiredSkillsWorkflowRoute, async (c) => {
