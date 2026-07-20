@@ -1,5 +1,25 @@
 import { clientFetchBase } from "./client-api-base";
 
+/**
+ * A non-ok API response.
+ *
+ * Extends Error, so existing `catch (e) { e.message }` handling is unchanged —
+ * but it also keeps the status and the parsed body, which some responses carry
+ * structured detail in (e.g. the 409 from account deletion lists the orgs
+ * blocking it). Previously that detail was parsed and thrown away.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -16,7 +36,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? "Request failed");
+    throw new ApiError((err as { error?: string }).error ?? "Request failed", res.status, err);
   }
   if (res.headers.get("content-type")?.includes("application/json")) {
     return res.json() as Promise<T>;
