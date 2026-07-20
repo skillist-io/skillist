@@ -10,7 +10,6 @@ import {
   SheetTitle,
   SkillistLogo,
   signOutAndRedirect,
-  ThemeToggle,
   useSession,
 } from "@skillist/ui";
 import { Link, useRouterState } from "@tanstack/react-router";
@@ -165,12 +164,10 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <GitHubMark className="size-4" />
               </a>
             </Button>
-            <ThemeToggle />
             <span aria-hidden="true" className="mx-2 h-5 w-px bg-border" />
             <AuthActions />
           </div>
           <div className="ml-auto flex items-center gap-1 md:hidden">
-            <ThemeToggle />
             <Button
               variant="ghost"
               size="icon"

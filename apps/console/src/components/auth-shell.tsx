@@ -1,4 +1,4 @@
-import { SignalField, SkillistLogo, ThemeToggle, webUrl } from "@skillist/ui";
+import { SignalField, SkillistLogo, webUrl } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
 
 /**
@@ -60,7 +60,6 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             <SkillistLogo />
           </Link>
           <div className="ml-auto flex items-center gap-1">
-            <ThemeToggle />
             <a
               href={webUrl("/registry")}
               className="px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
