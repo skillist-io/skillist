@@ -18,6 +18,7 @@ import { rateLimit } from "./lib/rate-limit";
 import { resolveSessionUserId } from "./lib/session";
 import { handleMcpRequest } from "./mcp/handler";
 import { mcpServerInfo } from "./mcp/registry-server";
+import { accountRoutes } from "./routes/account";
 import { adminDocsRoutes } from "./routes/admin-docs";
 import { agentApprovalsRoutes } from "./routes/agent-approvals";
 import { agentChatsRoutes } from "./routes/agent-chats";
@@ -222,6 +223,7 @@ app.all("/agents/*", async (c) => {
 });
 
 const v1 = new OpenAPIHono<{ Bindings: Env }>();
+v1.route("/", accountRoutes);
 v1.route("/", orgRoutes);
 v1.route("/", skillRoutes);
 v1.route("/", projectRoutes);
@@ -360,7 +362,11 @@ export default {
       }
       return;
     }
+    // Daily 06:00 UTC: mirror sync, plus data retention. Retention runs on its
+    // own connection and is best-effort — a failure here must not stop the
+    // sync, and the next day's run picks up whatever was missed.
     ctx.waitUntil(env.SYNC_QUEUE.send({ type: "sync_all" }));
+    ctx.waitUntil(runDailyRetention(env));
   },
 
   async queue(batch: MessageBatch<AiJobMessage | SyncQueueMessage>, env: Env): Promise<void> {
@@ -394,6 +400,35 @@ export default {
     }
   },
 };
+
+/**
+ * Applies data retention and logs what it removed.
+ *
+ * Logged rather than silent: if a rule ever starts deleting far more than
+ * expected, the counts are the only way that surfaces before the data is gone.
+ */
+async function runDailyRetention(env: Env): Promise<void> {
+  const db = createWorkerDb(env);
+  try {
+    const { applyRetention, hasMoreWork } = await import("./lib/retention");
+    const report = await applyRetention(db);
+    console.log(JSON.stringify({ msg: "retention_complete", ...report }));
+    if (hasMoreWork(report)) {
+      // Hit the per-run batch cap, so a backlog remains. Expected on the first
+      // few runs after launch; sustained, it means a window needs revisiting.
+      console.warn(JSON.stringify({ msg: "retention_backlog", ...report }));
+    }
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        msg: "retention_failed",
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  } finally {
+    closeWorkerDb(db);
+  }
+}
 
 async function handleAiJobBatch(
   env: Env,
