@@ -3,28 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Skillist — Agent Skills Platform</title>
-    <meta
-      name="description"
-      content="Skillist is a realtime registry and control plane for Agent Skills. Publish, version, govern, and deliver SKILL.md bundles with sub-10ms edge fan-out, compliant with the agentskills.io spec."
-    />
-    <link rel="canonical" href="https://skillist.io/" />
+    <title>Skillist Console</title>
+    <meta name="description" content="Authenticated control plane for Skillist." />
 
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Skillist" />
-    <meta property="og:url" content="https://skillist.io/" />
-    <meta property="og:title" content="Skillist — Agent Skills Platform" />
-    <meta
-      property="og:description"
-      content="Realtime registry and control plane for Agent Skills. Publish, version, govern, and deliver SKILL.md bundles with sub-10ms edge fan-out."
-    />
-
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Skillist — Agent Skills Platform" />
-    <meta
-      name="twitter:description"
-      content="Realtime registry and control plane for Agent Skills. Publish, version, govern, and deliver SKILL.md bundles with sub-10ms edge fan-out."
-    />
+    <!--
+      The console is an authenticated product surface: it must never be
+      indexed, and it must not claim marketing metadata. (This file was
+      previously a verbatim copy of apps/web/index.html, canonical tag
+      included, which pointed console.skillist.io at skillist.io.)
+      Backed by public/robots.txt, since robots meta only applies to pages
+      a crawler actually fetches.
+    -->
+    <meta name="robots" content="noindex, nofollow" />
 
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

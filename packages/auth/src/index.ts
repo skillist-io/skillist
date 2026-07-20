@@ -3,7 +3,6 @@ import * as schema from "@skillist/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { mcp } from "better-auth/plugins";
-import { emailOTP } from "better-auth/plugins/email-otp";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { buildSocialProviders } from "./social-providers";
@@ -185,20 +184,11 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
           });
         },
       }),
-      emailOTP({
-        async sendVerificationOTP({ email, otp, type }) {
-          if (!sendEmail) {
-            console.log(`OTP for ${email} (${type}): ${otp}`);
-            return;
-          }
-          await sendEmail({
-            to: email,
-            subject: "Your Skillist verification code",
-            html: `<p>Your code: <strong>${otp}</strong></p>`,
-            text: `Your Skillist code: ${otp}`,
-          });
-        },
-      }),
+      // NOTE: emailOTP was removed. It had no client plugin and no UI, so its
+      // only effect was to expose an unauthenticated, unthrottled
+      // /api/auth/email-otp/send-verification-otp that anyone could use to fan
+      // out mail from welcome@skillist.io. Re-add it together with a client,
+      // rate limits, and disableSignUp if OTP sign-in is ever wanted.
       passkey({
         // rpID is the registrable parent domain so passkeys work on both
         // skillist.io and console.skillist.io.

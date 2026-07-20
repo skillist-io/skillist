@@ -35,15 +35,11 @@ export default defineConfig({
           label: "skillist.io",
           href: "https://skillist.io",
         },
-        {
-          icon: "github",
-          label: "GitHub",
-          href: "https://github.com/skillist-dev/skillist",
-        },
+        // GitHub social link and editLink removed: they pointed at
+        // skillist-dev/skillist, which does not exist (404), and the source
+        // repo is private so "Edit page" cannot resolve for any reader.
+        // Restore both once there is a public repo.
       ],
-      editLink: {
-        baseUrl: "https://github.com/skillist-dev/skillist/edit/main/apps/docs/",
-      },
       sidebar: [
         {
           label: "Getting started",

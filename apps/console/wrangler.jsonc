@@ -2,6 +2,10 @@
   "name": "skillist-console",
   "main": "src/worker.ts",
   "compatibility_date": "2025-01-15",
+  // Serve only on the custom domain below — the *.workers.dev hostname would
+  // otherwise serve this app (and proxy the API through it) outside the zone.
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

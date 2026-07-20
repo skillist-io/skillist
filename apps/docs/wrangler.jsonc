@@ -1,6 +1,10 @@
 {
   "name": "skillist-docs",
   "compatibility_date": "2025-01-15",
+  // Serve only on docs.skillist.io — a *.workers.dev copy of the docs would be
+  // separately indexable and duplicate the canonical site.
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "directory": "./dist"
   },

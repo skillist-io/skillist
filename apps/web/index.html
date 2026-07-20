@@ -8,11 +8,15 @@
       name="description"
       content="Skillist is a realtime registry and control plane for Agent Skills. Publish, version, govern, and deliver SKILL.md bundles with sub-10ms edge fan-out, compliant with the agentskills.io spec."
     />
-    <link rel="canonical" href="https://skillist.io/" />
-
+    <!--
+      No canonical or og:url here. This shell is served for EVERY route
+      (landing, /registry, /{org}/{repo}), so a hardcoded homepage canonical
+      told crawlers that every skill page was a duplicate of "/" — which
+      de-indexes the registry. Per-route canonical/og:url are injected
+      server-side in src/worker.ts.
+    -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Skillist" />
-    <meta property="og:url" content="https://skillist.io/" />
     <meta property="og:title" content="Skillist — Agent Skills Platform" />
     <meta
       property="og:description"

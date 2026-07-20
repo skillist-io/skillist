@@ -3,6 +3,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-01-15",
   "compatibility_flags": ["nodejs_compat"],
+  // Serve ONLY on the routes below. Left enabled, the default
+  // skillist-api-production.<subdomain>.workers.dev hostname exposes the whole
+  // API — auth, /v1, /mcp, apex execution — while bypassing the skillist.io
+  // zone, and with it the WAF, zone rate-limiting rules, and bot protection.
+  "workers_dev": false,
+  "preview_urls": false,
   // Run the Worker near the database so multi-query requests don't pay a
   // client<->origin round-trip per query.
   "placement": { "mode": "smart" },

@@ -1,0 +1,4 @@
+# console.skillist.io is the authenticated product surface — nothing here
+# should ever appear in a search index.
+User-agent: *
+Disallow: /
