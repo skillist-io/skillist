@@ -6,10 +6,9 @@ const steps = [
     prefix: "Install the CLI",
     command: "npm install -g @skillist/cli",
   },
-  {
-    prefix: "Sign in",
-    command: "skillist login",
-  },
+  // Searching and installing public skills needs no credentials, so the fastest
+  // path to value has no auth step at all. (This previously showed
+  // `skillist login`, which is not a command the CLI has ever had.)
   {
     prefix: "Search the registry",
     command: "skillist search performance",
