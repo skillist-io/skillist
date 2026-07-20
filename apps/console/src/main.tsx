@@ -5,6 +5,7 @@ import {
   RouteErrorFallback,
   RouteNotFound,
   ThemeProvider,
+  trackRouterPageviews,
   useSession,
 } from "@skillist/ui";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
@@ -30,6 +31,10 @@ const router = createRouter({
   // publish events still invalidate, so this can't serve indefinitely-stale data.
   defaultPreloadStaleTime: 5 * 60_000,
 });
+
+// SPA navigations are not page loads, so GA4 sees one pageview per session
+// without this. No-ops when GTM was not injected.
+trackRouterPageviews(router);
 
 declare module "@tanstack/react-router" {
   interface Register {

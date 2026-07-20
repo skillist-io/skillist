@@ -1,0 +1,29 @@
+# docs.skillist.io
+# AI crawlers are explicitly allowed: agents discovering and reading these docs
+# is the point of the product, and naming them guards against a future
+# blanket-disallow default.
+User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://docs.skillist.io/sitemap-index.xml

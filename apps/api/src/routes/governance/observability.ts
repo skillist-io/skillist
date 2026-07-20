@@ -117,10 +117,18 @@ observabilityRoutes.openapi(orgTelemetryRoute, async (c) => {
   const since = new Date();
   since.setDate(since.getDate() - days);
 
-  const events = await c.var.db
-    .select()
+  // Counted in SQL, not by pulling every row into the isolate and calling
+  // .filter() on it — telemetry_events is the fastest-growing table and this
+  // window can span 90 days. (The sibling /observability route below already
+  // aggregated correctly; this one was simply missed.)
+  const countRows = await c.var.db
+    .select({
+      eventType: telemetryEvents.eventType,
+      count: sql<number>`count(*)::int`,
+    })
     .from(telemetryEvents)
-    .where(and(eq(telemetryEvents.orgSlug, org.slug), gte(telemetryEvents.createdAt, since)));
+    .where(and(eq(telemetryEvents.orgSlug, org.slug), gte(telemetryEvents.createdAt, since)))
+    .groupBy(telemetryEvents.eventType);
 
   const registry = await c.var.db
     .select({
@@ -131,11 +139,13 @@ observabilityRoutes.openapi(orgTelemetryRoute, async (c) => {
     .from(registryEntries)
     .where(eq(registryEntries.orgSlug, org.slug));
 
+  const countFor = (type: string) => countRows.find((r) => r.eventType === type)?.count ?? 0;
+
   return c.json(
     {
-      events: events.length,
-      installs: events.filter((e) => e.eventType === "install").length,
-      activations: events.filter((e) => e.eventType === "activation").length,
+      events: countRows.reduce((sum, r) => sum + r.count, 0),
+      installs: countFor("install"),
+      activations: countFor("activation"),
       bySkill: registry,
     },
     200,

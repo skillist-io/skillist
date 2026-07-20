@@ -41,7 +41,7 @@ url = sys.argv[2]
 with open(path) as f:
     cfg = json.load(f)
 cfg['main'] = 'src/index.ts'
-cfg['compatibility_date'] = '2025-01-15'
+cfg['compatibility_date'] = '2026-07-01'
 cfg['compatibility_flags'] = ['nodejs_compat']
 cfg['hyperdrive'][0]['localConnectionString'] = url
 with open(path, 'w') as f:

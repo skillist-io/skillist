@@ -28,6 +28,11 @@ export const apiKeyScopeSchema = z.enum([
   "feedback:submit",
   "feedback:approve",
   "skills:publish",
+  // Platform-admin operations (docs reindex). Gated by BOTH this scope and the
+  // SKILLIST_ADMIN_USER_IDS allow-list, so it is inert on a key whose creator
+  // is not an admin. Held separately because admin-created keys are ordinarily
+  // scoped for CLI work, and those must not inherit admin power implicitly.
+  "admin:docs",
 ]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 
@@ -233,6 +238,13 @@ export type SkillPublishedEvent = z.infer<typeof skillPublishedEventSchema>;
 export const createApiKeySchema = z.object({
   name: z.string().min(1).max(128),
   scopes: z.array(apiKeyScopeSchema).min(1),
+  /**
+   * Optional lifetime. Omitted means the key never expires, which is the
+   * historical behaviour and still the right default for CI credentials that
+   * would otherwise break unattended. Expiry is enforced at auth time
+   * (lib/auth-middleware.ts) — this is simply the only way to set it.
+   */
+  expiresInDays: z.number().int().min(1).max(365).optional(),
 });
 
 export const inviteMemberSchema = z.object({

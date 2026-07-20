@@ -1,7 +1,7 @@
 {
   "name": "skillist-api",
   "main": "src/index.ts",
-  "compatibility_date": "2025-01-15",
+  "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   // Smart Placement runs the Worker near the database so multi-query requests
   // don't pay a client<->origin round-trip per query. No-op in local dev.
@@ -48,6 +48,13 @@
       "name": "RATE_LIMITER",
       "namespace_id": "1001",
       "simple": { "limit": 120, "period": 60 }
+    },
+    {
+      // Tighter budget for the unauthenticated, expensive auth + MCP surfaces.
+      // Keep in sync with wrangler.production.jsonc.
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 20, "period": 60 }
     }
   ],
   "durable_objects": {

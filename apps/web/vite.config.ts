@@ -3,9 +3,12 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
+// Shared with apps/console so the GTM bootstrap and its Consent Mode defaults
+// are defined once rather than copy-pasted into two index.html files.
+import { gtmPlugin } from "../../packages/ui/src/vite/gtm-plugin";
 
 export default defineConfig({
-  plugins: [TanStackRouterVite(), react(), tailwindcss()],
+  plugins: [TanStackRouterVite(), react(), tailwindcss(), gtmPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

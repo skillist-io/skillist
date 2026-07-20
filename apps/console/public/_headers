@@ -1,0 +1,18 @@
+# Security + caching headers for the authenticated console SPA.
+# Mirrors apps/web/public/_headers, with two differences: the console opens a
+# WebSocket to the platform agent, and it must never be indexed.
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  # connect-src additionally allows wss: for the platform agent (Agents SDK)
+  # WebSocket, which is proxied same-origin through this Worker.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.googletagmanager.com https://www.google-analytics.com; font-src 'self'; connect-src 'self' wss://console.skillist.io https://api.skillist.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; frame-src https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'

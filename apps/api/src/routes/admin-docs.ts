@@ -18,6 +18,12 @@ export const adminDocsRoutes = new OpenAPIHono<AppEnv>();
  * admin-created **API key** (`sk_...`) — the latter is what lets the offline
  * `embed:docs` script authenticate from a shell without a browser cookie, in
  * line with the repo's "API keys for CLI/programmatic writes" convention.
+ *
+ * An API key must additionally carry the explicit `admin:docs` scope. Falling
+ * back to `apiKeyCreatedBy` alone meant ANY key an admin had ever minted — a
+ * `skills:read` key handed to CI, say — silently conferred platform-admin.
+ * Scope is checked before the allow-list so a non-admin's key cannot probe
+ * membership of that list.
  */
 export function requireDocsAdmin(env: Env, auth: AuthContext) {
   const allow = (env.SKILLIST_ADMIN_USER_IDS ?? "")
@@ -25,6 +31,9 @@ export function requireDocsAdmin(env: Env, auth: AuthContext) {
     .map((s) => s.trim())
     .filter(Boolean);
   if (allow.length === 0) return { ok: false as const, status: 403 as const, error: "Admin only" };
+  if (auth.apiKeyId && !auth.apiKeyScopes.includes("admin:docs")) {
+    return { ok: false as const, status: 403 as const, error: "Insufficient scope" };
+  }
   // A session user OR the creator of the presented API key must be an admin.
   const actor = auth.userId ?? auth.apiKeyCreatedBy;
   if (!actor) return { ok: false as const, status: 401 as const, error: "Unauthorized" };

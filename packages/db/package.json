@@ -11,8 +11,9 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate",
-    "push": "drizzle-kit push"
+    "ensure-extensions": "node scripts/ensure-extensions.mjs",
+    "migrate": "pnpm ensure-extensions && drizzle-kit migrate",
+    "push": "pnpm ensure-extensions && drizzle-kit push"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2"

@@ -13,9 +13,12 @@ jobs:
   check:
     runs-on: ubuntu-latest
     env:
+      # Needed by the `wrangler deploy --dry-run` inside `pnpm build`.
+      # E2E_AUTH_STATE_B64 is NOT here: this job never runs Playwright, and
+      # having it here meant the `smoke` job that does run it could not see it,
+      # so the authenticated e2e project silently registered zero tests.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      E2E_AUTH_STATE_B64: ${{ secrets.E2E_AUTH_STATE_B64 }}
     steps:
       - uses: actions/checkout@v7
 
@@ -35,6 +38,11 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+
+      # `pnpm build` dry-runs the LOCAL wrangler.jsonc, so a typo, a missing
+      # binding, or an invalid migration in the production config was only
+      # discovered mid-deploy. Validate it in the gate instead.
+      - run: pnpm --filter @skillist/api exec wrangler deploy --dry-run --config wrangler.production.jsonc
 
   smoke:
     needs: [check, deploy-api, deploy-web, deploy-console, deploy-docs]
@@ -61,6 +69,11 @@ jobs:
       - run: pnpm exec playwright install chromium --with-deps
 
       - run: pnpm test:e2e
+        env:
+          # Without this the `authenticated` Playwright project is not
+          # registered at all (see tests/e2e/playwright.config.ts), so the run
+          # goes green having exercised zero authenticated flows.
+          E2E_AUTH_STATE_B64: ${{ secrets.E2E_AUTH_STATE_B64 }}
 
   deploy-api:
     needs: check
@@ -109,6 +122,9 @@ jobs:
       - run: pnpm --filter @skillist/skill-format build && pnpm --filter @skillist/web build
         env:
           VITE_API_URL: https://api.skillist.io
+          # Marketing container. Absent locally and in previews, so GTM only
+          # loads on the deployed site.
+          VITE_GTM_ID: ${{ secrets.VITE_GTM_ID_WEB }}
 
       - name: Deploy Web
         uses: cloudflare/wrangler-action@v4
@@ -138,6 +154,9 @@ jobs:
       - run: pnpm --filter @skillist/skill-format build && pnpm --filter @skillist/console build
         env:
           VITE_API_URL: https://api.skillist.io
+          # SEPARATE container from web: authenticated product usage must not be
+          # mixed into the marketing property's acquisition reporting.
+          VITE_GTM_ID: ${{ secrets.VITE_GTM_ID_CONSOLE }}
 
       - name: Deploy Console
         uses: cloudflare/wrangler-action@v4
@@ -164,6 +183,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm --filter @skillist/docs build
+        env:
+          # Astro requires the PUBLIC_ prefix to expose a var to the client.
+          PUBLIC_GTM_ID: ${{ secrets.VITE_GTM_ID_WEB }}
 
       - name: Deploy Docs
         uses: cloudflare/wrangler-action@v4

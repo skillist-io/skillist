@@ -1,6 +1,7 @@
 import {
   apiUrl,
   Button,
+  ConsentBanner,
   cn,
   consoleUrl,
   Sheet,
@@ -17,7 +18,10 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowUpRight, MenuIcon } from "lucide-react";
 import { useState } from "react";
 
-const GITHUB_URL = "https://github.com/skillist";
+// NOTE: the GitHub links (header, mobile menu, footer) were removed. They
+// pointed at github.com/skillist, an unrelated org that is not ours, and the
+// actual source repo is private. Restore them, with the GitHubMark below, once
+// there is a public repo to link to.
 
 // Data-dense surfaces run full-bleed like the app shell; marketing pages stay
 // centered and measure-capped. The registry and skill-detail (/{org}/{repo},
@@ -26,15 +30,6 @@ function isFluidRoute(pathname: string): boolean {
   if (pathname === "/") return true;
   if (pathname.startsWith("/registry")) return true;
   return pathname.split("/").filter(Boolean).length === 2;
-}
-
-/** GitHub Octocat mark, shared by the header action and the footer. */
-function GitHubMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
-      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-    </svg>
-  );
 }
 
 type NavItem = { label: string; to: string } | { label: string; href: string };
@@ -154,17 +149,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <PrimaryNav />
           </nav>
           <div className="ml-auto hidden items-center gap-0.5 md:flex">
-            <Button
-              variant="ghost"
-              size="icon"
-              asChild
-              aria-label="Skillist on GitHub"
-              className="size-8 text-muted-foreground hover:text-foreground"
-            >
-              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-                <GitHubMark className="size-4" />
-              </a>
-            </Button>
             {/* Kept here although the console's copy moved to Settings: this
                 surface is anonymous, so Settings is unreachable and this is the
                 only route to the preference. The menu variant offers all three
@@ -197,17 +181,6 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <PrimaryNav orientation="vertical" onNavigate={() => setMobileNavOpen(false)} />
             <span aria-hidden="true" className="my-3 h-px w-full bg-border" />
             <AuthActions onNavigate={() => setMobileNavOpen(false)} className="justify-start" />
-            <Button
-              variant="ghost"
-              asChild
-              onClick={() => setMobileNavOpen(false)}
-              className="justify-between text-muted-foreground"
-            >
-              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-                GitHub
-                <GitHubMark className="size-4" />
-              </a>
-            </Button>
           </nav>
         </SheetContent>
       </Sheet>
@@ -219,6 +192,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <SiteFooter />
+      <ConsentBanner />
     </div>
   );
 }
@@ -233,9 +207,11 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     heading: "Product",
     links: [
       { label: "Registry", to: "/registry" },
-      { label: "Dashboard", to: "/dashboard" },
-      { label: "Governance", to: "/governance" },
-      { label: "Observability", to: "/observability" },
+      // These three are console routes, not routes of this app. As `to=` they
+      // rendered as in-app links that always landed on the 404 component.
+      { label: "Dashboard", href: consoleUrl("/dashboard") },
+      { label: "Governance", href: consoleUrl("/governance") },
+      { label: "Observability", href: consoleUrl("/observability") },
     ],
   },
   {
@@ -243,7 +219,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Docs", href: "https://docs.skillist.io" },
       { label: "API reference", href: apiUrl("/docs") },
-      { label: "CLI", href: "https://docs.skillist.io/cli" },
+      { label: "CLI", href: "https://docs.skillist.io/getting-started/cli/" },
       { label: "MCP server", href: apiUrl("/mcp") },
     ],
   },
@@ -336,15 +312,6 @@ function SiteFooter() {
             <span className="hidden font-mono text-[0.65rem] text-muted-foreground sm:inline">
               sub-10ms edge delivery
             </span>
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Skillist on GitHub"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <GitHubMark className="size-4" />
-            </a>
             <a
               href="https://agentskills.io"
               target="_blank"
