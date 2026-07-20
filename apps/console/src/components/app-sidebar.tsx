@@ -212,19 +212,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {open ? (
         <Sidebar collapsible="none" className="hidden flex-1 md:flex">
           <SidebarHeader className="gap-3.5 border-b p-4">
-            <div className="flex w-full items-center justify-between">
-              <div className="text-base font-medium text-foreground">Skillist</div>
-              {/* The lock *is* the control, rather than a label beside a switch:
-                  one binary needs one affordance, and a switch earns its width
-                  only when the states need naming. aria-pressed carries the
-                  on/off that the switch used to; the tooltip names it. */}
+            <div className="text-base font-medium text-foreground">Skillist</div>
+            {/* The lock sits with the search box because they do the same job —
+                both narrow this tree. It also keeps it off the panel's right
+                edge, where it landed next to the sidebar collapse trigger and
+                the two icon buttons read as a pair despite being unrelated.
+
+                The lock *is* the control rather than a label beside a switch:
+                one binary needs one affordance, and a switch earns its width
+                only when the states need naming. aria-pressed carries the
+                on/off the switch used to; the tooltip names it. */}
+            <div className="flex items-center gap-2">
+              <SidebarInput
+                className="flex-1"
+                placeholder="Filter orgs and skills..."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-8"
+                    className="size-8 shrink-0"
                     aria-pressed={privateOnly}
                     aria-label="Show only private skills"
                     onClick={() => setPrivateOnly((v) => !v)}
@@ -242,11 +253,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <SidebarInput
-              placeholder="Filter orgs and skills..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup className="px-0">
