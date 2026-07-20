@@ -11,7 +11,7 @@ import type { AiJobMessage, Env } from "./env";
 import { runAiJob } from "./lib/ai";
 import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
-import { assertProductionBindings, createWorkerDb } from "./lib/db";
+import { assertProductionBindings, closeWorkerDb, createWorkerDb } from "./lib/db";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
 import { getOrgMembership } from "./lib/org-access";
 import { rateLimit } from "./lib/rate-limit";
@@ -193,11 +193,20 @@ app.all("/agents/*", async (c) => {
   const chatId = sepIdx === -1 ? "" : instance.slice(sepIdx + 2);
   if (!orgId) return c.json({ error: "Missing agent instance" }, 400);
 
+  // This gate is not behind authMiddleware, so it owns its own client. Closed
+  // before handing off to routeAgentRequest — the agent DO opens its own
+  // connections and the WebSocket outlives this handler, so holding one here
+  // would pin a connection for the life of the socket.
   const db = createWorkerDb(c.env);
-  const userId = await resolveSessionUserId(db, c.env, c.req.raw.headers);
+  let userId: string | null;
+  let membership: Awaited<ReturnType<typeof getOrgMembership>>;
+  try {
+    userId = await resolveSessionUserId(db, c.env, c.req.raw.headers);
+    membership = userId ? await getOrgMembership(db, orgId, userId) : null;
+  } finally {
+    closeWorkerDb(db, c.executionCtx);
+  }
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
-
-  const membership = await getOrgMembership(db, orgId, userId);
   if (!membership) return c.json({ error: "Forbidden" }, 403);
 
   // Rewrite the instance segment to the un-spoofable `orgId::userId::chatId`.
@@ -273,18 +282,22 @@ export default {
     // FailureMiningWorkflow for each.
     if (cron === "0 */6 * * *") {
       const db = createWorkerDb(env);
-      const { skillRuns } = await import("@skillist/db/schema");
-      const { and, desc, eq, gte, sql } = await import("drizzle-orm");
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const rows = await db
-        .select({ skillId: skillRuns.skillId })
-        .from(skillRuns)
-        .where(and(eq(skillRuns.status, "failed"), gte(skillRuns.createdAt, since)))
-        .groupBy(skillRuns.skillId)
-        .orderBy(desc(sql`count(*)`))
-        .limit(25);
-      for (const { skillId } of rows) {
-        ctx.waitUntil(env.FAILURE_WORKFLOW.create({ params: { skillId } }));
+      try {
+        const { skillRuns } = await import("@skillist/db/schema");
+        const { and, desc, eq, gte, sql } = await import("drizzle-orm");
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const rows = await db
+          .select({ skillId: skillRuns.skillId })
+          .from(skillRuns)
+          .where(and(eq(skillRuns.status, "failed"), gte(skillRuns.createdAt, since)))
+          .groupBy(skillRuns.skillId)
+          .orderBy(desc(sql`count(*)`))
+          .limit(25);
+        for (const { skillId } of rows) {
+          ctx.waitUntil(env.FAILURE_WORKFLOW.create({ params: { skillId } }));
+        }
+      } finally {
+        closeWorkerDb(db, ctx);
       }
       return;
     }
@@ -312,50 +325,62 @@ export default {
     }
 
     const db = createWorkerDb(env);
-    for (const message of batch.messages) {
-      const body = message.body as AiJobMessage;
-      if (body.type === "eval") {
-        const { skillEvals } = await import("@skillist/db/schema");
-        const { eq } = await import("drizzle-orm");
-        const { runSkillEval } = await import("./lib/eval");
-        await db
-          .update(skillEvals)
-          .set({ status: "running" })
-          .where(eq(skillEvals.id, body.evalId));
-        try {
-          await runSkillEval(env, db, body.evalId);
-          message.ack();
-        } catch (err) {
-          await db
-            .update(skillEvals)
-            .set({
-              status: "failed",
-              error: err instanceof Error ? err.message : "Unknown error",
-            })
-            .where(eq(skillEvals.id, body.evalId));
-          message.retry();
-        }
-        continue;
-      }
-
-      const { jobId, feedbackId } = body;
-      const { aiJobs } = await import("@skillist/db/schema");
-      const { eq } = await import("drizzle-orm");
-      await db.update(aiJobs).set({ status: "running" }).where(eq(aiJobs.id, jobId));
-      try {
-        await runAiJob(env, db, jobId, feedbackId);
-        message.ack();
-      } catch (err) {
-        await db
-          .update(aiJobs)
-          .set({
-            status: "failed",
-            error: err instanceof Error ? err.message : "Unknown error",
-            completedAt: new Date(),
-          })
-          .where(eq(aiJobs.id, jobId));
-        message.retry();
-      }
+    try {
+      await handleAiJobBatch(env, db, batch);
+    } finally {
+      // Queue consumers are long-lived relative to a request and run at
+      // whatever concurrency Queues chooses, so an unreleased connection per
+      // invocation is the fastest way to exhaust the upstream pool.
+      closeWorkerDb(db);
     }
   },
 };
+
+async function handleAiJobBatch(
+  env: Env,
+  db: ReturnType<typeof createWorkerDb>,
+  batch: MessageBatch<AiJobMessage | SyncQueueMessage>,
+): Promise<void> {
+  for (const message of batch.messages) {
+    const body = message.body as AiJobMessage;
+    if (body.type === "eval") {
+      const { skillEvals } = await import("@skillist/db/schema");
+      const { eq } = await import("drizzle-orm");
+      const { runSkillEval } = await import("./lib/eval");
+      await db.update(skillEvals).set({ status: "running" }).where(eq(skillEvals.id, body.evalId));
+      try {
+        await runSkillEval(env, db, body.evalId);
+        message.ack();
+      } catch (err) {
+        await db
+          .update(skillEvals)
+          .set({
+            status: "failed",
+            error: err instanceof Error ? err.message : "Unknown error",
+          })
+          .where(eq(skillEvals.id, body.evalId));
+        message.retry();
+      }
+      continue;
+    }
+
+    const { jobId, feedbackId } = body;
+    const { aiJobs } = await import("@skillist/db/schema");
+    const { eq } = await import("drizzle-orm");
+    await db.update(aiJobs).set({ status: "running" }).where(eq(aiJobs.id, jobId));
+    try {
+      await runAiJob(env, db, jobId, feedbackId);
+      message.ack();
+    } catch (err) {
+      await db
+        .update(aiJobs)
+        .set({
+          status: "failed",
+          error: err instanceof Error ? err.message : "Unknown error",
+          completedAt: new Date(),
+        })
+        .where(eq(aiJobs.id, jobId));
+      message.retry();
+    }
+  }
+}

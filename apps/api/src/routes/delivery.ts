@@ -2,7 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
-import { createWorkerDb } from "../lib/db";
+import { closeWorkerDb, createWorkerDb } from "../lib/db";
 import {
   parseRepoSpecifier,
   serveSkillBundle,
@@ -34,6 +34,42 @@ function badSpecifier(): Response {
   );
 }
 
+/**
+ * Lazy DB accessor for the delivery routes.
+ *
+ * These are public and NOT behind authMiddleware, so `c.var.db` is normally
+ * undefined and the route must make its own client — but only the pinned-version
+ * and bundle paths ever touch Postgres, so it stays lazy to keep the common
+ * KV-only path free of a connection. Anything we create here, we close; a db
+ * that came from the middleware is left alone for the middleware to close.
+ */
+type WaitUntil = { waitUntil(promise: Promise<unknown>): void };
+
+function lazyDb(c: { env: Env; var: { db?: WorkerDb }; executionCtx: WaitUntil }): {
+  getDb: () => WorkerDb;
+  release: () => void;
+} {
+  let owned: WorkerDb | null = null;
+  return {
+    getDb: () => {
+      if (c.var.db) return c.var.db;
+      if (!owned) owned = createWorkerDb(c.env);
+      return owned;
+    },
+    release: () => {
+      if (!owned) return;
+      let ctx: WaitUntil | undefined;
+      try {
+        ctx = c.executionCtx;
+      } catch {
+        // No executionCtx (tests): close without deferring.
+      }
+      closeWorkerDb(owned, ctx);
+      owned = null;
+    },
+  };
+}
+
 const getSkillMdRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/SKILL.md",
@@ -48,8 +84,12 @@ deliveryRoutes.openapi(getSkillMdRoute, async (c) => {
   const spec = parseRepoSpecifier(repo);
   if (!spec) return badSpecifier();
   if (spec.version) {
-    const getDb = () => c.var.db ?? createWorkerDb(c.env);
-    return serveSkillMdAtVersion(c.env, getDb, org, spec.repo, spec.version, ifNoneMatch);
+    const { getDb, release } = lazyDb(c);
+    try {
+      return await serveSkillMdAtVersion(c.env, getDb, org, spec.repo, spec.version, ifNoneMatch);
+    } finally {
+      release();
+    }
   }
   return serveSkillMd(c.env.SKILLS_KV, org, spec.repo, ifNoneMatch);
 });
@@ -68,8 +108,12 @@ deliveryRoutes.openapi(getSkillMetaRoute, async (c) => {
   const spec = parseRepoSpecifier(repo);
   if (!spec) return badSpecifier();
   if (spec.version) {
-    const getDb = () => c.var.db ?? createWorkerDb(c.env);
-    return serveSkillMetaAtVersion(c.env, getDb, org, spec.repo, spec.version, ifNoneMatch);
+    const { getDb, release } = lazyDb(c);
+    try {
+      return await serveSkillMetaAtVersion(c.env, getDb, org, spec.repo, spec.version, ifNoneMatch);
+    } finally {
+      release();
+    }
   }
   return serveSkillMeta(c.env.SKILLS_KV, org, spec.repo, ifNoneMatch);
 });
@@ -86,13 +130,17 @@ deliveryRoutes.openapi(getBundleRoute, async (c) => {
   const { org, repo } = c.req.valid("param");
   const spec = parseRepoSpecifier(repo);
   if (!spec) return badSpecifier();
-  const getDb = () => c.var.db ?? createWorkerDb(c.env);
-  return serveSkillBundle(
-    c.env,
-    getDb,
-    org,
-    spec.repo,
-    c.req.header("If-None-Match") ?? null,
-    spec.version,
-  );
+  const { getDb, release } = lazyDb(c);
+  try {
+    return await serveSkillBundle(
+      c.env,
+      getDb,
+      org,
+      spec.repo,
+      c.req.header("If-None-Match") ?? null,
+      spec.version,
+    );
+  } finally {
+    release();
+  }
 });

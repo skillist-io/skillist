@@ -2,7 +2,7 @@ import { apiKeys } from "@skillist/db/schema";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import type { Env } from "../env";
-import { createWorkerDb } from "./db";
+import { closeWorkerDb, createWorkerDb } from "./db";
 import { sha256 } from "./r2";
 import { resolveSessionUserId } from "./session";
 
@@ -66,7 +66,20 @@ export const authMiddleware = createMiddleware<{
   }
 
   c.set("auth", { userId, apiKeyId, apiKeyOrgId, apiKeyCreatedBy, apiKeyScopes });
-  await next();
+  try {
+    await next();
+  } finally {
+    // Release the connection once the handler is done. In `finally` so an error
+    // response closes it too, and via waitUntil so the close does not delay the
+    // response. Without this the socket lingers until the isolate is evicted.
+    let ctx: { waitUntil(promise: Promise<unknown>): void } | undefined;
+    try {
+      ctx = c.executionCtx;
+    } catch {
+      // No executionCtx (tests): close without deferring.
+    }
+    closeWorkerDb(db, ctx);
+  }
 });
 
 export function requireScope(scope: string) {

@@ -21,19 +21,63 @@ export function isUniqueViolation(err: unknown): boolean {
 }
 
 /**
+ * Maps a Drizzle db back to the postgres-js client behind it, so callers can
+ * close the connection without every factory having to return a tuple and every
+ * call site having to thread it through.
+ *
+ * Weak so an unclosed db (a code path we missed, or one where closing is not
+ * worth it) is still collectable and never leaks the entry itself.
+ */
+const clientsByDb = new WeakMap<object, ReturnType<typeof postgres>>();
+
+/**
+ * The only part of ExecutionContext this module needs. Structural so it accepts
+ * both the global ExecutionContext and Hono's `c.executionCtx`, whose generic
+ * signatures differ between @cloudflare/workers-types versions.
+ */
+type WaitUntil = { waitUntil(promise: Promise<unknown>): void };
+
+function buildWorkerDb(connectionString: string): import("@skillist/auth").WorkerDb {
+  const client = postgres(connectionString, {
+    prepare: false,
+    // One connection per isolate-request is correct behind Hyperdrive, which
+    // does the real pooling upstream.
+    max: 1,
+  });
+  const db = drizzle(client, { schema });
+  clientsByDb.set(db, client);
+  return db;
+}
+
+/**
+ * Release the connection behind a db created by the factories here.
+ *
+ * Without this the socket lingers until the isolate is evicted, so under load
+ * connections accumulate against Hyperdrive's upstream pool far beyond what the
+ * request rate implies. Prefer passing `ctx` so the close happens after the
+ * response is returned rather than delaying it; the close is best-effort and
+ * must never surface as a request error.
+ */
+export function closeWorkerDb(db: object, ctx?: WaitUntil): void {
+  const client = clientsByDb.get(db);
+  if (!client) return;
+  clientsByDb.delete(db);
+  const closing = client.end({ timeout: 5 }).catch(() => {});
+  if (ctx) {
+    ctx.waitUntil(closing);
+  }
+}
+
+/**
  * Default DB client — routed through the caching-DISABLED Hyperdrive so reads
  * are always fresh (auth, permissions, writes, read-after-write). Falls back to
  * the single HYPERDRIVE binding when the cache-disabled one isn't configured
  * (local dev / tests), which behaves exactly as before.
  */
 export function createWorkerDb(env: Env): import("@skillist/auth").WorkerDb {
-  const connectionString =
-    env.HYPERDRIVE_CACHE_DISABLED?.connectionString ?? env.HYPERDRIVE.connectionString;
-  const client = postgres(connectionString, {
-    prepare: false,
-    max: 1,
-  });
-  return drizzle(client, { schema });
+  return buildWorkerDb(
+    env.HYPERDRIVE_CACHE_DISABLED?.connectionString ?? env.HYPERDRIVE.connectionString,
+  );
 }
 
 /**
@@ -43,11 +87,7 @@ export function createWorkerDb(env: Env): import("@skillist/auth").WorkerDb {
  * committed write, since Hyperdrive does not invalidate its cache on writes.
  */
 export function createWorkerDbCached(env: Env): import("@skillist/auth").WorkerDb {
-  const client = postgres(env.HYPERDRIVE.connectionString, {
-    prepare: false,
-    max: 1,
-  });
-  return drizzle(client, { schema });
+  return buildWorkerDb(env.HYPERDRIVE.connectionString);
 }
 
 export type { WorkerDb } from "@skillist/auth";

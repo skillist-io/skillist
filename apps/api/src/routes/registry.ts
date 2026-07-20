@@ -14,7 +14,7 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
-import { createWorkerDbCached, type WorkerDb } from "../lib/db";
+import { closeWorkerDb, createWorkerDbCached, type WorkerDb } from "../lib/db";
 import { listRegistry } from "../lib/registry-service";
 import { resolveUserId } from "../lib/session";
 import { addDayBucket, buildDayBuckets, toDaySeries } from "../lib/time-series";
@@ -73,7 +73,12 @@ registryRoutes.openapi(listRegistryRoute, async (c) => {
   // listRegistry() — this route previously kept a byte-for-byte copy of the
   // filter and ordering logic, so a change to one silently did nothing in the
   // other.
-  return c.json(await listRegistry(createWorkerDbCached(c.env), query));
+  const db = createWorkerDbCached(c.env);
+  try {
+    return c.json(await listRegistry(db, query));
+  } finally {
+    closeWorkerDb(db, c.executionCtx);
+  }
 });
 
 const registryFacetsRoute = createRoute({
@@ -86,42 +91,46 @@ const registryFacetsRoute = createRoute({
 registryRoutes.openapi(registryFacetsRoute, async (c) => {
   // Facets are staleness-tolerant public browse data — use the cached binding.
   const db = createWorkerDbCached(c.env);
-  const categoryRows = await db
-    .selectDistinct({ category: registryEntries.category })
-    .from(registryEntries)
-    .where(sql`${registryEntries.category} IS NOT NULL`);
+  try {
+    const categoryRows = await db
+      .selectDistinct({ category: registryEntries.category })
+      .from(registryEntries)
+      .where(sql`${registryEntries.category} IS NOT NULL`);
 
-  // Expand the jsonb string arrays and dedupe in SQL rather than scanning every
-  // row into memory. `tags`/`compatible_agents` are non-null jsonb string arrays;
-  // set-returning `jsonb_array_elements_text` yields no rows for empty arrays.
-  const tagRows = await db
-    .selectDistinct({ tag: sql<string>`jsonb_array_elements_text(${registryEntries.tags})` })
-    .from(registryEntries);
+    // Expand the jsonb string arrays and dedupe in SQL rather than scanning every
+    // row into memory. `tags`/`compatible_agents` are non-null jsonb string arrays;
+    // set-returning `jsonb_array_elements_text` yields no rows for empty arrays.
+    const tagRows = await db
+      .selectDistinct({ tag: sql<string>`jsonb_array_elements_text(${registryEntries.tags})` })
+      .from(registryEntries);
 
-  const agentRows = await db
-    .selectDistinct({
-      agent: sql<string>`jsonb_array_elements_text(${registryEntries.compatibleAgents})`,
-    })
-    .from(registryEntries);
+    const agentRows = await db
+      .selectDistinct({
+        agent: sql<string>`jsonb_array_elements_text(${registryEntries.compatibleAgents})`,
+      })
+      .from(registryEntries);
 
-  return c.json(
-    {
-      categories: categoryRows
-        .map((r) => r.category)
-        .filter(Boolean)
-        .sort(),
-      tags: tagRows
-        .map((r) => r.tag)
-        .filter(Boolean)
-        .sort(),
-      agents: agentRows
-        .map((r) => r.agent)
-        .filter(Boolean)
-        .sort(),
-      sourceTypes: ["native", "mirror"],
-    },
-    200,
-  );
+    return c.json(
+      {
+        categories: categoryRows
+          .map((r) => r.category)
+          .filter(Boolean)
+          .sort(),
+        tags: tagRows
+          .map((r) => r.tag)
+          .filter(Boolean)
+          .sort(),
+        agents: agentRows
+          .map((r) => r.agent)
+          .filter(Boolean)
+          .sort(),
+        sourceTypes: ["native", "mirror"],
+      },
+      200,
+    );
+  } finally {
+    closeWorkerDb(db, c.executionCtx);
+  }
 });
 
 const getRegistrySkillRoute = createRoute({
