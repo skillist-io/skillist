@@ -31,13 +31,34 @@ function sweep(now: number): void {
   }
 }
 
-export const rateLimit = (limit = 120, windowMs = 60_000) =>
+/**
+ * Which native binding to count against. Each namespace carries its own
+ * limit/period from wrangler, so separate namespaces are the only way to give a
+ * route a different budget — see the note on `limit` below.
+ */
+export type LimiterBinding = "RATE_LIMITER" | "AUTH_RATE_LIMITER";
+
+/**
+ * `limit`/`windowMs` apply ONLY to the in-memory fallback. When the native
+ * binding is present (i.e. in production) the namespace's configured
+ * `simple: { limit, period }` governs and these arguments are ignored. To
+ * actually tighten a route, point it at a namespace with a smaller limit via
+ * `binding` rather than passing a smaller number here.
+ */
+export const rateLimit = (
+  limit = 120,
+  windowMs = 60_000,
+  binding: LimiterBinding = "RATE_LIMITER",
+) =>
   createMiddleware<{ Bindings: Env }>(async (c, next) => {
     const ip = c.req.header("cf-connecting-ip") ?? "local";
-    const key = `${ip}:${c.req.path.split("/").slice(0, 3).join("/")}`;
+    // Namespace the fallback key by binding too, so /api/auth traffic can't
+    // consume the general bucket (and vice versa) when running without the
+    // native bindings.
+    const key = `${binding}:${ip}:${c.req.path.split("/").slice(0, 3).join("/")}`;
 
     // Prefer the native binding when present (distributed, authoritative).
-    const limiter = c.env.RATE_LIMITER;
+    const limiter = c.env[binding];
     if (limiter) {
       const { success } = await limiter.limit({ key });
       if (!success) return c.json({ error: "Rate limit exceeded" }, 429);

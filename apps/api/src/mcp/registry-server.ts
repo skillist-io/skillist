@@ -636,13 +636,16 @@ export function mcpServerInfo(apiBaseUrl?: string) {
     oauth: {
       authorizationServer: `${base}/.well-known/oauth-authorization-server`,
       protectedResource: `${base}/.well-known/oauth-protected-resource`,
-      loginPage: "https://skillist.io/login",
+      // /login lives on the console app; skillist.io/login is not a route and
+      // resolves to the SPA shell with a 200, so agents following this URL
+      // would land on a soft-404 instead of a sign-in page.
+      loginPage: "https://console.skillist.io/login",
     },
     session: {
       header: "Mcp-Session-Id",
       sseAccept: "text/event-stream",
     },
     tools: REGISTRY_MCP_TOOLS.map((t) => t.name),
-    docs: "https://skillist.io",
+    docs: "https://docs.skillist.io",
   };
 }

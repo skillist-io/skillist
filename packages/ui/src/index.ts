@@ -3,6 +3,7 @@
 
 export * from "./components/asset-preview";
 export * from "./components/canvas-backdrop";
+export * from "./components/consent-banner";
 export * from "./components/copy-button";
 export * from "./components/file-tree";
 export * from "./components/frontmatter-card";
@@ -25,6 +26,7 @@ export * from "./components/theme-toggle";
 export * from "./hooks/use-in-viewport";
 export * from "./hooks/use-mobile";
 export * from "./hooks/use-skill-realtime";
+export * from "./lib/analytics";
 // Shared clients + composite components (exported after the primitives so
 // intra-package barrel imports resolve in evaluation order).
 export * from "./lib/api";

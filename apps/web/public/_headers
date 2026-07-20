@@ -1,0 +1,24 @@
+# Security + caching headers for the marketing SPA.
+#
+# The API worker applies Hono's secureHeaders(), but these HTML surfaces — the
+# ones actually rendered in a browser — previously set no headers at all.
+
+# Vite emits content-hashed filenames, so asset URLs change whenever content
+# does and can be cached indefinitely.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  # index.html must never be cached hard: it is the shell every route is served
+  # from, and the Worker injects per-route metadata into it.
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  # 'unsafe-inline' in script-src is required by the GTM bootstrap and the theme
+  # script in index.html. GTM's custom-HTML-tag feature is fundamentally
+  # incompatible with a strict CSP, so the container must be restricted to
+  # built-in GA4 tag templates — tightening this to a nonce means giving that up.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.googletagmanager.com https://www.google-analytics.com; font-src 'self'; connect-src 'self' https://api.skillist.io https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; frame-src https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'

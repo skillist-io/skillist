@@ -1,8 +1,16 @@
 {
   "name": "skillist-docs",
-  "compatibility_date": "2025-01-15",
+  "compatibility_date": "2026-07-01",
+  // Serve only on docs.skillist.io — a *.workers.dev copy of the docs would be
+  // separately indexable and duplicate the canonical site.
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true },
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    // Pure static site with no Worker script: serve Starlight's own 404 page
+    // rather than the bare platform 404.
+    "not_found_handling": "404-page"
   },
   "routes": [{ "pattern": "docs.skillist.io", "custom_domain": true }]
 }

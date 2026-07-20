@@ -3,6 +3,7 @@ import { createApiKeySchema, createOrgSchema, inviteMemberSchema } from "@skilli
 import { apiKeys, organizations, orgMembers, users } from "@skillist/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Env } from "../env";
+import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { requireOrgRole } from "../lib/org-access";
@@ -153,6 +154,16 @@ orgRoutes.openapi(inviteRoute, async (c) => {
     userId: user.id,
     role: body.role,
   });
+  // Granting org access is a privilege change; record who granted what to whom.
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: userId,
+    actorType: "user",
+    action: "org.member.add",
+    resourceType: "org_member",
+    resourceId: user.id,
+    metadata: { email: body.email, role: body.role },
+  });
   return c.json({ ok: true }, 201);
 });
 
@@ -252,6 +263,9 @@ orgRoutes.openapi(createApiKeyRoute, async (c) => {
   const rawKey = `sk_${crypto.randomUUID().replace(/-/g, "")}`;
   const keyHash = await sha256(rawKey);
   const keyPrefix = rawKey.slice(0, 12);
+  const expiresAt = body.expiresInDays
+    ? new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000)
+    : null;
   const [record] = await c.var.db
     .insert(apiKeys)
     .values({
@@ -261,8 +275,26 @@ orgRoutes.openapi(createApiKeyRoute, async (c) => {
       keyPrefix,
       scopes: body.scopes,
       createdBy: userId,
+      expiresAt,
     })
     .returning();
+  // Minting a credential is exactly the kind of action an incident review needs
+  // to reconstruct. Never log the key or its hash — prefix and scopes are
+  // enough to identify which credential was created.
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: userId,
+    actorType: "user",
+    action: "api_key.create",
+    resourceType: "api_key",
+    resourceId: record!.id,
+    metadata: {
+      name: body.name,
+      prefix: keyPrefix,
+      scopes: body.scopes,
+      expiresAt: expiresAt?.toISOString() ?? null,
+    },
+  });
   return c.json({ id: record!.id, key: rawKey, prefix: keyPrefix }, 201);
 });
 
@@ -351,10 +383,25 @@ orgRoutes.openapi(revokeApiKeyRoute, async (c) => {
 
   // Soft-revoke: mark the key revoked (auth rejects it immediately) but keep the
   // row so its audit trail and last-used history survive.
-  await c.var.db
+  const revoked = await c.var.db
     .update(apiKeys)
     .set({ revokedAt: new Date() })
-    .where(and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, orgId), isNull(apiKeys.revokedAt)));
+    .where(and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, orgId), isNull(apiKeys.revokedAt)))
+    .returning({ id: apiKeys.id, prefix: apiKeys.keyPrefix });
+
+  // Only audit when a row actually changed — re-revoking an already-revoked key
+  // is a no-op and should not manufacture an event.
+  if (revoked.length > 0) {
+    await logAudit(c.var.db, {
+      orgId,
+      actorId: userId,
+      actorType: "user",
+      action: "api_key.revoke",
+      resourceType: "api_key",
+      resourceId: keyId,
+      metadata: { prefix: revoked[0]!.prefix },
+    });
+  }
 
   return c.json({ ok: true }, 200);
 });

@@ -15,7 +15,7 @@ import { and, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import { publishVersion, rollbackVersion } from "../lib/ai";
 import type { AuthContext } from "../lib/auth-middleware";
-import type { WorkerDb } from "../lib/db";
+import { isUniqueViolation, type WorkerDb } from "../lib/db";
 import { requireOrgAccess } from "../lib/org-access";
 import { queueSkillEval } from "../lib/queue-eval";
 import {
@@ -289,6 +289,13 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
     });
   } catch (err) {
     await deleteBundleFromR2(c.env.SKILLS_R2, prefix).catch(() => {});
+    // The read-then-compare above is a fast path, not the guarantee: two
+    // concurrent uploads of the same semver can both pass it. The unique index
+    // on (skill_id, semver) is what actually enforces uniqueness, so translate
+    // its violation into the same 409 rather than surfacing a 500.
+    if (isUniqueViolation(err)) {
+      return c.json({ error: `Version ${semver} already exists for this skill` }, 409);
+    }
     throw err;
   }
 
