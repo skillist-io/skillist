@@ -1,5 +1,38 @@
 ---
 import Default from "@astrojs/starlight/components/Head.astro";
+
+// GTM container, injected only when PUBLIC_GTM_ID is set — which is only in the
+// CI deploy job, so local dev and previews never load it or pollute the GA4
+// property. Astro requires the PUBLIC_ prefix for client-exposed vars.
+//
+// The inline Consent Mode v2 defaults must run BEFORE the container loads; a
+// default set afterwards is too late. Mirrors packages/ui/src/vite/gtm-plugin.ts
+// (the SPA equivalent) — keep the two in sync.
+const gtmId = import.meta.env.PUBLIC_GTM_ID;
 ---
 
 <Default><slot /></Default>
+{
+  gtmId && (
+    <>
+      <script is:inline>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('consent', 'default', {
+          ad_storage: 'denied',
+          ad_user_data: 'denied',
+          ad_personalization: 'denied',
+          analytics_storage: 'denied',
+          wait_for_update: 500
+        });
+      </script>
+      <script is:inline define:vars={{ gtmId }}>
+        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer',gtmId);
+      </script>
+    </>
+  )
+}

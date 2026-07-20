@@ -1,6 +1,7 @@
 import {
   apiUrl,
   Button,
+  ConsentBanner,
   cn,
   consoleUrl,
   Sheet,
@@ -191,6 +192,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <SiteFooter />
+      <ConsentBanner />
     </div>
   );
 }

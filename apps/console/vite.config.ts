@@ -3,9 +3,13 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
+// Shared with apps/web. Use a SEPARATE GTM container (or at minimum a separate
+// GA4 data stream) here: the console is authenticated product usage, and mixing
+// it into the marketing property wrecks acquisition reporting.
+import { gtmPlugin } from "../../packages/ui/src/vite/gtm-plugin";
 
 export default defineConfig({
-  plugins: [TanStackRouterVite(), react(), tailwindcss()],
+  plugins: [TanStackRouterVite(), react(), tailwindcss(), gtmPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

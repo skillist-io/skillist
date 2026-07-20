@@ -1,4 +1,4 @@
-import { RouteErrorFallback } from "@skillist/ui";
+import { ConsentBanner, RouteErrorFallback } from "@skillist/ui";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet, useRouterState } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
@@ -14,6 +14,7 @@ function RootLayout() {
     return (
       <AuthShell>
         <Outlet />
+        <ConsentBanner />
       </AuthShell>
     );
   }
@@ -21,6 +22,7 @@ function RootLayout() {
   return (
     <AppShell>
       <Outlet />
+      <ConsentBanner />
     </AppShell>
   );
 }
