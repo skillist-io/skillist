@@ -1,8 +1,10 @@
 // Shared Skillist UI — consumed as source by apps/web (marketing) and
 // apps/console (product). Barrel export; add shared components as they migrate.
 
+export * from "./components/asset-preview";
 export * from "./components/canvas-backdrop";
 export * from "./components/copy-button";
+export * from "./components/file-tree";
 export * from "./components/frontmatter-card";
 export * from "./components/highlight";
 export * from "./components/markdown-view";
@@ -28,6 +30,7 @@ export * from "./hooks/use-skill-realtime";
 export * from "./lib/api";
 export * from "./lib/api-url";
 export * from "./lib/auth-client";
+export * from "./lib/bundle-paths";
 export * from "./lib/client-api-base";
 export * from "./lib/query-cache";
 export * from "./lib/theme";

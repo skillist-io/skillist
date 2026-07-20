@@ -1,3 +1,4 @@
+import type { TreeNode } from "@skillist/ui";
 import {
   api,
   Badge,
@@ -31,7 +32,6 @@ import {
   VISIBILITY_HELP,
   VISIBILITY_LABEL,
 } from "@/components/project-visibility";
-import type { TreeNode } from "@/components/skill-editor/paths";
 import { useSyncActiveOrgFromParam } from "@/lib/active-org";
 import { buildProjectTree, projectFolderPaths, projectItemLeafName } from "@/lib/project-tree";
 import { requireAuth } from "@/lib/require-auth";

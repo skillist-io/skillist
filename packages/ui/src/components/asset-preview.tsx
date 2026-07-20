@@ -1,5 +1,5 @@
 import { base64DecodedSize, binaryAssetMimeType } from "@skillist/skill-format";
-import { Button } from "@skillist/ui";
+import { Button } from "..";
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

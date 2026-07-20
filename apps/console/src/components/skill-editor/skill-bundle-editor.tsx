@@ -5,19 +5,22 @@ import {
   MAX_BINARY_ASSET_BYTES,
   type ValidationError,
 } from "@skillist/skill-format";
-import { Button, cn, languageForPath } from "@skillist/ui";
-import { Columns2 } from "lucide-react";
-import { useRef, useState } from "react";
-import { AssetPreview, formatBytes } from "./asset-preview";
-import { CodeEditor, type CodeEditorHandle } from "./code-editor";
-import { FileTree } from "./file-tree";
-import { FrontmatterForm } from "./frontmatter-form";
 import {
+  AssetPreview,
   BINARY_ASSET_EXTENSIONS,
+  Button,
+  cn,
+  FileTree,
+  formatBytes,
   isBinaryAssetPath,
   isTextPath,
+  languageForPath,
   sanitizeAssetFileName,
-} from "./paths";
+} from "@skillist/ui";
+import { Columns2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { CodeEditor, type CodeEditorHandle } from "./code-editor";
+import { FrontmatterForm } from "./frontmatter-form";
 import { PreviewPane } from "./preview-pane";
 import type { SkillBundleState } from "./use-skill-bundle";
 
