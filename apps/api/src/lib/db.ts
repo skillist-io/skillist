@@ -4,6 +4,23 @@ import postgres from "postgres";
 import type { Env } from "../env";
 
 /**
+ * True for a Postgres unique-constraint violation (SQLSTATE 23505).
+ *
+ * Lets a handler translate a lost race on a unique index into the same 4xx its
+ * read-then-write fast path returns, instead of a 500. postgres-js surfaces the
+ * driver error with `code` on it; the shape is checked defensively because the
+ * error crosses a Drizzle boundary.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === "23505"
+  );
+}
+
+/**
  * Default DB client — routed through the caching-DISABLED Hyperdrive so reads
  * are always fresh (auth, permissions, writes, read-after-write). Falls back to
  * the single HYPERDRIVE binding when the cache-disabled one isn't configured

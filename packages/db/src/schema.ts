@@ -72,65 +72,99 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const sessions = pgTable("sessions", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+// The Better Auth tables below carry explicit indexes on the columns Better
+// Auth actually filters on. Without them every sign-in and session resolve is a
+// sequential scan of a table that grows with each login, and sessions/accounts
+// also seq-scan on cascade delete of a user.
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("sessions_user_idx").on(t.userId),
+    // Serves the expired-session pruning job as well as expiry checks.
+    index("sessions_expires_idx").on(t.expiresAt),
+  ],
+);
 
-export const accounts = pgTable("accounts", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  accountId: text("account_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  accessTokenExpiresAt: timestamp("access_token_expires_at", {
-    withTimezone: true,
-  }),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
-    withTimezone: true,
-  }),
-  scope: text("scope"),
-  idToken: text("id_token"),
-  password: text("password"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
+    scope: text("scope"),
+    idToken: text("id_token"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("accounts_user_idx").on(t.userId),
+    // The OAuth sign-in lookup. Unique because one provider account must not be
+    // linkable to two Skillist users.
+    uniqueIndex("accounts_provider_account_idx").on(t.providerId, t.accountId),
+  ],
+);
 
-export const verifications = pgTable("verifications", {
-  id: text("id").primaryKey(),
-  identifier: text("identifier").notNull(),
-  value: text("value").notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const verifications = pgTable(
+  "verifications",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Every magic-link verify filters on identifier. This table grows with every
+    // link sent, so an unindexed scan here degrades continuously.
+    index("verifications_identifier_idx").on(t.identifier),
+    index("verifications_expires_idx").on(t.expiresAt),
+  ],
+);
 
-export const passkeys = pgTable("passkeys", {
-  id: text("id").primaryKey(),
-  name: text("name"),
-  publicKey: text("public_key").notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  credentialId: text("credential_id").notNull().unique(),
-  counter: integer("counter").notNull().default(0),
-  deviceType: text("device_type"),
-  backedUp: boolean("backed_up").notNull().default(false),
-  transports: text("transports"),
-  aaguid: text("aaguid"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const passkeys = pgTable(
+  "passkeys",
+  {
+    id: text("id").primaryKey(),
+    name: text("name"),
+    publicKey: text("public_key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    credentialId: text("credential_id").notNull().unique(),
+    counter: integer("counter").notNull().default(0),
+    deviceType: text("device_type"),
+    backedUp: boolean("backed_up").notNull().default(false),
+    transports: text("transports"),
+    aaguid: text("aaguid"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("passkeys_user_idx").on(t.userId)],
+);
 
 export const organizations = pgTable(
   "organizations",
@@ -315,6 +349,12 @@ export const skillVersions = pgTable(
   (t) => [
     index("skill_versions_skill_idx").on(t.skillId),
     index("skill_versions_status_idx").on(t.status),
+    // Closes a TOCTOU: the upload path reads existing versions and compares
+    // semvers in JS, so two concurrent uploads could both pass and insert the
+    // same semver — after which pinned-version delivery silently picks one by
+    // published_at. Also serves that pinned-version lookup.
+    uniqueIndex("skill_versions_skill_semver_idx").on(t.skillId, t.semver),
+    index("skill_versions_created_by_idx").on(t.createdBy),
   ],
 );
 
@@ -426,6 +466,9 @@ export const registryEntries = pgTable(
     index("registry_org_slug_trgm_idx").using("gin", sql`${t.orgSlug} gin_trgm_ops`),
     index("registry_category_idx").on(t.category),
     index("registry_source_type_idx").on(t.sourceType),
+    // Coverage resolves entries by repo alone; the composite unique above leads
+    // with org_slug and so cannot serve it.
+    index("registry_skill_repo_idx").on(t.skillRepo),
   ],
 );
 
@@ -480,7 +523,16 @@ export const apiKeys = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("api_keys_org_idx").on(t.orgId)],
+  (t) => [
+    index("api_keys_org_idx").on(t.orgId),
+    // THE hot-path index: authMiddleware looks a key up by hash on every
+    // request carrying `Bearer sk_...`, and that query runs through the
+    // cache-disabled Hyperdrive, so it never benefits from caching. Unique
+    // because two keys must never share a hash.
+    uniqueIndex("api_keys_key_hash_idx").on(t.keyHash),
+    // Covers the cascade when a creator's user row is deleted.
+    index("api_keys_created_by_idx").on(t.createdBy),
+  ],
 );
 
 export const aiJobs = pgTable(
@@ -542,6 +594,11 @@ export const telemetryEvents = pgTable(
     // Analytics filters (org_slug, skill_repo) over a created_at window and
     // groups by day (observability + org telemetry routes).
     index("telemetry_skill_created_idx").on(t.orgSlug, t.skillRepo, t.createdAt),
+    // The coverage query filters on skill_repo alone, which the composite
+    // indexes above cannot serve since they lead with org_slug. This is the
+    // fastest-growing table, so an unindexed predicate here degrades fastest.
+    index("telemetry_repo_idx").on(t.skillRepo),
+    index("telemetry_user_idx").on(t.userId),
   ],
 );
 
@@ -683,6 +740,10 @@ export const skillRuns = pgTable(
     // Run-quota counts join skill_id over a created_at window on every hosted
     // run; a composite index serves those hot COUNT(*) queries directly.
     index("skill_runs_skill_created_idx").on(t.skillId, t.createdAt),
+    // The observability dashboard filters on (org_slug, created_at) across four
+    // separate queries; no existing index leads with org_slug.
+    index("skill_runs_org_created_idx").on(t.orgSlug, t.createdAt),
+    index("skill_runs_version_idx").on(t.versionId),
   ],
 );
 
