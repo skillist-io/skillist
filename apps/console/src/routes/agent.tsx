@@ -1,7 +1,6 @@
 import type { Org } from "@skillist/ui";
 import {
   Button,
-  NativeSelect,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -15,10 +14,10 @@ import { LazyAgentChat } from "@/components/agent/agent-chat-lazy";
 import { ApprovalsPanel } from "@/components/agent/approvals-panel";
 import { ChatHistoryList } from "@/components/agent/chat-history";
 import { MemoryPanel } from "@/components/agent/memory-panel";
+import { useActiveOrg } from "@/lib/active-org";
 import { useAgentContext } from "@/lib/agent-context";
 import { requireAuth } from "@/lib/require-auth";
 import { useAgentChats } from "@/lib/use-agent-chats";
-import { useAgentOrg } from "@/lib/use-agent-org";
 
 export const Route = createFileRoute("/agent")({
   beforeLoad: () => requireAuth(),
@@ -32,7 +31,7 @@ export const Route = createFileRoute("/agent")({
  * index, so a chat started on one appears on the other.
  */
 function AgentPage() {
-  const { orgs, activeOrg, setOrgId, isPending, isError, refetch } = useAgentOrg();
+  const { activeOrg, isPending, isError, refetch } = useActiveOrg();
   const context = useAgentContext();
 
   // Fill the viewport below the sticky app header; the transcript scrolls
@@ -82,26 +81,16 @@ function AgentPage() {
     <div className={shell}>
       {/* Remount the whole workspace (history + chat) on org switch so the
           conversation index and active chat reset cleanly to the new org. */}
-      <AgentWorkspace
-        key={activeOrg.id}
-        activeOrg={activeOrg}
-        orgs={orgs}
-        setOrgId={setOrgId}
-        context={context}
-      />
+      <AgentWorkspace key={activeOrg.id} activeOrg={activeOrg} context={context} />
     </div>
   );
 }
 
 function AgentWorkspace({
   activeOrg,
-  orgs,
-  setOrgId,
   context,
 }: {
   activeOrg: Org;
-  orgs: Org[];
-  setOrgId: (id: string) => void;
   context: ReturnType<typeof useAgentContext>;
 }) {
   const { chatId, chats, isPending, isError, selectChat, newChat, deleteChat, invalidate } =
@@ -137,25 +126,10 @@ function AgentWorkspace({
               <div className="max-h-[60svh] min-h-0">{list(() => setHistoryOpen(false))}</div>
             </PopoverContent>
           </Popover>
-          {/* Memory + approvals govern the agent itself, so they live beside
-              the org selector on the shared header rather than in the chat. */}
+          {/* Memory + approvals govern the agent itself. Org selection now lives
+              in the global top-bar switcher, not here. */}
           <MemoryPanel orgId={activeOrg.id} />
           <ApprovalsPanel orgId={activeOrg.id} />
-          <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-            Org
-          </span>
-          <NativeSelect
-            aria-label="Active organization"
-            value={activeOrg.id}
-            onChange={(e) => setOrgId(e.target.value)}
-            className="h-9 w-auto min-w-40"
-          >
-            {orgs.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </NativeSelect>
         </div>
       </Header>
 

@@ -9,16 +9,16 @@ import {
   CardTitle,
   Label,
   NativeSelect,
-  type Org,
   PageTitle,
   type SkillInventoryItem,
   Textarea,
   webUrl,
 } from "@skillist/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { AddToProjectButton } from "@/components/add-to-project";
+import { useActiveOrg } from "@/lib/active-org";
 import { requireAuth } from "@/lib/require-auth";
 
 const EXAMPLE_SCAN = `{
@@ -45,14 +45,9 @@ export const Route = createFileRoute("/inventory")({
 
 function InventoryPage() {
   const queryClient = useQueryClient();
-  const { data: orgs } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => api<Org[]>("/v1/orgs"),
-  });
-  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const { activeOrg } = useActiveOrg();
+  const activeOrgId = activeOrg?.id ?? "";
   const [scanJson, setScanJson] = useState("");
-  const activeOrgId = selectedOrgId || orgs?.[0]?.id || "";
-  const activeOrg = orgs?.find((o) => o.id === activeOrgId);
 
   const [sourceFilter, setSourceFilter] = useState("all");
   const [securityFilter, setSecurityFilter] = useState("all");
@@ -96,24 +91,6 @@ function InventoryPage() {
           Skills discovered across repos — managed registry links vs local-only
         </p>
       </div>
-
-      {orgs && orgs.length > 1 && (
-        <div className="max-w-xs">
-          <Label htmlFor="inventory-org">Organization</Label>
-          <NativeSelect
-            id="inventory-org"
-            className="mt-1 w-full"
-            value={activeOrgId}
-            onChange={(e) => setSelectedOrgId(e.target.value)}
-          >
-            {orgs.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card size="sm">
