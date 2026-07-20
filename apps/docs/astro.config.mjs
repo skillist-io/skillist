@@ -28,6 +28,10 @@ export default defineConfig({
         ThemeProvider: "./src/components/ThemeProvider.astro",
         Hero: "./src/components/Hero.astro",
         Header: "./src/components/Header.astro",
+        // Head.astro existed but was never registered here, so it rendered
+        // nowhere. Registering it is what makes the GTM injection inside it
+        // actually reach the page.
+        Head: "./src/components/Head.astro",
       },
       social: [
         {
