@@ -50,25 +50,25 @@ export function AgentDrawer({
         className="w-full gap-0 p-0 sm:max-w-md lg:max-w-lg"
         aria-describedby={undefined}
       >
-        {/* pr-14 clears SheetContent's absolutely-positioned close button, which
-            sits at top-4 right-4 and would otherwise land on the org select. */}
-        <div className="flex shrink-0 flex-col gap-0.5 border-b border-border py-3 pr-14 pl-4">
-          <SheetTitle className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-            Skillist Agent
-          </SheetTitle>
-          <div className="flex items-center justify-between gap-3">
+        {/* pr-14 clears SheetContent's absolutely-positioned close button (top-4
+            right-4). `items-start` top-aligns the org chip with that close X so
+            the two read as one row; the title stack sits on the left. */}
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border py-3 pr-14 pl-4">
+          <div className="flex flex-col gap-0.5">
+            <SheetTitle className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+              Skillist Agent
+            </SheetTitle>
             <SheetDescription className="text-sm font-medium text-foreground">
               Org intelligence
             </SheetDescription>
-            {/* Read-only indicator of the active org — switching is done from the
-                global top-bar switcher. A plain chip keeps clear of the Sheet's
-                absolutely-positioned close button (the header's pr-14). */}
-            {activeOrg && (
-              <span className="max-w-[10rem] shrink-0 truncate border border-border px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                {activeOrg.name}
-              </span>
-            )}
           </div>
+          {/* Read-only indicator of the active org — switching is done from the
+              global top-bar switcher. */}
+          {activeOrg && (
+            <span className="max-w-[10rem] shrink-0 truncate border border-border px-2 py-0.5 font-mono text-xs text-muted-foreground">
+              {activeOrg.name}
+            </span>
+          )}
         </div>
 
         {isError ? (
