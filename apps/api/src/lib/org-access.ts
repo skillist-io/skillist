@@ -18,6 +18,11 @@ const SCOPE_MIN_ROLE: Record<ApiKeyScope, OrgRole> = {
   "skills:publish": "publisher",
   "feedback:submit": "publisher",
   "feedback:approve": "owner",
+  // Platform-scoped, not org-scoped: it gates the global docs reindex via the
+  // SKILLIST_ADMIN_USER_IDS allow-list, never org resources. It has no natural
+  // org role, so it maps to the highest one — if this scope is ever routed
+  // through requireOrgAccess by mistake, it denies rather than grants.
+  "admin:docs": "owner",
 };
 
 export type OrgAccessResult =

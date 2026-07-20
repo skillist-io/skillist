@@ -33,6 +33,10 @@ export type Env = {
   /** Native Workers Rate Limiting binding (distributed). Optional so local dev
    * and tests without the binding fall back to the in-memory limiter. */
   RATE_LIMITER?: RateLimit;
+  /** Separate, much tighter namespace for /api/auth/* and /mcp. These are
+   * unauthenticated and cost real money per request (email sends, DB reads), so
+   * they must not share the general registry budget. */
+  AUTH_RATE_LIMITER?: RateLimit;
   AI_QUEUE: Queue<AiJobMessage>;
   SYNC_QUEUE: Queue<SyncQueueMessage>;
   SYNC_WORKFLOW: Workflow;

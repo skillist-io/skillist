@@ -140,13 +140,49 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
     trustedOrigins: [
       env.BETTER_AUTH_URL,
       webUrl,
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:8787",
+      // Local origins only in local dev. trustedOrigins gates callbackURL
+      // validation, so shipping localhost to production would let a crafted
+      // callbackURL bounce a real OAuth flow to http://localhost:*.
+      ...(isLocal
+        ? ["http://localhost:5173", "http://localhost:5174", "http://localhost:8787"]
+        : []),
       "https://skillist.io",
       "https://console.skillist.io",
       "https://api.skillist.io",
     ],
+    // Pin the session lifecycle rather than inheriting it. cookieCache is the
+    // consequential one: without it every getSession() — and authMiddleware
+    // calls it on every /v1 request — is a Postgres round-trip through the
+    // cache-disabled Hyperdrive.
+    session: {
+      expiresIn: 60 * 60 * 24 * 7,
+      updateAge: 60 * 60 * 24,
+      freshAge: 60 * 15,
+      cookieCache: { enabled: true, maxAge: 60 },
+    },
+    // MUST be explicit. `enabled` defaults to Better Auth's `isProduction`,
+    // which reads NODE_ENV — and deployed Workers do not set NODE_ENV, so left
+    // to the default this is silently OFF in production.
+    //
+    // storage stays "memory", which on Workers is per-isolate and so cannot be
+    // a global limit on its own. The authoritative distributed limit is the
+    // native Workers Rate Limiting binding applied to /api/auth/* in
+    // apps/api/src/index.ts; these rules add per-endpoint granularity on top.
+    // ("secondary-storage" is deliberately not used: supplying secondaryStorage
+    // also relocates session storage out of Postgres into KV, which is
+    // eventually consistent and would weaken session revocation.)
+    rateLimit: {
+      enabled: true,
+      storage: "memory",
+      window: 60,
+      max: 60,
+      customRules: {
+        "/sign-in/magic-link": { window: 300, max: 3 },
+        "/magic-link/verify": { window: 300, max: 10 },
+        "/passkey/verify-authentication": { window: 60, max: 10 },
+        "/mcp/register": { window: 3600, max: 5 },
+      },
+    },
     advanced: isLocal
       ? undefined
       : {
@@ -171,6 +207,10 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
     socialProviders,
     plugins: [
       magicLink({
+        // Pinned rather than inherited. Better Auth's defaults (5 min,
+        // single-use) are what we want, but they should not be able to change
+        // under us on a dependency bump for a credential delivered by email.
+        expiresIn: 300,
         sendMagicLink: async ({ email, url }) => {
           if (!sendEmail) {
             console.log(`Magic link for ${email}: ${url}`);

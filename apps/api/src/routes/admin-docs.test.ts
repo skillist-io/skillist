@@ -19,10 +19,37 @@ describe("requireDocsAdmin", () => {
     expect(requireDocsAdmin(env(ADMIN), auth({ userId: ADMIN }))).toMatchObject({ ok: true });
   });
 
-  it("allows an API key created by an admin (the CLI path)", () => {
-    expect(requireDocsAdmin(env(`x,${ADMIN},y`), auth({ apiKeyCreatedBy: ADMIN }))).toMatchObject({
-      ok: true,
+  it("allows an admin-created API key carrying admin:docs (the CLI path)", () => {
+    // authMiddleware always sets apiKeyId alongside apiKeyCreatedBy, so a
+    // realistic key fixture must include it.
+    const key = auth({
+      apiKeyId: "key-1",
+      apiKeyCreatedBy: ADMIN,
+      apiKeyScopes: ["admin:docs"],
     });
+    expect(requireDocsAdmin(env(`x,${ADMIN},y`), key)).toMatchObject({ ok: true });
+  });
+
+  it("rejects an admin-created API key that lacks admin:docs", () => {
+    // The escalation this gate exists to prevent: any key an admin had ever
+    // minted (e.g. a skills:read key for CI) previously conferred full
+    // platform-admin purely because its creator was an admin.
+    const readOnlyKey = auth({
+      apiKeyId: "key-2",
+      apiKeyCreatedBy: ADMIN,
+      apiKeyScopes: ["skills:read"],
+    });
+    expect(requireDocsAdmin(env(ADMIN), readOnlyKey)).toMatchObject({ ok: false, status: 403 });
+  });
+
+  it("rejects a non-admin's key even when it claims admin:docs", () => {
+    // Scope alone is never sufficient — the creator must also be allow-listed.
+    const forgedScope = auth({
+      apiKeyId: "key-3",
+      apiKeyCreatedBy: "someone-else",
+      apiKeyScopes: ["admin:docs"],
+    });
+    expect(requireDocsAdmin(env(ADMIN), forgedScope)).toMatchObject({ ok: false, status: 403 });
   });
 
   it("rejects a non-admin session with 403", () => {

@@ -48,6 +48,13 @@
       "name": "RATE_LIMITER",
       "namespace_id": "1001",
       "simple": { "limit": 120, "period": 60 }
+    },
+    {
+      // Tighter budget for the unauthenticated, expensive auth + MCP surfaces.
+      // Keep in sync with wrangler.production.jsonc.
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 20, "period": 60 }
     }
   ],
   "durable_objects": {

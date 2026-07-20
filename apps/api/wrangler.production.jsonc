@@ -58,6 +58,15 @@
       "name": "RATE_LIMITER",
       "namespace_id": "1001",
       "simple": { "limit": 120, "period": 60 }
+    },
+    {
+      // Unauthenticated + expensive: magic-link/OTP mail sends, OAuth callbacks,
+      // passkey attempts, MCP session creation. A namespace's own limit is what
+      // actually governs, so tightening these required a separate namespace
+      // rather than a smaller argument at the call site.
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 20, "period": 60 }
     }
   ],
   "durable_objects": {

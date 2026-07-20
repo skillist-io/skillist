@@ -92,6 +92,11 @@ app.use(
     exposeHeaders: ["Mcp-Session-Id", "WWW-Authenticate"],
   }),
 );
+// /mcp is unauthenticated for registry reads and each `initialize` writes a KV
+// session entry, so it was the one surface with an unthrottled path to
+// Postgres. Registered before the handler — Hono applies middleware in
+// registration order.
+app.use("/mcp", rateLimit(60, 60_000, "AUTH_RATE_LIMITER"));
 app.all("/mcp", handleMcpRequest);
 app.options("/mcp", (c) => c.body(null, 204));
 
@@ -151,7 +156,15 @@ app.get("/health", (c) =>
   }),
 );
 
-// Better Auth handler
+// Better Auth handler.
+//
+// The limiter here is the AUTHORITATIVE one: it uses the native Workers Rate
+// Limiting binding, so it holds globally across isolates and colos. Better
+// Auth's own limiter (configured in packages/auth) is memory-backed and
+// therefore per-isolate on Workers — useful as defense in depth for per-endpoint
+// rules, but it cannot be the real gate. Without this, magic-link and OAuth
+// endpoints were completely unthrottled.
+app.use("/api/auth/*", rateLimit(20, 60_000, "AUTH_RATE_LIMITER"));
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const auth = createApiAuth(c.env, createApiEmailSender(c.env));
   return auth.handler(c.req.raw);

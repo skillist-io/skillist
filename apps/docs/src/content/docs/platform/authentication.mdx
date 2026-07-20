@@ -28,9 +28,33 @@ Org API keys and OAuth app redirect docs stay under **Settings**.
 
 ## API auth
 
-Session cookies are used by the web app. Sign-in happens on `console.skillist.io`, and production sessions use cross-subdomain cookies on `.skillist.io` so `console.skillist.io`, `skillist.io`, and `api.skillist.io` all share the same session — signing in on the console is reflected on the marketing site too. The CLI and API keys use Bearer tokens after `skillist login`.
+Session cookies are used by the web app. Sign-in happens on `console.skillist.io`, and production sessions use cross-subdomain cookies on `.skillist.io` so `console.skillist.io`, `skillist.io`, and `api.skillist.io` all share the same session — signing in on the console is reflected on the marketing site too.
 
 Protected API routes live under `/v1/*` and require a valid session or org API key.
+
+## API keys
+
+The CLI and any programmatic client authenticate with an org API key, created under **Settings** in the console and sent as a Bearer token:
+
+```bash
+export SKILLIST_API_KEY=sk_...
+```
+
+Keys are shown once at creation and stored hashed — if you lose one, revoke it and create another.
+
+### Scopes
+
+Every key carries an explicit set of scopes, and is refused on any operation outside them.
+
+| Scope | Grants |
+|-------|--------|
+| `skills:read` | Read skills and registry metadata |
+| `skills:write` | Create skills and upload versions |
+| `skills:publish` | Publish and roll back versions |
+| `skills:run` | Execute skills in the hosted sandbox |
+| `feedback:submit` | Submit feedback on a skill |
+| `feedback:approve` | Approve or reject feedback, triggering AI drafts |
+| `admin:docs` | Platform-admin docs reindex. Also requires the key's creator to be a platform admin, so it is inert otherwise |
 
 ## MCP OAuth
 
