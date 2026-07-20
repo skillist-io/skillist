@@ -1,10 +1,10 @@
 import {
   api,
+  Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   cn,
-  Label,
   type Org,
   type Project,
   type ProjectDetail,
@@ -21,7 +21,6 @@ import {
   SidebarMenuItem,
   type Skill,
   SkillistLogo,
-  Switch,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -215,30 +214,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarHeader className="gap-3.5 border-b p-4">
             <div className="flex w-full items-center justify-between">
               <div className="text-base font-medium text-foreground">Skillist</div>
-              <div className="flex items-center gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Label
-                      htmlFor="sidebar-private-only"
+              {/* The lock *is* the control, rather than a label beside a switch:
+                  one binary needs one affordance, and a switch earns its width
+                  only when the states need naming. aria-pressed carries the
+                  on/off that the switch used to; the tooltip names it. */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-pressed={privateOnly}
+                    aria-label="Show only private skills"
+                    onClick={() => setPrivateOnly((v) => !v)}
+                  >
+                    <Lock
                       className={cn(
-                        "flex cursor-help items-center transition-colors",
-                        privateOnly ? "text-signal" : "text-muted-foreground hover:text-foreground",
+                        "size-4 transition-colors",
+                        privateOnly ? "text-signal" : "text-muted-foreground",
                       )}
-                    >
-                      <Lock className="size-4" />
-                      <span className="sr-only">Private only</span>
-                    </Label>
-                  </TooltipTrigger>
-                  <TooltipContent>Private only — show only private skills</TooltipContent>
-                </Tooltip>
-                <Switch
-                  id="sidebar-private-only"
-                  aria-label="Private only"
-                  className="shadow-none"
-                  checked={privateOnly}
-                  onCheckedChange={setPrivateOnly}
-                />
-              </div>
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {privateOnly ? "Showing private skills only" : "Show only private skills"}
+                </TooltipContent>
+              </Tooltip>
             </div>
             <SidebarInput
               placeholder="Filter orgs and skills..."
