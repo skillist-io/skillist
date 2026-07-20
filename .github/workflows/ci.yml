@@ -10,32 +10,75 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  # `check` was one serial job: lint -> typecheck -> test -> build, 251s of
+  # which only the longest leg is actually on the critical path. These three are
+  # independent, so they now run concurrently and the gate takes as long as its
+  # slowest member rather than their sum.
+  lint:
     runs-on: ubuntu-latest
-    env:
-      # Needed by the `wrangler deploy --dry-run` inside `pnpm build`.
-      # E2E_AUTH_STATE_B64 is NOT here: this job never runs Playwright, and
-      # having it here meant the `smoke` job that does run it could not see it,
-      # so the authenticated e2e project silently registered zero tests.
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v7
-
       - uses: pnpm/action-setup@v6
-
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
-
       - run: pnpm check
-
       - run: pnpm typecheck
 
+  test:
+    runs-on: ubuntu-latest
+    services:
+      # Backs the DB-dependent suites. Without it they skip and the run still
+      # goes green, which is exactly how org RBAC and account deletion went
+      # untested for so long.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: skillist
+          POSTGRES_PASSWORD: skillist
+          POSTGRES_DB: skillist_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Applies the schema (and pg_trgm) to the service container so the suite
+      # runs against a real database instead of skipping.
+      - run: pnpm db:migrate
+        env:
+          DATABASE_URL: postgresql://skillist:skillist@localhost:5432/skillist_test
+
       - run: pnpm test
+        env:
+          TEST_DATABASE_URL: postgresql://skillist:skillist@localhost:5432/skillist_test
+
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Needed by the `wrangler deploy --dry-run` inside `pnpm build`.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
 
       - run: pnpm build
 
@@ -45,7 +88,7 @@ jobs:
       - run: pnpm --filter @skillist/api exec wrangler deploy --dry-run --config wrangler.production.jsonc
 
   smoke:
-    needs: [check, deploy-api, deploy-web, deploy-console, deploy-docs]
+    needs: [lint, test, build, deploy-api, deploy-web, deploy-console, deploy-docs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -76,7 +119,7 @@ jobs:
           E2E_AUTH_STATE_B64: ${{ secrets.E2E_AUTH_STATE_B64 }}
 
   deploy-api:
-    needs: check
+    needs: [lint, test, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -91,7 +134,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
+      # NOT `pnpm build`: wrangler compiles the Worker from source at deploy
+      # time, so building all nine workspaces here was ~66s of pure waste on the
+      # critical path. skill-format is the one dependency that must be built,
+      # because it resolves to dist/.
+      - run: pnpm --filter @skillist/skill-format build
 
       - name: Deploy API
         uses: cloudflare/wrangler-action@v4
@@ -102,7 +149,7 @@ jobs:
           command: deploy --config wrangler.production.jsonc
 
   deploy-web:
-    needs: check
+    needs: [lint, test, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -135,7 +182,7 @@ jobs:
           command: deploy
 
   deploy-console:
-    needs: check
+    needs: [lint, test, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -167,7 +214,7 @@ jobs:
           command: deploy
 
   deploy-docs:
-    needs: check
+    needs: [lint, test, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
