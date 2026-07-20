@@ -1,4 +1,4 @@
-import { SignalField, SkillistLogo, webUrl } from "@skillist/ui";
+import { SignalField, SkillistLogo, ThemeToggle, webUrl } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
 
 /**
@@ -66,6 +66,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             >
               Registry
             </a>
+            {/* Sign-in is an anonymous surface too, so Settings is not yet
+                reachable — and someone who needs light mode needs it to read
+                this page, not after they get in. */}
+            <ThemeToggle variant="menu" />
           </div>
         </header>
 

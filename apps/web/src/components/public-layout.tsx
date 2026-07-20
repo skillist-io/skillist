@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SkillistLogo,
   signOutAndRedirect,
+  ThemeToggle,
   useSession,
 } from "@skillist/ui";
 import { Link, useRouterState } from "@tanstack/react-router";
@@ -164,10 +165,17 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 <GitHubMark className="size-4" />
               </a>
             </Button>
+            {/* Kept here although the console's copy moved to Settings: this
+                surface is anonymous, so Settings is unreachable and this is the
+                only route to the preference. The menu variant offers all three
+                choices rather than a binary flip, since there is nowhere else
+                to pick "system". */}
+            <ThemeToggle variant="menu" />
             <span aria-hidden="true" className="mx-2 h-5 w-px bg-border" />
             <AuthActions />
           </div>
           <div className="ml-auto flex items-center gap-1 md:hidden">
+            <ThemeToggle variant="menu" />
             <Button
               variant="ghost"
               size="icon"
