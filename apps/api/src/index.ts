@@ -21,6 +21,7 @@ import { mcpServerInfo } from "./mcp/registry-server";
 import { adminDocsRoutes } from "./routes/admin-docs";
 import { agentApprovalsRoutes } from "./routes/agent-approvals";
 import { agentChatsRoutes } from "./routes/agent-chats";
+import { agentHealthRoutes } from "./routes/agent-health";
 import { agentMemoryRoutes } from "./routes/agent-memory";
 import { deliveryRoutes } from "./routes/delivery";
 import { executionRoutes } from "./routes/execution";
@@ -211,6 +212,7 @@ v1.route("/", agentApprovalsRoutes);
 v1.route("/", realtimeRoutes);
 v1.route("/", sourcesRoutes);
 v1.route("/", adminDocsRoutes);
+v1.route("/", agentHealthRoutes);
 v1.route("/", webhookRoutes);
 
 app.route("/v1", v1);
