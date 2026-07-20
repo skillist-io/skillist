@@ -19,6 +19,7 @@ import {
   type ToolSet,
   tool,
   type UIMessage,
+  wrapLanguageModel,
 } from "ai";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { createWorkersAI } from "workers-ai-provider";
@@ -33,6 +34,7 @@ import { searchDocs } from "../lib/docs-rag";
 import { getRegistryFacets, getRegistrySkill, listRegistry } from "../lib/registry-service";
 import { validateSkillMd } from "../lib/skill-validation";
 import { parseAgentName, shouldGenerateTitle } from "./agent-name";
+import { workersAiFallback } from "./model-fallback";
 
 /**
  * The agent prefers Claude — small Workers AI models narrate tool calls instead
@@ -202,22 +204,30 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
    * still runs without the Anthropic secret. Reused for title generation.
    */
   private buildModel() {
-    return this.env.ANTHROPIC_API_KEY
-      ? createAnthropic({
-          apiKey: this.env.ANTHROPIC_API_KEY,
-          ...(this.env.AI_GATEWAY_ACCOUNT_ID
-            ? {
-                baseURL: `https://gateway.ai.cloudflare.com/v1/${this.env.AI_GATEWAY_ACCOUNT_ID}/skillist/anthropic`,
-                headers: this.env.AI_GATEWAY_TOKEN
-                  ? { "cf-aig-authorization": `Bearer ${this.env.AI_GATEWAY_TOKEN}` }
-                  : undefined,
-              }
-            : {}),
-        })(CLAUDE_MODEL_ID)
-      : // sessionAffinity pins this DO's turns to one Workers AI replica.
-        createWorkersAI({ binding: this.env.AI })(WORKERS_MODEL_ID, {
-          sessionAffinity: this.sessionAffinity,
-        });
+    // sessionAffinity pins this DO's turns to one Workers AI replica.
+    const workers = createWorkersAI({ binding: this.env.AI })(WORKERS_MODEL_ID, {
+      sessionAffinity: this.sessionAffinity,
+    });
+    // No Anthropic secret → run on Workers AI directly.
+    if (!this.env.ANTHROPIC_API_KEY) return workers;
+
+    const claude = createAnthropic({
+      apiKey: this.env.ANTHROPIC_API_KEY,
+      ...(this.env.AI_GATEWAY_ACCOUNT_ID
+        ? {
+            baseURL: `https://gateway.ai.cloudflare.com/v1/${this.env.AI_GATEWAY_ACCOUNT_ID}/skillist/anthropic`,
+            headers: this.env.AI_GATEWAY_TOKEN
+              ? { "cf-aig-authorization": `Bearer ${this.env.AI_GATEWAY_TOKEN}` }
+              : undefined,
+          }
+        : {}),
+    })(CLAUDE_MODEL_ID);
+
+    // Claude for reliable tool-calling, but if its call FAILS TO START (a
+    // bad/expired key, provider 4xx/5xx, gateway outage) fall back to Workers AI
+    // for that turn instead of failing the whole agent. A single bad credential
+    // used to take the agent fully down with no server-side log; now it degrades.
+    return wrapLanguageModel({ model: claude, middleware: workersAiFallback(workers) });
   }
 
   /**
@@ -281,6 +291,17 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
       messages: await convertToModelMessages(this.messages),
       tools,
       stopWhen: stepCountIs(5),
+      // Surface a provider/stream failure server-side. Without this the error is
+      // invisible in `wrangler tail` (the client just shows "hit an error"),
+      // which is exactly what made the invalid-key outage hard to diagnose.
+      onError: ({ error }) => {
+        console.error(
+          JSON.stringify({
+            msg: "agent_stream_error",
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        );
+      },
       onFinish: () => {
         if (firstTurn) {
           this.generateTitle().catch((err) => {
