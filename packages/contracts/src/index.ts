@@ -172,7 +172,17 @@ export const registryQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   sort: z
-    .enum(["quality", "impact", "installs", "activations", "stars", "trending", "recent", "name"])
+    .enum([
+      "relevance",
+      "quality",
+      "impact",
+      "installs",
+      "activations",
+      "stars",
+      "trending",
+      "recent",
+      "name",
+    ])
     .default("quality"),
   runtime: z.enum(["all", "local", "sandbox", "container"]).default("all"),
   minQuality: z.coerce.number().int().min(0).max(100).optional(),

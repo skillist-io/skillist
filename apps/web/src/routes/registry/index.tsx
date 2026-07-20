@@ -26,25 +26,18 @@ import {
   signalFieldClass,
   TooltipProvider,
 } from "@skillist/ui";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowDown, Check, Search, SlidersHorizontal, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowDown, Check, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 import { SignInToAddButton as AddToProjectButton } from "@/components/sign-in-cta";
 import { StarStat } from "@/components/star-stat";
 
-type Sort =
-  | "quality"
-  | "impact"
-  | "installs"
-  | "activations"
-  | "stars"
-  | "trending"
-  | "recent"
-  | "name";
-type Runtime = "all" | "local" | "sandbox" | "container";
-type Security = "all" | "pass" | "advisory" | "fail";
-type SourceType = "all" | "native" | "mirror";
+type Sort = (typeof SORT_VALUES)[number];
+type Runtime = (typeof RUNTIME_VALUES)[number];
+type Security = (typeof SECURITY_VALUES)[number];
+type SourceType = (typeof SOURCE_TYPE_VALUES)[number];
 
 type RegistryFilters = {
   q: string;
@@ -58,7 +51,25 @@ type RegistryFilters = {
   sourceType: SourceType;
 };
 
+// Tuples shared by the TS unions and the URL schema, so an unknown ?sort= value
+// is rejected at the route boundary rather than reaching the API.
+const SORT_VALUES = [
+  "relevance",
+  "quality",
+  "impact",
+  "installs",
+  "activations",
+  "stars",
+  "trending",
+  "recent",
+  "name",
+] as const;
+const RUNTIME_VALUES = ["all", "local", "sandbox", "container"] as const;
+const SECURITY_VALUES = ["all", "pass", "advisory", "fail"] as const;
+const SOURCE_TYPE_VALUES = ["all", "native", "mirror"] as const;
+
 const SORT_OPTIONS: { value: Sort; label: string }[] = [
+  { value: "relevance", label: "Relevance" },
   { value: "quality", label: "Quality" },
   { value: "impact", label: "Impact" },
   { value: "installs", label: "Installs" },
@@ -110,10 +121,6 @@ function buildRegistryQuery(filters: RegistryFilters): string {
   return params.toString();
 }
 
-export const Route = createFileRoute("/registry/")({
-  component: RegistryPage,
-});
-
 const INITIAL: RegistryFilters = {
   q: "",
   sort: "quality",
@@ -126,35 +133,109 @@ const INITIAL: RegistryFilters = {
   sourceType: "all",
 };
 
+/**
+ * TanStack Router types the querystring by inspecting it, so a digits-only
+ * value (`?minQuality=80`, or a search for `?q=2024`) arrives as a **number**.
+ * A plain `z.string()` rejects those and throws the whole route. Accept either
+ * and normalise to string — every consumer downstream wants a string.
+ */
+const looseString = z.union([z.string(), z.number()]).transform(String);
+
+/**
+ * Filters live in the URL, not in component state, so a filtered view is a
+ * place: shareable, bookmarkable, and restored by the back button. Every field
+ * is optional and defaults are omitted when writing, which keeps `/registry`
+ * clean until the reader actually narrows something.
+ */
+const searchSchema = z.object({
+  q: looseString.optional(),
+  sort: z.enum(SORT_VALUES).optional(),
+  runtime: z.enum(RUNTIME_VALUES).optional(),
+  // A number, not a string: TanStack JSON-encodes any string that looks
+  // numeric, which would put `minQuality="80"` in a link meant to be shared.
+  minQuality: z.coerce.number().int().min(0).max(100).optional(),
+  security: z.enum(SECURITY_VALUES).optional(),
+  category: looseString.optional(),
+  tag: looseString.optional(),
+  agent: looseString.optional(),
+  sourceType: z.enum(SOURCE_TYPE_VALUES).optional(),
+});
+
+type RegistrySearch = z.infer<typeof searchSchema>;
+
+/** Drop defaults and empties so the querystring only carries real narrowing. */
+function toSearchParams(filters: RegistryFilters): RegistrySearch {
+  const next: RegistrySearch = {};
+  if (filters.q) next.q = filters.q;
+  if (filters.sort !== INITIAL.sort) next.sort = filters.sort;
+  if (filters.runtime !== INITIAL.runtime) next.runtime = filters.runtime;
+  if (filters.minQuality) next.minQuality = Number(filters.minQuality);
+  if (filters.security !== INITIAL.security) next.security = filters.security;
+  if (filters.category) next.category = filters.category;
+  if (filters.tag) next.tag = filters.tag;
+  if (filters.agent) next.agent = filters.agent;
+  if (filters.sourceType !== INITIAL.sourceType) next.sourceType = filters.sourceType;
+  return next;
+}
+
+export const Route = createFileRoute("/registry/")({
+  validateSearch: searchSchema,
+  component: RegistryPage,
+});
+
 function RegistryPage() {
-  const [search, setSearch] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [sort, setSort] = useState<Sort>(INITIAL.sort);
-  const [runtime, setRuntime] = useState<Runtime>(INITIAL.runtime);
-  const [minQuality, setMinQuality] = useState(INITIAL.minQuality);
-  const [security, setSecurity] = useState<Security>(INITIAL.security);
-  const [category, setCategory] = useState(INITIAL.category);
-  const [tag, setTag] = useState(INITIAL.tag);
-  const [agent, setAgent] = useState(INITIAL.agent);
-  const [sourceType, setSourceType] = useState<SourceType>(INITIAL.sourceType);
+  const urlSearch = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQ(search), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
+  // The URL is the source of truth; unset params fall back to defaults.
+  // Memoised so `setFilters` — and therefore the debounce effect that depends
+  // on it — is stable between renders rather than rebuilt on every one.
+  const filters: RegistryFilters = useMemo(
+    () => ({
+      ...INITIAL,
+      ...urlSearch,
+      // A search wants best-match first; a browse wants best-quality first.
+      // Applies only when the reader has not chosen a sort themselves, and sits
+      // after the spread because an absent ?sort= arrives as undefined.
+      sort: urlSearch.sort ?? (urlSearch.q ? "relevance" : INITIAL.sort),
+      // The rail's option values are strings ("", "60", "80", "90").
+      minQuality: urlSearch.minQuality === undefined ? "" : String(urlSearch.minQuality),
+    }),
+    [urlSearch],
+  );
+  const { sort, runtime, minQuality, security, category, tag, agent, sourceType } = filters;
 
-  const queryString = buildRegistryQuery({
-    q: debouncedQ,
-    sort,
-    runtime,
-    minQuality,
-    security,
-    category,
-    tag,
-    agent,
-    sourceType,
-  });
+  // The text input is the one control that cannot read straight from the URL:
+  // it must echo every keystroke, while the URL should only record where the
+  // reader stopped typing. Local state drives the field, debounced into the URL.
+  const [search, setSearch] = useState(filters.q);
+  const debouncedQ = filters.q;
+
+  const setFilters = useCallback(
+    (patch: Partial<RegistryFilters>) => {
+      navigate({
+        search: toSearchParams({ ...filters, ...patch }),
+        // Filter tweaks are not distinct destinations — replacing keeps Back
+        // as "leave the registry" rather than "undo one checkbox".
+        replace: true,
+      });
+    },
+    [filters, navigate],
+  );
+
+  // Reflect an externally-changed q (back/forward, a shared link) into the field.
+  useEffect(() => {
+    setSearch(filters.q);
+  }, [filters.q]);
+
+  useEffect(() => {
+    if (search === filters.q) return;
+    const timer = setTimeout(() => setFilters({ q: search }), 300);
+    return () => clearTimeout(timer);
+  }, [search, filters.q, setFilters]);
+
+  const queryString = buildRegistryQuery(filters);
 
   const { data: facets } = useQuery({
     queryKey: ["registry-facets"],
@@ -164,9 +245,13 @@ function RegistryPage() {
       ),
   });
 
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+  const { data, isLoading, isError, isPlaceholderData, refetch } = useQuery({
     queryKey: ["registry", queryString],
     queryFn: () => api<{ items: RegistryItem[]; total: number }>(`/v1/registry?${queryString}`),
+    // Every filter change is a new query key, so without this the list unmounts
+    // to a skeleton on each interaction. Holding the previous page lets it dim
+    // in place instead — no layout shift, no lost scroll position.
+    placeholderData: keepPreviousData,
   });
 
   const activeFilterCount = useMemo(() => {
@@ -182,33 +267,28 @@ function RegistryPage() {
     return n;
   }, [runtime, security, minQuality, category, tag, agent, sourceType, debouncedQ]);
 
-  function clearFilters() {
+  const clearFilters = useCallback(() => {
     setSearch("");
-    setDebouncedQ("");
-    setRuntime(INITIAL.runtime);
-    setMinQuality(INITIAL.minQuality);
-    setSecurity(INITIAL.security);
-    setCategory(INITIAL.category);
-    setTag(INITIAL.tag);
-    setAgent(INITIAL.agent);
-    setSourceType(INITIAL.sourceType);
-  }
+    navigate({ search: {}, replace: true });
+  }, [navigate]);
 
+  // The rail keeps its `setX` prop shape; each setter now writes one field of
+  // the URL instead of one piece of component state.
   const railProps = {
     runtime,
-    setRuntime,
+    setRuntime: (v: Runtime) => setFilters({ runtime: v }),
     security,
-    setSecurity,
+    setSecurity: (v: Security) => setFilters({ security: v }),
     minQuality,
-    setMinQuality,
+    setMinQuality: (v: string) => setFilters({ minQuality: v }),
     category,
-    setCategory,
+    setCategory: (v: string) => setFilters({ category: v }),
     tag,
-    setTag,
+    setTag: (v: string) => setFilters({ tag: v }),
     agent,
-    setAgent,
+    setAgent: (v: string) => setFilters({ agent: v }),
     sourceType,
-    setSourceType,
+    setSourceType: (v: SourceType) => setFilters({ sourceType: v }),
     facets,
     activeFilterCount,
     onClear: clearFilters,
@@ -258,7 +338,7 @@ function RegistryPage() {
             <NativeSelect
               id="registry-sort"
               value={sort}
-              onChange={(e) => setSort(e.target.value as Sort)}
+              onChange={(e) => setFilters({ sort: e.target.value as Sort })}
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -310,14 +390,29 @@ function RegistryPage() {
             <FilterRail {...railProps} />
           </aside>
 
-          {/* Results */}
-          <section aria-busy={isFetching} className="min-w-0">
+          {/* Results. A re-query dims the standing list rather than replacing it
+              with skeletons: on a filter-heavy page the result set changes on
+              nearly every interaction, and unmounting each time flashes the
+              whole column and loses scroll position. Skeletons are kept for the
+              first load, when there is genuinely nothing to keep. */}
+          <section
+            aria-busy={isPlaceholderData}
+            className={cn(
+              "min-w-0 transition-opacity duration-150",
+              isPlaceholderData && "opacity-50",
+            )}
+          >
             {isError ? (
               <QueryError title="Could not load registry" onRetry={() => void refetch()} />
             ) : isLoading ? (
               <ResultsSkeleton />
             ) : data && data.items.length > 0 ? (
-              <Results items={data.items} sort={sort} setSort={setSort} />
+              <Results
+                items={data.items}
+                sort={sort}
+                setSort={(s: Sort) => setFilters({ sort: s })}
+                query={debouncedQ}
+              />
             ) : (
               <EmptyState hasFilters={activeFilterCount > 0} onClear={clearFilters} />
             )}
@@ -336,11 +431,18 @@ function Results({
   items,
   sort,
   setSort,
+  query,
 }: {
   items: RegistryItem[];
   sort: Sort;
   setSort: (s: Sort) => void;
+  /** Active search term, so each row can explain a non-obvious match. */
+  query: string;
 }) {
+  // One row open at a time: the panel is a detour, not a mode, and several open
+  // at once turns the ledger back into a wall of text.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   return (
     <>
       {/* Desktop: ledger table */}
@@ -382,9 +484,18 @@ function Results({
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <RegistryRow key={`${item.orgSlug}/${item.skillRepo}`} item={item} />
-            ))}
+            {items.map((item) => {
+              const id = `${item.orgSlug}/${item.skillRepo}`;
+              return (
+                <RegistryRow
+                  key={id}
+                  item={item}
+                  query={query}
+                  expanded={expandedId === id}
+                  onToggle={() => setExpandedId(expandedId === id ? null : id)}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -443,81 +554,179 @@ function SortHeader({
   );
 }
 
-function RegistryRow({ item }: { item: RegistryItem }) {
+/**
+ * Why this row matched, when the reason is not visible in the name.
+ *
+ * The registry searches description and slug as well as name, so a result whose
+ * title looks unrelated is otherwise inexplicable — the chip is what stops a
+ * good match reading as a bad one.
+ */
+function matchedField(item: RegistryItem, q: string): string | null {
+  const term = q.trim().toLowerCase();
+  if (!term) return null;
+  if (item.name?.toLowerCase().includes(term)) return null; // self-evident
+  if (`${item.orgSlug}/${item.skillRepo}`.toLowerCase().includes(term)) return "repo";
+  if (item.description?.toLowerCase().includes(term)) return "description";
+  return null;
+}
+
+function RegistryRow({
+  item,
+  query,
+  expanded,
+  onToggle,
+}: {
+  item: RegistryItem;
+  query: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const installCmd = item.installCommand ?? `skillist install ${item.orgSlug}/${item.skillRepo}`;
+  const matched = matchedField(item, query);
+  const panelId = `install-${item.orgSlug}-${item.skillRepo}`;
   return (
-    <tr className="border-b border-border align-top transition-colors hover:bg-muted/40">
-      <td className="w-full px-3 py-4">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <Link
-              to="/$org/$repo"
-              params={{ org: item.orgSlug, repo: item.skillRepo }}
-              className="rounded-none font-semibold outline-none transition-colors hover:text-signal focus-visible:text-signal focus-visible:ring-2 focus-visible:ring-ring/40"
-            >
-              {item.name}
-            </Link>
-            {item.latestVersion && (
-              <span className="font-mono text-xs text-muted-foreground">v{item.latestVersion}</span>
+    <>
+      <tr
+        className={cn(
+          "border-b border-border align-top transition-colors hover:bg-muted/40",
+          expanded && "bg-muted/40",
+        )}
+      >
+        <td className="w-full px-3 py-4">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              {/* A dedicated control rather than a click-anywhere row: this row
+                already holds a link and two buttons, so a row-level handler
+                would fight them and leave the affordance unreachable by
+                keyboard. */}
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={expanded}
+                aria-controls={panelId}
+                aria-label={`${expanded ? "Hide" : "Show"} install commands for ${item.name}`}
+                className="-ml-1 flex size-5 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <ChevronRight
+                  className={cn("size-3.5 transition-transform", expanded && "rotate-90")}
+                  aria-hidden
+                />
+              </button>
+              <Link
+                to="/$org/$repo"
+                params={{ org: item.orgSlug, repo: item.skillRepo }}
+                className="rounded-none font-semibold outline-none transition-colors hover:text-signal focus-visible:text-signal focus-visible:ring-2 focus-visible:ring-ring/40"
+              >
+                {item.name}
+              </Link>
+              {item.latestVersion && (
+                <span className="font-mono text-xs text-muted-foreground">
+                  v{item.latestVersion}
+                </span>
+              )}
+            </div>
+            <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+              {item.orgSlug}/{item.skillRepo}
+              {matched && (
+                <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+                  matched {matched}
+                </span>
+              )}
+            </span>
+            {item.description && (
+              <p className="line-clamp-2 max-w-prose text-sm text-muted-foreground text-pretty">
+                {item.description}
+              </p>
             )}
+            <MetaTags item={item} />
           </div>
-          <span className="font-mono text-xs text-muted-foreground">
-            {item.orgSlug}/{item.skillRepo}
-          </span>
-          {item.description && (
-            <p className="line-clamp-2 max-w-prose text-sm text-muted-foreground text-pretty">
-              {item.description}
-            </p>
-          )}
-          <MetaTags item={item} />
-        </div>
-      </td>
-      <td className="px-3 py-4">
-        <ScoreReadout
-          quality={item.qualityScore}
-          impact={item.impactScore}
-          security={item.securityStatus}
-        />
-      </td>
-      <td className="px-3 py-4 text-right font-mono tabular-nums">
-        {formatCount(item.installCount)}
-      </td>
-      <td className="px-3 py-4 text-right font-mono tabular-nums">
-        <StarStat
-          org={item.orgSlug}
-          repo={item.skillRepo}
-          stars={item.stars}
-          starred={item.starred}
-        />
-      </td>
-      <td className="px-3 py-4">
-        <div className="flex items-center justify-end gap-2">
-          <AddToProjectButton
-            target={
-              item.skillId
-                ? { kind: "skill", skillId: item.skillId, label: item.name }
-                : {
-                    kind: "external",
-                    externalUrl: `https://skillist.io/${item.orgSlug}/${item.skillRepo}`,
-                    externalName: item.name,
-                  }
-            }
-            variant="ghost"
-            iconOnly
+        </td>
+        <td className="px-3 py-4">
+          <ScoreReadout
+            quality={item.qualityScore}
+            impact={item.impactScore}
+            security={item.securityStatus}
           />
-          <CopyButton value={installCmd} label="Install" size="sm" />
-          <Button asChild variant="ghost" size="sm">
-            <Link
-              to="/$org/$repo"
-              params={{ org: item.orgSlug, repo: item.skillRepo }}
-              aria-label={`View ${item.name}`}
-            >
-              View
-            </Link>
-          </Button>
+        </td>
+        <td className="px-3 py-4 text-right font-mono tabular-nums">
+          {formatCount(item.installCount)}
+        </td>
+        <td className="px-3 py-4 text-right font-mono tabular-nums">
+          <StarStat
+            org={item.orgSlug}
+            repo={item.skillRepo}
+            stars={item.stars}
+            starred={item.starred}
+          />
+        </td>
+        <td className="px-3 py-4">
+          <div className="flex items-center justify-end gap-2">
+            <AddToProjectButton
+              target={
+                item.skillId
+                  ? { kind: "skill", skillId: item.skillId, label: item.name }
+                  : {
+                      kind: "external",
+                      externalUrl: `https://skillist.io/${item.orgSlug}/${item.skillRepo}`,
+                      externalName: item.name,
+                    }
+              }
+              variant="ghost"
+              iconOnly
+            />
+            <CopyButton value={installCmd} label="Install" size="sm" />
+            <Button asChild variant="ghost" size="sm">
+              <Link
+                to="/$org/$repo"
+                params={{ org: item.orgSlug, repo: item.skillRepo }}
+                aria-label={`View ${item.name}`}
+              >
+                View
+              </Link>
+            </Button>
+          </div>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-b border-border bg-muted/40">
+          <td colSpan={5} className="px-3 pt-0 pb-4" id={panelId}>
+            <InstallPanel item={item} installCmd={installCmd} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/**
+ * What you actually have to run, shown rather than copied blind.
+ *
+ * The row's Install button copies a command you never see; this panel spells out
+ * the whole sequence — the one-off CLI prerequisite, the install itself, and the
+ * run command when the skill has a runtime — each separately copyable, so a
+ * first-time reader is not left wondering why `skillist` is not on their PATH.
+ */
+function InstallPanel({ item, installCmd }: { item: RegistryItem; installCmd: string }) {
+  const steps = [
+    { label: "CLI (one-off)", value: item.cliInstall ?? "npm install -g @skillist/cli" },
+    { label: "Install", value: installCmd },
+    ...(item.runCommand ? [{ label: "Run", value: item.runCommand }] : []),
+  ];
+
+  return (
+    <div className="ml-5 flex max-w-3xl flex-col gap-2 border-l border-border pl-4">
+      {steps.map((step) => (
+        <div key={step.label} className="flex items-center gap-3">
+          <span className="w-28 shrink-0 text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
+            {step.label}
+          </span>
+          <code className="min-w-0 flex-1 truncate border border-border bg-background px-2 py-1 font-mono text-xs text-foreground">
+            {step.value}
+          </code>
+          <CopyButton value={step.value} label="" size="sm" />
         </div>
-      </td>
-    </tr>
+      ))}
+    </div>
   );
 }
 
