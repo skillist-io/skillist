@@ -35,6 +35,10 @@ put_secret GITHUB_CLIENT_ID
 put_secret GITHUB_CLIENT_SECRET
 put_secret GOOGLE_CLIENT_ID
 put_secret GOOGLE_CLIENT_SECRET
+# Powers the platform agent (SkillistAgent) — claude-sonnet-5 for reliable
+# tool-calling. Without it the agent silently falls back to a weaker Workers AI
+# model that narrates tool calls instead of invoking them.
+put_secret ANTHROPIC_API_KEY
 put_secret AI_GATEWAY_ACCOUNT_ID
 put_secret AI_GATEWAY_TOKEN
 put_secret GITHUB_TOKEN
