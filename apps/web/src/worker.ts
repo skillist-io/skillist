@@ -52,6 +52,36 @@ function wantsHtml(request: Request): boolean {
   return request.method === "GET" && (request.headers.get("accept") ?? "").includes("text/html");
 }
 
+/**
+ * Response headers this SPA worker adds to everything it serves itself (the API
+ * proxy branch is skipped — the API worker sets its own via `secureHeaders()`).
+ *
+ * Deliberately scoped to directives that harden without risking breakage: no
+ * `default-src`/`script-src`, because the app loads Google Tag Manager and an
+ * inline theme-bootstrap script, and a wrong value there breaks the page with no
+ * way to verify here. `object-src`/`base-uri`/`frame-ancestors`/`form-action`
+ * add real defense (plugin injection, base-tag hijack, clickjacking, form
+ * exfiltration) as a second layer behind the SEO-injection escaping — none of
+ * which touch script/style/analytics loading. A strict script-src (hashing the
+ * theme script + a GTM nonce) is a follow-up that needs a build+smoke check.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  "content-security-policy":
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+  "x-frame-options": "DENY",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+};
+
+/** Copy a response and layer on the security headers (source headers may be immutable). */
+function withSecurityHeaders(res: Response): Response {
+  const headers = new Headers(res.headers);
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    headers.set(key, value);
+  }
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
 /** Fetches the SPA shell from the assets binding. */
 async function shell(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -125,7 +155,8 @@ export default {
     const { pathname } = url;
 
     // Same-origin API proxy so the SPA can use relative /v1 and /api URLs.
-    // Apex delivery paths cannot be zone-routed (no mid-path wildcards).
+    // Apex delivery paths cannot be zone-routed (no mid-path wildcards). The API
+    // worker sets its own security headers, so this branch returns untouched.
     if (
       pathname.startsWith("/v1/") ||
       pathname.startsWith("/api/") ||
@@ -135,54 +166,62 @@ export default {
       return env.API.fetch(request);
     }
 
-    if (pathname === "/robots.txt") {
-      return new Response(robotsTxt(), { headers: TEXT_HEADERS });
-    }
-
-    if (pathname === "/sitemap.xml") {
-      const entries = await fetchRegistry(env);
-      return new Response(sitemapXml(entries), {
-        headers: { ...TEXT_HEADERS, "content-type": "application/xml; charset=utf-8" },
-      });
-    }
-
-    if (pathname === "/llms.txt") {
-      const entries = await fetchRegistry(env);
-      return new Response(llmsTxt(entries), { headers: TEXT_HEADERS });
-    }
-
-    const skillMatch = SKILL_PAGE_PATH.exec(pathname);
-    if (skillMatch && wantsHtml(request)) {
-      const [, org, repo] = skillMatch;
-      if (org && repo && !RESERVED_SEGMENTS.has(org)) {
-        const meta = await fetchSkillMeta(env, org, repo);
-        const shellRes = await shell(request, env);
-        if (!meta) {
-          // A missing/private skill previously returned 200 with the SPA shell —
-          // a soft 404 that search engines treat as a site-quality problem. The
-          // body is still the SPA, so the client renders its own 404 UI.
-          return new Response(shellRes.body, {
-            status: 404,
-            headers: shellRes.headers,
-          });
-        }
-        return injectSkillPage(shellRes, meta);
-      }
-    }
-
-    // Landing page: site-level structured data (identical on every render, so
-    // it is injected rather than duplicated into index.html).
-    if ((pathname === "/" || pathname === "") && wantsHtml(request)) {
-      const shellRes = await shell(request, env);
-      return new HTMLRewriter()
-        .on("head", {
-          element(el) {
-            el.append(`\n    ${siteJsonLd()}\n  `, { html: true });
-          },
-        })
-        .transform(shellRes);
-    }
-
-    return env.ASSETS.fetch(request);
+    // Everything below is served by this worker (SEO text, injected skill
+    // pages, the SPA shell/assets) — all get the security headers.
+    return withSecurityHeaders(await serve(request, env, url));
   },
 };
+
+async function serve(request: Request, env: Env, url: URL): Promise<Response> {
+  const { pathname } = url;
+
+  if (pathname === "/robots.txt") {
+    return new Response(robotsTxt(), { headers: TEXT_HEADERS });
+  }
+
+  if (pathname === "/sitemap.xml") {
+    const entries = await fetchRegistry(env);
+    return new Response(sitemapXml(entries), {
+      headers: { ...TEXT_HEADERS, "content-type": "application/xml; charset=utf-8" },
+    });
+  }
+
+  if (pathname === "/llms.txt") {
+    const entries = await fetchRegistry(env);
+    return new Response(llmsTxt(entries), { headers: TEXT_HEADERS });
+  }
+
+  const skillMatch = SKILL_PAGE_PATH.exec(pathname);
+  if (skillMatch && wantsHtml(request)) {
+    const [, org, repo] = skillMatch;
+    if (org && repo && !RESERVED_SEGMENTS.has(org)) {
+      const meta = await fetchSkillMeta(env, org, repo);
+      const shellRes = await shell(request, env);
+      if (!meta) {
+        // A missing/private skill previously returned 200 with the SPA shell —
+        // a soft 404 that search engines treat as a site-quality problem. The
+        // body is still the SPA, so the client renders its own 404 UI.
+        return new Response(shellRes.body, {
+          status: 404,
+          headers: shellRes.headers,
+        });
+      }
+      return injectSkillPage(shellRes, meta);
+    }
+  }
+
+  // Landing page: site-level structured data (identical on every render, so
+  // it is injected rather than duplicated into index.html).
+  if ((pathname === "/" || pathname === "") && wantsHtml(request)) {
+    const shellRes = await shell(request, env);
+    return new HTMLRewriter()
+      .on("head", {
+        element(el) {
+          el.append(`\n    ${siteJsonLd()}\n  `, { html: true });
+        },
+      })
+      .transform(shellRes);
+  }
+
+  return env.ASSETS.fetch(request);
+}

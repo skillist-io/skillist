@@ -192,7 +192,7 @@ const getMcpProxyConfigRoute = createRoute({
             upstreamUrl: z.string(),
             transport: z.string(),
             // The stored upstream OAuth access token — this route is the one
-            // place it is handed back, and only to an org member.
+            // place it is handed back, and only to an editor+ (see the handler).
             accessToken: z.string(),
             // Omitted entirely if the org row has vanished under the caller.
             orgSlug: z.string().optional(),
@@ -207,7 +207,11 @@ const getMcpProxyConfigRoute = createRoute({
 
 mcpServersRoutes.openapi(getMcpProxyConfigRoute, async (c) => {
   const { orgId, name } = c.req.valid("param");
-  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  // Returns a live upstream OAuth access token, so it must not be readable at
+  // the lowest role. Registering/authorizing the server already requires owner;
+  // gate the token read-back at editor+ so a plain viewer can't lift a secret
+  // the org's owners configured.
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const [row] = await c.var.db
