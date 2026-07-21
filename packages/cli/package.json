@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@skillist/tsconfig": "workspace:*",
-    "@types/node": "^22.15.29",
+    "@types/node": "^26.1.1",
     "tsx": "^4.20.3",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
