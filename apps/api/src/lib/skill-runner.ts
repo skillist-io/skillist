@@ -45,6 +45,18 @@ export type RunSkillResult = {
   runtime: SkillRuntime;
 };
 
+/**
+ * Thrown when a published version is refused execution because it failed its
+ * security scan. Kept distinct from validation/quota errors so the route can map
+ * it to a 403 rather than a generic 400.
+ */
+export class SkillExecutionBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SkillExecutionBlockedError";
+  }
+}
+
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
@@ -147,6 +159,18 @@ export async function runSkillScript(
 
   const validatedUrl = validateTargetUrl(targetUrl);
   const { bundle, skill, version } = await getPublishedBundle(env, db, orgSlug, skillRepo);
+
+  // Defense-in-depth: the run path must re-check the stored security posture, not
+  // just trust that publishing gated on it. A version whose scan hard-failed
+  // (e.g. published before the policy existed, or via a path that skipped it) is
+  // refused execution outright. `advisory` (medium-severity) stays runnable —
+  // it's surfaced as reduced-trust, not blocked — and an unscanned/null status
+  // is not treated as a failure.
+  if (version.securityStatus === "fail") {
+    throw new SkillExecutionBlockedError(
+      "This skill version failed its security scan and cannot be executed",
+    );
+  }
 
   if (!bundle.has(scriptPath)) {
     throw new Error(`Script not found in bundle: ${scriptPath}`);
