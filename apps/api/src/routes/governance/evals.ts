@@ -9,6 +9,31 @@ import type { AppEnv } from "./shared";
 
 export const evalsRoutes = new OpenAPIHono<AppEnv>();
 
+/** A per-scenario eval outcome, as stored in `skill_evals.results`. */
+const evalScenarioResultSchema = z.object({
+  name: z.string(),
+  prompt: z.string(),
+  baselineScore: z.number(),
+  withSkillScore: z.number(),
+  uplift: z.number(),
+});
+
+/** A row of `skill_evals`; timestamps serialize to ISO strings. */
+const skillEvalRowSchema = z.object({
+  id: z.string().uuid(),
+  skillId: z.string().uuid(),
+  versionId: z.string().uuid(),
+  status: z.string(),
+  scenarios: z.array(z.object({ name: z.string(), prompt: z.string() })).nullable(),
+  baselineScore: z.number().nullable(),
+  withSkillScore: z.number().nullable(),
+  uplift: z.number().nullable(),
+  results: z.array(evalScenarioResultSchema).nullable(),
+  error: z.string().nullable(),
+  createdAt: z.string(),
+  completedAt: z.string().nullable(),
+});
+
 const runEvalRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/skills/{repo}/versions/{versionId}/eval",
@@ -26,7 +51,17 @@ const runEvalRoute = createRoute({
     },
   },
   responses: {
-    201: { description: "Eval queued" },
+    201: {
+      content: { "application/json": { schema: z.object({ eval: skillEvalRowSchema }) } },
+      description: "Eval queued",
+    },
+    // The handler returns `queued.created ? 201 : 200`: when an eval for this
+    // version is already queued or running it reuses that one and answers 200.
+    // Undeclared, a generated client would type this branch as an error.
+    200: {
+      content: { "application/json": { schema: z.object({ eval: skillEvalRowSchema }) } },
+      description: "Eval already queued or running; the existing one is returned",
+    },
     ...errorResponses(),
   },
 });
@@ -86,7 +121,22 @@ const listEvalsRoute = createRoute({
     params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
   },
   responses: {
-    200: { description: "Eval history" },
+    200: {
+      content: {
+        "application/json": {
+          // The eval row joined to its version's semver/status, minus skillId.
+          schema: z.object({
+            items: z.array(
+              skillEvalRowSchema.omit({ skillId: true }).extend({
+                semver: z.string(),
+                versionStatus: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "Eval history",
+    },
     ...errorResponses(),
   },
 });
@@ -142,7 +192,10 @@ const getEvalRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Eval detail" },
+    200: {
+      content: { "application/json": { schema: z.object({ eval: skillEvalRowSchema }) } },
+      description: "Eval detail",
+    },
     ...errorResponses(),
   },
 });

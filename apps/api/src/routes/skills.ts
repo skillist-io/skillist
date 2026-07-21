@@ -40,6 +40,57 @@ const jsonError = (description: string) => ({
   description,
 });
 
+/** A finding from `scanSkillSecurity` (skill-format). */
+const securityIssueSchema = z.object({
+  severity: z.string(),
+  path: z.string(),
+  message: z.string(),
+  ruleId: z.string().optional(),
+});
+
+/**
+ * A scored check from `reviewSkillBundle`. `weight` is present on live review
+ * output but absent from the rows persisted before weighting was introduced,
+ * hence optional.
+ */
+const reviewCheckSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  passed: z.boolean(),
+  message: z.string(),
+  weight: z.number().optional(),
+});
+
+/** A row of `skill_versions`; timestamps serialize to ISO strings. */
+const skillVersionSchema = z.object({
+  id: z.string().uuid(),
+  skillId: z.string().uuid(),
+  status: z.string(),
+  semver: z.string(),
+  r2Prefix: z.string(),
+  kvEtag: z.string().nullable(),
+  qualityScore: z.number().nullable(),
+  impactScore: z.number().nullable(),
+  securityStatus: z.string().nullable(),
+  securityIssues: z.array(securityIssueSchema).nullable(),
+  reviewChecks: z.array(reviewCheckSchema).nullable(),
+  // Untyped jsonb: shape follows whatever plugin manifest the bundle shipped.
+  pluginManifest: z.unknown(),
+  parentVersionId: z.string().uuid().nullable(),
+  createdBy: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+/** Publish and rollback both resolve the same delivery-state summary. */
+const publishResultSchema = z.object({
+  etag: z.string(),
+  version: z.string(),
+  qualityScore: z.number(),
+  impactScore: z.number(),
+  securityStatus: z.string(),
+});
+
 const createSkillRoute = createRoute({
   method: "post",
   path: "/orgs/{orgId}/skills",
@@ -183,6 +234,13 @@ const uploadVersionRoute = createRoute({
             id: z.string().uuid(),
             semver: z.string(),
             status: z.string(),
+            // The upload auto-queues an eval (or reuses the in-flight one); the
+            // handler has always returned this, it was just undocumented.
+            eval: z.object({
+              evalId: z.string().uuid(),
+              status: z.string(),
+              created: z.boolean(),
+            }),
           }),
         },
       },
@@ -339,7 +397,10 @@ const listVersionsRoute = createRoute({
     params: z.object({ orgId: z.string().uuid(), repo: z.string() }),
   },
   responses: {
-    200: { description: "Version list" },
+    200: {
+      content: { "application/json": { schema: z.array(skillVersionSchema) } },
+      description: "Version list",
+    },
     ...errorResponses(),
   },
 });
@@ -380,17 +441,7 @@ const publishRoute = createRoute({
   },
   responses: {
     200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            etag: z.string(),
-            version: z.string(),
-            qualityScore: z.number(),
-            impactScore: z.number(),
-            securityStatus: z.string(),
-          }),
-        },
-      },
+      content: { "application/json": { schema: publishResultSchema } },
       description: "Published",
     },
     ...errorResponses(),
@@ -441,7 +492,10 @@ const rollbackRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Rolled back" },
+    200: {
+      content: { "application/json": { schema: publishResultSchema } },
+      description: "Rolled back",
+    },
     ...errorResponses(),
   },
 });
@@ -489,7 +543,16 @@ const getVersionFilesRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Version files" },
+    200: {
+      content: {
+        "application/json": {
+          // Bundle paths are arbitrary, so the map is keyed openly; values are
+          // the file contents as text.
+          schema: z.object({ files: z.record(z.string(), z.string()) }),
+        },
+      },
+      description: "Version files",
+    },
     ...errorResponses(),
   },
 });
@@ -538,7 +601,20 @@ const previewVersionRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Review and security preview" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            qualityScore: z.number(),
+            impactScore: z.number(),
+            securityStatus: z.string(),
+            reviewChecks: z.array(reviewCheckSchema),
+            securityIssues: z.array(securityIssueSchema),
+          }),
+        },
+      },
+      description: "Review and security preview",
+    },
     ...errorResponses(),
   },
 });

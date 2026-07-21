@@ -8,13 +8,22 @@ import {
   telemetryEvents,
 } from "@skillist/db/schema";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-import { errorResponses } from "../../lib/openapi";
+import { errorResponses, okSchema } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import { resolveUserId } from "../../lib/session";
 import { addDayBucket, buildDayBuckets, toDaySeries } from "../../lib/time-series";
-import type { AppEnv } from "./shared";
+import { type AppEnv, dayPointSchema, skillRunRowSchema } from "./shared";
 
 export const observabilityRoutes = new OpenAPIHono<AppEnv>();
+
+/** Per-skill install/activation totals, denormalized on `registry_entries`. */
+const bySkillSchema = z.array(
+  z.object({
+    skillRepo: z.string(),
+    installCount: z.number(),
+    activationCount: z.number(),
+  }),
+);
 
 const auditRoute = createRoute({
   method: "get",
@@ -27,7 +36,29 @@ const auditRoute = createRoute({
     query: z.object({ limit: z.coerce.number().int().min(1).max(100).default(50) }),
   },
   responses: {
-    200: { description: "Audit log" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            items: z.array(
+              z.object({
+                id: z.string().uuid(),
+                orgId: z.string().uuid().nullable(),
+                actorId: z.string().nullable(),
+                actorType: z.string(),
+                action: z.string(),
+                resourceType: z.string(),
+                resourceId: z.string().nullable(),
+                // Per-action detail bag; the keys differ by `action`.
+                metadata: z.record(z.string(), z.unknown()).nullable(),
+                createdAt: z.string(),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "Audit log",
+    },
     ...errorResponses({ notFound: false }),
   },
 });
@@ -58,7 +89,10 @@ const telemetryIngestRoute = createRoute({
     body: { content: { "application/json": { schema: telemetryEventSchema } } },
   },
   responses: {
-    201: { description: "Recorded" },
+    201: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Recorded",
+    },
     ...errorResponses({ notFound: false }),
   },
 });
@@ -109,7 +143,19 @@ const orgTelemetryRoute = createRoute({
     query: z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }),
   },
   responses: {
-    200: { description: "Telemetry summary" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            events: z.number(),
+            installs: z.number(),
+            activations: z.number(),
+            bySkill: bySkillSchema,
+          }),
+        },
+      },
+      description: "Telemetry summary",
+    },
     ...errorResponses(),
   },
 });
@@ -176,7 +222,39 @@ const observabilityRoute = createRoute({
     query: z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }),
   },
   responses: {
-    200: { description: "Org observability" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            telemetry: z.object({
+              events: z.number(),
+              installs: z.number(),
+              activations: z.number(),
+              bySkill: bySkillSchema,
+            }),
+            runs: z.object({
+              total: z.number(),
+              finished: z.number(),
+              succeeded: z.number(),
+              failed: z.number(),
+              // Null rather than 0 when nothing has finished, so a client can
+              // tell "no data" from "everything failed".
+              successRate: z.number().nullable(),
+              avgDurationMs: z.number(),
+              byRuntime: z.record(z.string(), z.number()),
+              recent: z.array(skillRunRowSchema),
+            }),
+            series: z.object({
+              runs: z.array(dayPointSchema),
+              successes: z.array(dayPointSchema),
+              installs: z.array(dayPointSchema),
+              activations: z.array(dayPointSchema),
+            }),
+          }),
+        },
+      },
+      description: "Org observability",
+    },
     ...errorResponses(),
   },
 });

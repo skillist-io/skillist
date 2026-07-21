@@ -14,7 +14,41 @@ const coverageRoute = createRoute({
   summary: "Get required-skill coverage and drift for an organization",
   request: { params: z.object({ orgId: z.string().uuid() }) },
   responses: {
-    200: { description: "Required-skill coverage across the three layers" },
+    200: {
+      content: {
+        "application/json": {
+          // Mirrors CoverageResult in lib/coverage.ts.
+          schema: z.object({
+            summary: z.object({
+              required: z.number(),
+              published: z.number(),
+              covered: z.number(),
+              activated: z.number(),
+              drifted: z.number(),
+              coveragePct: z.number(),
+            }),
+            skills: z.array(
+              z.object({
+                ref: z.string(),
+                orgSlug: z.string(),
+                skillRepo: z.string(),
+                published: z.boolean(),
+                inventoryCount: z.number(),
+                projectCount: z.number(),
+                covered: z.boolean(),
+                installs: z.number(),
+                activations: z.number(),
+                activated: z.boolean(),
+                lastActivatedAt: z.string().nullable(),
+              }),
+            ),
+            /** Required "org/repo" refs that are published but not covered. */
+            drift: z.array(z.string()),
+          }),
+        },
+      },
+      description: "Required-skill coverage across the three layers",
+    },
     ...errorResponses({ validates: false, notFound: false }),
   },
 });

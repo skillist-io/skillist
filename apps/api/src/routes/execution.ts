@@ -41,6 +41,29 @@ async function loadOrgSkill(db: WorkerDb, orgSlug: string, repo: string) {
 
 const orgRepoParams = z.object({ org: z.string(), repo: z.string() });
 
+/** A row of `skill_runs`; timestamps serialize to ISO strings. */
+const skillRunSchema = z.object({
+  id: z.string().uuid(),
+  skillId: z.string().uuid(),
+  versionId: z.string().uuid(),
+  orgSlug: z.string(),
+  skillRepo: z.string(),
+  scriptPath: z.string(),
+  runtime: z.string(),
+  status: z.string(),
+  args: z.array(z.string()).nullable(),
+  targetUrl: z.string().nullable(),
+  stdout: z.string().nullable(),
+  stderr: z.string().nullable(),
+  exitCode: z.number().nullable(),
+  durationMs: z.number().nullable(),
+  error: z.string().nullable(),
+  actorId: z.string().nullable(),
+  actorType: z.string().nullable(),
+  createdAt: z.string(),
+  completedAt: z.string().nullable(),
+});
+
 const listScriptsRoute = createRoute({
   method: "get",
   path: "/{org}/{repo}/scripts",
@@ -49,7 +72,18 @@ const listScriptsRoute = createRoute({
   summary: "List a published skill's runnable scripts",
   request: { params: orgRepoParams },
   responses: {
-    200: { description: "Runnable scripts" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            runtime: z.string(),
+            /** Allowlisted `scripts/*` paths in the published bundle. */
+            scripts: z.array(z.string()),
+          }),
+        },
+      },
+      description: "Runnable scripts",
+    },
     ...errorResponses(),
   },
 });
@@ -89,7 +123,26 @@ const runScriptRoute = createRoute({
     body: { content: { "application/json": { schema: runSkillSchema } } },
   },
   responses: {
-    200: { description: "Execution result" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            runId: z.string().uuid(),
+            status: z.enum(["completed", "failed"]),
+            stdout: z.string(),
+            stderr: z.string(),
+            exitCode: z.number(),
+            durationMs: z.number(),
+            runtime: z.string(),
+          }),
+        },
+        // With `stream: true` the same 200 is an event stream instead: `output`
+        // frames while the script runs, then a `done` frame carrying the JSON
+        // result above (or an `error` frame).
+        "text/event-stream": { schema: z.string() },
+      },
+      description: "Execution result",
+    },
     ...errorResponses(),
   },
 });
@@ -210,7 +263,10 @@ const listRunsRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Run history" },
+    200: {
+      content: { "application/json": { schema: z.object({ items: z.array(skillRunSchema) }) } },
+      description: "Run history",
+    },
     ...errorResponses(),
   },
 });
@@ -250,7 +306,10 @@ const getRunRoute = createRoute({
   summary: "Get a single skill run's detail",
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
-    200: { description: "Run detail" },
+    200: {
+      content: { "application/json": { schema: skillRunSchema } },
+      description: "Run detail",
+    },
     ...errorResponses(),
   },
 });

@@ -21,7 +21,7 @@ import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
-import { errorResponses } from "../lib/openapi";
+import { errorResponses, okSchema } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 import { canWriteProject, requireProjectAccess } from "../lib/project-access";
 
@@ -55,6 +55,35 @@ function isUniqueViolation(err: unknown): boolean {
   if (cause && cause !== err) return isUniqueViolation(cause);
   return false;
 }
+
+/** A row of `projects`; timestamps serialize to ISO strings. */
+const projectRowSchema = z.object({
+  id: z.string().uuid(),
+  orgId: z.string().uuid(),
+  slug: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  visibility: z.enum(["private", "shared"]),
+  createdBy: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+/** A row of `project_items`. */
+const projectItemRowSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  kind: z.enum(["skill", "external"]),
+  skillId: z.string().uuid().nullable(),
+  externalUrl: z.string().nullable(),
+  externalName: z.string().nullable(),
+  path: z.string(),
+  position: z.number(),
+  label: z.string().nullable(),
+  note: z.string().nullable(),
+  addedBy: z.string().nullable(),
+  createdAt: z.string(),
+});
 
 // ---------------------------------------------------------------------------
 // 1. List org projects
@@ -257,7 +286,53 @@ const getProjectRoute = createRoute({
   summary: "Get a project and its resolved items",
   request: { params: projectParam },
   responses: {
-    200: { description: "Project with resolved items" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            id: z.string().uuid(),
+            slug: z.string(),
+            name: z.string(),
+            description: z.string().nullable(),
+            visibility: z.enum(["private", "shared"]),
+            role: z.enum(["viewer", "editor", "admin"]).nullable(),
+            canWrite: z.boolean(),
+            canManage: z.boolean(),
+            // Two shapes, discriminated by `kind`. The skill branch's fields
+            // come from LEFT JOINs, so they are nullable even for a skill item
+            // whose skill row was since deleted.
+            items: z.array(
+              z.union([
+                z.object({
+                  id: z.string().uuid(),
+                  kind: z.literal("skill"),
+                  path: z.string(),
+                  position: z.number(),
+                  label: z.string().nullable(),
+                  note: z.string().nullable(),
+                  skillId: z.string().uuid().nullable(),
+                  orgSlug: z.string().nullable(),
+                  repo: z.string().nullable(),
+                  visibility: z.string().nullable(),
+                  description: z.string().nullable(),
+                }),
+                z.object({
+                  id: z.string().uuid(),
+                  kind: z.literal("external"),
+                  path: z.string(),
+                  position: z.number(),
+                  label: z.string().nullable(),
+                  note: z.string().nullable(),
+                  externalUrl: z.string().nullable(),
+                  externalName: z.string().nullable(),
+                }),
+              ]),
+            ),
+          }),
+        },
+      },
+      description: "Project with resolved items",
+    },
     ...errorResponses(),
   },
 });
@@ -355,7 +430,10 @@ const updateProjectRoute = createRoute({
     body: { content: { "application/json": { schema: updateProjectSchema } } },
   },
   responses: {
-    200: { description: "Project updated" },
+    200: {
+      content: { "application/json": { schema: projectRowSchema } },
+      description: "Project updated",
+    },
     ...errorResponses(),
   },
 });
@@ -398,7 +476,10 @@ const deleteProjectRoute = createRoute({
   summary: "Delete a project and its items",
   request: { params: projectParam },
   responses: {
-    200: { description: "Project deleted" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Project deleted",
+    },
     ...errorResponses(),
   },
 });
@@ -502,7 +583,10 @@ const updateItemRoute = createRoute({
     body: { content: { "application/json": { schema: updateProjectItemSchema } } },
   },
   responses: {
-    200: { description: "Item updated" },
+    200: {
+      content: { "application/json": { schema: projectItemRowSchema } },
+      description: "Item updated",
+    },
     ...errorResponses(),
   },
 });
@@ -556,7 +640,10 @@ const deleteItemRoute = createRoute({
   summary: "Remove an item from a project",
   request: { params: itemParam },
   responses: {
-    200: { description: "Item removed" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Item removed",
+    },
     ...errorResponses(),
   },
 });
@@ -719,7 +806,10 @@ const updateMemberRoute = createRoute({
     body: { content: { "application/json": { schema: updateProjectMemberSchema } } },
   },
   responses: {
-    200: { description: "Member updated" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Member updated",
+    },
     ...errorResponses({ conflict: true }),
   },
 });
@@ -773,7 +863,10 @@ const deleteMemberRoute = createRoute({
   summary: "Remove a member from a project",
   request: { params: memberParam },
   responses: {
-    200: { description: "Member removed" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Member removed",
+    },
     ...errorResponses({ conflict: true }),
   },
 });

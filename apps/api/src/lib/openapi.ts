@@ -20,6 +20,13 @@ export const internalErrorSchema = z.object({
   correlationId: z.string().optional(),
 });
 
+/**
+ * Body of operations whose only meaningful output is "it worked". Handlers
+ * return a literal `{ ok: true }`, but the field is typed as a boolean so a
+ * generated client models it as a normal field rather than a constant.
+ */
+export const okSchema = z.object({ ok: z.boolean() });
+
 function json(schema: typeof errorSchema | typeof internalErrorSchema, description: string) {
   return { description, content: { "application/json": { schema } } };
 }
