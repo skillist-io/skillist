@@ -143,9 +143,13 @@ app.use("*", async (c, next) => {
   });
 });
 
-app.get("/health", (c) =>
-  c.json({
-    status: "ok",
+// `?deep=1` actually touches Postgres, KV, and R2 and returns 503 when any of
+// them is down. The default shallow response reports static config only, so it
+// answered "ok" with a dead database behind it — point uptime monitoring at the
+// deep variant.
+app.get("/health", async (c) => {
+  const base = {
+    status: "ok" as const,
     service: "skillist-api",
     ts: Date.now(),
     mcp: mcpServerInfo(c.env.BETTER_AUTH_URL),
@@ -154,8 +158,19 @@ app.get("/health", (c) =>
       google: Boolean(c.env.GOOGLE_CLIENT_ID && c.env.GOOGLE_CLIENT_SECRET),
       mcpOAuth: true,
     },
-  }),
-);
+  };
+
+  if (c.req.query("deep") !== "1") return c.json(base);
+
+  const { checkDependencies } = await import("./lib/health");
+  const deep = await checkDependencies(c.env);
+  // 503 so a monitor treats a degraded dependency as an outage without having
+  // to parse the body.
+  return c.json(
+    { ...base, status: deep.status, checks: deep.checks },
+    deep.status === "ok" ? 200 : 503,
+  );
+});
 
 // Better Auth handler.
 //
@@ -370,6 +385,15 @@ export default {
   },
 
   async queue(batch: MessageBatch<AiJobMessage | SyncQueueMessage>, env: Env): Promise<void> {
+    // Dead-letter queues were declared but nothing consumed them, so a poison
+    // message landed in a queue no code and no alert ever looked at. Draining
+    // them here turns silent accumulation into a loud, greppable log line and a
+    // durable audit row.
+    if (batch.queue.endsWith("-dlq")) {
+      await handleDeadLetterBatch(env, batch);
+      return;
+    }
+
     if (batch.queue === SYNC_QUEUE_NAME) {
       for (const message of batch.messages) {
         try {
@@ -428,6 +452,68 @@ async function runDailyRetention(env: Env): Promise<void> {
   } finally {
     closeWorkerDb(db);
   }
+}
+
+/**
+ * Drains a dead-letter queue.
+ *
+ * A message only lands here after exhausting its retries, so it is not
+ * retriable — the job is to make it visible and stop it circulating. Each is
+ * logged with its body and written to the audit log, then acked; leaving it
+ * unacked would just cycle it forever.
+ *
+ * Point a Cloudflare notification at `msg:"dead_letter"` in Workers Logs, or at
+ * the DLQ depth metric, to be told rather than having to look.
+ */
+async function handleDeadLetterBatch(
+  env: Env,
+  batch: MessageBatch<AiJobMessage | SyncQueueMessage>,
+): Promise<void> {
+  for (const message of batch.messages) {
+    console.error(
+      JSON.stringify({
+        msg: "dead_letter",
+        queue: batch.queue,
+        messageId: message.id,
+        attempts: message.attempts,
+        body: message.body,
+      }),
+    );
+  }
+
+  const db = createWorkerDb(env);
+  try {
+    const { logAudit } = await import("./lib/audit");
+    for (const message of batch.messages) {
+      await logAudit(db, {
+        orgId: null,
+        actorId: null,
+        actorType: "system",
+        action: "queue.dead_letter",
+        resourceType: "queue_message",
+        resourceId: message.id,
+        metadata: {
+          queue: batch.queue,
+          attempts: message.attempts,
+          body: message.body as Record<string, unknown>,
+        },
+      });
+    }
+  } catch (err) {
+    // Never rethrow: failing here would leave the message unacked and cycling.
+    // The console.error above is already durable in Workers Logs.
+    console.error(
+      JSON.stringify({
+        msg: "dead_letter_audit_failed",
+        queue: batch.queue,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  } finally {
+    closeWorkerDb(db);
+  }
+
+  for (const message of batch.messages) message.ack();
 }
 
 async function handleAiJobBatch(

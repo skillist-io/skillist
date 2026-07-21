@@ -1,0 +1,34 @@
+version: 2
+
+# There was no dependency-vulnerability gate at all: no Dependabot, no Renovate,
+# no `pnpm audit` in CI. The Worker runtime pulls better-auth, hono, the MCP SDK,
+# and postgres on `^` ranges, and CI holds Cloudflare deploy and npm publish
+# tokens — so a compromised transitive dependency is a credible path to both.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    # Grouped so a quiet week is one reviewable PR rather than fifteen. Security
+    # advisories are always raised separately and immediately by Dependabot,
+    # regardless of this schedule.
+    groups:
+      production:
+        dependency-type: production
+        update-types: [minor, patch]
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+    # Majors are deliberately excluded from grouping: they need reading, and
+    # burying one in a group of twelve is how it gets merged unread.
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        update-types: [minor, patch]

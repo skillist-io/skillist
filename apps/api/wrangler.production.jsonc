@@ -178,6 +178,19 @@
         "dead_letter_queue": "skillist-ai-jobs-dlq"
       },
       {
+        // Drained by handleDeadLetterBatch: logs each message and writes an
+        // audit row, then acks. Declared but unconsumed, these silently
+        // accumulated poison messages nobody would ever see.
+        "queue": "skillist-ai-jobs-dlq",
+        "max_batch_size": 10,
+        "max_retries": 1
+      },
+      {
+        "queue": "skillist-sync-jobs-dlq",
+        "max_batch_size": 10,
+        "max_retries": 1
+      },
+      {
         "queue": "skillist-sync-jobs",
         "max_batch_size": 5,
         "max_retries": 5,
