@@ -1,6 +1,9 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import {
+  aiJobStatusSchema,
   approveFeedbackSchema,
+  feedbackSourceSchema,
+  feedbackStatusSchema,
   rejectFeedbackSchema,
   submitFeedbackSchema,
 } from "@skillist/contracts";
@@ -9,7 +12,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { AiJobMessage, Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
-import { errorResponses } from "../lib/openapi";
+import { errorResponses, okSchema } from "../lib/openapi";
 import { requireOrgAccess, requireOrgRole } from "../lib/org-access";
 import { resolveUserId } from "../lib/session";
 
@@ -19,6 +22,34 @@ type AppEnv = {
 };
 
 export const feedbackRoutes = new OpenAPIHono<AppEnv>();
+
+/** A row of `feedback`; timestamps serialize to ISO strings. */
+const feedbackRowSchema = z.object({
+  id: z.string().uuid(),
+  skillId: z.string().uuid(),
+  targetVersionId: z.string().uuid(),
+  source: feedbackSourceSchema,
+  body: z.string(),
+  suggestedPatch: z.string().nullable(),
+  status: feedbackStatusSchema,
+  submittedBy: z.string().nullable(),
+  apiKeyId: z.string().uuid().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+/** A row of `ai_jobs`. */
+const aiJobRowSchema = z.object({
+  id: z.string().uuid(),
+  feedbackId: z.string().uuid(),
+  status: aiJobStatusSchema,
+  model: z.string().nullable(),
+  gatewayId: z.string().nullable(),
+  resultDraftVersionId: z.string().uuid().nullable(),
+  error: z.string().nullable(),
+  createdAt: z.string(),
+  completedAt: z.string().nullable(),
+});
 
 const submitFeedbackRoute = createRoute({
   method: "post",
@@ -33,7 +64,10 @@ const submitFeedbackRoute = createRoute({
     },
   },
   responses: {
-    201: { description: "Feedback submitted" },
+    201: {
+      content: { "application/json": { schema: feedbackRowSchema } },
+      description: "Feedback submitted",
+    },
     ...errorResponses(),
   },
 });
@@ -96,7 +130,29 @@ const listFeedbackRoute = createRoute({
     }),
   },
   responses: {
-    200: { description: "Feedback list" },
+    200: {
+      content: {
+        "application/json": {
+          // Each row carries its most recent AI drafting job (if any), plus the
+          // semver of the draft that job produced.
+          schema: z.array(
+            feedbackRowSchema.extend({
+              aiJob: z
+                .object({
+                  id: z.string().uuid(),
+                  status: aiJobStatusSchema,
+                  resultDraftVersionId: z.string().uuid().nullable(),
+                  error: z.string().nullable(),
+                  completedAt: z.string().nullable(),
+                  draftSemver: z.string().nullable(),
+                })
+                .nullable(),
+            }),
+          ),
+        },
+      },
+      description: "Feedback list",
+    },
     ...errorResponses(),
   },
 });
@@ -178,7 +234,10 @@ const approveRoute = createRoute({
     },
   },
   responses: {
-    200: { description: "Approved" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Approved",
+    },
     ...errorResponses(),
   },
 });
@@ -249,7 +308,10 @@ const rejectRoute = createRoute({
     },
   },
   responses: {
-    200: { description: "Rejected" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Rejected",
+    },
     ...errorResponses(),
   },
 });
@@ -284,7 +346,10 @@ const suggestRoute = createRoute({
   summary: "Queue an AI-drafted skill improvement from a feedback item",
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
-    202: { description: "AI job queued" },
+    202: {
+      content: { "application/json": { schema: z.object({ jobId: z.string().uuid() }) } },
+      description: "AI job queued",
+    },
     ...errorResponses(),
   },
 });
@@ -338,7 +403,10 @@ const getAiJobRoute = createRoute({
   summary: "Get the status of an AI drafting job",
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
-    200: { description: "AI job status" },
+    200: {
+      content: { "application/json": { schema: aiJobRowSchema } },
+      description: "AI job status",
+    },
     ...errorResponses(),
   },
 });

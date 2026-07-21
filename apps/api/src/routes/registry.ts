@@ -15,7 +15,7 @@ import type { Env } from "../env";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import { closeWorkerDb, createWorkerDbCached, type WorkerDb } from "../lib/db";
-import { errorResponses } from "../lib/openapi";
+import { errorResponses, okSchema } from "../lib/openapi";
 import { listRegistry } from "../lib/registry-service";
 import { resolveUserId } from "../lib/session";
 import { addDayBucket, buildDayBuckets, toDaySeries } from "../lib/time-series";
@@ -28,6 +28,37 @@ type AppEnv = {
 };
 
 export const registryRoutes = new OpenAPIHono<AppEnv>();
+
+/** A row of `registry_entries`; timestamps serialize to ISO strings. */
+const registryEntrySchema = z.object({
+  id: z.string().uuid(),
+  skillId: z.string().uuid(),
+  orgSlug: z.string(),
+  skillRepo: z.string(),
+  name: z.string(),
+  description: z.string(),
+  latestVersion: z.string().nullable(),
+  qualityScore: z.number().nullable(),
+  impactScore: z.number().nullable(),
+  securityStatus: z.string().nullable(),
+  installCount: z.number(),
+  activationCount: z.number(),
+  stars: z.number(),
+  category: z.string().nullable(),
+  tags: z.array(z.string()),
+  compatibleAgents: z.array(z.string()),
+  sourceType: z.string(),
+  upstreamRepo: z.string().nullable(),
+  upstreamUrl: z.string().nullable(),
+  lastReviewedAt: z.string().nullable(),
+  updatedAt: z.string(),
+});
+
+/** One point of a per-day telemetry series (`lib/time-series.ts`). */
+const dayPointSchema = z.object({ date: z.string(), count: z.number() });
+
+/** Star/unstar both echo the resulting state so a client can update in place. */
+const starStateSchema = z.object({ ok: z.boolean(), starred: z.boolean() });
 
 const listRegistryRoute = createRoute({
   method: "get",
@@ -97,7 +128,19 @@ const registryFacetsRoute = createRoute({
   // Public browse: no credentials. Overrides the document-level default.
   security: [],
   responses: {
-    200: { description: "Registry filter facets" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            categories: z.array(z.string()),
+            tags: z.array(z.string()),
+            agents: z.array(z.string()),
+            sourceTypes: z.array(z.string()),
+          }),
+        },
+      },
+      description: "Registry filter facets",
+    },
     ...errorResponses({ validates: false, notFound: false, isPublic: true }),
   },
 });
@@ -159,7 +202,31 @@ const getRegistrySkillRoute = createRoute({
     params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: {
-    200: { description: "Registry skill detail" },
+    200: {
+      content: {
+        "application/json": {
+          schema: registryEntrySchema.extend({
+            runtime: z.string().nullable(),
+            starred: z.boolean(),
+            cliInstall: z.string(),
+            installCommand: z.string(),
+            // Untyped jsonb straight off the published version.
+            pluginManifest: z.unknown(),
+            // Latest completed eval for the published version, when there is one.
+            eval: z
+              .object({
+                status: z.string(),
+                uplift: z.number().nullable(),
+                baselineScore: z.number().nullable(),
+                withSkillScore: z.number().nullable(),
+                completedAt: z.string().nullable(),
+              })
+              .nullable(),
+          }),
+        },
+      },
+      description: "Registry skill detail",
+    },
     ...errorResponses({ isPublic: true }),
   },
 });
@@ -246,7 +313,10 @@ const starSkillRoute = createRoute({
     params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: {
-    201: { description: "Starred" },
+    201: {
+      content: { "application/json": { schema: starStateSchema } },
+      description: "Starred",
+    },
     ...errorResponses(),
   },
 });
@@ -299,7 +369,10 @@ const unstarSkillRoute = createRoute({
     params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: {
-    200: { description: "Unstarred" },
+    200: {
+      content: { "application/json": { schema: starStateSchema } },
+      description: "Unstarred",
+    },
     ...errorResponses(),
   },
 });
@@ -347,7 +420,21 @@ const registryAnalyticsRoute = createRoute({
     query: z.object({ days: z.coerce.number().min(1).max(90).default(30) }),
   },
   responses: {
-    200: { description: "Per-skill telemetry time series" },
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            installs: z.number(),
+            activations: z.number(),
+            series: z.object({
+              installs: z.array(dayPointSchema),
+              activations: z.array(dayPointSchema),
+            }),
+          }),
+        },
+      },
+      description: "Per-skill telemetry time series",
+    },
     ...errorResponses(),
   },
 });
@@ -417,7 +504,10 @@ const subscribeRoute = createRoute({
     params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: {
-    201: { description: "Subscribed" },
+    201: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Subscribed",
+    },
     ...errorResponses(),
   },
 });
@@ -467,7 +557,10 @@ const updateVisibilityRoute = createRoute({
     },
   },
   responses: {
-    200: { description: "Visibility updated" },
+    200: {
+      content: { "application/json": { schema: okSchema } },
+      description: "Visibility updated",
+    },
     ...errorResponses(),
   },
 });

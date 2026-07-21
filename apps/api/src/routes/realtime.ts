@@ -84,7 +84,12 @@ const sseRoute = createRoute({
     params: z.object({ org: z.string(), repo: z.string() }),
   },
   responses: {
-    200: { description: "SSE stream" },
+    200: {
+      // An event stream, not a single JSON body: each `data:` frame carries a
+      // SkillPublishedEvent (see @skillist/contracts).
+      content: { "text/event-stream": { schema: z.string() } },
+      description: "SSE stream",
+    },
     ...errorResponses(),
   },
 });
