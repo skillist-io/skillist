@@ -13,6 +13,7 @@ import {
   getPublishedBundle,
   getRunnableScriptsFromBundle,
   runSkillScript,
+  SkillExecutionBlockedError,
 } from "../lib/skill-runner";
 
 type AppEnv = {
@@ -253,6 +254,9 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
   } catch (err) {
     if (err instanceof RunQuotaExceededError) {
       return c.json({ error: err.message }, 429);
+    }
+    if (err instanceof SkillExecutionBlockedError) {
+      return c.json({ error: err.message }, 403);
     }
     return c.json({ error: err instanceof Error ? err.message : "Execution failed" }, 400);
   }
