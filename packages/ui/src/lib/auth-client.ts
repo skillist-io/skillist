@@ -16,15 +16,31 @@ export const authClient = createAuthClient({
 
 export const { signIn, signOut, useSession } = authClient;
 
-function resolveClientRedirect(path: string): string {
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
-  const normalized = path.startsWith("/") ? path : `/${path}`;
+/**
+ * Resolve a post-auth redirect to a SAME-SITE absolute URL.
+ *
+ * A `?redirect=` param is attacker-controllable, so anything that isn't a plain
+ * same-site path — absolute URLs (`https://evil`), protocol-relative (`//evil`),
+ * or backslash host-confusion (`/\evil`, `/%5Cevil`) — is dropped to a safe
+ * default. Otherwise sign-in could bounce a victim to a credential-harvest page.
+ */
+function resolveClientRedirect(path: string, fallback = "/dashboard"): string {
+  const safePath = isSameSitePath(path) ? path : fallback;
   if (typeof window === "undefined") {
-    return normalized;
+    return safePath;
   }
-  return `${window.location.origin}${normalized}`;
+  return `${window.location.origin}${safePath}`;
+}
+
+/** True only for a same-origin absolute path (no scheme, host, or `//` tricks). */
+export function isSameSitePath(path: string): boolean {
+  if (typeof path !== "string" || path.length === 0) return false;
+  // Must be rooted, and must not start a scheme-relative or backslash-escaped
+  // authority. Reject any control chars that browsers may strip before parsing.
+  if (!path.startsWith("/")) return false;
+  if (path.startsWith("//") || path.startsWith("/\\")) return false;
+  if (/^\/%2[fF]/.test(path) || /^\/%5[cC]/.test(path)) return false;
+  return true;
 }
 
 /**

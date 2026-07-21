@@ -1,4 +1,5 @@
 import {
+  isSameSitePath,
   sendMagicLink,
   signInWithGitHub,
   signInWithGoogle,
@@ -14,7 +15,13 @@ import { authErrorMessage } from "@/lib/auth-errors";
 
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({
-    redirect: z.string().optional(),
+    // Sanitize at the boundary so every downstream use (router navigate + the
+    // sign-in callbackURLs) is same-site only. A crafted ?redirect=https://evil
+    // otherwise bounces a just-signed-in user to a phishing page.
+    redirect: z
+      .string()
+      .optional()
+      .transform((v) => (v && isSameSitePath(v) ? v : undefined)),
     error: z.string().optional(),
     error_description: z.string().optional(),
   }),

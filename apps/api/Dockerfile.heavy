@@ -1,4 +1,8 @@
-FROM docker.io/cloudflare/sandbox:0.7.0
+# Base image tag MUST match the @cloudflare/sandbox SDK version in
+# apps/api/package.json — a mismatch breaks the DO<->container control
+# protocol. Bump both together, and rebuild periodically so base-image CVEs
+# don't accumulate on this untrusted-code-execution surface.
+FROM docker.io/cloudflare/sandbox:0.12.3
 
 # Heavy runtime: wrangler CLI, git, extra tooling for infrastructure skills
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -18,11 +18,37 @@ export interface Env {
   API: ServiceFetcher;
 }
 
+/**
+ * Security headers for the console's own asset responses (the API proxy branch
+ * is skipped — the API worker sets its own via `secureHeaders()`). Scoped to
+ * directives that harden without breaking script/style loading: no
+ * `default-src`/`script-src`, because the shell has an inline theme-bootstrap
+ * script whose hash can't be verified without a build. `frame-ancestors 'none'`
+ * (clickjacking on an authenticated surface), `object-src`, `base-uri`, and
+ * `form-action` are all safe here. A strict script-src is a follow-up.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  "content-security-policy":
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+  "x-frame-options": "DENY",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+};
+
+function withSecurityHeaders(res: Response): Response {
+  const headers = new Headers(res.headers);
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    headers.set(key, value);
+  }
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     // Same-origin API proxy so the SPA can use relative /v1 and /api URLs.
-    // Apex delivery paths cannot be zone-routed (no mid-path wildcards).
+    // Apex delivery paths cannot be zone-routed (no mid-path wildcards). The API
+    // worker sets its own security headers, so this branch returns untouched.
     if (
       url.pathname.startsWith("/v1/") ||
       url.pathname.startsWith("/api/") ||
@@ -32,6 +58,6 @@ export default {
     ) {
       return env.API.fetch(request);
     }
-    return env.ASSETS.fetch(request);
+    return withSecurityHeaders(await env.ASSETS.fetch(request));
   },
 };

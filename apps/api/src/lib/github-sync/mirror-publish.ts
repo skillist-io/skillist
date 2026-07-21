@@ -43,7 +43,12 @@ import { archiveRemovedMirrorSkills } from "./mirror-archive";
 const MIRROR_ORG_POLICY = {
   minQualityScore: 0,
   requireSecurityPass: false,
-  blockOnAdvisory: false,
+  // Mirrored skills are UNTRUSTED external content published straight to the
+  // public registry and served to agents. Block on advisory (medium-severity)
+  // findings too — remote-content-piped-to-shell, external executable URLs,
+  // etc. — not just hard failures. Native (first-party) publishing keeps its
+  // own, more permissive policy; this stricter bar applies only to mirrors.
+  blockOnAdvisory: true,
   requireEval: false,
 } as const;
 
@@ -401,9 +406,12 @@ export async function mirrorPublishSkill(
   const review = reviewSkillBundle(bundle, input.skillSlug);
   const impactScore = estimateImpactScore(review);
   const security = scanSkillSecurity(bundle);
-  if (security.status === "fail") {
+  const blockedByPolicy =
+    security.status === "fail" ||
+    (MIRROR_ORG_POLICY.blockOnAdvisory && security.status === "advisory");
+  if (blockedByPolicy) {
     throw new Error(
-      `Security scan failed for ${org.slug}/${input.skillSlug}: ${security.issues.map((i) => i.message).join("; ")}`,
+      `Security scan ${security.status} for ${org.slug}/${input.skillSlug}: ${security.issues.map((i) => i.message).join("; ")}`,
     );
   }
 
