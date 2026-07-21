@@ -11,7 +11,7 @@
 #   review:
 #     runs-on: ubuntu-latest
 #     steps:
-#       - uses: actions/checkout@v4
+#       - uses: actions/checkout@v7
 #       - uses: blakebauman/skillist/.github/actions/skillist-review@main
 #         with:
 #           path: skills/my-skill
@@ -32,7 +32,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/skillist-review
         with:
           path: ${{ inputs.path }}
