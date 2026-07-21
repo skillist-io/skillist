@@ -1,10 +1,12 @@
 import { getSandbox } from "@cloudflare/sandbox";
+import type { ExecutionPolicy } from "@skillist/contracts";
 import { organizations, skillRuns, skills, skillVersions } from "@skillist/db/schema";
 import { and, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "./audit";
 import type { WorkerDb } from "./db";
 import { downloadBundleFromR2, listBundlePaths } from "./r2";
+import { reserveRunSlot } from "./run-quota";
 import {
   buildExecCommand,
   CONTAINER_TIMEOUT_MS,
@@ -27,6 +29,10 @@ export type RunSkillInput = {
   onOutput?: (stream: "stdout" | "stderr", chunk: string) => void;
   /** Aborted when the client disconnects, so a hosted run doesn't outlive its reader. */
   signal?: AbortSignal;
+  /** Owner org's execution policy, used for the atomic quota reservation. */
+  executionPolicy?: ExecutionPolicy | null;
+  /** True for unauthenticated public-skill runs, for the anonymous sub-limit. */
+  isAnonymous?: boolean;
 };
 
 export type RunSkillResult = {
@@ -151,9 +157,16 @@ export async function runSkillScript(
     throw new Error("This skill has no hosted runtime — install and run locally");
   }
 
-  const [runRow] = await db
-    .insert(skillRuns)
-    .values({
+  // Atomically re-check quota and insert the reservation row in one advisory-
+  // locked transaction. This is the authoritative gate; the pre-check in the
+  // route handler only rejects the obvious cases early. Throws
+  // RunQuotaExceededError when over limit, which the caller maps to a 429.
+  const runRow = await reserveRunSlot(db, {
+    orgId: skill.orgId,
+    policy: input.executionPolicy,
+    runtime,
+    isAnonymous: input.isAnonymous ?? false,
+    values: {
       skillId: skill.id,
       versionId: version.id,
       orgSlug,
@@ -165,10 +178,10 @@ export async function runSkillScript(
       targetUrl: validatedUrl,
       actorId: input.actorId ?? null,
       actorType: input.actorType ?? "system",
-    })
-    .returning();
+    },
+  });
 
-  const runId = runRow!.id;
+  const runId = runRow.id;
   const sandboxId = `run-${runId}`;
   const sandboxBinding = runtime === "container" ? env.SANDBOX_HEAVY : env.SANDBOX;
   const sandbox = getSandbox(sandboxBinding as never, sandboxId) as unknown as SandboxHandle;

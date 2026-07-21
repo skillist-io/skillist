@@ -109,6 +109,46 @@ observabilityRoutes.openapi(telemetryIngestRoute, async (c) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
+  // The (org, skill) must resolve to a real registry entry. A `registry_entries`
+  // row exists only for a PUBLIC, published skill (written under `if (isPublic)`
+  // at publish time), so this both rejects events for arbitrary/private skills
+  // and prevents an attacker from writing unbounded telemetry rows for strings
+  // that name nothing. Counters can only move for skills that are actually live.
+  const [entry] = await c.var.db
+    .select({ id: registryEntries.id })
+    .from(registryEntries)
+    .where(
+      and(eq(registryEntries.orgSlug, body.orgSlug), eq(registryEntries.skillRepo, body.skillRepo)),
+    )
+    .limit(1);
+  if (!entry) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  // Deduplicate the ranking signal per (actor, skill, eventType, UTC day): one
+  // actor looping this endpoint can move a counter by at most +1/day/skill, so
+  // it can't be spun to manipulate registry standing. The raw event row is still
+  // recorded every call for analytics; only the denormalized counter is gated.
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  // One of userId / apiKeyId is non-null here (enforced by the 401 above).
+  const actorFilter = userId
+    ? eq(telemetryEvents.userId, userId)
+    : eq(telemetryEvents.apiKeyId, apiKeyId ?? "");
+  const [priorToday] = await c.var.db
+    .select({ id: telemetryEvents.id })
+    .from(telemetryEvents)
+    .where(
+      and(
+        eq(telemetryEvents.orgSlug, body.orgSlug),
+        eq(telemetryEvents.skillRepo, body.skillRepo),
+        eq(telemetryEvents.eventType, body.eventType),
+        gte(telemetryEvents.createdAt, startOfDay),
+        actorFilter,
+      ),
+    )
+    .limit(1);
+
   await c.var.db.insert(telemetryEvents).values({
     orgSlug: body.orgSlug,
     skillRepo: body.skillRepo,
@@ -118,16 +158,21 @@ observabilityRoutes.openapi(telemetryIngestRoute, async (c) => {
     apiKeyId,
   });
 
-  const column = body.eventType === "install" ? "installCount" : "activationCount";
-  await c.var.db
-    .update(registryEntries)
-    .set({
-      [column]: sql`${registryEntries[column]} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(eq(registryEntries.orgSlug, body.orgSlug), eq(registryEntries.skillRepo, body.skillRepo)),
-    );
+  if (!priorToday) {
+    const column = body.eventType === "install" ? "installCount" : "activationCount";
+    await c.var.db
+      .update(registryEntries)
+      .set({
+        [column]: sql`${registryEntries[column]} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(registryEntries.orgSlug, body.orgSlug),
+          eq(registryEntries.skillRepo, body.skillRepo),
+        ),
+      );
+  }
 
   return c.json({ ok: true }, 201);
 });

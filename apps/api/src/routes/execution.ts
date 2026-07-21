@@ -6,7 +6,8 @@ import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { errorResponses } from "../lib/openapi";
-import { checkRunQuota } from "../lib/run-quota";
+import { requireOrgAccess } from "../lib/org-access";
+import { checkRunQuota, RunQuotaExceededError } from "../lib/run-quota";
 import { assertSkillRunAccess } from "../lib/skill-execution-access";
 import {
   getPublishedBundle,
@@ -187,6 +188,10 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
     targetUrl: body.targetUrl,
     actorId: access.actorId,
     actorType: access.actorType,
+    // Passed through so the run-row insert can re-check quota atomically under a
+    // per-org lock (the check above is only a fast, non-authoritative pre-check).
+    executionPolicy: loaded.org.executionPolicy,
+    isAnonymous: access.isAnonymous,
   };
 
   const recordActivation = async () => {
@@ -246,6 +251,9 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
     await recordActivation();
     return c.json(result, 200);
   } catch (err) {
+    if (err instanceof RunQuotaExceededError) {
+      return c.json({ error: err.message }, 429);
+    }
     return c.json({ error: err instanceof Error ? err.message : "Execution failed" }, 400);
   }
 });
@@ -288,10 +296,19 @@ executionRoutes.openapi(listRunsRoute, async (c) => {
     );
   }
 
+  // Run rows carry stdout/stderr/args/targetUrl, which routinely hold the
+  // caller's secrets. For a PUBLIC skill `assertSkillRunAccess` passes for ANY
+  // authenticated user, so a non-member must only see their OWN runs — org
+  // members (any role) get the full history for skills their org owns.
+  const orgAccess = await requireOrgAccess(c.var.db, loaded.skill.orgId, c.var.auth, "viewer");
+  const where = orgAccess.ok
+    ? eq(skillRuns.skillId, loaded.skill.id)
+    : and(eq(skillRuns.skillId, loaded.skill.id), eq(skillRuns.actorId, access.actorId ?? ""));
+
   const items = await c.var.db
     .select()
     .from(skillRuns)
-    .where(eq(skillRuns.skillId, loaded.skill.id))
+    .where(where)
     .orderBy(desc(skillRuns.createdAt))
     .limit(limit);
 
@@ -330,6 +347,14 @@ executionRoutes.openapi(getRunRoute, async (c) => {
       },
       access.status === 401 ? 401 : 403,
     );
+  }
+
+  // Same tenant-isolation rule as the run list: on a public skill a non-member
+  // may only read a run they created (its I/O can carry their secrets). 404 —
+  // not 403 — so the endpoint doesn't confirm the run exists to a stranger.
+  const orgAccess = await requireOrgAccess(c.var.db, loaded.skill.orgId, c.var.auth, "viewer");
+  if (!orgAccess.ok && run.actorId !== access.actorId) {
+    return c.json({ error: "Not found" }, 404);
   }
 
   return c.json(run, 200);
