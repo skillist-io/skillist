@@ -63,6 +63,21 @@ webhookRoutes.openapi(githubWebhookRoute, async (c) => {
   const ok = await verifyGithubSignature(secret, raw, c.req.header("X-Hub-Signature-256"));
   if (!ok) return c.json({ error: "Invalid signature" }, 401);
 
+  // Replay guard: each delivery carries a unique GUID (redeliveries get a fresh
+  // one), so a captured valid payload replayed to re-trigger syncs is dropped
+  // here. Best-effort — a KV miss just falls through to normal processing, and
+  // the sync itself already short-circuits on an unchanged commit SHA.
+  const deliveryId = c.req.header("X-GitHub-Delivery");
+  if (deliveryId) {
+    const dedupeKey = `webhook:gh:${deliveryId}`;
+    if (await c.env.SKILLS_KV.get(dedupeKey)) {
+      return c.json({ ok: true }, 202);
+    }
+    // 24h TTL comfortably outlives GitHub's redelivery window without growing
+    // KV unbounded.
+    c.executionCtx.waitUntil(c.env.SKILLS_KV.put(dedupeKey, "1", { expirationTtl: 86_400 }));
+  }
+
   const event = c.req.header("X-GitHub-Event") ?? "";
   if (event === "ping") return c.json({ ok: true }, 202);
 

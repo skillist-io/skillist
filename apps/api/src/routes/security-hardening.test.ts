@@ -67,3 +67,59 @@ describe("Telemetry ingestion requires authentication", () => {
     expect(res.status).toBe(401);
   });
 });
+
+async function signPayload(secret: string, payload: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const hex = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `sha256=${hex}`;
+}
+
+describe("GitHub webhook replay protection", () => {
+  const SECRET = "test-webhook-secret";
+  const pingBody = JSON.stringify({ zen: "Keep it logically awesome." });
+
+  async function postPing(deliveryId: string) {
+    const saved = env.GITHUB_WEBHOOK_SECRET;
+    (env as Record<string, unknown>).GITHUB_WEBHOOK_SECRET = SECRET;
+    try {
+      return await SELF.fetch("http://localhost/v1/webhooks/github", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-GitHub-Event": "ping",
+          "X-GitHub-Delivery": deliveryId,
+          "X-Hub-Signature-256": await signPayload(SECRET, pingBody),
+        },
+        body: pingBody,
+      });
+    } finally {
+      (env as Record<string, unknown>).GITHUB_WEBHOOK_SECRET = saved;
+    }
+  }
+
+  it("records the delivery id and stays idempotent on replay", async () => {
+    const deliveryId = crypto.randomUUID();
+    const first = await postPing(deliveryId);
+    expect(first.status).toBe(202);
+
+    // The replay guard writes the delivery id to KV; a replayed delivery is
+    // then short-circuited (still 202, but not reprocessed).
+    const second = await postPing(deliveryId);
+    expect(second.status).toBe(202);
+    expect(await env.SKILLS_KV.get(`webhook:gh:${deliveryId}`)).toBe("1");
+  });
+
+  it("short-circuits a delivery whose id is already seen", async () => {
+    const deliveryId = crypto.randomUUID();
+    await env.SKILLS_KV.put(`webhook:gh:${deliveryId}`, "1");
+    const res = await postPing(deliveryId);
+    expect(res.status).toBe(202);
+  });
+});
