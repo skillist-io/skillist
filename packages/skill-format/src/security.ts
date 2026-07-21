@@ -1,5 +1,6 @@
 import { isBinaryAssetPath } from "./binary.js";
 import type { SkillBundle } from "./index.js";
+import { parsePluginManifest } from "./plugin.js";
 
 export type SecurityIssue = {
   severity: "low" | "medium" | "high" | "critical";
@@ -200,6 +201,23 @@ export function scanSkillSecurity(files: SkillBundle): SecurityScanResult {
         path,
         message: "File exceeds 512KB — unusually large for a skill",
         ruleId: "size-large",
+      });
+    }
+  }
+
+  // Surface a declared per-skill egress allowlist as a review signal. Low
+  // severity, so it never blocks publishing on its own — its purpose is to make
+  // the skill's outbound network intent visible to a reviewer (a skill declaring
+  // unexpected hosts is a judgment call, not a mechanical fail).
+  const pluginRaw = files.get("plugin.json");
+  if (pluginRaw) {
+    const declaredHosts = parsePluginManifest(pluginRaw)?.network?.allowedHosts ?? [];
+    if (declaredHosts.length > 0) {
+      issues.push({
+        severity: "low",
+        path: "plugin.json",
+        message: `Declares outbound network access to: ${declaredHosts.join(", ")}`,
+        ruleId: "network-egress-declared",
       });
     }
   }

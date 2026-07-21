@@ -2,7 +2,12 @@ import { Sandbox as BaseSandbox, ContainerProxy } from "@cloudflare/sandbox";
 import { describe, expect, it } from "vitest";
 import { Sandbox } from "../durable-objects/sandbox";
 import { SandboxHeavy } from "../durable-objects/sandbox-heavy";
-import { BASELINE_ALLOWED_HOSTS, DENIED_HOSTS, HEAVY_ALLOWED_HOSTS } from "./sandbox-egress";
+import {
+  BASELINE_ALLOWED_HOSTS,
+  DENIED_HOSTS,
+  HEAVY_ALLOWED_HOSTS,
+  resolveRunAllowedHosts,
+} from "./sandbox-egress";
 
 // H3: the untrusted-skill sandboxes must run deny-by-default egress. These cover
 // the policy shape and the subclass/proxy wiring. The actual runtime enforcement
@@ -44,5 +49,30 @@ describe("sandbox subclass + proxy wiring", () => {
 
   it("ContainerProxy is exportable (required for egress interception to apply)", () => {
     expect(typeof ContainerProxy).toBe("function");
+  });
+});
+
+describe("resolveRunAllowedHosts (per-skill manifest egress)", () => {
+  it("adds declared hosts onto the runtime baseline", () => {
+    const lite = resolveRunAllowedHosts(false, ["api.stripe.com"]);
+    for (const host of BASELINE_ALLOWED_HOSTS) expect(lite).toContain(host);
+    expect(lite).toContain("api.stripe.com");
+
+    const heavy = resolveRunAllowedHosts(true, ["api.stripe.com"]);
+    expect(heavy).toContain("api.cloudflare.com"); // heavy baseline
+    expect(heavy).toContain("api.stripe.com");
+  });
+
+  it("drops catch-all/invalid declared patterns (can't re-open egress)", () => {
+    const merged = resolveRunAllowedHosts(false, ["*", "*.*", "*.com", "evil.example.com"]);
+    expect(merged).toContain("evil.example.com");
+    expect(merged).not.toContain("*");
+    expect(merged).not.toContain("*.*");
+    expect(merged).not.toContain("*.com");
+  });
+
+  it("dedupes a declared host that is already in the baseline", () => {
+    const merged = resolveRunAllowedHosts(false, ["github.com"]);
+    expect(merged.filter((h) => h === "github.com")).toHaveLength(1);
   });
 });

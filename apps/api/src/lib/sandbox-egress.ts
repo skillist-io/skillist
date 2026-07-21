@@ -1,3 +1,5 @@
+import { isAllowedHostPattern } from "@skillist/skill-format";
+
 /**
  * Deny-by-default egress policy for the untrusted-skill-execution sandboxes.
  *
@@ -68,3 +70,18 @@ export const DENIED_HOSTS: string[] = [
   "localhost",
   "*.internal",
 ];
+
+/**
+ * Merge a skill's manifest-declared `network.allowedHosts` onto the sandbox
+ * baseline for one run. Declared hosts are re-validated with the same rule the
+ * publish-time schema uses (defense-in-depth for bundles that predate the check),
+ * so a catch-all pattern can't slip through and re-open egress. `deniedHosts` is
+ * unaffected — internal ranges stay blocked regardless of what a skill declares.
+ */
+export function resolveRunAllowedHosts(isHeavy: boolean, declaredHosts: string[]): string[] {
+  const baseline = isHeavy ? HEAVY_ALLOWED_HOSTS : BASELINE_ALLOWED_HOSTS;
+  const safeDeclared = declaredHosts
+    .map((host) => host.trim().toLowerCase())
+    .filter((host) => isAllowedHostPattern(host));
+  return [...new Set([...baseline, ...safeDeclared])];
+}

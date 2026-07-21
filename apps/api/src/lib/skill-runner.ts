@@ -1,12 +1,14 @@
 import { getSandbox } from "@cloudflare/sandbox";
 import type { ExecutionPolicy } from "@skillist/contracts";
 import { organizations, skillRuns, skills, skillVersions } from "@skillist/db/schema";
+import { parsePluginManifest } from "@skillist/skill-format";
 import { and, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "./audit";
 import type { WorkerDb } from "./db";
 import { downloadBundleFromR2, listBundlePaths } from "./r2";
 import { reserveRunSlot } from "./run-quota";
+import { resolveRunAllowedHosts } from "./sandbox-egress";
 import {
   buildExecCommand,
   CONTAINER_TIMEOUT_MS,
@@ -69,6 +71,8 @@ function truncateOutput(text: string): string {
 type SandboxHandle = {
   mkdir(path: string, options?: { recursive?: boolean }): Promise<unknown>;
   writeFile(path: string, content: string): Promise<unknown>;
+  /** Runtime egress mutator — widens this instance's allowlist for one run. */
+  setAllowedHosts(hosts: string[]): Promise<unknown>;
   exec(
     command: string,
     options?: {
@@ -211,6 +215,26 @@ export async function runSkillScript(
   const sandbox = getSandbox(sandboxBinding as never, sandboxId) as unknown as SandboxHandle;
 
   const timeout = runtime === "container" ? CONTAINER_TIMEOUT_MS : EXEC_TIMEOUT_MS;
+
+  // Per-skill least-privilege egress: if the manifest declares network hosts,
+  // widen this fresh instance's allowlist to baseline + declared for this run
+  // only. Fresh sandbox per run, so nothing leaks to the next tenant. Fail
+  // closed — if the mutator errors, the run proceeds on the baseline allowlist
+  // (more restrictive), never wide open.
+  const declaredHosts = parsePluginManifest(bundle.get("plugin.json") ?? "")?.network?.allowedHosts;
+  if (declaredHosts?.length) {
+    try {
+      await sandbox.setAllowedHosts(resolveRunAllowedHosts(runtime === "container", declaredHosts));
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          msg: "sandbox_set_allowed_hosts_failed",
+          runId,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }
+  }
 
   try {
     await materializeBundle(sandbox, bundle);
