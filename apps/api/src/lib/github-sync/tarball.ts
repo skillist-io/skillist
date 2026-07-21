@@ -3,6 +3,11 @@ import { tarballCacheKey } from "./cache";
 
 const TAR_BLOCK = 512;
 const MAX_TARBALL_BYTES = 80 * 1024 * 1024;
+// gzip reaches ~1000:1 ratios, so the 80MB *compressed* cap above says nothing
+// about decompressed size. Bound the decompressed stream too, or a small
+// highly-compressible tarball (a "gzip bomb") expands to many GB and OOMs the
+// sync Worker (128MB isolate) into a sticky retry loop on the poisoned object.
+const MAX_DECOMPRESSED_BYTES = 100 * 1024 * 1024;
 
 type TarEntry = { path: string; content: Uint8Array };
 
@@ -63,10 +68,41 @@ export function extractSkillBundleFromTarEntries(
   return bundle;
 }
 
+/**
+ * Decompress gzip while enforcing a hard ceiling on the OUTPUT size. Reading the
+ * DecompressionStream chunk-by-chunk (rather than buffering the whole thing via
+ * `Response.arrayBuffer()`) lets us stop the moment the running total crosses
+ * the cap, so a decompression bomb never fully materializes in memory. Throws
+ * past the cap; the caller treats a throw as "unusable tarball" and skips it.
+ */
 async function decompressGzip(data: ArrayBuffer): Promise<Uint8Array> {
   const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("gzip"));
-  const buffer = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buffer);
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > MAX_DECOMPRESSED_BYTES) {
+        throw new Error(
+          `Decompressed tarball exceeds ${MAX_DECOMPRESSED_BYTES} bytes — refusing to buffer (gzip-bomb guard)`,
+        );
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
 }
 
 /**
@@ -88,7 +124,15 @@ export async function loadSkillBundleFromTarball(
   const obj = await bucket.get(key);
   if (!obj) return null;
 
-  const entries = parseTarEntries(await decompressGzip(await obj.arrayBuffer()));
+  let entries: TarEntry[];
+  try {
+    entries = parseTarEntries(await decompressGzip(await obj.arrayBuffer()));
+  } catch {
+    // Over the decompression cap (or otherwise corrupt): skip rather than crash
+    // the sync run. Returning null degrades to "no bundle", which the caller
+    // already handles as a non-fatal miss.
+    return null;
+  }
   const bundle = extractSkillBundleFromTarEntries(entries, sourcePath);
   return bundle.has("SKILL.md") ? bundle : null;
 }

@@ -202,16 +202,31 @@ export async function runSkillScript(
       stdout: [],
       stderr: [],
     };
+    // Cap what we retain (and forward) live. Without this, a script that emits
+    // hundreds of MB (`cat /dev/urandom | base64`) balloons the isolate and
+    // floods the SSE stream before the post-run truncateOutput ever applies.
+    // The budget spans both streams, matching truncateOutput's per-field cap.
+    const forward = input.onOutput;
+    let capturedLen = 0;
+    let liveTruncated = false;
     const result = await sandbox.exec(command, {
       cwd: "/workspace",
       timeout,
       env: validatedUrl ? { SKILLIST_TARGET_URL: validatedUrl } : undefined,
-      stream: !!input.onOutput,
+      stream: !!forward,
       signal: input.signal,
-      onOutput: input.onOutput
+      onOutput: forward
         ? (stream, data) => {
-            streamChunks[stream].push(data);
-            input.onOutput!(stream, data);
+            if (capturedLen >= MAX_OUTPUT_CHARS) return;
+            const remaining = MAX_OUTPUT_CHARS - capturedLen;
+            const slice = data.length > remaining ? data.slice(0, remaining) : data;
+            streamChunks[stream].push(slice);
+            capturedLen += slice.length;
+            forward(stream, slice);
+            if (capturedLen >= MAX_OUTPUT_CHARS && !liveTruncated) {
+              liveTruncated = true;
+              forward(stream, "\n…[output truncated — limit reached]");
+            }
           }
         : undefined,
     });
