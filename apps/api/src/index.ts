@@ -36,8 +36,12 @@ import { skillRoutes } from "./routes/skills";
 import { sourcesRoutes } from "./routes/sources";
 import { webhookRoutes } from "./routes/webhooks";
 
-export { Sandbox } from "@cloudflare/sandbox";
+// ContainerProxy MUST be exported for the sandboxes' deny-by-default egress
+// policy to take effect — without it the outbound interception silently no-ops
+// and skill containers keep unrestricted internet access. See lib/sandbox-egress.ts.
+export { ContainerProxy } from "@cloudflare/sandbox";
 export { SkillistAgent } from "./agent/skillist-agent";
+export { Sandbox } from "./durable-objects/sandbox";
 export { SandboxHeavy } from "./durable-objects/sandbox-heavy";
 export { FailureMiningWorkflow } from "./workflows/failure-mining";
 export { SyncSourceWorkflow } from "./workflows/sync-source";
