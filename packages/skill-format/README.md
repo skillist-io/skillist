@@ -74,6 +74,24 @@ assets/         optional — binary assets, base64-encoded
 Paths containing `..`, absolute paths, and drive letters are rejected. Binary assets must live under
 `assets/` and stay within the per-file size limit.
 
+### `plugin.json` — `network.allowedHosts`
+
+Hosted skill execution runs in a **deny-by-default** network sandbox: only a baseline of package
+registries and source hosts is reachable. A skill that needs to reach other hosts declares them so its
+runs are widened to `baseline + declared` (least privilege, and visible for review):
+
+```json
+{
+  "name": "deploy-audit",
+  "network": { "allowedHosts": ["api.stripe.com", "*.example.com"] }
+}
+```
+
+Entries must be a concrete host or a specific wildcard. Catch-all and TLD-wide patterns (`*`, `*.*`,
+`*.com`) are rejected at validation — a skill cannot self-grant unrestricted egress — and internal /
+link-local ranges stay blocked regardless. Declared hosts appear in the security scan as a low-severity
+review signal.
+
 ## API
 
 | Export | Purpose |

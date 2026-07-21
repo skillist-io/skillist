@@ -329,6 +329,7 @@ export {
   MAX_BINARY_ASSET_BYTES,
 } from "./binary.js";
 export {
+  isAllowedHostPattern,
   type PluginManifest,
   parsePluginManifest,
   pluginManifestSchema,
