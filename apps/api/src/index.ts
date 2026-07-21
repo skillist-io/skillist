@@ -11,7 +11,7 @@ import type { AiJobMessage, Env } from "./env";
 import { runAiJob } from "./lib/ai";
 import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
-import { assertProductionBindings, closeWorkerDb, createWorkerDb } from "./lib/db";
+import { assertProductionBindings, closeWorkerDb, createWorkerDb, isProductionEnv } from "./lib/db";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
 import { getOrgMembership } from "./lib/org-access";
 import { rateLimit } from "./lib/rate-limit";
@@ -111,17 +111,27 @@ app.get("/.well-known/oauth-protected-resource", async (c) => {
   return oAuthProtectedResourceMetadata(auth)(c.req.raw);
 });
 
+// Production origins are always allowed. Console opens the platform agent
+// WebSocket/RPC cross-subdomain; cookies are scoped to .skillist.io so the
+// session rides along.
+const PROD_CORS_ORIGINS = [
+  "https://skillist.io",
+  "https://api.skillist.io",
+  "https://console.skillist.io",
+];
+// Dev SPA origins — trusted ONLY when this deployment is itself local. Shipping
+// them to production would let a localhost page make credentialed cross-origin
+// requests against the real API.
+const LOCAL_CORS_ORIGINS = ["http://localhost:5173", "http://localhost:5174"];
+
 app.use(
   "*",
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://skillist.io",
-      "https://api.skillist.io",
-      // Console opens the platform agent WebSocket/RPC cross-subdomain; cookies
-      // are already scoped to .skillist.io so the session rides along.
-      "https://console.skillist.io",
-    ],
+    origin: (origin, c) => {
+      if (PROD_CORS_ORIGINS.includes(origin)) return origin;
+      if (LOCAL_CORS_ORIGINS.includes(origin) && !isProductionEnv(c.env)) return origin;
+      return undefined;
+    },
     credentials: true,
   }),
 );
