@@ -1,0 +1,12 @@
+# Machine-readable security contact (RFC 9116).
+# Expires must stay in the future — a stale security.txt reads as an abandoned
+# channel. Renew it annually.
+
+Contact: mailto:security@skillist.io
+Expires: 2027-07-20T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://skillist.io/.well-known/security.txt
+
+# No Policy: line — SECURITY.md lives in a private repo, and pointing at a URL
+# a reporter cannot open is worse than omitting the field. Add it when the
+# repo is public or a /security page exists.
