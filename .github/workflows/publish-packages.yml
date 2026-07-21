@@ -10,6 +10,13 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for npm provenance: npm exchanges this OIDC token for a signed
+      # attestation linking the tarball to this workflow and commit. Without it,
+      # nothing ties what is on npm to what is in this repo — and these are
+      # packages that agents install and execute.
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
@@ -32,7 +39,7 @@ jobs:
           if [ "$published" = "$pkg_version" ]; then
             echo "@skillist/skill-format@$pkg_version already on npm, skipping"
           else
-            pnpm --filter @skillist/skill-format publish --no-git-checks --access public
+            pnpm --filter @skillist/skill-format publish --no-git-checks --access public --provenance
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -46,7 +53,7 @@ jobs:
           if [ "$published" = "$pkg_version" ]; then
             echo "@skillist/cli@$pkg_version already on npm, skipping"
           else
-            pnpm --filter @skillist/cli publish --no-git-checks --access public
+            pnpm --filter @skillist/cli publish --no-git-checks --access public --provenance
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
