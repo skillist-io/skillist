@@ -34,9 +34,17 @@ function AgentIcon({
   );
 }
 
-export function AgentLogos({ onPick }: { onPick?: (name: string) => void }) {
+export function AgentLogos({
+  onPick,
+  className = "border-y border-border",
+}: {
+  onPick?: (name: string) => void;
+  /** Border set by the caller: inside the hero band the top rule is enough,
+      because the band's own bottom border already closes it. */
+  className?: string;
+}) {
   return (
-    <section aria-label="Available for these agents" className="border-y border-border">
+    <section aria-label="Available for these agents" className={className}>
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-7 px-1 py-12">
         <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
           Available for these agents

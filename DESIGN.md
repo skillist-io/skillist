@@ -116,7 +116,7 @@ It explicitly rejects four things. It is not the **generic shadcn / AI-default**
 
 **Key Characteristics:**
 - Monochrome by default; grayscale ink ramp carries the entire UI.
-- Squared geometry everywhere (0px radius on controls, cards, and images) — **identity marks** (avatars, the brand mark) are the single exception and are round.
+- Squared geometry everywhere (0px radius on controls, cards, images, and the brand tile) — **avatars** are the single exception and are round.
 - Sentence-case, medium-weight labels on buttons and nav; uppercase wide-tracked micro-labels reserved for badges, eyebrows, and status/readouts.
 - Underline inputs, not boxed fields.
 - Hairline rings instead of shadows; flat at rest.
@@ -145,6 +145,14 @@ A pure grayscale ink ramp from paper-white to near-black, plus exactly two commi
 **The Chromatic Voice Rule.** In normal operation the screen is grayscale plus at most two saturated voices: **destructive red** (failure) and the **signal violet** (live/realtime, ≤10%). Any other hue is a bug — including the generic default purple (`oklch(0.488 0.243 264.376)`), a different, decorative blue-violet that must not appear. The signal violet is the *only* sanctioned violet, and only for live/active state.
 
 **The Literal White Rule.** Light surface is exactly `oklch(1 0 0)`. Never warm-tint the background toward cream, sand, or paper. Color on screen lives in the two signals (red, violet), never in the canvas.
+
+**The Dark Hero Exception.** The marketing hero on skillist.io renders on the near-black ground (`oklch(0.145 0 0)`) in **both** themes. Nowhere else. Not the rest of the marketing page, not the registry, not one surface of the console.
+
+This is a real departure and it is worth being honest about the cost: PRODUCT.md's fifth design principle says a visitor who converts on the landing should recognise the same identity inside the app, and a dark landing above a white console weakens that. It is taken deliberately, for one reason. The hero is the only surface on the entire product with no prior context to work with, and the thing it has to communicate — realtime fan-out — is a *light* moving through a *grid*. On white the signal violet has to fight the canvas for attention and the fan-out reads as decoration. On near-black it reads as an instrument in a darkened room, which is what the product actually is.
+
+Two guardrails keep this from becoming a licence to darken things:
+- The hero is a **bounded band**, not a theme. It ends at a hairline, and the page below it returns to the theme's own surface.
+- It carries **no new colour**. The ground is the existing dark-mode surface token and the accent is the existing signal. If a proposed dark surface needs a colour that is not already in this document, it is not this exception, it is scope creep.
 
 ## 3. Typography
 
@@ -209,17 +217,29 @@ This system is flat by conviction. It uses tonal layering and a single hairline 
 - **Style:** A sidebar app-shell for the product surface, a slim sticky top bar (`h-14`, `bg-card/80 backdrop-blur`, hairline bottom border) for public pages. Nav items are ghost buttons; active state is a `raised` wash plus ink text, never an underline or colored bar.
 - **Mobile:** The sidebar collapses to a sheet; the top bar keeps the wordmark and a compact action set.
 
+### Wordmark & Brand Stamp
+
+The identity is **wordmark-only**: SKILLIST set in Inter SemiBold capitals at `+0.14em` tracking — the Equipment-Label voice, one step larger. The logo speaks in the exact register the product labels its switches and readouts with, which is the most literal form of "practice what you preach" the brand has. The logo carries **no colour and no symbol**; its single ink inverts with the ground (ink on light, paper on dark). Assets generate from the committed outlines in `scripts/brand/wordmark.json` via `pnpm brand:assets` (`scripts/brand/geometry.mjs` holds the shared constants). Do not hand-set a new one.
+
+(Two pictorial marks preceded this and are retired in git history: the letterform `ill` cut from the middle of Sk**ill**ist — retired because a standalone mark that spells "ill" argues with a brand built on trust — and a three-rule "list" glyph, retired as decoration the wordmark didn't need.)
+
+- **The S stamp.** Where a word cannot go — favicon, app icon, avatar — the stamp is the Inter **Bold** S knocked out of a filled square tile. Bold rather than the wordmark's SemiBold because a lone glyph carries less area than a word and reads a step lighter at the same weight.
+- **Inversion.** The tile inverts the page: ink tile with paper S on light, paper tile with ink S on dark. Raster icons that cannot adapt take the ink tile.
+- **Clear space.** Half the cap height on every side of the wordmark; half the tile side around the stamp. The rule scales with the type instead of being a pixel value that goes stale.
+- **Small sizes.** Below roughly 80px of width the wordmark's tracking channels close up; use the S stamp instead. The wordmark never renders below 12px cap height.
+- **Never** recolour the wordmark, track it tighter or looser, set it in another weight or case, add a symbol beside it, or put the violet in the logo — in the brand, colour is spent nowhere so it means everything in the product. Distributed assets ship the letterforms as **outlines**, because a logo that depends on the viewer having Inter installed is not a logo.
+
 ### Signature Component — Status & Eval Readouts
 The product's distinctive surfaces are its live readouts: eval panels, run history, analytics bars, and score badges. These are the "instruments." Set values in mono, label them in uppercase micro-labels, keep charts grayscale (`chart-1…5` are all chroma 0), let the single destructive red mark failure, and let the signal violet mark live/active state. A readout should look like a gauge, not a marketing stat.
 
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** keep geometry squared: 0px radius on buttons, badges, cards, and images. The `base` radius token (0.625rem) exists for third-party primitives only; the Skillist voice is square. **Identity marks are the one exception and are round** — avatars and the brand mark. They depict *who*, not *what you can operate*: a squared portrait reads as an ID-badge mugshot, and the roundness is what tells an identity apart from every other small square on screen at a glance. The test is whether the thing can be acted on — a control or a readout is square, an identity is round.
+- **Do** keep geometry squared: 0px radius on buttons, badges, cards, images, and the brand tile. The `base` radius token (0.625rem) exists for third-party primitives only; the Skillist voice is square. **Avatars are the one exception and are round.** They depict *a person*, not something you can operate: a squared portrait reads as an ID-badge mugshot, and the roundness is what tells a human apart from every other small square on screen at a glance. The test is whether the thing depicts a person — a person is round, everything else is square. (This rule previously said the brand mark was round too. That was written when the "mark" was a placeholder letter `S` in a circle; the real mark is a squared tile, and the product should not be shaped like a person.)
 - **Do** build hierarchy from scale, weight, and space (400 → 600 → 700), then a hairline, then tonal layering. Reach for color last.
 - **Do** set every machine value (skill id, version hash, path, JSON, eval number) in mono, and every short control label in uppercase tracked micro-type.
 - **Do** hold the surface at literal white `oklch(1 0 0)` in light mode and near-black `oklch(0.145 0 0)` in dark; both themes must pass 4.5:1 for body text.
-- **Do** use the signal violet only for live/realtime and active/selected state, and cap it at ≤10% of any screen.
+- **Do** use the signal violet only for live/realtime and active/selected state, and cap it at ≤10% of any screen. The brand carries no violet at all — the wordmark and the S stamp are single-ink — so every violet pixel on screen is state, never identity.
 - **Do** pair every status with a word or shape, and give every animation a `prefers-reduced-motion: reduce` fallback.
 - **Do** confine ambient motion to surfaces you pass *through* — the marketing hero, the registry header, sign-in. The authenticated workspace gets the same grid as a **static** texture. Two reasons, and the first is the serious one: perpetual signal-violet motion spends the accent on decoration, so a real fan-out ends up competing with wallpaper for the same colour and the signal stops meaning anything. Second, a surface read for hours pays the attention cost on every screen, and indefinitely-running motion is exactly what WCAG 2.2.2 (Pause, Stop, Hide) targets — `prefers-reduced-motion` is the floor, not the answer.
 
@@ -227,6 +247,6 @@ The product's distinctive surfaces are its live readouts: eval panels, run histo
 - **Don't** ship the **generic shadcn / AI-default** look: no soft rounded cards, no *decorative* / scattered purple (delete the stray dark-sidebar `oklch(0.488 0.243 264.376)`) — the only sanctioned violet is the signal, used for live/active state, no gray-on-tinted body text.
 - **Don't** drift **playful / consumer / rounded**: no bubbly radii, no emoji-forward UI, no illustration where a control belongs.
 - **Don't** become a **cluttered enterprise dashboard**: no heavy borders, no gray-on-gray tables without hierarchy, no density for its own sake. Roomy padding stays.
-- **Don't** dress up like **loud SaaS marketing**: no gradient heroes, no `background-clip: text` gradient headings, no glassmorphism (the one `backdrop-blur` on the top bar is the only sanctioned use), no hero-metric template.
+- **Don't** dress up like **loud SaaS marketing**: no gradient heroes, no `background-clip: text` gradient headings, no glassmorphism (the one `backdrop-blur` on the top bar is the only sanctioned use), no hero-metric template. A "gradient hero" here means a decorative colour ramp used as identity. A single-hue fade from the hero's ground to the page's own surface is a **mask**, not a gradient hero: it introduces no colour, and it exists so the band ends without a hard seam. That is sanctioned; two hues blending is not.
 - **Don't** use a shadow larger than `shadow-sm`, a colored background chip for a badge, or a boxed input; those are the three fastest ways off-register.
 - **Don't** encode status in color alone, set body copy in all caps, or introduce a second *proportional* typeface. One proportional family worked hard, plus the mono companion for machine output — nothing else.

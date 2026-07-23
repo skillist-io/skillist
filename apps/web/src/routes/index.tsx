@@ -116,64 +116,96 @@ function HomePage() {
     <TooltipProvider delayDuration={200}>
       <div className="flex flex-col">
         {/* Hero — two-column composure. Text carries the left axis, the live
-            fan-out readout anchors the right. Capped display per DESIGN.md. */}
-        <section className="panel-noise relative overflow-hidden border-b border-border">
+            fan-out readout anchors the right. Capped display per DESIGN.md.
+
+            The `dark` class is the Dark Hero Exception (DESIGN.md §2): this one
+            band renders on the near-black ground in BOTH themes. `.dark` sets
+            the token custom properties on this element, so everything inside —
+            including <SignalField>, which samples `--signal` from its own
+            position in the DOM — resolves against the dark palette without any
+            component needing to know it is in a hero. The band is bounded: it
+            closes on a hairline and the page below returns to the page's own
+            surface. No fade, because a dark-to-white ramp in the light theme is
+            exactly the gradient hero the system rejects. */}
+        {/* `-mx-4 -mt-8 md:-mx-6` cancels the padding <main> applies, so the band
+            reaches the viewport edge and starts flush under the header. Done
+            here rather than by unpadding <main>, because /registry and the
+            public skill pages are fluid too and depend on that padding.
+
+            The inner wrapper then re-applies main's own `px-4 md:px-6`. It has
+            to be a separate element rather than extra padding on the centred
+            box: a max-w-6xl box centred inside a symmetrically padded parent
+            lands at the same absolute x as one centred in the bare viewport, so
+            padding folded into the centred box does not restore the inset, it
+            just pushes the content 24px further in than every section below. */}
+        <section className="dark panel-noise relative -mx-4 -mt-8 overflow-hidden border-b border-border bg-background text-foreground md:-mx-6">
           {/* The ruled grid, but live — publish packets travel it. Same texture
               and fade as the dashboard's <CanvasBackdrop>, so the marketing and
               product surfaces still read as one instrument. */}
           <SignalField className={signalFieldClass} />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-1 py-16 md:py-24 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="flex flex-col items-start gap-6">
-              <span className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-                <span className="relative flex size-1.5 items-center justify-center">
-                  <span className="absolute inline-flex size-1.5 animate-ping bg-signal opacity-60 motion-reduce:hidden" />
-                  <span className="inline-flex size-1.5 bg-signal" />
+          <div className="px-4 md:px-6">
+            <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-1 py-20 md:py-28 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="flex flex-col items-start gap-6">
+                <span className="flex items-center gap-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+                  <span className="relative flex size-1.5 items-center justify-center">
+                    <span className="absolute inline-flex size-1.5 animate-ping bg-signal opacity-60 motion-reduce:hidden" />
+                    <span className="inline-flex size-1.5 bg-signal" />
+                  </span>
+                  Live registry · sub-10ms fan-out
                 </span>
-                Live registry · sub-10ms fan-out
-              </span>
-              {/* `text-hero` is the sanctioned marketing display step — it carries
+                {/* `text-hero` is the sanctioned marketing display step — it carries
                   its own weight, tracking, and line-height (see styles.css), so this
                   no longer hand-rolls a clamp that silently outgrew the token scale. */}
-              <h1 className="text-balance text-hero text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
-                The realtime registry{" "}
-                <span className="text-muted-foreground">for Agent Skills</span>
-              </h1>
-              <p className="max-w-xl text-lg leading-relaxed text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:delay-100 motion-safe:fill-mode-both">
-                Publish, version, govern, and deliver SKILL.md bundles that run and improve
-                themselves. Works with Claude Code, Cursor, VS Code, Gemini, Codex, and any{" "}
-                {/* Hover strengthens the rule rather than changing the ink. The
+                <h1 className="text-balance text-hero text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
+                  The realtime registry{" "}
+                  <span className="text-muted-foreground">for Agent Skills</span>
+                </h1>
+                <p className="max-w-xl text-lg leading-relaxed text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:delay-100 motion-safe:fill-mode-both">
+                  Publish, version, govern, and deliver SKILL.md bundles that run and improve
+                  themselves. Works with Claude Code, Cursor, VS Code, Gemini, Codex, and any{" "}
+                  {/* Hover strengthens the rule rather than changing the ink. The
                     old `hover:text-signal` spent live/realtime violet on a
                     decorative hover, which the ≤10% budget reserves for state. */}
-                <a
-                  href="https://agentskills.io/home"
-                  className="text-foreground underline decoration-foreground/40 underline-offset-4 transition-colors duration-200 hover:decoration-foreground"
-                >
-                  agentskills.io
-                </a>{" "}
-                client.
-              </p>
-              <div className="flex flex-wrap gap-3 pt-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:delay-200 motion-safe:fill-mode-both">
-                <Button size="lg" asChild>
-                  <Link to="/registry">Browse registry</Link>
-                </Button>
-                {session?.user ? (
-                  <Button size="lg" variant="outline" asChild>
-                    <a href={consoleUrl("/dashboard")}>Open dashboard</a>
+                  <a
+                    href="https://agentskills.io/home"
+                    className="text-foreground underline decoration-foreground/40 underline-offset-4 transition-colors duration-200 hover:decoration-foreground"
+                  >
+                    agentskills.io
+                  </a>{" "}
+                  client.
+                </p>
+                <div className="flex flex-wrap gap-3 pt-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:delay-200 motion-safe:fill-mode-both">
+                  <Button size="lg" asChild>
+                    <Link to="/registry">Browse registry</Link>
                   </Button>
-                ) : (
-                  <Button size="lg" variant="outline" asChild>
-                    <a href={consoleUrl("/login")}>Start publishing</a>
-                  </Button>
-                )}
+                  {session?.user ? (
+                    <Button size="lg" variant="outline" asChild>
+                      <a href={consoleUrl("/dashboard")}>Open dashboard</a>
+                    </Button>
+                  ) : (
+                    <Button size="lg" variant="outline" asChild>
+                      <a href={consoleUrl("/login")}>Start publishing</a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3 motion-safe:delay-300 motion-safe:fill-mode-both">
+                <RealtimeFanout />
               </div>
             </div>
-            <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3 motion-safe:delay-300 motion-safe:fill-mode-both">
-              <RealtimeFanout />
+          </div>
+
+          {/* The logo wall sits inside the band, over a hairline, rather than
+              after it. It is evidence for the claim the headline just made, so
+              it belongs to the hero rather than starting the page's next idea.
+              The rule runs the full width of the band; only its contents are
+              held to main's inset. */}
+          <div className="relative border-t border-border">
+            <div className="px-4 md:px-6">
+              <AgentLogos onPick={pickAgent} className="" />
             </div>
           </div>
         </section>
-
-        <AgentLogos onPick={pickAgent} />
 
         {/* Capabilities — ruled columns, not a card grid. Numbered like a spec
             sheet, each cell closing on a small mono instrument readout. */}

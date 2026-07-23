@@ -1,4 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" fill="oklch(0.205 0 0)"/>
-  <text x="16" y="22" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" letter-spacing="-0.04em" fill="oklch(0.985 0 0)">S</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Skillist">
+  <style>
+    :root { --tile: #0a0a0a; --glyph: #fafafa; }
+    @media (prefers-color-scheme: dark) {
+      :root { --tile: #fafafa; --glyph: #0a0a0a; }
+    }
+  </style>
+  <rect width="32" height="32" fill="var(--tile)"/>
+  <g fill="var(--glyph)" transform="translate(6.875 26.306) scale(0.014 -0.014)">
+    <path d="M657 -26Q496 -26 377.5 26.0Q259 78 192.0 171.5Q125 265 116 390H311Q319 306 368.0 251.5Q417 197 493.5 170.5Q570 144 657 144Q758 144 838.5 177.0Q919 210 966.0 270.0Q1013 330 1013 409Q1013 481 972.5 526.0Q932 571 865.0 600.0Q798 629 718 651L538 702Q358 753 258.0 848.0Q158 943 158 1091Q158 1217 226.0 1311.5Q294 1406 410.0 1458.0Q526 1510 670 1510Q817 1510 930.0 1458.0Q1043 1406 1108.5 1316.5Q1174 1227 1178 1114H992Q979 1223 888.0 1282.5Q797 1342 664 1342Q568 1342 495.5 1310.5Q423 1279 383.0 1224.5Q343 1170 343 1100Q343 1022 391.5 974.5Q440 927 506.5 900.5Q573 874 627 859L776 818Q836 802 908.5 774.0Q981 746 1047.0 699.5Q1113 653 1155.5 581.5Q1198 510 1198 406Q1198 284 1134.5 186.0Q1071 88 950.0 31.0Q829 -26 657 -26Z"/>
+  </g>
 </svg>

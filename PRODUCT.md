@@ -43,7 +43,7 @@ Explicitly avoid all four:
 2. **Truthful state over reassurance.** Show real status — published, running, failed, stale eval, pending approval — plainly and immediately. Governance requires trust, and trust requires never hiding or prettifying the actual state.
 3. **Restraint is the aesthetic.** Chrome is a cost. Hierarchy comes from scale, weight, and space before color or borders. When in doubt, remove. One committed brand signal beats five decorations.
 4. **Realtime made legible.** The product's edge is that things happen live (sub-10ms fan-out, presence, eval results). Motion and updates should make that legibility a felt quality, never a gimmick, and never at the expense of calm.
-5. **One system, two registers.** The marketing surface and the tool are the same brand seen from two distances. A visitor who converts on the landing should recognize the exact same identity inside the app.
+5. **One system, two registers.** The marketing surface and the tool are the same brand seen from two distances. A visitor who converts on the landing should recognize the exact same identity inside the app. The landing hero is the one sanctioned divergence: it sits on the near-black ground in both themes, because it is the only surface with no prior context and it has to show realtime fan-out, which needs a dark room to read. The identity carrying across is the wordmark, the type, the squared geometry, and the two chromatic voices — not the canvas. See DESIGN.md, *The Dark Hero Exception*.
 
 ## Accessibility & Inclusion
 
