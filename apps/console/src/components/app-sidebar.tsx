@@ -169,11 +169,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 tooltip={{ children: "Skillist — Dashboard", hidden: false }}
               >
                 <Link to="/dashboard">
-                  {/* Round for the same reason the avatar is: an identity mark, not a
-                      control or a readout. Everything you can operate stays squared. */}
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
-                    <span className="text-sm font-bold tracking-[-0.04em]">S</span>
-                  </div>
+                  {/* The favicon's S tile, built from text: the brand is
+                      wordmark-only now, and in this icon-width rail the S is
+                      the only stamp that fits. Squared, ink tile, paper glyph —
+                      the wordmark below carries the accessible name. */}
+                  <span
+                    aria-hidden
+                    className="flex size-8 shrink-0 items-center justify-center bg-foreground text-lg font-bold text-background"
+                  >
+                    S
+                  </span>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <SkillistLogo className="truncate text-sm" />
                     <span className="truncate text-xs text-muted-foreground">Agent Skills</span>
