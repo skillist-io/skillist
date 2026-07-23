@@ -1,0 +1,35 @@
+{
+  "logo": [
+    {
+      "label": "On light",
+      "ground": "light",
+      "variant": "light",
+      "svg": "/brand/skillist-logo-light.svg",
+      "png": "/brand/skillist-logo-light.png"
+    },
+    {
+      "label": "On dark",
+      "ground": "dark",
+      "variant": "dark",
+      "svg": "/brand/skillist-logo-dark.svg",
+      "png": "/brand/skillist-logo-dark.png"
+    }
+  ],
+  "logomark": [
+    {
+      "label": "On light",
+      "ground": "light",
+      "variant": "light",
+      "svg": "/brand/skillist-logomark-light.svg",
+      "png": "/brand/skillist-logomark-light.png"
+    },
+    {
+      "label": "On dark",
+      "ground": "dark",
+      "variant": "dark",
+      "svg": "/brand/skillist-logomark-dark.svg",
+      "png": "/brand/skillist-logomark-dark.png"
+    }
+  ],
+  "zip": "/brand/skillist-brand-assets.zip"
+}

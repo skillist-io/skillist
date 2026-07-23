@@ -9,24 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as RegistryIndexRouteImport } from './routes/registry/index'
+import { Route as BrandRouteImport } from './routes/brand'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrgRepoRouteImport } from './routes/$org/$repo'
+import { Route as RegistryIndexRouteImport } from './routes/registry/index'
 
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RegistryIndexRoute = RegistryIndexRouteImport.update({
-  id: '/registry/',
-  path: '/registry/',
+const BrandRoute = BrandRouteImport.update({
+  id: '/brand',
+  path: '/brand',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgRepoRoute = OrgRepoRouteImport.update({
@@ -34,15 +35,22 @@ const OrgRepoRoute = OrgRepoRouteImport.update({
   path: '/$org/$repo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegistryIndexRoute = RegistryIndexRouteImport.update({
+  id: '/registry/',
+  path: '/registry/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/brand': typeof BrandRoute
   '/privacy': typeof PrivacyRoute
   '/$org/$repo': typeof OrgRepoRoute
   '/registry/': typeof RegistryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/brand': typeof BrandRoute
   '/privacy': typeof PrivacyRoute
   '/$org/$repo': typeof OrgRepoRoute
   '/registry': typeof RegistryIndexRoute
@@ -50,20 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/brand': typeof BrandRoute
   '/privacy': typeof PrivacyRoute
   '/$org/$repo': typeof OrgRepoRoute
   '/registry/': typeof RegistryIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/privacy' | '/$org/$repo' | '/registry/'
+  fullPaths: '/' | '/brand' | '/privacy' | '/$org/$repo' | '/registry/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/privacy' | '/$org/$repo' | '/registry'
-  id: '__root__' | '/' | '/privacy' | '/$org/$repo' | '/registry/'
+  to: '/' | '/brand' | '/privacy' | '/$org/$repo' | '/registry'
+  id: '__root__' | '/' | '/brand' | '/privacy' | '/$org/$repo' | '/registry/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BrandRoute: typeof BrandRoute
   PrivacyRoute: typeof PrivacyRoute
   OrgRepoRoute: typeof OrgRepoRoute
   RegistryIndexRoute: typeof RegistryIndexRoute
@@ -71,13 +81,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -85,11 +88,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/registry/': {
-      id: '/registry/'
-      path: '/registry'
-      fullPath: '/registry/'
-      preLoaderRoute: typeof RegistryIndexRouteImport
+    '/brand': {
+      id: '/brand'
+      path: '/brand'
+      fullPath: '/brand'
+      preLoaderRoute: typeof BrandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$org/$repo': {
@@ -99,11 +109,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgRepoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/registry/': {
+      id: '/registry/'
+      path: '/registry'
+      fullPath: '/registry/'
+      preLoaderRoute: typeof RegistryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BrandRoute: BrandRoute,
   PrivacyRoute: PrivacyRoute,
   OrgRepoRoute: OrgRepoRoute,
   RegistryIndexRoute: RegistryIndexRoute,

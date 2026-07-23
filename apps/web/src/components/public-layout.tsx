@@ -18,10 +18,30 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowUpRight, MenuIcon } from "lucide-react";
 import { useState } from "react";
 
-// NOTE: the GitHub links (header, mobile menu, footer) were removed. They
-// pointed at github.com/skillist, an unrelated org that is not ours, and the
-// actual source repo is private. Restore them, with the GitHubMark below, once
-// there is a public repo to link to.
+// Our GitHub org. The public repos are still filling in, but the org is ours
+// and the link is stable, so the marks below point here from the header, the
+// mobile menu, and the footer.
+const GITHUB_URL = "https://github.com/skillist-io";
+
+/**
+ * GitHub's mark, inline. Lucide dropped its GitHub glyph (trademark), so this
+ * is the official silhouette drawn once here rather than pulled from an icon
+ * set. `currentColor` so it takes the ghost button's ink like every other
+ * control in the bar.
+ */
+function GitHubMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+      aria-hidden
+      focusable="false"
+    >
+      <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.63-5.49 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58C20.57 22.29 24 17.8 24 12.5 24 5.87 18.63.5 12 .5Z" />
+    </svg>
+  );
+}
 
 // Data-dense surfaces run full-bleed like the app shell; marketing pages stay
 // centered and measure-capped. The registry and skill-detail (/{org}/{repo},
@@ -29,6 +49,8 @@ import { useState } from "react";
 function isFluidRoute(pathname: string): boolean {
   if (pathname === "/") return true;
   if (pathname.startsWith("/registry")) return true;
+  // /brand opens on the full-bleed dark hero band, same as the landing.
+  if (pathname === "/brand") return true;
   return pathname.split("/").filter(Boolean).length === 2;
 }
 
@@ -154,6 +176,11 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 only route to the preference. The menu variant offers all three
                 choices rather than a binary flip, since there is nowhere else
                 to pick "system". */}
+            <Button variant="ghost" size="icon" asChild aria-label="Skillist on GitHub">
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer noopener">
+                <GitHubMark className="size-4" />
+              </a>
+            </Button>
             <ThemeToggle variant="menu" />
             <span aria-hidden="true" className="mx-2 h-5 w-px bg-border" />
             <AuthActions />
@@ -179,6 +206,16 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           </SheetHeader>
           <nav className="flex flex-col items-stretch gap-1 px-8 pb-8">
             <PrimaryNav orientation="vertical" onNavigate={() => setMobileNavOpen(false)} />
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <GitHubMark className="size-4" />
+              GitHub
+            </a>
             <span aria-hidden="true" className="my-3 h-px w-full bg-border" />
             <AuthActions onNavigate={() => setMobileNavOpen(false)} className="justify-start" />
           </nav>
@@ -229,6 +266,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "agentskills.io", href: "https://agentskills.io" },
       { label: "SKILL.md spec", href: "https://agentskills.io/spec" },
       { label: "Examples", to: "/registry" },
+      { label: "Brand", to: "/brand" },
       { label: "Privacy", to: "/privacy" },
     ],
   },
@@ -304,15 +342,22 @@ function SiteFooter() {
             width,
           )}
         >
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Skillist. Built on Cloudflare Workers.
-          </p>
+          <p className="text-xs text-muted-foreground">© Skillist. Built on Cloudflare Workers.</p>
           <div className="flex items-center gap-5">
             {/* Honest signals, machine-voice — Skillist implements the spec and
                 delivers from the edge. No unearned compliance badges. */}
             <span className="hidden font-mono text-[0.65rem] text-muted-foreground sm:inline">
               sub-10ms edge delivery
             </span>
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label="Skillist on GitHub"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <GitHubMark className="size-4" />
+            </a>
             <a
               href="https://agentskills.io"
               target="_blank"
