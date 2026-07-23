@@ -4,15 +4,16 @@
  *
  *   pnpm brand:assets
  *
- * Writes the wordmark, the S-tile stamp, safe-area guides, favicons and the
+ * Writes the wordmark, the socket stamp, safe-area guides, favicons and the
  * apple touch icon into apps/web, apps/console and apps/docs, plus a brand pack
  * under apps/web/public/brand that the /brand page serves for download.
  *
  * The wordmark is real outline data — SKILLIST in Inter SemiBold caps at
  * +0.14em tracking, extracted from the exact woff2 the apps self-host and
- * committed to scripts/brand/wordmark.json (which also carries the Bold S the
- * tile uses). Shipping a logo as live <text> would mean anyone without Inter
- * installed downloads a different logo than the one we drew.
+ * committed to scripts/brand/wordmark.json. Shipping a logo as live <text>
+ * would mean anyone without Inter installed downloads a different logo than the
+ * one we drew. The socket stamp is drawn from parametric geometry in
+ * scripts/brand/geometry.mjs, so it needs no font at all.
  */
 
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -27,7 +28,9 @@ import {
   PAPER,
   SAFE_FRAC,
   SIGNAL,
-  TILE_GLYPH_FRAC,
+  SOCKET_MIN_PX,
+  socketAperture,
+  socketTiles,
   TILE_VARIANTS,
   VARIANTS,
 } from "./brand/geometry.mjs";
@@ -81,26 +84,42 @@ ${wordmarkGroup(ink, { x, scale, baseline })}
 `;
 }
 
-/* ── The S tile ────────────────────────────────────────────────────────── */
+/* ── The socket stamp ──────────────────────────────────────────────────── */
 
 /**
- * The Bold S centred in a filled square: the stamp for every surface where the
- * word cannot go — favicon, app icon, avatar. Bold rather than the wordmark's
- * SemiBold because a lone glyph carries less area than a word and reads a step
- * lighter than the same weight in running text.
+ * The socket in a filled square: the stamp for every surface where the word
+ * cannot go — favicon, app icon, avatar. Four congruent L corner-tiles framing
+ * an empty centre (see socketTiles in geometry.mjs). The brackets take the
+ * glyph ink; the socket and the seams are simply the tile ground left unpainted,
+ * so on a light ground it reads as a paper aperture cut into an ink square — the
+ * same page inversion the S stamp used.
  */
 function tileArtwork(size, { tile, glyph }, { radius = 0 } = {}) {
-  const [sx0, sy0, sx1, sy1] = wordmark.mark.bbox;
-  const scale = (size * TILE_GLYPH_FRAC) / (sy1 - sy0);
-  const x = (size - (sx1 - sx0) * scale) / 2 - sx0 * scale;
-  const baseline = (size + (sy1 - sy0) * scale) / 2 + sy0 * scale;
-  const t = `translate(${round(x)} ${round(baseline)}) scale(${round(scale)} ${round(-scale)})`;
+  const brackets = socketTiles(size)
+    .map(
+      ({ x, y, w, h }) =>
+        `    <rect x="${round(x)}" y="${round(y)}" width="${round(w)}" height="${round(h)}"/>`,
+    )
+    .join("\n");
   return `  <rect width="${size}" height="${size}"${
     radius ? ` rx="${radius}"` : ""
   } fill="${tile}"/>
-  <g fill="${glyph}" transform="${t}">
-    <path d="${wordmark.mark.d}"/>
+  <g fill="${glyph}">
+${brackets}
   </g>`;
+}
+
+/**
+ * The small-size stamp: the socket with its seams removed (see socketAperture).
+ * A filled square with a single square hole, drawn evenodd in the glyph ink, for
+ * favicons and .ico layers below ~28px where the full mark's seams smear.
+ */
+function apertureArtwork(size, { tile, glyph }, { radius = 0 } = {}) {
+  const { outer, hole } = socketAperture(size);
+  const o = { x: round(outer.x), y: round(outer.y), s: round(outer.side) };
+  const h = { x: round(hole.x), y: round(hole.y), s: round(hole.side) };
+  return `  <rect width="${size}" height="${size}"${radius ? ` rx="${radius}"` : ""} fill="${tile}"/>
+  <path fill="${glyph}" fill-rule="evenodd" d="M${o.x} ${o.y}h${o.s}v${o.s}h${-o.s}z M${h.x} ${h.y}h${h.s}v${h.s}h${-h.s}z"/>`;
 }
 
 /** Standalone tile asset for the brand pack. */
@@ -164,14 +183,15 @@ function logomarkSafeAreaSvg(variant) {
 /* ── Favicons ──────────────────────────────────────────────────────────── */
 
 /**
- * The SVG favicon follows the tab strip's own theme: ink tile with paper S on
- * a light strip, inverted on a dark one — the same inversion the tile uses
- * everywhere. Browsers that take SVG favicons are exactly the ones that
- * support the media query.
+ * The SVG favicon follows the tab strip's own theme: ink tile with a paper
+ * aperture on a light strip, inverted on a dark one — the same inversion the
+ * tile uses everywhere. Browsers that take SVG favicons are exactly the ones
+ * that support the media query. It uses the seam-removed aperture, not the full
+ * socket, because a tab renders it at 16–32px where the seams smear to mush.
  */
 function faviconSvg() {
   const size = 32;
-  const light = tileArtwork(size, { tile: "var(--tile)", glyph: "var(--glyph)" });
+  const artwork = apertureArtwork(size, { tile: "var(--tile)", glyph: "var(--glyph)" });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="Skillist">
   <style>
     :root { --tile: ${INK}; --glyph: ${PAPER}; }
@@ -179,17 +199,22 @@ function faviconSvg() {
       :root { --tile: ${PAPER}; --glyph: ${INK}; }
     }
   </style>
-${light}
+${artwork}
 </svg>
 `;
 }
 
 /** Raster icons cannot adapt, so they take the light-ground tile: ink with the
- * S knocked out in paper, which reads on any tab strip and matches how an app
- * icon is expected to behave. */
+ * socket knocked out in paper, which reads on any tab strip and matches how an
+ * app icon is expected to behave. Below SOCKET_MIN_PX the full mark's seams
+ * smear, so small layers fall back to the seam-removed aperture. */
 function tileSvg(size) {
+  const artwork =
+    size < SOCKET_MIN_PX
+      ? apertureArtwork(size, TILE_VARIANTS.light)
+      : tileArtwork(size, TILE_VARIANTS.light);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
-${tileArtwork(size, TILE_VARIANTS.light)}
+${artwork}
 </svg>
 `;
 }
@@ -336,7 +361,7 @@ async function png(svg, size, path) {
 async function main() {
   rmSync(OUT_BRAND, { recursive: true, force: true });
 
-  // 1. Brand pack: wordmark and S tile, per ground, with and without guides.
+  // 1. Brand pack: wordmark and socket stamp, per ground, with and without guides.
   for (const variant of Object.keys(VARIANTS)) {
     const logo = logoSvg(variant);
     const mark = logomarkSvg(variant);
@@ -369,9 +394,9 @@ async function main() {
     await png(touch, 180, join(dir, "apple-touch-icon.png"));
   }
 
-  // 3. .ico at the classic 16/32/48. A letterform cannot be hand-snapped to
-  //    whole pixels the way the old rect mark was; each layer renders from its
-  //    own exact-size SVG so the rasterizer at least never scales twice.
+  // 3. .ico at the classic 16/32/48. The socket's insets fall on fractional
+  //    units, so it can't be hand-snapped to whole pixels; each layer renders
+  //    from its own exact-size SVG so the rasterizer at least never scales twice.
   const layers = [];
   for (const size of [16, 32, 48]) {
     const buf = await sharp(Buffer.from(tileSvg(size)))

@@ -169,15 +169,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 tooltip={{ children: "Skillist — Dashboard", hidden: false }}
               >
                 <Link to="/dashboard">
-                  {/* The favicon's S tile, built from text: the brand is
-                      wordmark-only now, and in this icon-width rail the S is
-                      the only stamp that fits. Squared, ink tile, paper glyph —
-                      the wordmark below carries the accessible name. */}
+                  {/* The favicon's socket stamp, squared ink tile with the paper
+                      aperture knocked out — the only mark that fits this
+                      icon-width rail. Geometry mirrors socketTiles(48) in
+                      scripts/brand/geometry.mjs; the wordmark below carries the
+                      accessible name. */}
                   <span
                     aria-hidden
-                    className="flex size-8 shrink-0 items-center justify-center bg-foreground text-lg font-bold text-background"
+                    className="flex size-8 shrink-0 items-center justify-center bg-foreground text-background"
                   >
-                    S
+                    <svg
+                      viewBox="0 0 48 48"
+                      className="size-8"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <rect x="6.72" y="6.72" width="16.42" height="10.8" />
+                      <rect x="6.72" y="6.72" width="10.8" height="16.42" />
+                      <rect x="24.86" y="6.72" width="16.42" height="10.8" />
+                      <rect x="30.48" y="6.72" width="10.8" height="16.42" />
+                      <rect x="24.86" y="30.48" width="16.42" height="10.8" />
+                      <rect x="30.48" y="24.86" width="10.8" height="16.42" />
+                      <rect x="6.72" y="30.48" width="16.42" height="10.8" />
+                      <rect x="6.72" y="24.86" width="10.8" height="16.42" />
+                    </svg>
                   </span>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <SkillistLogo className="truncate text-sm" />
