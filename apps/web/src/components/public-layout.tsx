@@ -49,8 +49,6 @@ function GitHubMark({ className }: { className?: string }) {
 function isFluidRoute(pathname: string): boolean {
   if (pathname === "/") return true;
   if (pathname.startsWith("/registry")) return true;
-  // /brand opens on the full-bleed dark hero band, same as the landing.
-  if (pathname === "/brand") return true;
   return pathname.split("/").filter(Boolean).length === 2;
 }
 
@@ -60,6 +58,7 @@ type NavItem = { label: string; to: string } | { label: string; href: string };
 // that difference so a click's destination is never a surprise.
 const PRIMARY_NAV: NavItem[] = [
   { label: "Registry", to: "/registry" },
+  { label: "Clients", to: "/clients" },
   { label: "Docs", href: "https://docs.skillist.io" },
   { label: "API", href: apiUrl("/docs") },
 ];
@@ -265,8 +264,8 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "agentskills.io", href: "https://agentskills.io" },
       { label: "SKILL.md spec", href: "https://agentskills.io/spec" },
+      { label: "Clients", to: "/clients" },
       { label: "Examples", to: "/registry" },
-      { label: "Brand", to: "/brand" },
       { label: "Privacy", to: "/privacy" },
     ],
   },

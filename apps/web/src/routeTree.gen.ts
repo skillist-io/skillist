@@ -10,7 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BrandRouteImport } from './routes/brand'
+import { Route as ClientsRouteImport } from './routes/clients'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrgRepoRouteImport } from './routes/$org/$repo'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
@@ -20,9 +20,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BrandRoute = BrandRouteImport.update({
-  id: '/brand',
-  path: '/brand',
+const ClientsRoute = ClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -43,14 +43,14 @@ const RegistryIndexRoute = RegistryIndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/brand': typeof BrandRoute
+  '/clients': typeof ClientsRoute
   '/privacy': typeof PrivacyRoute
   '/$org/$repo': typeof OrgRepoRoute
   '/registry/': typeof RegistryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/brand': typeof BrandRoute
+  '/clients': typeof ClientsRoute
   '/privacy': typeof PrivacyRoute
   '/$org/$repo': typeof OrgRepoRoute
   '/registry': typeof RegistryIndexRoute
@@ -58,22 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/brand': typeof BrandRoute
+  '/clients': typeof ClientsRoute
   '/privacy': typeof PrivacyRoute
   '/$org/$repo': typeof OrgRepoRoute
   '/registry/': typeof RegistryIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/brand' | '/privacy' | '/$org/$repo' | '/registry/'
+  fullPaths: '/' | '/clients' | '/privacy' | '/$org/$repo' | '/registry/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/brand' | '/privacy' | '/$org/$repo' | '/registry'
-  id: '__root__' | '/' | '/brand' | '/privacy' | '/$org/$repo' | '/registry/'
+  to: '/' | '/clients' | '/privacy' | '/$org/$repo' | '/registry'
+  id: '__root__' | '/' | '/clients' | '/privacy' | '/$org/$repo' | '/registry/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BrandRoute: typeof BrandRoute
+  ClientsRoute: typeof ClientsRoute
   PrivacyRoute: typeof PrivacyRoute
   OrgRepoRoute: typeof OrgRepoRoute
   RegistryIndexRoute: typeof RegistryIndexRoute
@@ -88,11 +88,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/brand': {
-      id: '/brand'
-      path: '/brand'
-      fullPath: '/brand'
-      preLoaderRoute: typeof BrandRouteImport
+    '/clients': {
+      id: '/clients'
+      path: '/clients'
+      fullPath: '/clients'
+      preLoaderRoute: typeof ClientsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -121,7 +121,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BrandRoute: BrandRoute,
+  ClientsRoute: ClientsRoute,
   PrivacyRoute: PrivacyRoute,
   OrgRepoRoute: OrgRepoRoute,
   RegistryIndexRoute: RegistryIndexRoute,
