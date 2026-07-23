@@ -1,6 +1,6 @@
 /**
- * Agent products that support the Agent Skills format, curated to the twenty
- * most recognisable from the canonical showcase at agentskills.io/clients.
+ * Agent products that support the Agent Skills format, curated to the most
+ * recognisable from the canonical showcase at agentskills.io/clients.
  * Logos are vendored under public/clients/ as `{slug}-light.{ext}` /
  * `{slug}-dark.{ext}` pairs, sourced from that showcase; each logo remains the
  * trademark of its owner and is used nominatively to state format support.
@@ -93,6 +93,19 @@ export const CLIENTS: ClientData[] = [
     instructionsUrl: "https://docs.github.com/en/copilot/concepts/agents/about-agent-skills",
     sourceCodeUrl: "https://github.com/microsoft/vscode-copilot-chat",
     ext: "svg",
+  },
+  {
+    name: "Google AI Edge Gallery",
+    slug: "google-ai-edge-gallery",
+    description: "Runs the most powerful open-source LLMs directly on your mobile device.",
+    url: "https://github.com/google-ai-edge/gallery",
+    instructionsUrl: "https://github.com/google-ai-edge/gallery/tree/main/skills",
+    sourceCodeUrl: "https://github.com/google-ai-edge/gallery",
+    // Its repo ships agentskills.io-format skills, so Skillist mirrors it:
+    // the skill_sources row publishes into the google-ai-edge org.
+    skillistOrg: "google-ai-edge",
+    ext: "svg",
+    scale: 0.9,
   },
   {
     name: "Goose",

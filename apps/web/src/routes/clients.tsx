@@ -47,9 +47,9 @@ function CellLink({ href, children }: { href: string; children: React.ReactNode 
   );
 }
 
-function ClientCell({ client }: { client: ClientData }) {
+function ClientCell({ client, wide }: { client: ClientData; wide?: boolean }) {
   return (
-    <div className="flex flex-col gap-3 bg-background p-6">
+    <div className={`flex flex-col gap-3 bg-background p-6${wide ? " sm:col-span-2" : ""}`}>
       <ClientLogo client={client} />
       <a
         href={client.url}
@@ -70,7 +70,9 @@ function ClientCell({ client }: { client: ClientData }) {
         )}
         {client.sourceCodeUrl && <CellLink href={client.sourceCodeUrl}>Source code</CellLink>}
         {client.skillistOrg && (
-          <CellLink href={`/registry?org=${client.skillistOrg}`}>Skills on Skillist</CellLink>
+          // The registry has no dedicated org filter; free-text q matches the
+          // org slug, which is exactly how the mirrored skills are namespaced.
+          <CellLink href={`/registry?q=${client.skillistOrg}`}>Skills on Skillist</CellLink>
         )}
       </div>
     </div>
@@ -121,8 +123,14 @@ function ClientsPage() {
         </div>
         <div className="relative mt-8 grid gap-px bg-border sm:grid-cols-2">
           <RuleEdge />
-          {CLIENTS.map((client) => (
-            <ClientCell key={client.slug} client={client} />
+          {CLIENTS.map((client, i) => (
+            <ClientCell
+              key={client.slug}
+              client={client}
+              // With an odd roster the final cell spans the row; otherwise the
+              // unfilled grid area reads as a block of border colour.
+              wide={CLIENTS.length % 2 === 1 && i === CLIENTS.length - 1}
+            />
           ))}
         </div>
         <p className="mt-8 text-sm leading-relaxed text-muted-foreground">
