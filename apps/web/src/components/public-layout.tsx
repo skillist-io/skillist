@@ -49,8 +49,6 @@ function GitHubMark({ className }: { className?: string }) {
 function isFluidRoute(pathname: string): boolean {
   if (pathname === "/") return true;
   if (pathname.startsWith("/registry")) return true;
-  // /brand opens on the full-bleed dark hero band, same as the landing.
-  if (pathname === "/brand") return true;
   return pathname.split("/").filter(Boolean).length === 2;
 }
 
@@ -266,7 +264,6 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "agentskills.io", href: "https://agentskills.io" },
       { label: "SKILL.md spec", href: "https://agentskills.io/spec" },
       { label: "Examples", to: "/registry" },
-      { label: "Brand", to: "/brand" },
       { label: "Privacy", to: "/privacy" },
     ],
   },
