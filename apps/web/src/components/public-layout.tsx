@@ -58,6 +58,7 @@ type NavItem = { label: string; to: string } | { label: string; href: string };
 // that difference so a click's destination is never a surprise.
 const PRIMARY_NAV: NavItem[] = [
   { label: "Registry", to: "/registry" },
+  { label: "Clients", to: "/clients" },
   { label: "Docs", href: "https://docs.skillist.io" },
   { label: "API", href: apiUrl("/docs") },
 ];
@@ -263,6 +264,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "agentskills.io", href: "https://agentskills.io" },
       { label: "SKILL.md spec", href: "https://agentskills.io/spec" },
+      { label: "Clients", to: "/clients" },
       { label: "Examples", to: "/registry" },
       { label: "Privacy", to: "/privacy" },
     ],

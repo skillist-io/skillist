@@ -15,6 +15,7 @@
       "!**/node_modules",
       "!**/routeTree.gen.ts",
       "!**/packages/db/drizzle",
+      "!**/apps/web/public/clients",
       "!**/__snapshots__",
       "!**/test-results",
       "!**/playwright-report",
