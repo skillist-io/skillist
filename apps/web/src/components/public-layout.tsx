@@ -49,6 +49,8 @@ function GitHubMark({ className }: { className?: string }) {
 function isFluidRoute(pathname: string): boolean {
   if (pathname === "/") return true;
   if (pathname.startsWith("/registry")) return true;
+  // /clients opens on the full-bleed dark hero band, same as the landing.
+  if (pathname === "/clients") return true;
   return pathname.split("/").filter(Boolean).length === 2;
 }
 

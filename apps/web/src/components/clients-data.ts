@@ -142,7 +142,7 @@ export const CLIENTS: ClientData[] = [
     instructionsUrl: "https://docs.letta.com/letta-code/skills/",
     sourceCodeUrl: "https://github.com/letta-ai/letta",
     ext: "svg",
-    scale: 1.7,
+    scale: 2,
   },
   {
     name: "OpenAI Codex",
