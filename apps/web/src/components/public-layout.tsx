@@ -166,7 +166,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
           <Link to="/" className="flex items-center" aria-label="Skillist home">
-            <SkillistLogo />
+            <SkillistLogo withMark />
           </Link>
           <nav className="ml-6 hidden items-center gap-0.5 md:flex lg:ml-10">
             <PrimaryNav />
@@ -304,7 +304,7 @@ function SiteFooter() {
       >
         <div className="flex flex-col gap-4">
           <Link to="/" className="flex w-fit items-center" aria-label="Skillist home">
-            <SkillistLogo />
+            <SkillistLogo withMark />
           </Link>
           <p className="max-w-xs text-sm text-muted-foreground">
             The realtime registry for Agent Skills. Publish, version, govern, and deliver SKILL.md

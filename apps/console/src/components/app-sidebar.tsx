@@ -22,6 +22,7 @@ import {
   SidebarMenuItem,
   type Skill,
   SkillistLogo,
+  SkillistMark,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -169,30 +170,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 tooltip={{ children: "Skillist — Dashboard", hidden: false }}
               >
                 <Link to="/dashboard">
-                  {/* The favicon's socket stamp, squared ink tile with the paper
-                      aperture knocked out — the only mark that fits this
-                      icon-width rail. Geometry mirrors socketTiles(48) in
-                      scripts/brand/geometry.mjs; the wordmark below carries the
+                  {/* The socket stamp in the icon-width rail: a squared ink tile
+                      with the paper aperture knocked out (SkillistMark carries
+                      the shared geometry). The wordmark below carries the
                       accessible name. */}
                   <span
                     aria-hidden
                     className="flex size-8 shrink-0 items-center justify-center bg-foreground text-background"
                   >
-                    <svg
-                      viewBox="0 0 48 48"
-                      className="size-8"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <rect x="6.72" y="6.72" width="16.42" height="10.8" />
-                      <rect x="6.72" y="6.72" width="10.8" height="16.42" />
-                      <rect x="24.86" y="6.72" width="16.42" height="10.8" />
-                      <rect x="30.48" y="6.72" width="10.8" height="16.42" />
-                      <rect x="24.86" y="30.48" width="16.42" height="10.8" />
-                      <rect x="30.48" y="24.86" width="10.8" height="16.42" />
-                      <rect x="6.72" y="30.48" width="16.42" height="10.8" />
-                      <rect x="6.72" y="24.86" width="10.8" height="16.42" />
-                    </svg>
+                    <SkillistMark className="size-8" />
                   </span>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <SkillistLogo className="truncate text-sm" />
