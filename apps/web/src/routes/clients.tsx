@@ -1,5 +1,5 @@
 import { RuleEdge, SignalField, signalFieldClass } from "@skillist/ui";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { CLIENTS, type ClientData } from "@/components/clients-data";
 
@@ -34,14 +34,12 @@ function ClientLogo({ client }: { client: ClientData }) {
   );
 }
 
+const cellLinkClass =
+  "text-xs font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+
 function CellLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="text-xs font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
-    >
+    <a href={href} target="_blank" rel="noreferrer" className={cellLinkClass}>
       {children}
     </a>
   );
@@ -55,7 +53,7 @@ function ClientCell({ client, wide }: { client: ClientData; wide?: boolean }) {
         href={client.url}
         target="_blank"
         rel="noreferrer"
-        className="group inline-flex items-center gap-1 text-sm font-semibold text-foreground"
+        className="group inline-flex items-center gap-1 text-sm font-semibold text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         {client.name}
         <ArrowUpRight
@@ -70,9 +68,12 @@ function ClientCell({ client, wide }: { client: ClientData; wide?: boolean }) {
         )}
         {client.sourceCodeUrl && <CellLink href={client.sourceCodeUrl}>Source code</CellLink>}
         {client.skillistOrg && (
-          // The registry has no dedicated org filter; free-text q matches the
-          // org slug, which is exactly how the mirrored skills are namespaced.
-          <CellLink href={`/registry?q=${client.skillistOrg}`}>Skills on Skillist</CellLink>
+          // In-app router link, unlike the vendor links: no new tab, no
+          // reload. The registry has no dedicated org filter; free-text q
+          // matches the org slug, which is how mirrored skills are namespaced.
+          <Link to="/registry" search={{ q: client.skillistOrg }} className={cellLinkClass}>
+            Skills on Skillist
+          </Link>
         )}
       </div>
     </div>
