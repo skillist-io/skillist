@@ -71,6 +71,18 @@
       "name": "AUTH_RATE_LIMITER",
       "namespace_id": "1002",
       "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      // Session reads (`get-session`, `list-sessions`, `list-accounts`,
+      // `list-user-passkeys`). Authenticated and usually served from the 60s
+      // cookie cache without touching Postgres, but the console calls
+      // `get-session` on every route `beforeLoad` and every hover-preload — and
+      // the key is per-IP, so a NAT'd office shares one bucket. Under the 20/60s
+      // AUTH namespace that 429'd, and the client rendered the 429 as
+      // "We couldn't verify your session", signing people out mid-session.
+      "name": "SESSION_RATE_LIMITER",
+      "namespace_id": "1003",
+      "simple": { "limit": 300, "period": 60 }
     }
   ],
   "durable_objects": {

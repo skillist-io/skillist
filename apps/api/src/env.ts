@@ -37,6 +37,12 @@ export type Env = {
    * unauthenticated and cost real money per request (email sends, DB reads), so
    * they must not share the general registry budget. */
   AUTH_RATE_LIMITER?: RateLimit;
+  /** Session *reads* (`get-session`, `list-sessions`, …). Separate from
+   * AUTH_RATE_LIMITER because the SPA calls these on every navigation — one per
+   * route `beforeLoad`, plus hover-preloads — so they need a budget sized for
+   * normal browsing, not for the expensive unauthenticated endpoints. Sharing
+   * the tight namespace 429'd real sessions out of the console. */
+  SESSION_RATE_LIMITER?: RateLimit;
   AI_QUEUE: Queue<AiJobMessage>;
   SYNC_QUEUE: Queue<SyncQueueMessage>;
   SYNC_WORKFLOW: Workflow;

@@ -55,6 +55,14 @@
       "name": "AUTH_RATE_LIMITER",
       "namespace_id": "1002",
       "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      // Session reads only. Authenticated and cheap (usually a cookie-cache hit,
+      // no DB), but called on every SPA navigation, so 20/60s bounced valid
+      // sessions to /login. Keep in sync with wrangler.production.jsonc.
+      "name": "SESSION_RATE_LIMITER",
+      "namespace_id": "1003",
+      "simple": { "limit": 300, "period": 60 }
     }
   ],
   "durable_objects": {

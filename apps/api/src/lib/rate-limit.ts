@@ -36,7 +36,7 @@ function sweep(now: number): void {
  * limit/period from wrangler, so separate namespaces are the only way to give a
  * route a different budget — see the note on `limit` below.
  */
-export type LimiterBinding = "RATE_LIMITER" | "AUTH_RATE_LIMITER";
+export type LimiterBinding = "RATE_LIMITER" | "AUTH_RATE_LIMITER" | "SESSION_RATE_LIMITER";
 
 /**
  * `limit`/`windowMs` apply ONLY to the in-memory fallback. When the native

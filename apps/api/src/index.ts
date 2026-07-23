@@ -11,7 +11,13 @@ import type { AiJobMessage, Env } from "./env";
 import { runAiJob } from "./lib/ai";
 import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
-import { assertProductionBindings, closeWorkerDb, createWorkerDb, isProductionEnv } from "./lib/db";
+import {
+  assertProductionBindings,
+  closeWorkerDb,
+  createWorkerDb,
+  isProductionEnv,
+  safeExecutionCtx,
+} from "./lib/db";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
 import { getOrgMembership } from "./lib/org-access";
 import { rateLimit } from "./lib/rate-limit";
@@ -106,13 +112,21 @@ app.all("/mcp", handleMcpRequest);
 app.options("/mcp", (c) => c.body(null, 204));
 
 app.get("/.well-known/oauth-authorization-server", async (c) => {
-  const auth = createApiAuth(c.env, createApiEmailSender(c.env));
-  return oAuthDiscoveryMetadata(auth)(c.req.raw);
+  const { auth, db } = createApiAuth(c.env, createApiEmailSender(c.env));
+  try {
+    return await oAuthDiscoveryMetadata(auth)(c.req.raw);
+  } finally {
+    closeWorkerDb(db, safeExecutionCtx(c));
+  }
 });
 
 app.get("/.well-known/oauth-protected-resource", async (c) => {
-  const auth = createApiAuth(c.env, createApiEmailSender(c.env));
-  return oAuthProtectedResourceMetadata(auth)(c.req.raw);
+  const { auth, db } = createApiAuth(c.env, createApiEmailSender(c.env));
+  try {
+    return await oAuthProtectedResourceMetadata(auth)(c.req.raw);
+  } finally {
+    closeWorkerDb(db, safeExecutionCtx(c));
+  }
 });
 
 // Production origins are always allowed. Console opens the platform agent
@@ -194,10 +208,44 @@ app.get("/health", async (c) => {
 // therefore per-isolate on Workers — useful as defense in depth for per-endpoint
 // rules, but it cannot be the real gate. Without this, magic-link and OAuth
 // endpoints were completely unthrottled.
-app.use("/api/auth/*", rateLimit(20, 60_000, "AUTH_RATE_LIMITER"));
+//
+// Session READS get their own, much larger namespace. They are authenticated
+// and normally served from the 60s cookie cache without touching Postgres, but
+// the console calls `get-session` on every route `beforeLoad` (and every
+// hover-preload, since `defaultPreload: "intent"` runs beforeLoad). The limiter
+// key is per-IP and truncated to `/api/auth`, so every auth endpoint shared one
+// 20/60s bucket across both apps and every user behind a NAT. Real sessions hit
+// 429, and the console renders any getSession error as "we couldn't verify your
+// session" — i.e. the rate limiter was signing people out mid-session.
+//
+// Everything else (magic-link + OAuth + passkey: unauthenticated and expensive)
+// stays on the tight namespace. Allowlist, not denylist: a new Better Auth
+// endpoint lands on the strict limiter by default.
+const SESSION_READ_PATHS = new Set([
+  "/api/auth/get-session",
+  "/api/auth/list-sessions",
+  "/api/auth/list-accounts",
+  "/api/auth/passkey/list-user-passkeys",
+]);
+
+const authLimiter = rateLimit(20, 60_000, "AUTH_RATE_LIMITER");
+const sessionLimiter = rateLimit(300, 60_000, "SESSION_RATE_LIMITER");
+
+app.use("/api/auth/*", (c, next) =>
+  SESSION_READ_PATHS.has(c.req.path) ? sessionLimiter(c, next) : authLimiter(c, next),
+);
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
-  const auth = createApiAuth(c.env, createApiEmailSender(c.env));
-  return auth.handler(c.req.raw);
+  const { auth, db } = createApiAuth(c.env, createApiEmailSender(c.env));
+  try {
+    return await auth.handler(c.req.raw);
+  } finally {
+    // Release the Postgres connection the auth instance holds. Without this the
+    // socket lingers until the isolate is evicted, so auth traffic accumulates
+    // connections against Hyperdrive's upstream pool far beyond what the request
+    // rate implies — and pool exhaustion surfaces as an intermittent 500 on
+    // get-session, which the console also renders as a signed-out user.
+    closeWorkerDb(db, safeExecutionCtx(c));
+  }
 });
 
 // Platform agent (Cloudflare Agents SDK). Auth-gated on the Better Auth session
