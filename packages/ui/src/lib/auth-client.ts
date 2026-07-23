@@ -17,6 +17,68 @@ export const authClient = createAuthClient({
 export const { signIn, signOut, useSession } = authClient;
 
 /**
+ * How long a clean session answer may be reused. Route guards call getSession()
+ * on every navigation — and on every hover, since the console preloads on
+ * intent — and each of those spends from a per-IP rate-limit budget shared by
+ * everyone behind the same NAT.
+ *
+ * Deliberately short, and deliberately NOT a security boundary: the API
+ * re-verifies the session on every /v1 request, and the server already answers
+ * getSession from a 60s cookie cache. This only governs how often the SPA asks.
+ */
+const SESSION_TTL_MS = 15_000;
+
+/**
+ * Types are taken off THIS wrapper, never off `typeof authClient.getSession`.
+ * That method is generic, so `ReturnType<typeof authClient.getSession>`
+ * instantiates its type parameters with `unknown` and hands back a degraded
+ * shape — the discriminated union between the success and error arms collapses,
+ * `return session` in a route guard stops narrowing, and TanStack's route
+ * context resolves to `any` in every downstream loader. Going through a plain
+ * non-generic function captures the already-instantiated type instead.
+ */
+function fetchSession() {
+  return authClient.getSession();
+}
+
+type SessionPromise = ReturnType<typeof fetchSession>;
+
+let inFlightSession: SessionPromise | null = null;
+let cachedSession: { at: number; result: Awaited<SessionPromise> } | null = null;
+
+/** Drop any cached session. Must run on sign-out, and on any account switch. */
+export function clearSessionCache(): void {
+  inFlightSession = null;
+  cachedSession = null;
+}
+
+/**
+ * `authClient.getSession()` with concurrent callers collapsed onto one request
+ * and a short reuse window. Returns the exact same shape as the underlying call
+ * — destructure it directly (`const { data, error } = await …`) so the
+ * discriminated-union narrowing survives; hoisting it into a named alias widens
+ * it and collapses TanStack's route context to `any` downstream.
+ */
+export function getSharedSession(): SessionPromise {
+  const fresh = cachedSession && Date.now() - cachedSession.at < SESSION_TTL_MS;
+  if (fresh && cachedSession) return Promise.resolve(cachedSession.result);
+  if (inFlightSession) return inFlightSession;
+
+  inFlightSession = fetchSession().then((result) => {
+    // Only a clean answer is cacheable. Caching an error would turn a single
+    // 429 into 15s of guaranteed failure for every route in the app.
+    if (!result.error) cachedSession = { at: Date.now(), result };
+    return result;
+  });
+
+  void inFlightSession.finally(() => {
+    inFlightSession = null;
+  });
+
+  return inFlightSession;
+}
+
+/**
  * Resolve a post-auth redirect to a SAME-SITE absolute URL.
  *
  * A `?redirect=` param is attacker-controllable, so anything that isn't a plain
@@ -51,8 +113,11 @@ export async function signOutAndRedirect(redirectTo = DEFAULT_SIGN_OUT_REDIRECT)
   const target = resolveClientRedirect(redirectTo);
   let redirected = false;
 
-  // Drop the persisted query cache so org data never outlives the session.
+  // Drop the persisted query cache so org data never outlives the session, and
+  // the session cache with it — otherwise a route guard could wave the
+  // just-signed-out user straight back through for up to SESSION_TTL_MS.
   clearPersistedQueryCache();
+  clearSessionCache();
 
   const redirect = () => {
     if (redirected || typeof window === "undefined") return;

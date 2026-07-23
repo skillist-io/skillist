@@ -37,6 +37,19 @@ const clientsByDb = new WeakMap<object, ReturnType<typeof postgres>>();
  */
 type WaitUntil = { waitUntil(promise: Promise<unknown>): void };
 
+/**
+ * `c.executionCtx` throws when Hono has no ExecutionContext (tests, and non-fetch
+ * entrypoints). A caller that only wants to defer a best-effort connection close
+ * shouldn't have to care, so this yields `undefined` instead of throwing.
+ */
+export function safeExecutionCtx(c: { executionCtx: WaitUntil }): WaitUntil | undefined {
+  try {
+    return c.executionCtx;
+  } catch {
+    return undefined;
+  }
+}
+
 function buildWorkerDb(connectionString: string): import("@skillist/auth").WorkerDb {
   const client = postgres(connectionString, {
     prepare: false,
