@@ -8,19 +8,13 @@
  * The identity is wordmark-only: SKILLIST set in Inter SemiBold caps at
  * +0.14em tracking — the same equipment-label voice the product labels its
  * switches and readouts with, one step larger. The standalone stamp for the
- * places a word cannot go (favicon, avatar, app icon) is the Bold S knocked
- * out of a squared tile. (Two pictorial marks came before this: a letterform
- * `ill` cut from the middle of the name, retired because a mark that spells
- * "ill" argues with a brand built on trust, and a three-rule list glyph,
- * retired as decoration the wordmark didn't need. Both live in git history.)
+ * places a word cannot go (favicon, avatar, app icon) is the socket (see
+ * SOCKET_FRAC and socketTiles below). (Marks that came before this, all in git
+ * history: a letterform `ill` cut from the middle of the name, retired because
+ * a mark that spells "ill" argues with a brand built on trust; a three-rule
+ * list glyph, retired as decoration the wordmark didn't need; and a Bold S
+ * stamp, replaced by the socket — its outline stays in wordmark.json.)
  */
-
-/**
- * Fraction of the tile's side the S occupies, by bounding-box height. Matches
- * the ink coverage the old mark had in its tile (glyph 56 / tile 84), so the
- * stamp carries the same visual weight the brand has shipped with.
- */
-export const TILE_GLYPH_FRAC = 2 / 3;
 
 /** Reference cap height, in SVG units, that vector assets are scaled to. */
 export const CAP = 48;
@@ -81,11 +75,84 @@ export const VARIANTS = {
 };
 
 /**
- * Inks for the S tile. The tile inverts the page: ink tile with paper glyph on
- * a light ground, paper tile with ink glyph on a dark one, because a
+ * Inks for the stamp tile. The tile inverts the page: ink tile with paper glyph
+ * on a light ground, paper tile with ink glyph on a dark one, because a
  * near-black tile on a near-black page is not a tile.
  */
 export const TILE_VARIANTS = {
   light: { tile: INK, glyph: PAPER },
   dark: { tile: PAPER, glyph: INK },
 };
+
+/* ── The socket stamp ──────────────────────────────────────────────────────
+ * The standalone mark for the places a word cannot go — favicon, app icon,
+ * avatar. Four congruent L corner-tiles framing an empty centre: the tiles are
+ * the registry, the socket is the slot the next skill drops into. It replaces
+ * the earlier Bold-S stamp (retained in wordmark.json for git history).
+ *
+ * The figure is built on two mirror axes, never rotation. An earlier draft
+ * pinwheeled the four tiles around the void; four arms hooking the same way is
+ * the swastika topology, so the tiling was reflected instead of rotated. The
+ * result is a stable aperture that reads the same flipped either way.
+ *
+ * Knocked into the filled tile in the glyph ink, exactly as the S was: the four
+ * brackets take the glyph colour and the socket + seams fall back to the tile
+ * colour, so on light it reads as a paper aperture cut into an ink square.
+ */
+
+/** Active square (the mark's own bounds) as a fraction of the tile side. The
+ * remainder is the tile's built-in clear space, a touch tighter than the S so
+ * the ring reads as a bold aperture rather than a thin frame floating in field. */
+export const SOCKET_FRAC = 0.72;
+/** Socket side as a fraction of the active square (12/32 on the reference grid).
+ * This also fixes the arm thickness, since arm = (active − socket) / 2. */
+export const SOCKET_VOID_FRAC = 0.375;
+/** Transparent seam width as a fraction of the active square (1.6/32). Below
+ * ~20px it closes up and the mark reads as a plain aperture, which is fine. */
+export const SOCKET_SEAM_FRAC = 0.05;
+
+/**
+ * The eight rects (four L-tiles, two rects each) that make up the socket at a
+ * given tile size. Returned as geometry so the generator can paint them in any
+ * ink; the socket + seams are simply the tile ground left unpainted.
+ */
+export function socketTiles(size) {
+  const active = size * SOCKET_FRAC;
+  const c = size / 2;
+  const a0 = c - active / 2; // active square, near edge
+  const a1 = c + active / 2; // active square, far edge
+  const t = (active * (1 - SOCKET_VOID_FRAC)) / 2; // arm thickness
+  const gap = (active * SOCKET_SEAM_FRAC) / 2; // half the seam width
+  const near = c - gap; // where an arm stops before the centre seam
+  const far = c + gap; // where the opposite arm resumes after it
+  return [
+    // top-left tile
+    { x: a0, y: a0, w: near - a0, h: t },
+    { x: a0, y: a0, w: t, h: near - a0 },
+    // top-right tile
+    { x: far, y: a0, w: a1 - far, h: t },
+    { x: a1 - t, y: a0, w: t, h: near - a0 },
+    // bottom-right tile
+    { x: far, y: a1 - t, w: a1 - far, h: t },
+    { x: a1 - t, y: far, w: t, h: a1 - far },
+    // bottom-left tile
+    { x: a0, y: a1 - t, w: near - a0, h: t },
+    { x: a0, y: far, w: t, h: a1 - far },
+  ];
+}
+
+/** Below ~28px the seams turn to grey mush and the four tiles smear together, so
+ * small renders (the favicon, the 16px .ico layer) take the socket with its
+ * seams removed: a plain square aperture. Same outer bounds and same socket as
+ * the full mark — literally the socket minus its seams — so it stays on-family.
+ * Returned as the outer square and the hole; paint with fill-rule evenodd. */
+export const SOCKET_MIN_PX = 28;
+export function socketAperture(size) {
+  const active = size * SOCKET_FRAC;
+  const hole = active * SOCKET_VOID_FRAC;
+  const c = size / 2;
+  return {
+    outer: { x: c - active / 2, y: c - active / 2, side: active },
+    hole: { x: c - hole / 2, y: c - hole / 2, side: hole },
+  };
+}
