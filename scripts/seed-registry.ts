@@ -43,13 +43,40 @@ const ORG_SLUG = "skillist";
 const ORG_NAME = "Skillist";
 const IS_LOCAL = process.argv.includes("--local");
 
+// --local writes R2/KV to the local wrangler simulator, but the DB write always
+// goes to DATABASE_URL. If that URL points at a remote (production) database,
+// the seed inserts version rows whose r2Prefix objects exist only on this
+// machine — production then serves empty bundles and the console editor renders
+// an empty SKILL.md. This exact mismatch corrupted the skillist org on
+// 2026-07-19, so refuse the combination outright.
+const dbHost = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : "";
+const dbIsLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
+if (IS_LOCAL && !dbIsLocal) {
+  console.error(
+    `--local seeds local R2/KV, but DATABASE_URL points at remote host "${dbHost}".\n` +
+      "That would write version rows to a remote database for bundles that only exist locally.\n" +
+      "Use a local DATABASE_URL with --local, or drop --local to seed production end to end.",
+  );
+  process.exit(1);
+}
+if (!IS_LOCAL && dbIsLocal) {
+  console.error(
+    "Production mode (no --local) seeds remote R2/KV, but DATABASE_URL is local.\n" +
+      "That would write production bundles for version rows that only exist locally.\n" +
+      "Pass --local for a fully local seed, or point DATABASE_URL at production.",
+  );
+  process.exit(1);
+}
+
 const R2_BUCKET = IS_LOCAL ? "skillist-skills-preview" : "skillist-skills";
 const KV_NAMESPACE_ID = "e3efe45d7f14430ab6c5868235e6755f";
 const WRANGLER_DIR = join(ROOT, "apps", "api");
 const WRANGLER_CONFIG = IS_LOCAL ? "-c wrangler.jsonc" : "-c wrangler.production.jsonc";
 
 const SKILL_LEVELS: Record<string, string> = {
-  "roll-dice": "1.0.0",
+  // 1.0.2 was published through the console on 2026-07-18 and survives in
+  // production R2 — seeding must stay above it so "latest" never moves backwards.
+  "roll-dice": "1.0.3",
   "web-perf-audit": "1.0.0",
   "cloudflare-deploy": "1.0.0",
   "api-design": "1.0.0",
