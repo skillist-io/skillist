@@ -99,14 +99,24 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Accept", "Authorization", "Mcp-Session-Id"],
-    exposeHeaders: ["Mcp-Session-Id", "WWW-Authenticate"],
+    // MCP-Protocol-Version / Mcp-Method / Mcp-Name are the 2026-07-28 required
+    // request headers; Mcp-Session-Id is tolerated (and ignored) for 2025-era
+    // legacy clients that still send it.
+    allowHeaders: [
+      "Content-Type",
+      "Accept",
+      "Authorization",
+      "MCP-Protocol-Version",
+      "Mcp-Method",
+      "Mcp-Name",
+      "Mcp-Session-Id",
+    ],
+    exposeHeaders: ["WWW-Authenticate"],
   }),
 );
-// /mcp is unauthenticated for registry reads and each `initialize` writes a KV
-// session entry, so it was the one surface with an unthrottled path to
-// Postgres. Registered before the handler — Hono applies middleware in
-// registration order.
+// /mcp is unauthenticated for registry reads, so it is the one surface with an
+// unthrottled path to Postgres. Registered before the handler — Hono applies
+// middleware in registration order.
 app.use("/mcp", rateLimit(60, 60_000, "AUTH_RATE_LIMITER"));
 app.all("/mcp", handleMcpRequest);
 app.options("/mcp", (c) => c.body(null, 204));

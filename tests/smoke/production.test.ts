@@ -10,6 +10,21 @@ async function fetchJson(path: string, init?: RequestInit) {
   return res.json();
 }
 
+/**
+ * The MCP endpoint may answer a POST with plain JSON or with a single-event
+ * SSE stream (the transport picks per request/era). Accept both framings.
+ */
+async function parseMcpResponse(res: Response): Promise<any> {
+  const contentType = res.headers.get("Content-Type") ?? "";
+  if (contentType.includes("text/event-stream")) {
+    const text = await res.text();
+    const dataLine = text.split("\n").find((line) => line.startsWith("data: "));
+    expect(dataLine).toBeDefined();
+    return JSON.parse((dataLine as string).slice("data: ".length));
+  }
+  return res.json();
+}
+
 describe("production smoke", () => {
   it("health reports MCP server", async () => {
     const health = await fetchJson("/health");
@@ -29,16 +44,28 @@ describe("production smoke", () => {
   it("MCP tools/list returns registry tools", async () => {
     const res = await fetch(`${API_URL}/mcp`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        // 2026-07-28 required request headers, mirrored in the body's _meta
+        "MCP-Protocol-Version": "2026-07-28",
+        "Mcp-Method": "tools/list",
+      },
       body: JSON.stringify({
         jsonrpc: "2.0",
         id: 1,
         method: "tools/list",
-        params: {},
+        params: {
+          _meta: {
+            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientInfo": { name: "smoke", version: "1.0.0" },
+            "io.modelcontextprotocol/clientCapabilities": {},
+          },
+        },
       }),
     });
     expect(res.ok).toBe(true);
-    const body = await res.json();
+    const body = await parseMcpResponse(res);
     const names = body.result.tools.map((tool: { name: string }) => tool.name);
     expect(names).toEqual(
       expect.arrayContaining([
@@ -58,26 +85,27 @@ describe("production smoke", () => {
     expect(body.resource).toBeTruthy();
   });
 
-  it("MCP initialize returns session header in streamable mode", async () => {
+  it("MCP still serves legacy initialize-handshake clients", async () => {
     const res = await fetch(`${API_URL}/mcp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json",
+        Accept: "application/json, text/event-stream",
       },
       body: JSON.stringify({
         jsonrpc: "2.0",
         id: 2,
         method: "initialize",
         params: {
-          protocolVersion: "2024-11-05",
+          protocolVersion: "2025-06-18",
           capabilities: {},
           clientInfo: { name: "smoke", version: "1.0.0" },
         },
       }),
     });
     expect(res.ok).toBe(true);
-    expect(res.headers.get("Mcp-Session-Id")).toBeTruthy();
+    const body = await parseMcpResponse(res);
+    expect(body.result?.serverInfo?.name).toBe("skillist-registry");
     expect(res.headers.get("WWW-Authenticate")).toContain("Bearer");
   });
 

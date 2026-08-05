@@ -35,7 +35,7 @@ Read the source **first**, then check the doc matches. Report every mismatch as 
 | :-- | :-- | :-- |
 | REST `/v1` routes | `platform/registry.mdx`, `platform/delivery.mdx`, `platform/sandbox.mdx`, `src/components/docs/EndpointsTable.tsx` | `apps/api/src/routes/*.ts`; canonical: built `/openapi.json` |
 | Apex paths `/{org}/{repo}/…` | `platform/delivery.mdx`, `getting-started/*` | `apps/api/src/routes/delivery.ts`, `execution.ts` |
-| MCP tools | `mcp/tools.mdx`, `mcp/index.mdx`, `mcp/connect.mdx` | `apps/api/src/mcp/registry-server.ts` → `REGISTRY_MCP_TOOLS` (+ `mcpServerInfo`) |
+| MCP tools | `mcp/tools.mdx`, `mcp/index.mdx`, `mcp/connect.mdx` | `apps/api/src/mcp/registry-server.ts` → `buildRegistryMcpServer` / `REGISTRY_MCP_TOOL_NAMES` (+ `mcpServerInfo`) |
 | CLI commands / flags | `getting-started/cli.mdx`, `getting-started/quick-start.mdx`, `packages/cli/README.md` | `packages/cli/src/index.ts` `usage()` (+ `inventory.ts`, `source.ts`, `review.ts`) |
 | SKILL.md frontmatter | *(no dedicated page — gap)*, `packages/skill-format/README.md` | `packages/skill-format/src/index.ts` → `skillFrontmatterSchema` |
 | Roles/scopes/visibility/policies | `platform/authentication.mdx`, `platform/install-policy.mdx` | `packages/contracts/src/index.ts` |

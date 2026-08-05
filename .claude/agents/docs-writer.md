@@ -35,7 +35,7 @@ Docs are **hand-authored**; nothing is generated from the OpenAPI spec, contract
 | :-- | :-- |
 | REST endpoints, shapes | `apps/api/src/routes/*.ts` (canonical live spec: built `/openapi.json`) |
 | Apex paths `/{org}/{repo}/…` | `apps/api/src/routes/delivery.ts`, `execution.ts` |
-| MCP tools | `apps/api/src/mcp/registry-server.ts` → `REGISTRY_MCP_TOOLS` (currently 4) |
+| MCP tools | `apps/api/src/mcp/registry-server.ts` → `buildRegistryMcpServer` / `REGISTRY_MCP_TOOL_NAMES` (currently 7) |
 | CLI commands / flags | `packages/cli/src/index.ts` `usage()` (+ `inventory.ts`, `source.ts`, `review.ts`) |
 | SKILL.md frontmatter | `packages/skill-format/src/index.ts` → `skillFrontmatterSchema` |
 | Roles / scopes / visibility / policies | `packages/contracts/src/index.ts` |

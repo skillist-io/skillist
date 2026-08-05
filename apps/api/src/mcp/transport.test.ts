@@ -1,37 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { formatSseEvent, isInitializeRequest, jsonRpcToSse } from "./transport";
+import { mcpAuthUrl, mcpWwwAuthenticate, verifyOptionalMcpSession } from "./transport";
 
-describe("MCP transport helpers", () => {
-  it("detects initialize requests", () => {
-    expect(
-      isInitializeRequest({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {},
-      }),
-    ).toBe(true);
-    expect(
-      isInitializeRequest({
-        jsonrpc: "2.0",
-        id: 2,
-        method: "tools/list",
-        params: {},
-      }),
-    ).toBe(false);
+describe("MCP auth helpers", () => {
+  it("builds the Better Auth base URL without a trailing slash", () => {
+    expect(mcpAuthUrl("https://api.skillist.io/")).toBe("https://api.skillist.io/api/auth");
   });
 
-  it("formats SSE events", () => {
-    expect(formatSseEvent({ ok: true }, "message")).toBe('event: message\ndata: {"ok":true}\n\n');
+  it("advertises the OAuth protected-resource metadata in WWW-Authenticate", () => {
+    expect(mcpWwwAuthenticate("https://api.skillist.io")).toBe(
+      'Bearer resource_metadata="https://api.skillist.io/.well-known/oauth-protected-resource"',
+    );
   });
 
-  it("wraps JSON-RPC responses in SSE", () => {
-    const sse = jsonRpcToSse({
-      jsonrpc: "2.0",
-      id: 1,
-      result: { tools: [] },
-    });
-    expect(sse).toContain("event: message");
-    expect(sse).toContain('"tools":[]');
+  it("treats a missing or non-Bearer Authorization header as anonymous", async () => {
+    const neverCalled = {
+      verifyToken: () => {
+        throw new Error("must not be called");
+      },
+    } as never;
+    expect(await verifyOptionalMcpSession(neverCalled, undefined)).toBeNull();
+    expect(await verifyOptionalMcpSession(neverCalled, "Basic abc")).toBeNull();
   });
 });

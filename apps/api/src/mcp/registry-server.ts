@@ -1,3 +1,4 @@
+import { McpServer } from "@modelcontextprotocol/server";
 import { addProjectItemSchema } from "@skillist/contracts";
 import {
   organizations,
@@ -9,6 +10,7 @@ import {
 } from "@skillist/db/schema";
 import type { McpSession } from "better-auth/plugins/mcp/client";
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+import { z } from "zod";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { requireProjectAccess } from "../lib/project-access";
@@ -19,141 +21,24 @@ import {
   listRegistry,
 } from "../lib/registry-service";
 
-/** JSON-RPC error code for tools that require an authenticated MCP session. */
-const AUTH_REQUIRED_ERROR = -32001;
+/** The protocol revision this server speaks natively (per-request `_meta`, stateless). */
+export const MCP_PROTOCOL_VERSION = "2026-07-28";
 
-/** Tools that require a verified Better Auth MCP session (userId). */
-const AUTHENTICATED_TOOLS = new Set(["my_projects", "project_skills", "add_skill_to_project"]);
+/**
+ * 2025-era initialize-handshake revisions the SDK's `legacy: "stateless"`
+ * posture still serves from the same tool factory (per request, no sessions).
+ */
+export const MCP_LEGACY_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"] as const;
 
-type JsonRpcRequest = {
-  jsonrpc?: string;
-  id?: string | number | null;
-  method?: string;
-  params?: Record<string, unknown>;
-};
-
-type McpTool = {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-};
-
-export const REGISTRY_MCP_TOOLS: McpTool[] = [
-  {
-    name: "registry_search",
-    description:
-      "Search the public Skillist agent skills registry by name, description, tags, category, or agent compatibility.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: "Search term (optional)" },
-        limit: {
-          type: "number",
-          description: "Max results (default 10, max 20)",
-        },
-        category: { type: "string", description: "Filter by category" },
-        tag: { type: "string", description: "Filter by tag" },
-        agent: {
-          type: "string",
-          description: "Filter by compatible agent (cursor, claude, vscode, mcp)",
-        },
-        sourceType: {
-          type: "string",
-          description: "Filter by origin: native or mirror",
-        },
-        sort: {
-          type: "string",
-          description:
-            "relevance (best match for `query`), quality, impact, trending, stars, installs, activations, recent, name",
-        },
-      },
-    },
-  },
-  {
-    name: "registry_get_skill",
-    description:
-      "Get full registry metadata for a skill including eval uplift, install command, plugin.json, and mirror upstream URL when sourceType is mirror.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        org: { type: "string", description: "Organization slug, e.g. skillist" },
-        repo: { type: "string", description: "Skill repo name" },
-      },
-      required: ["org", "repo"],
-    },
-  },
-  {
-    name: "registry_facets",
-    description:
-      "List available registry filter facets: categories, tags, compatible agents, and sourceTypes (native|mirror).",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "registry_install_help",
-    description: "Return CLI install commands for a skill and global CLI setup instructions.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        org: { type: "string" },
-        repo: { type: "string" },
-      },
-      required: ["org", "repo"],
-    },
-  },
-  {
-    name: "my_projects",
-    description:
-      "List the Skillist projects the authenticated user can access across every organization they belong to. Requires an authenticated MCP session. Returns only projects the user may read: all projects in orgs they own, plus shared projects and projects they are a member of elsewhere. Returns orgId, orgSlug, projectId, slug, name, description, visibility, and itemCount for each project.",
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "project_skills",
-    description:
-      "List the curated skills and external references in a Skillist project, grouped by folder path, resolved for agent use (install/run commands for skills, URLs for external items). Requires an authenticated MCP session and read access to the project (org owner, a project member, or a shared project). Identify the project by projectId, or by orgSlug + projectSlug.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        projectId: { type: "string", description: "Project id (preferred)" },
-        orgSlug: {
-          type: "string",
-          description: "Organization slug (use with projectSlug instead of projectId)",
-        },
-        projectSlug: {
-          type: "string",
-          description: "Project slug (use with orgSlug instead of projectId)",
-        },
-      },
-    },
-  },
-  {
-    name: "add_skill_to_project",
-    description:
-      "Add a skill or an external reference to a Skillist project. Requires an authenticated MCP session and write access to the project (org owner, a project editor/admin, or a shared project when the user is an org editor or higher). Provide exactly one of skillId (a registry skill visible to the org) or externalUrl (an external link). Duplicates are returned as-is rather than erroring.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        projectId: { type: "string", description: "Target project id" },
-        skillId: {
-          type: "string",
-          description: "Skill id to add (mutually exclusive with externalUrl)",
-        },
-        externalUrl: {
-          type: "string",
-          description: "External URL to add (mutually exclusive with skillId)",
-        },
-        externalName: {
-          type: "string",
-          description: "Display name for an external item",
-        },
-        path: {
-          type: "string",
-          description: "Folder path to group the item under (optional)",
-        },
-      },
-      required: ["projectId"],
-    },
-  },
-];
+export const REGISTRY_MCP_TOOL_NAMES = [
+  "registry_search",
+  "registry_get_skill",
+  "registry_facets",
+  "registry_install_help",
+  "my_projects",
+  "project_skills",
+  "add_skill_to_project",
+] as const;
 
 function textResult(data: unknown) {
   return {
@@ -244,10 +129,14 @@ async function toolMyProjects(db: WorkerDb, userId: string) {
   });
 }
 
-async function toolProjectSkills(db: WorkerDb, session: McpSession, args: Record<string, unknown>) {
-  const projectId = typeof args.projectId === "string" ? args.projectId : "";
-  const orgSlug = typeof args.orgSlug === "string" ? args.orgSlug : "";
-  const projectSlug = typeof args.projectSlug === "string" ? args.projectSlug : "";
+async function toolProjectSkills(
+  db: WorkerDb,
+  session: McpSession,
+  args: { projectId?: string; orgSlug?: string; projectSlug?: string },
+) {
+  const projectId = args.projectId ?? "";
+  const orgSlug = args.orgSlug ?? "";
+  const projectSlug = args.projectSlug ?? "";
 
   const projectQuery = db
     .select({
@@ -347,10 +236,16 @@ async function toolProjectSkills(db: WorkerDb, session: McpSession, args: Record
 async function toolAddSkillToProject(
   db: WorkerDb,
   session: McpSession,
-  args: Record<string, unknown>,
+  args: {
+    projectId: string;
+    skillId?: string;
+    externalUrl?: string;
+    externalName?: string;
+    path?: string;
+  },
 ) {
   const userId = session.userId;
-  const projectId = typeof args.projectId === "string" ? args.projectId : "";
+  const projectId = args.projectId;
   if (!projectId) throw new Error("projectId is required");
 
   const [project] = await db
@@ -452,20 +347,72 @@ async function toolAddSkillToProject(
   return textResult({ id: inserted.id });
 }
 
-async function callTool(
-  db: WorkerDb,
-  name: string,
-  args: Record<string, unknown>,
-  session: McpSession | null,
-) {
-  switch (name) {
-    case "registry_search": {
+/**
+ * Per-request McpServer factory. The SDK serves one fresh instance per HTTP
+ * request (`createMcpHandler`), so the factory closes over the request's db
+ * client and verified Better Auth session — no state outlives the request.
+ *
+ * Auth-gated tools are always registered (the tool list is identical for every
+ * caller, which is what lets `tools/list` carry `cacheScope: "public"`); an
+ * unauthenticated call to one returns an `isError` tool result telling the
+ * agent how to connect, thrown here and converted by the SDK.
+ */
+export function buildRegistryMcpServer(db: WorkerDb, session: McpSession | null): McpServer {
+  const server = new McpServer(
+    { name: "skillist-registry", version: "1.0.0" },
+    {
+      instructions:
+        "Search and inspect the public Skillist agent-skills registry (registry_search, " +
+        "registry_get_skill, registry_facets, registry_install_help). With an authenticated " +
+        "Skillist OAuth session, my_projects / project_skills / add_skill_to_project manage " +
+        "the caller's curated skill projects.",
+      cacheHints: {
+        // The tool list is static and identical for every caller.
+        "tools/list": { ttlMs: 300_000, cacheScope: "public" },
+        "server/discover": { ttlMs: 3_600_000, cacheScope: "public" },
+      },
+    },
+  );
+
+  const requireSession = (tool: string): McpSession => {
+    if (!session) {
+      throw new Error(
+        `Authentication required: connect with a valid Skillist OAuth token to use "${tool}".`,
+      );
+    }
+    return session;
+  };
+
+  server.registerTool(
+    "registry_search",
+    {
+      description:
+        "Search the public Skillist agent skills registry by name, description, tags, category, or agent compatibility.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Search term (optional)"),
+        limit: z.number().optional().describe("Max results (default 10, max 20)"),
+        category: z.string().optional().describe("Filter by category"),
+        tag: z.string().optional().describe("Filter by tag"),
+        agent: z
+          .string()
+          .optional()
+          .describe("Filter by compatible agent (cursor, claude, vscode, mcp)"),
+        sourceType: z.string().optional().describe("Filter by origin: native or mirror"),
+        sort: z
+          .string()
+          .optional()
+          .describe(
+            "relevance (best match for `query`), quality, impact, trending, stars, installs, activations, recent, name",
+          ),
+      }),
+    },
+    async (args) => {
       const limit = Math.min(Number(args.limit ?? 10) || 10, 20);
       const result = await listRegistry(db, {
-        q: typeof args.query === "string" ? args.query : undefined,
+        q: args.query,
         page: 1,
         limit,
-        sort: (typeof args.sort === "string" ? args.sort : "quality") as
+        sort: (args.sort ?? "quality") as
           | "relevance"
           | "quality"
           | "trending"
@@ -478,35 +425,63 @@ async function callTool(
         runtime: "all" as const,
         security: "all" as const,
         minQuality: undefined,
-        category: typeof args.category === "string" ? args.category : undefined,
-        tag: typeof args.tag === "string" ? args.tag : undefined,
-        agent: typeof args.agent === "string" ? args.agent : undefined,
+        category: args.category,
+        tag: args.tag,
+        agent: args.agent,
         sourceType:
           args.sourceType === "native" || args.sourceType === "mirror" || args.sourceType === "all"
             ? args.sourceType
             : "all",
       });
       return textResult(result);
-    }
-    case "registry_get_skill": {
-      const org = String(args.org ?? "");
-      const repo = String(args.repo ?? args.slug ?? "");
-      if (!org || !repo) {
-        throw new Error("org and repo are required");
-      }
-      const skill = await getRegistrySkill(db, org, repo);
-      if (!skill) throw new Error(`Skill not found: ${org}/${repo}`);
+    },
+  );
+
+  server.registerTool(
+    "registry_get_skill",
+    {
+      description:
+        "Get full registry metadata for a skill including eval uplift, install command, plugin.json, and mirror upstream URL when sourceType is mirror.",
+      inputSchema: z.object({
+        org: z.string().describe("Organization slug, e.g. skillist"),
+        repo: z.string().optional().describe("Skill repo name"),
+        // Documented legacy alias for `repo`; kept for older agent configs.
+        slug: z.string().optional().describe("Legacy alias for repo"),
+      }),
+    },
+    async ({ org, repo, slug }) => {
+      const repoName = repo ?? slug ?? "";
+      if (!org || !repoName) throw new Error("org and repo are required");
+      const skill = await getRegistrySkill(db, org, repoName);
+      if (!skill) throw new Error(`Skill not found: ${org}/${repoName}`);
       return textResult(skill);
-    }
-    case "registry_facets": {
-      return textResult(await getRegistryFacets(db));
-    }
-    case "registry_install_help": {
-      const org = String(args.org ?? "");
-      const repo = String(args.repo ?? args.slug ?? "");
-      if (!org || !repo) {
-        throw new Error("org and repo are required");
-      }
+    },
+  );
+
+  server.registerTool(
+    "registry_facets",
+    {
+      description:
+        "List available registry filter facets: categories, tags, compatible agents, and sourceTypes (native|mirror).",
+      inputSchema: z.object({}),
+    },
+    async () => textResult(await getRegistryFacets(db)),
+  );
+
+  server.registerTool(
+    "registry_install_help",
+    {
+      description: "Return CLI install commands for a skill and global CLI setup instructions.",
+      inputSchema: z.object({
+        org: z.string(),
+        repo: z.string().optional(),
+        // Documented legacy alias for `repo`; kept for older agent configs.
+        slug: z.string().optional().describe("Legacy alias for repo"),
+      }),
+    },
+    async ({ org, repo: repoArg, slug }) => {
+      const repo = repoArg ?? slug ?? "";
+      if (!org || !repo) throw new Error("org and repo are required");
       const skill = await getRegistrySkill(db, org, repo);
       if (!skill) throw new Error(`Skill not found: ${org}/${repo}`);
       return textResult({
@@ -522,106 +497,71 @@ async function callTool(
         upstreamRepo: skill.upstreamRepo ?? null,
         upstreamUrl: skill.upstreamUrl ?? null,
       });
-    }
-    case "my_projects": {
-      if (!session) throw new Error("Authentication required");
-      return await toolMyProjects(db, session.userId);
-    }
-    case "project_skills": {
-      if (!session) throw new Error("Authentication required");
-      return await toolProjectSkills(db, session, args);
-    }
-    case "add_skill_to_project": {
-      if (!session) throw new Error("Authentication required");
-      return await toolAddSkillToProject(db, session, args);
-    }
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
+    },
+  );
 
-function rpcResult(id: string | number | null | undefined, result: unknown) {
-  return { jsonrpc: "2.0", id: id ?? null, result };
-}
+  server.registerTool(
+    "my_projects",
+    {
+      description:
+        "List the Skillist projects the authenticated user can access across every organization they belong to. Requires an authenticated MCP session. Returns only projects the user may read: all projects in orgs they own, plus shared projects and projects they are a member of elsewhere. Returns orgId, orgSlug, projectId, slug, name, description, visibility, and itemCount for each project.",
+      inputSchema: z.object({}),
+    },
+    async () => {
+      const s = requireSession("my_projects");
+      return toolMyProjects(db, s.userId);
+    },
+  );
 
-function rpcError(id: string | number | null | undefined, code: number, message: string) {
-  return { jsonrpc: "2.0", id: id ?? null, error: { code, message } };
-}
+  server.registerTool(
+    "project_skills",
+    {
+      description:
+        "List the curated skills and external references in a Skillist project, grouped by folder path, resolved for agent use (install/run commands for skills, URLs for external items). Requires an authenticated MCP session and read access to the project (org owner, a project member, or a shared project). Identify the project by projectId, or by orgSlug + projectSlug.",
+      inputSchema: z.object({
+        projectId: z.string().optional().describe("Project id (preferred)"),
+        orgSlug: z
+          .string()
+          .optional()
+          .describe("Organization slug (use with projectSlug instead of projectId)"),
+        projectSlug: z
+          .string()
+          .optional()
+          .describe("Project slug (use with orgSlug instead of projectId)"),
+      }),
+    },
+    async (args) => {
+      const s = requireSession("project_skills");
+      return toolProjectSkills(db, s, args);
+    },
+  );
 
-async function handleSingle(
-  db: WorkerDb,
-  req: JsonRpcRequest,
-  session: McpSession | null,
-): Promise<Record<string, unknown>> {
-  const { id, method, params } = req;
+  server.registerTool(
+    "add_skill_to_project",
+    {
+      description:
+        "Add a skill or an external reference to a Skillist project. Requires an authenticated MCP session and write access to the project (org owner, a project editor/admin, or a shared project when the user is an org editor or higher). Provide exactly one of skillId (a registry skill visible to the org) or externalUrl (an external link). Duplicates are returned as-is rather than erroring.",
+      inputSchema: z.object({
+        projectId: z.string().describe("Target project id"),
+        skillId: z
+          .string()
+          .optional()
+          .describe("Skill id to add (mutually exclusive with externalUrl)"),
+        externalUrl: z
+          .string()
+          .optional()
+          .describe("External URL to add (mutually exclusive with skillId)"),
+        externalName: z.string().optional().describe("Display name for an external item"),
+        path: z.string().optional().describe("Folder path to group the item under (optional)"),
+      }),
+    },
+    async (args) => {
+      const s = requireSession("add_skill_to_project");
+      return toolAddSkillToProject(db, s, args);
+    },
+  );
 
-  if (method === "initialize") {
-    return rpcResult(id, {
-      protocolVersion: "2024-11-05",
-      capabilities: { tools: {} },
-      serverInfo: {
-        name: "skillist-registry",
-        version: "1.0.0",
-      },
-    });
-  }
-
-  if (method === "notifications/initialized") {
-    return rpcResult(id, {});
-  }
-
-  if (method === "ping") {
-    return rpcResult(id, {});
-  }
-
-  if (method === "tools/list") {
-    return rpcResult(id, { tools: REGISTRY_MCP_TOOLS });
-  }
-
-  if (method === "tools/call") {
-    const toolName = String(params?.name ?? "");
-    const toolArgs = (params?.arguments as Record<string, unknown> | undefined) ?? {};
-    if (AUTHENTICATED_TOOLS.has(toolName) && !session) {
-      return rpcError(
-        id,
-        AUTH_REQUIRED_ERROR,
-        `Authentication required: connect with a valid Skillist OAuth token to use "${toolName}".`,
-      );
-    }
-    try {
-      const result = await callTool(db, toolName, toolArgs, session);
-      return rpcResult(id, result);
-    } catch (err) {
-      return rpcResult(id, {
-        content: [
-          {
-            type: "text",
-            text: err instanceof Error ? err.message : "Tool call failed",
-          },
-        ],
-        isError: true,
-      });
-    }
-  }
-
-  return rpcError(id, -32601, `Method not found: ${method}`);
-}
-
-export async function handleMcpJsonRpc(
-  db: WorkerDb,
-  body: unknown,
-  session: McpSession | null = null,
-): Promise<Record<string, unknown> | Record<string, unknown>[]> {
-  if (Array.isArray(body)) {
-    const responses = await Promise.all(
-      body.map((item) => handleSingle(db, item as JsonRpcRequest, session)),
-    );
-    return responses.filter((r) => r.id !== null && r.id !== undefined) as Record<
-      string,
-      unknown
-    >[];
-  }
-  return handleSingle(db, body as JsonRpcRequest, session);
+  return server;
 }
 
 export function mcpServerInfo(apiBaseUrl?: string) {
@@ -632,7 +572,8 @@ export function mcpServerInfo(apiBaseUrl?: string) {
     description: "Public Skillist agent skills registry MCP server",
     endpoint: "/mcp",
     transport: "streamable-http",
-    protocolVersion: "2024-11-05",
+    protocolVersion: MCP_PROTOCOL_VERSION,
+    legacyProtocolVersions: MCP_LEGACY_PROTOCOL_VERSIONS,
     oauth: {
       authorizationServer: `${base}/.well-known/oauth-authorization-server`,
       protectedResource: `${base}/.well-known/oauth-protected-resource`,
@@ -641,11 +582,7 @@ export function mcpServerInfo(apiBaseUrl?: string) {
       // would land on a soft-404 instead of a sign-in page.
       loginPage: "https://console.skillist.io/login",
     },
-    session: {
-      header: "Mcp-Session-Id",
-      sseAccept: "text/event-stream",
-    },
-    tools: REGISTRY_MCP_TOOLS.map((t) => t.name),
+    tools: REGISTRY_MCP_TOOL_NAMES,
     docs: "https://docs.skillist.io",
   };
 }
