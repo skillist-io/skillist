@@ -31,7 +31,7 @@ catalog:
   "@tailwindcss/typography": ^0.5.20
   vite: ^8.1.5
   vitest: ^4.1.10
-  "@vitejs/plugin-react": ^6.0.3
+  "@vitejs/plugin-react": ^6.0.5
 
 onlyBuiltDependencies:
   - esbuild
