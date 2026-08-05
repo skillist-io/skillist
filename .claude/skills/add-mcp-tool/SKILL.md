@@ -16,10 +16,10 @@ The MCP server lives in `apps/api/src/mcp/` and is mounted at `/mcp`. Add tools 
 
 ## Steps
 
-1. **Define the tool** in `registry-server.ts`: name, a clear agent-facing `description` (agents pick tools by this), and an input schema. Reuse `@skillist/contracts` schemas (e.g. `registryQuery`, `mcpServer`) rather than inventing shapes.
-2. **Implement the handler** inside `handleMcpJsonRpc`. Reuse the same registry read/query helpers the `/v1/registry` routes use — don't duplicate query logic. Keep results compact (agents pay for tokens).
-3. **Register** the tool in `REGISTRY_MCP_TOOLS` and make sure `mcpServerInfo` / capability advertising reflects it.
-4. **Auth/session**: reads go through `createRegistryMcpAuth` (`transport.ts`); sessions are KV-backed and scoped — don't bypass or persist credentials.
+1. **Define the tool** inside `buildRegistryMcpServer` in `registry-server.ts` via `server.registerTool(name, { description, inputSchema }, handler)`: a clear agent-facing `description` (agents pick tools by this) and a Zod input schema. Reuse `@skillist/contracts` schemas (e.g. `registryQuery`, `mcpServer`) rather than inventing shapes.
+2. **Implement the handler** in the `registerTool` callback. Reuse the same registry read/query helpers the `/v1/registry` routes use — don't duplicate query logic. Keep results compact (agents pay for tokens). Throwing surfaces as an `isError` tool result.
+3. **Register** the tool name in `REGISTRY_MCP_TOOL_NAMES` so `mcpServerInfo` / `/health` advertising reflects it.
+4. **Auth**: for session-gated tools call `requireSession(name)` first (bearer tokens are verified in `handler.ts` via `createRegistryMcpAuth`). Keep gated tools registered for all callers — the tool list is `cacheScope: "public"` and must not vary by caller. The endpoint is stateless: no sessions, no KV.
 
 ## Verify
 

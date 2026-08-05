@@ -6,7 +6,10 @@ description: Parameters and examples for each Skillist registry MCP tool.
 import { DocTable } from "@/components/docs/DocTable";
 import { SectionHeading } from "@/components/docs/SectionHeading";
 
-All tools are invoked via JSON-RPC `tools/call`:
+All tools are invoked via JSON-RPC `tools/call`. Under MCP 2026-07-28 each
+request carries an `_meta` envelope and mirrors `method`/`name` into the
+`Mcp-Method` and `Mcp-Name` headers — see
+[Connect your agent](/mcp/connect/) for a complete request:
 
 ```json
 {
@@ -15,10 +18,15 @@ All tools are invoked via JSON-RPC `tools/call`:
   "method": "tools/call",
   "params": {
     "name": "<tool_name>",
-    "arguments": { }
+    "arguments": { },
+    "_meta": { "io.modelcontextprotocol/protocolVersion": "2026-07-28" }
   }
 }
 ```
+
+The `tools/list` result carries the 2026-07-28 cache fields
+(`ttlMs: 300000`, `cacheScope: "public"`) — the tool set is static and identical
+for every caller, authenticated or not.
 
 ## registry_search
 
@@ -113,9 +121,9 @@ Returns CLI install commands, SKILL.md URL, and skill page URL for a skill.
 
 The following tools require an authenticated MCP session (Better Auth OAuth token
 on the `Authorization: Bearer` header). Calling them without a session returns a
-JSON-RPC error with code `-32001`; the transport also sets the `WWW-Authenticate`
-header pointing at the OAuth resource metadata. The four registry tools above
-remain public.
+tool result with `isError: true` whose text explains how to authenticate; the
+transport also sets the `WWW-Authenticate` header pointing at the OAuth resource
+metadata. The four registry tools above remain public.
 
 ## my_projects
 

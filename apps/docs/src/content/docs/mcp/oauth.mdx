@@ -52,6 +52,6 @@ Run `pnpm dev:api` and `pnpm dev:console` together for end-to-end OAuth testing.
 
 - OAuth tables: `oauth_application`, `oauth_access_token`, `oauth_consent`
 - Token verification: `GET /api/auth/mcp/get-session` with Bearer token
-- MCP transport: streamable HTTP with optional `Mcp-Session-Id` (separate from OAuth access tokens)
+- MCP transport: stateless streamable HTTP (protocol 2026-07-28) — no sessions; the Bearer token is verified on every request
 
 For platform developers, see the API source under `apps/api/src/mcp/` and `packages/auth/`.
