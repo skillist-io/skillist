@@ -32,37 +32,33 @@ If your VS Code MCP extension supports streamable HTTP, point it at `https://api
 
 ## Generic HTTP client
 
-Stateless JSON-RPC (no session):
+The server is stateless (MCP 2026-07-28): every request is its own POST — no
+`initialize` handshake, no session header. Requests carry the protocol version
+and client info in `params._meta`, mirrored into the `MCP-Protocol-Version` and
+`Mcp-Method` headers (plus `Mcp-Name` on `tools/call`):
 
 ```bash
 curl -s https://api.skillist.io/mcp \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "MCP-Protocol-Version: 2026-07-28" \
+  -H "Mcp-Method: tools/list" \
   -d '{
     "jsonrpc": "2.0",
     "id": 1,
     "method": "tools/list",
-    "params": {}
-  }'
-```
-
-Streamable HTTP with session:
-
-```bash
-# initialize — note Mcp-Session-Id response header
-curl -si https://api.skillist.io/mcp \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "initialize",
     "params": {
-      "protocolVersion": "2024-11-05",
-      "capabilities": {},
-      "clientInfo": { "name": "curl", "version": "1.0.0" }
+      "_meta": {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": { "name": "curl", "version": "1.0.0" },
+        "io.modelcontextprotocol/clientCapabilities": {}
+      }
     }
   }'
 ```
+
+Clients on 2025-era protocol revisions can still open with `initialize` — the
+handshake is answered from the same tools, per request, with no session minted.
 
 ## Demo skill
 
@@ -79,7 +75,8 @@ skillist install skillist/registry-mcp
   columns={["Issue", "Fix"]}
   rows={[
     ["401 from MCP client", "Complete OAuth sign-in at console.skillist.io/login if your client requires tokens"],
-    ["Session not found", "Call initialize first or omit Mcp-Session-Id for stateless JSON mode"],
+    ["405 on GET or DELETE", "Sessions were removed (MCP 2026-07-28) — send each message as its own POST"],
+    ["400 HeaderMismatch (-32020)", "MCP-Protocol-Version / Mcp-Method / Mcp-Name headers must match the request body"],
     ["CORS errors", "Ensure your client sends Content-Type: application/json"],
     ["OAuth discovery fails", "Confirm /.well-known/oauth-protected-resource is reachable — see OAuth docs"],
   ]}

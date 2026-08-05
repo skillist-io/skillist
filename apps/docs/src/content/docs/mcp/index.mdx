@@ -19,15 +19,19 @@ The **Skillist Registry MCP** server lets agents search, browse, and install ski
   client:load
   columns={["Feature", "Value"]}
   rows={[
-    ["Protocol", "MCP 2024-11-05"],
-    ["Transport", "Streamable HTTP"],
-    ["Stateless JSON", "POST with Accept: application/json"],
-    ["SSE sessions", "POST/GET with Accept: text/event-stream and Mcp-Session-Id"],
-    ["Session teardown", "DELETE with Mcp-Session-Id"],
+    ["Protocol", "MCP 2026-07-28 (stateless, per-request metadata)"],
+    ["Transport", "Streamable HTTP — every message is its own POST"],
+    ["Sessions", "None — each request is self-contained; Mcp-Session-Id is ignored"],
+    ["Required headers", "MCP-Protocol-Version, Mcp-Method (and Mcp-Name on tools/call)"],
+    ["Legacy clients", "2025-era initialize handshakes are served statelessly from the same tools"],
   ]}
 />
 
-`initialize` returns an `Mcp-Session-Id` header for stateful clients. Plain JSON-RPC POST remains supported for simple clients.
+Every request carries its protocol version and client info in `params._meta`
+(`io.modelcontextprotocol/*` keys), mirrored into the headers above. Clients on
+older revisions that open with `initialize` keep working — the handshake is
+answered per request, with no session state. `server/discover` reports supported
+versions and capabilities.
 
 ## Server info
 
