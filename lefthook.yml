@@ -5,3 +5,13 @@ pre-commit:
     - name: biome
       run: pnpm exec biome check --write --staged --no-errors-on-unmatched --files-ignore-unknown=true
       stage_fixed: true
+
+# PR-only flow for main, enforced client-side (GitHub's server-side branch
+# protection needs Pro on private repos). A script file rather than an inline
+# job: lefthook skips pre-push jobs when the push has no matching files, but
+# scripts always run. The script reads git's ref lines from stdin.
+pre-push:
+  scripts:
+    "block-main-push.sh":
+      runner: sh
+      use_stdin: true
