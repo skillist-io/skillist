@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@skillist/tsconfig": "workspace:*",
-    "@types/pg": "^8.20.0",
+    "@types/pg": "^8.20.3",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "pg": "^8.22.0",
