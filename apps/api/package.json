@@ -27,7 +27,7 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.31",
     "postgres": "^3.4.9",
-    "workers-ai-provider": "^3.3.1",
+    "workers-ai-provider": "^4.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
