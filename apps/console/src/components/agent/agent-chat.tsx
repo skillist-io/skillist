@@ -1,7 +1,7 @@
 import { useAgentChat } from "@cloudflare/ai-chat/react";
-import { Button, cn, Textarea } from "@skillist/ui";
+import { Button, cn, SkillistMark, Textarea } from "@skillist/ui";
 import { useAgent } from "agents/react";
-import { ArrowUp, Bot, Square, X } from "lucide-react";
+import { ArrowUp, Square, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { agentHost } from "@/lib/agent-connection";
 import { type AgentContext, describeContext, formatContext } from "@/lib/agent-context";
@@ -345,8 +345,14 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-start gap-5 py-10">
-      <div className="flex size-9 items-center justify-center border border-border">
-        <Bot className="size-5" aria-hidden />
+      {/* The socket stamp, same treatment as the sidebar rail: ink tile with
+          the aperture knocked out. Square context, so the mark — the horizontal
+          logo stays wordmark-only. */}
+      <div
+        aria-hidden
+        className="flex size-9 shrink-0 items-center justify-center bg-foreground text-background"
+      >
+        <SkillistMark className="size-9" />
       </div>
       <div className="space-y-1">
         <h2 className="text-title">Skillist Agent</h2>
