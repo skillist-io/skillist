@@ -23,7 +23,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           to="/"
           className="relative z-10 flex w-fit items-center outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
-          <SkillistLogo withMark />
+          <SkillistLogo />
         </Link>
 
         <div className="relative z-10 flex flex-col gap-6">
@@ -57,7 +57,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             to="/"
             className="flex items-center outline-none focus-visible:ring-2 focus-visible:ring-ring/40 lg:hidden"
           >
-            <SkillistLogo withMark />
+            <SkillistLogo />
           </Link>
           <div className="ml-auto flex items-center gap-1">
             <a
