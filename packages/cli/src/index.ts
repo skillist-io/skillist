@@ -5,28 +5,31 @@ import { dirname, join, relative } from "node:path";
 import { createInterface } from "node:readline";
 import { isBinaryAssetPath, type SemverBump, validateSkillBundle } from "@skillist/skill-format";
 import { discoverSkillItems, importGithubOrgInventory, resolveRepoFullName } from "./inventory.js";
+import { type LockEntry, readLockfile, upsertLockEntry, writeLockfile } from "./lockfile.js";
 import { deliveryRef, parseRef } from "./refs.js";
 import { reviewLocalSkill } from "./review.js";
+import {
+  applySync,
+  formatPlan,
+  hasDrift,
+  type LinkMode,
+  listMaterialized,
+  planSync,
+  readManifest,
+  readStoreKeys,
+  readSyncConfig,
+  resolveDesired,
+  resolveTargets,
+  type SyncAction,
+  type SyncDeps,
+  type SyncScope,
+  summarize,
+  writeManifest,
+} from "./sync.js";
 
 const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.io";
 const DELIVERY_URL = process.env.SKILLIST_DELIVERY_URL ?? "https://skillist.io";
 const API_KEY = process.env.SKILLIST_API_KEY;
-const LOCKFILE = ".skillist.lock";
-
-type LockEntry = {
-  org: string;
-  repo: string;
-  version: string;
-  installedAt: string;
-  path: string;
-  /** Full sha256 of the installed SKILL.md, verified against delivery meta. */
-  contentSha256?: string;
-};
-
-type Lockfile = {
-  version: 1;
-  skills: LockEntry[];
-};
 
 function usage() {
   console.log(`Skillist CLI — sync agent skills with skillist.io
@@ -54,6 +57,11 @@ Usage:
                                               [--wait]
   skillist rollback <org>/<repo> <semver>     Roll back to a previous published version
   skillist update [org/repo]               Update installed skills from lockfile
+  skillist sync                            Materialize the lockfile into every
+                                           detected agent harness directory
+                                              [--check] [--json] [--force] [--prune]
+                                              [--target <dir>] [--scope project|user]
+                                              [--link copy|symlink] [--enforce-required]
   skillist list                            List skills in lockfile
   skillist required-skills check [--org]   Check lockfile against org required skills
   skillist inventory scan [--org <slug>]   Discover local skills and POST inventory scan
@@ -102,47 +110,19 @@ async function deliveryFetch(path: string, init?: RequestInit) {
   return res;
 }
 
-async function readLockfile(): Promise<Lockfile> {
-  try {
-    await access(LOCKFILE);
-    const raw = await readFile(LOCKFILE, "utf8");
-    const parsed = JSON.parse(raw) as {
-      version: 1;
-      skills: Array<{
-        org: string;
-        repo?: string;
-        skill?: string;
-        version: string;
-        installedAt: string;
-        path: string;
-      }>;
-    };
-    // Migrate legacy lock entries that used `skill` instead of `repo`
-    return {
-      version: 1,
-      skills: parsed.skills.map((s) => ({
-        org: s.org,
-        repo: s.repo ?? s.skill ?? "",
-        version: s.version,
-        installedAt: s.installedAt,
-        path: s.path,
-      })),
-    };
-  } catch {
-    return { version: 1, skills: [] };
-  }
-}
-
-async function writeLockfile(lock: Lockfile) {
-  await writeFile(LOCKFILE, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
-}
-
-async function recordTelemetry(org: string, repo: string, eventType: "install" | "activation") {
+async function recordTelemetry(
+  org: string,
+  repo: string,
+  eventType: "install" | "activation",
+  context?: { harness?: string; scope?: string },
+) {
   try {
     await apiFetch("/v1/telemetry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgSlug: org, skillRepo: repo, eventType }),
+      // `harness`/`scope` are stripped by the API's Zod schema until it learns
+      // the fields; sending them now keeps that a server-only change.
+      body: JSON.stringify({ orgSlug: org, skillRepo: repo, eventType, ...context }),
     });
   } catch {
     // telemetry is best-effort
@@ -312,7 +292,6 @@ async function pull(
 
   if (recordLock) {
     const lock = await readLockfile();
-    const existing = lock.skills.findIndex((s) => s.org === org && s.repo === repo);
     const entry: LockEntry = {
       org,
       repo,
@@ -321,9 +300,7 @@ async function pull(
       path: outDir,
       contentSha256,
     };
-    if (existing >= 0) lock.skills[existing] = entry;
-    else lock.skills.push(entry);
-    await writeLockfile(lock);
+    await writeLockfile(upsertLockEntry(lock, entry));
     await recordTelemetry(org, repo, "install");
   }
 
@@ -733,6 +710,157 @@ async function update(ref?: string) {
   }
 }
 
+function syncDeps(policyOrg: string | undefined, acceptWarnings: boolean): SyncDeps {
+  return {
+    fetchMeta: (org, repo) => fetchDeliveryMeta(`${org}/${repo}`),
+    fetchBundle: async (org, repo, version) => {
+      const res = await deliveryFetch(`/${deliveryRef({ org, repo, version })}/bundle`);
+      const bundle = (await res.json()) as { files: Record<string, string>; version: string };
+      const skillMd = bundle.files["SKILL.md"];
+      const meta = await fetchDeliveryMeta(deliveryRef({ org, repo, version }));
+      if (meta?.contentSha256 && typeof skillMd === "string") {
+        const actual = sha256Hex(skillMd);
+        if (actual !== meta.contentSha256) {
+          throw new Error(
+            `Integrity check failed for ${org}/${repo} v${version}: downloaded SKILL.md sha256 ${actual} does not match published ${meta.contentSha256}`,
+          );
+        }
+      }
+      return bundle;
+    },
+    enforcePolicy: (ref) => enforceInstallPolicy(ref, { acceptWarnings, policyOrg }),
+    recordActivation: (org, repo, harness, scope) =>
+      recordTelemetry(org, repo, "activation", { harness, scope }),
+  };
+}
+
+async function sync() {
+  const cwd = process.cwd();
+  const check = process.argv.includes("--check");
+  const json = process.argv.includes("--json");
+  const force = process.argv.includes("--force");
+  const prune = process.argv.includes("--prune");
+  const acceptWarnings = process.argv.includes("--accept-warnings");
+
+  const config = await readSyncConfig(cwd);
+  const explicit = collectFlag("--target");
+  const scopeFlag = flagValue("--scope") as SyncScope | undefined;
+  const linkFlag = flagValue("--link") as LinkMode | undefined;
+  const scope = scopeFlag ?? config.scope;
+  const linkMode = linkFlag ?? config.linkMode;
+
+  const targets = await resolveTargets(config, { cwd, explicit, scope });
+  if (targets.length === 0) {
+    throw new Error(
+      "No agent harness detected — create .claude/, .cursor/, .agents/, .gemini/, .codex/, or .vscode/, or pass --target <dir>",
+    );
+  }
+
+  const deps = syncDeps(parseOrgFlag() ?? config.org, acceptWarnings);
+  const lock = await readLockfile();
+  let desired = await resolveDesired(config, lock, deps);
+
+  if (process.argv.includes("--enforce-required")) {
+    desired = await withRequiredSkills(desired, config, deps);
+  }
+  const manifest = await readManifest(cwd);
+
+  // An empty desired set is still worth planning when sync owns materialized
+  // skills — that is exactly the state `--prune` exists to clean up.
+  if (desired.length === 0 && manifest.entries.length === 0) {
+    console.log(
+      `No skills to sync — run "skillist install <org>/<repo>" or add them to skillist.json`,
+    );
+    return;
+  }
+
+  const actions = planSync({
+    desired,
+    targets,
+    manifest,
+    actual: await listMaterialized(targets),
+    storeKeys: await readStoreKeys(cwd),
+    prune,
+    force,
+  });
+
+  const conflicts = actions.filter((a) => a.kind === "conflict");
+
+  if (check) {
+    reportSync(actions, targets.length, json, { prune, applied: false });
+    if (hasDrift(actions)) process.exit(1);
+    return;
+  }
+
+  // Conflicts are load-bearing: applying a partial plan around them would make
+  // the manifest claim ownership of a tree it did not write.
+  if (conflicts.length > 0 && !force) {
+    reportSync(actions, targets.length, json, { prune, applied: false });
+    process.exit(1);
+  }
+
+  const result = await applySync(
+    actions,
+    { cwd, desired, targets, manifest, lock, config, scope, linkMode, prune },
+    deps,
+  );
+  await writeManifest(result.manifest, cwd);
+  await writeLockfile(lock);
+  reportSync(actions, targets.length, json, { prune, applied: true });
+}
+
+/** Adds any org-required skill that is not already in the desired set. */
+async function withRequiredSkills(
+  desired: Awaited<ReturnType<typeof resolveDesired>>,
+  config: Awaited<ReturnType<typeof readSyncConfig>>,
+  deps: SyncDeps,
+) {
+  if (!API_KEY) throw new Error("SKILLIST_API_KEY is required for --enforce-required");
+  const org = await resolveOrg(parseOrgFlag() ?? config.org);
+  const installed = desired.map((s) => `${s.org}/${s.repo}`).join(",");
+  const res = await apiFetch(
+    `/v1/orgs/${org.id}/required-skills/check?installed=${encodeURIComponent(installed)}`,
+  );
+  const data = (await res.json()) as { required: string[]; missing: string[]; compliant: boolean };
+  if (data.missing.length === 0) return desired;
+
+  const added = await resolveDesired(
+    { ...config, skills: data.missing.map((ref) => ({ ref })) },
+    { version: 1, skills: [] },
+    deps,
+  );
+  console.error(`Adding ${added.length} required skill(s): ${data.missing.join(", ")}`);
+  return [...desired, ...added];
+}
+
+function reportSync(
+  actions: SyncAction[],
+  targets: number,
+  json: boolean,
+  options: { prune: boolean; applied: boolean },
+) {
+  if (json) {
+    console.log(JSON.stringify({ applied: options.applied, actions }, null, 2));
+    return;
+  }
+  for (const line of formatPlan(actions, { prune: options.prune })) console.log(line);
+  if (actions.length > 0) console.log(`\n${summarize(actions, targets)}`);
+}
+
+function flagValue(flag: string): string | undefined {
+  const idx = process.argv.indexOf(flag);
+  return idx >= 0 ? process.argv[idx + 1] : undefined;
+}
+
+/** Collects a repeatable flag: `--target a --target b`. */
+function collectFlag(flag: string): string[] {
+  const values: string[] = [];
+  for (let i = 0; i < process.argv.length; i++) {
+    if (process.argv[i] === flag && process.argv[i + 1]) values.push(process.argv[i + 1]!);
+  }
+  return values;
+}
+
 async function listInstalled() {
   const lock = await readLockfile();
   if (lock.skills.length === 0) {
@@ -988,6 +1116,11 @@ async function main() {
 
     if (cmd === "update") {
       await update(ref);
+      return;
+    }
+
+    if (cmd === "sync") {
+      await sync();
       return;
     }
 

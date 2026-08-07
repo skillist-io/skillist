@@ -17,6 +17,10 @@ skillist search performance
 # Install a skill into your project (org install policy applies when SKILLIST_API_KEY is set)
 skillist install skillist/web-perf-audit
 
+# Deliver the pinned set to every agent harness in the project
+skillist sync
+skillist sync --check   # CI gate: exits 1 if a harness directory has drifted
+
 # CI quality + security gate
 skillist review ./skills/my-skill --threshold 80 --fail-on high --json
 
@@ -54,6 +58,10 @@ https://skillist.io/{org}/{repo}/SKILL.md
 - `skillist eval <org>/<repo> [--wait]` — queue skill eval on latest draft
 - `skillist rollback <org>/<repo> <semver>` — roll back to a previous published version
 - `skillist update [org/repo]` — refresh installed skills
+- `skillist sync` — materialize the lockfile into every detected agent harness directory
+  (`.claude/skills`, `.cursor/skills`, `.agents/skills`, `.gemini/skills`, `.codex/skills`,
+  `.vscode/skills`) — `[--check]` to plan only and exit 1 on drift, `[--prune]`, `[--force]`,
+  `[--target <dir>]`, `[--scope project|user]`, `[--link copy|symlink]`, `[--enforce-required]`
 - `skillist list` — show lockfile entries
 - `skillist review <dir> [--threshold N] [--fail-on sev] [--json]` — quality + security CI gate
 - `skillist required-skills check [--org <slug>]` — verify lockfile against org required skills

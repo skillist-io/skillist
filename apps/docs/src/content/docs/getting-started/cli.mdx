@@ -46,6 +46,36 @@ Public delivery URLs default to `https://skillist.io/{org}/{repo}`:
 curl https://skillist.io/skillist/web-perf-audit/SKILL.md
 ```
 
+## Sync
+
+`skillist sync` materializes the lockfile into every agent harness directory in the project, so one pinned set of skills is delivered to Claude Code, Cursor, Codex, Gemini, VS Code, and `.agents/` at once:
+
+```bash
+skillist sync                  # reconcile every detected harness
+skillist sync --check          # plan only; exits 1 on drift (CI gate)
+skillist sync --prune          # also remove skills no longer in the lockfile
+skillist sync --force          # overwrite locally-modified skills
+```
+
+Targets are detected from the harness root: `.claude/` present means `.claude/skills` is written. Pass `--target <dir>` (repeatable) to override, `--scope user` to reconcile `$HOME` instead of the project, and `--link symlink` to link to the local store rather than copy.
+
+An optional `skillist.json` declares the desired set, including version ranges and directory aliases. Without it, sync uses `.skillist.lock` as-is:
+
+```json
+{
+  "version": 1,
+  "org": "acme",
+  "skills": [
+    { "ref": "skillist/web-perf-audit", "version": "^1.0.0" },
+    { "ref": "acme/deploy-runbook", "version": "2.0.1", "as": "deploy" }
+  ]
+}
+```
+
+Bundles are cached once in `.skillist/store/` and copied out to each target. `.skillist/manifest.json` records every path sync owns — a skill sync did not write is reported as `untracked` and is never modified or pruned, and a managed skill you have edited locally is reported as a conflict rather than silently overwritten. Add `.skillist/` to `.gitignore`; commit `.skillist.lock`, `skillist.json`, and the materialized skill directories so a fresh clone works without running sync, with `skillist sync --check` in CI to catch divergence.
+
+Two version ranges are supported, `^x.y.z` and `~x.y.z`, plus exact versions and `latest`. Because delivery publishes only the latest version, a range resolves against it and errors if latest falls outside the range — pin an exact version in that case.
+
 ## Publishing
 
 From a skill directory with `plugin.json` and `SKILL.md`:
@@ -116,6 +146,7 @@ export SKILLIST_DELIVERY_URL=http://localhost:5173
 - `skillist eval <org>/<repo> [--wait]` — queue skill eval on latest draft
 - `skillist rollback <org>/<repo> <semver>` — roll back to a previous version
 - `skillist update [org/repo]` — refresh installed skills
+- `skillist sync [--check] [--prune] [--force]` — materialize the lockfile into every agent harness directory
 - `skillist review <dir> [--threshold N] [--fail-on sev] [--json]` — quality + security CI gate
 - `skillist required-skills check [--org <slug>]` — verify lockfile against required skills
 - `skillist inventory scan [--org <slug>]` — BFS-discover local skills and POST inventory scan
