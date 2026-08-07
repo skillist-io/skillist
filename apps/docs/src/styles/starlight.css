@@ -50,9 +50,18 @@
 }
 
 /* Typography */
+
+/* The wordmark. Mirrors SkillistLogo in @skillist/ui — Inter 600, uppercase,
+   +0.14em tracking at 1.0625rem — so the docs header reads as the same mark as
+   the marketing site and the console rather than a scaled image of it. Keep the
+   two in sync; this is the only place docs sets it. */
 .site-title {
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--foreground);
 }
 
 .sl-markdown-content {

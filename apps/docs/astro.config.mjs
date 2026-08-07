@@ -17,12 +17,12 @@ export default defineConfig({
       title: "Skillist",
       tagline: "Agent skills platform documentation",
       favicon: "/favicon.svg",
-      logo: {
-        light: "./src/assets/logo-light.svg",
-        dark: "./src/assets/logo-dark.svg",
-        alt: "Skillist",
-        replacesTitle: true,
-      },
+      // No `logo` on purpose: the identity is the SKILLIST wordmark, and the
+      // apps render it as live text (SkillistLogo in @skillist/ui). Starlight
+      // sizes an image logo off the nav height, which blew the outlined-SVG
+      // version up far past the apps' wordmark. Letting Starlight render the
+      // plain site title and styling `.site-title` to the same spec keeps docs
+      // pixel-identical to web/console and removes the asset that could drift.
       customCss: ["./src/styles/globals.css", "./src/styles/starlight.css"],
       components: {
         ThemeProvider: "./src/components/ThemeProvider.astro",

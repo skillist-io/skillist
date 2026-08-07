@@ -220,7 +220,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {open ? (
         <Sidebar collapsible="none" className="hidden flex-1 md:flex">
           <SidebarHeader className="gap-3.5 border-b p-4">
-            <div className="text-base font-medium text-foreground">Skillist</div>
+            <SkillistLogo />
             {/* The lock sits with the search box because they do the same job —
                 both narrow this tree. It also keeps it off the panel's right
                 edge, where it landed next to the sidebar collapse trigger and
