@@ -1,11 +1,12 @@
 import { cn } from "..";
 
 /**
- * The socket: Skillist's mark for square contexts and, paired with the wordmark,
- * the horizontal lockup. Four congruent L corner-tiles framing an empty centre
- * — the tiles are the registry, the socket is the slot the next skill drops
- * into. Single ink (currentColor), squared, transparent seams + centre so it
- * inverts with whatever it sits on.
+ * The socket: Skillist's mark for square contexts only (favicon, app icon,
+ * avatar, the console rail stamp) — it is never part of the logo. Four
+ * congruent L corner-tiles framing an empty centre — the tiles are the
+ * registry, the socket is the slot the next skill drops into. Single ink
+ * (currentColor), squared, transparent seams + centre so it inverts with
+ * whatever it sits on.
  *
  * Geometry mirrors socketTiles(48) in scripts/brand/geometry.mjs; the generated
  * favicon and brand-pack assets are drawn from that same source. Keep the two in
@@ -43,36 +44,19 @@ export function SkillistMark({ className }: { className?: string }) {
  * the same Inter Variable the apps self-host. Uppercase comes from CSS so
  * assistive tech still reads the name as the word "Skillist", not initials.
  *
- * `withMark` prepends the socket for the horizontal lockup used in the site
- * header and footer; without it the wordmark stands alone (nav rails and other
- * tight spots where the mark already appears elsewhere).
+ * The logo is the wordmark alone, everywhere — headers, footers, auth pages,
+ * docs. The socket never joins it in a lockup; it lives only in square
+ * contexts (see SkillistMark above).
  */
-export function SkillistLogo({
-  className,
-  withMark = false,
-}: {
-  className?: string;
-  withMark?: boolean;
-}) {
-  const word = (
+export function SkillistLogo({ className }: { className?: string }) {
+  return (
     <span
       className={cn(
         "font-semibold uppercase tracking-[0.14em] text-[1.0625rem] leading-none text-foreground",
-        !withMark && className,
+        className,
       )}
     >
       Skillist
-    </span>
-  );
-
-  if (!withMark) return word;
-
-  return (
-    <span className={cn("inline-flex items-center gap-2 text-foreground", className)}>
-      {/* Sized a touch taller than the wordmark's cap height so the mark reads
-          as the anchor of the lockup rather than a bullet before the word. */}
-      <SkillistMark className="size-[1.375rem]" />
-      {word}
     </span>
   );
 }
