@@ -28,18 +28,22 @@ export default defineConfig({
     cloudflareTest({
       wrangler: { configPath: "./wrangler.jsonc" },
       remoteBindings: false,
-      // INTEGRATION_DB is the flag the DB-dependent suites already gate on
-      // (routes/projects.test.ts, lib/agent/memory.test.ts). Setting it here
-      // from TEST_DATABASE_URL means one env var lights up every such suite,
-      // rather than each inventing its own switch.
-      miniflare: testDatabaseUrl ? { bindings: { INTEGRATION_DB: "1" } } : undefined,
+      miniflare: {
+        bindings: {
+          // INTEGRATION_DB is the flag the DB-dependent suites already gate on
+          // (routes/projects.test.ts, lib/agent/memory.test.ts). Setting it here
+          // from TEST_DATABASE_URL means one env var lights up every such suite,
+          // rather than each inventing its own switch.
+          ...(testDatabaseUrl ? { INTEGRATION_DB: "1" } : {}),
+          // Tests execute inside workerd, where `process.env` is NOT the Node
+          // process environment. A binding is the only thing that crosses that
+          // boundary, which is why the relaxed CI latency budgets in
+          // publish-latency.test.ts read this rather than `process.env.CI`.
+          CI: process.env.CI ?? "",
+        },
+      },
     }),
   ],
-  // These tests execute inside workerd, where `process.env` is not the Node
-  // process environment — so `process.env.CI` read as undefined on CI and the
-  // latency budgets in publish-latency.test.ts silently used their strict local
-  // values on shared runners. Inlining the flag at transform time is what makes
-  // the relaxed CI budget actually apply.
   test: {
     /**
      * Closing a Postgres connection outside a request's I/O context makes
@@ -54,8 +58,5 @@ export default defineConfig({
       if (error.message?.includes("Stream was cancelled")) return false;
       return undefined;
     },
-  },
-  define: {
-    "process.env.CI": JSON.stringify(process.env.CI ?? ""),
   },
 });

@@ -13,7 +13,16 @@
       "cache": false
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      // Turborepo runs tasks in a filtered environment. Without TEST_DATABASE_URL
+      // here, it never reaches vitest, every `describe.skipIf(!hasTestDb)` suite
+      // silently skips, and the run still goes green — including in CI, where the
+      // postgres service container was doing nothing for the test job.
+      //
+      // CI is declared so it lands in the task hash: the latency budgets in
+      // publish-latency.test.ts differ between CI and local, so without it turbo
+      // would replay a strict-budget local result into a CI run, or the reverse.
+      "env": ["TEST_DATABASE_URL", "CI"]
     },
     "typecheck": {
       "dependsOn": ["^build"]
