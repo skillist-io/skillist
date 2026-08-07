@@ -23,6 +23,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, ChevronRight, FilePen, Minus } from "lucide-react";
 import { useState } from "react";
+import { HarnessDelivery } from "@/components/harness-delivery";
 import { useActiveOrg } from "@/lib/active-org";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -208,6 +209,8 @@ function ObservabilityPage() {
               </CardContent>
             </Card>
           </div>
+
+          <HarnessDelivery rows={data.telemetry.byHarness} days={days} />
 
           <Card size="sm" id="recent-runs">
             <CardHeader>

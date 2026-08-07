@@ -7,7 +7,7 @@ import {
   skillRuns,
   telemetryEvents,
 } from "@skillist/db/schema";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { errorResponses, okSchema } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import { resolveUserId } from "../../lib/session";
@@ -22,6 +22,22 @@ const bySkillSchema = z.array(
     skillRepo: z.string(),
     installCount: z.number(),
     activationCount: z.number(),
+  }),
+);
+
+/**
+ * Where the org's skills are actually being delivered. Rows come from
+ * `skillist sync`, which reports one activation per (skill, harness), so
+ * `skills` is the distinct skill count live in that harness — the answer to
+ * "which agents in this org actually have this estate."
+ */
+const byHarnessSchema = z.array(
+  z.object({
+    harness: z.string(),
+    activations: z.number(),
+    skills: z.number(),
+    projectScoped: z.number(),
+    userScoped: z.number(),
   }),
 );
 
@@ -149,11 +165,16 @@ observabilityRoutes.openapi(telemetryIngestRoute, async (c) => {
     )
     .limit(1);
 
+  // The raw row is written on every call — including the per-harness rows one
+  // `skillist sync` emits for the same skill — so the delivery dataset stays
+  // complete even though the ranking counter below is deduped to +1/day/actor.
   await c.var.db.insert(telemetryEvents).values({
     orgSlug: body.orgSlug,
     skillRepo: body.skillRepo,
     eventType: body.eventType,
     projectHash: body.projectHash ?? null,
+    harness: body.harness ?? null,
+    scope: body.scope ?? null,
     userId,
     apiKeyId,
   });
@@ -276,6 +297,7 @@ const observabilityRoute = createRoute({
               installs: z.number(),
               activations: z.number(),
               bySkill: bySkillSchema,
+              byHarness: byHarnessSchema,
             }),
             runs: z.object({
               total: z.number(),
@@ -342,6 +364,31 @@ observabilityRoutes.openapi(observabilityRoute, async (c) => {
     })
     .from(registryEntries)
     .where(eq(registryEntries.orgSlug, org.slug));
+
+  // Delivery breakdown by harness. Aggregated in SQL for the same reason as the
+  // day series above: this window can span 90 days of the fastest-growing table.
+  // Rows predating `skillist sync` have a null harness and are excluded rather
+  // than bucketed as "unknown", so the panel never implies a harness we did not
+  // actually observe.
+  const harnessRows = await c.var.db
+    .select({
+      harness: telemetryEvents.harness,
+      activations: sql<number>`count(*)::int`,
+      skills: sql<number>`count(distinct ${telemetryEvents.skillRepo})::int`,
+      projectScoped: sql<number>`(count(*) filter (where ${telemetryEvents.scope} = 'project'))::int`,
+      userScoped: sql<number>`(count(*) filter (where ${telemetryEvents.scope} = 'user'))::int`,
+    })
+    .from(telemetryEvents)
+    .where(
+      and(
+        eq(telemetryEvents.orgSlug, org.slug),
+        gte(telemetryEvents.createdAt, since),
+        eq(telemetryEvents.eventType, "activation"),
+        isNotNull(telemetryEvents.harness),
+      ),
+    )
+    .groupBy(telemetryEvents.harness)
+    .orderBy(desc(sql`count(*)`));
 
   const runsWhere = and(eq(skillRuns.orgSlug, org.slug), gte(skillRuns.createdAt, since));
 
@@ -430,6 +477,9 @@ observabilityRoutes.openapi(observabilityRoute, async (c) => {
         installs,
         activations,
         bySkill: registry,
+        // `harness` is non-null by the query's own filter; the cast keeps the
+        // response type free of a null the schema does not allow.
+        byHarness: harnessRows.map((r) => ({ ...r, harness: r.harness as string })),
       },
       runs: {
         total: runStats?.total ?? 0,

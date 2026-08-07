@@ -311,11 +311,32 @@ export const installCheckSchema = z.object({
   publishedAt: z.string().datetime().optional(),
 });
 
+/**
+ * Agent harnesses a skill can be materialized into. Mirrors the CLI's
+ * `SourceType` (packages/cli/src/source.ts), which infers it from the path.
+ * Kept as a plain enum rather than a Postgres enum so a new harness is an
+ * API-only change — the column is text and this is the validating boundary.
+ */
+export const harnessSchema = z.enum([
+  "claude",
+  "cursor",
+  "agents",
+  "gemini",
+  "codex",
+  "vscode",
+  "unknown",
+]);
+export type Harness = z.infer<typeof harnessSchema>;
+
 export const telemetryEventSchema = z.object({
   orgSlug: z.string(),
   skillRepo: z.string(),
   eventType: z.enum(["install", "activation"]),
   projectHash: z.string().max(64).optional(),
+  /** Which agent harness the skill was delivered to (`skillist sync`). */
+  harness: harnessSchema.optional(),
+  /** Project-local (`.claude/skills`) vs user-global (`~/.claude/skills`). */
+  scope: z.enum(["project", "user"]).optional(),
 });
 
 export const requiredSkillSchema = z.object({

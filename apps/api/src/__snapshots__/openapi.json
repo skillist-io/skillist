@@ -8507,6 +8507,25 @@
                   "projectHash": {
                     "type": "string",
                     "maxLength": 64
+                  },
+                  "harness": {
+                    "type": "string",
+                    "enum": [
+                      "claude",
+                      "cursor",
+                      "agents",
+                      "gemini",
+                      "codex",
+                      "vscode",
+                      "unknown"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "project",
+                      "user"
+                    ]
                   }
                 },
                 "required": [
@@ -8896,13 +8915,44 @@
                               "activationCount"
                             ]
                           }
+                        },
+                        "byHarness": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "harness": {
+                                "type": "string"
+                              },
+                              "activations": {
+                                "type": "number"
+                              },
+                              "skills": {
+                                "type": "number"
+                              },
+                              "projectScoped": {
+                                "type": "number"
+                              },
+                              "userScoped": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "harness",
+                              "activations",
+                              "skills",
+                              "projectScoped",
+                              "userScoped"
+                            ]
+                          }
                         }
                       },
                       "required": [
                         "events",
                         "installs",
                         "activations",
-                        "bySkill"
+                        "bySkill",
+                        "byHarness"
                       ]
                     },
                     "runs": {

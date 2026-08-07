@@ -173,6 +173,18 @@ export type ObservabilitySummary = {
       installCount: number;
       activationCount: number;
     }[];
+    /**
+     * Where skills are actually delivered, reported by `skillist sync` as one
+     * activation per (skill, harness). Empty until a client running sync has
+     * reported — older CLIs send no harness and are excluded.
+     */
+    byHarness: {
+      harness: string;
+      activations: number;
+      skills: number;
+      projectScoped: number;
+      userScoped: number;
+    }[];
   };
   runs: {
     total: number;

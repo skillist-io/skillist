@@ -76,6 +76,8 @@ Bundles are cached once in `.skillist/store/` and copied out to each target. `.s
 
 Two version ranges are supported, `^x.y.z` and `~x.y.z`, plus exact versions and `latest`. Because delivery publishes only the latest version, a range resolves against it and errors if latest falls outside the range — pin an exact version in that case.
 
+When `SKILLIST_API_KEY` is set, each materialization reports an activation event tagged with the harness and scope it landed in, so the console can show which harnesses a skill is actually live in. The report is best-effort — sync never fails because telemetry did — and repeated events from one actor move the public ranking counters at most once per day per skill.
+
 ## Publishing
 
 From a skill directory with `plugin.json` and `SKILL.md`:

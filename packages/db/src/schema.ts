@@ -584,6 +584,13 @@ export const telemetryEvents = pgTable(
     skillRepo: text("skill_repo").notNull(),
     eventType: telemetryEventEnum("event_type").notNull(),
     projectHash: text("project_hash"),
+    // Which agent harness the skill was delivered to, and whether it landed in
+    // the project or the user's home directory (`skillist sync`). Deliberately
+    // `text` rather than a pgEnum: the set of harnesses grows on someone else's
+    // release schedule, and `harnessSchema` in @skillist/contracts is the
+    // validating boundary, so a new one must not require a migration.
+    harness: text("harness"),
+    scope: text("scope"),
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     apiKeyId: uuid("api_key_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -592,8 +599,10 @@ export const telemetryEvents = pgTable(
     index("telemetry_skill_idx").on(t.orgSlug, t.skillRepo),
     index("telemetry_type_idx").on(t.eventType),
     // Analytics filters (org_slug, skill_repo) over a created_at window and
-    // groups by day (observability + org telemetry routes).
-    index("telemetry_skill_created_idx").on(t.orgSlug, t.skillRepo, t.createdAt),
+    // groups by day (observability + org telemetry routes). `harness` trails
+    // the window column so the per-harness breakdown is served by this index
+    // too — this is the fastest-growing table, so it earns one index, not two.
+    index("telemetry_skill_created_idx").on(t.orgSlug, t.skillRepo, t.createdAt, t.harness),
     // The coverage query filters on skill_repo alone, which the composite
     // indexes above cannot serve since they lead with org_slug. This is the
     // fastest-growing table, so an unindexed predicate here degrades fastest.
