@@ -13,8 +13,14 @@ description: Latency benchmark fixture
 `;
 
 describe("publish hot-path latency", () => {
-  const kvLimit = process.env.CI ? 200 : 50;
-  const doLimit = process.env.CI ? 500 : 100;
+  // Read from the worker env, not `process.env`: these tests run inside
+  // workerd, where `process.env` is not the Node process environment and
+  // `process.env.CI` is always undefined. Reading it there meant the relaxed
+  // budgets below never applied on CI — the strict local numbers were silently
+  // enforced on shared runners, and passed only by luck.
+  const isCi = Boolean((env as Record<string, unknown>).CI);
+  const kvLimit = isCi ? 200 : 50;
+  const doLimit = isCi ? 500 : 100;
 
   it("reads published SKILL.md from KV within budget", async () => {
     await cachePublishedSkill(env.SKILLS_KV, ORG, SLUG, {
