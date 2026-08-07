@@ -62,6 +62,16 @@ describe("HarnessDelivery", () => {
     expect(screen.getByText(/1 skill · 1 delivery · 1 project/)).toBeTruthy();
   });
 
+  it("survives a response with no byHarness field", () => {
+    // Regression: an API that predates (or rolls back before) the byHarness
+    // field must degrade to this one panel's empty state, never take the whole
+    // Observability route down. It did exactly that in production once.
+    expect(() =>
+      render(<HarnessDelivery days={30} rows={undefined as unknown as HarnessRow[]} />),
+    ).not.toThrow();
+    expect(screen.getByText("No deliveries reported yet")).toBeTruthy();
+  });
+
   it("tells the user how to populate an empty panel", () => {
     render(<HarnessDelivery days={30} rows={[]} />);
     expect(screen.getByText("No deliveries reported yet")).toBeTruthy();

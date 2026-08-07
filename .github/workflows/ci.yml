@@ -135,6 +135,19 @@ jobs:
       # because it resolves to dist/.
       - run: pnpm --filter @skillist/skill-format build
 
+      # Schema before the Worker that reads it. Nothing applied migrations to
+      # production, so a migration merged to main shipped code against a
+      # database without its columns — which 500'd the whole Observability
+      # endpoint the moment #119 deployed.
+      #
+      # Deliberately NOT conditional on the secret being set: a skip here is
+      # indistinguishable from success and puts us right back in this failure
+      # mode. If DATABASE_URL is missing, the deploy fails loudly instead.
+      - name: Migrate production database
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Deploy API
         uses: cloudflare/wrangler-action@v4
         with:
