@@ -37,10 +37,16 @@ export function scopeSummary(row: HarnessRow): string {
   return parts.join(" · ");
 }
 
-export function HarnessDelivery({ rows, days }: { rows: HarnessRow[]; days: number }) {
+export function HarnessDelivery({ rows, days }: { rows?: HarnessRow[]; days: number }) {
+  // Tolerate a response without `byHarness`. The console and the API deploy
+  // independently, so a field added to a shared type is not guaranteed present
+  // at runtime — during a rollout, after a rollback, or from a cached response.
+  // Reading it unguarded took the whole Observability route down once already;
+  // one optional panel must never be able to do that.
+  const safeRows = rows ?? [];
   // Share of the busiest harness, so the bars compare against each other rather
   // than against an absolute that means nothing at this scale.
-  const peak = Math.max(...rows.map((r) => r.activations), 1);
+  const peak = Math.max(...safeRows.map((r) => r.activations), 1);
 
   return (
     <Card size="sm" id="harness-delivery">
@@ -51,11 +57,11 @@ export function HarnessDelivery({ rows, days }: { rows: HarnessRow[]; days: numb
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {rows.length === 0 ? (
+        {safeRows.length === 0 ? (
           <HarnessDeliveryEmpty />
         ) : (
           <ul className="border-t border-border">
-            {rows.map((row) => (
+            {safeRows.map((row) => (
               <li
                 key={row.harness}
                 className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border py-3 last:border-b-0"
