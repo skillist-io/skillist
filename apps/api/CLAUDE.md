@@ -20,7 +20,7 @@ Single Worker entry: `src/index.ts` exports the Hono `fetch` handler **plus** a 
 
 - Dev: `pnpm dev:api` (:8787, merges `wrangler.jsonc` + gitignored `wrangler.local.jsonc`). Build: `wrangler deploy --dry-run` (via `pnpm build`).
 - Tests run under `@cloudflare/vitest-pool-workers`. One file: `pnpm --filter @skillist/api exec vitest run <path>`.
-- **DB-dependent tests** (org RBAC, agent memory, account deletion) need a real Postgres, because anything behind `authMiddleware` opens a connection per request. Without one they **skip** — the suite still passes, so check the skip count before trusting a green run. With a database, all 207 run:
+- **DB-dependent tests** (org RBAC, agent memory, account deletion, telemetry attribution) need a real Postgres, because anything behind `authMiddleware` opens a connection per request. Without one they **skip** — the suite still passes, so check the skip count before trusting a green run. `TEST_DATABASE_URL` is declared in `turbo.json`'s `test` task; without that declaration turbo filters it out and the suites skip even when a database is running. With a database, all 248 run:
   ```bash
   NEON_PROJECT_ID=<id> pnpm db:up && pnpm db:migrate:local     # ephemeral Neon branch
   TEST_DATABASE_URL="postgresql://neon:npg@localhost:5432/neondb?sslmode=no-verify" pnpm test
