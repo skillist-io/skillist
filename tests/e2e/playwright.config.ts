@@ -8,6 +8,17 @@ const AUTH_STATE = "tests/e2e/.auth/user.json";
 
 const hasAuthState = Boolean(process.env.E2E_AUTH_STATE_B64) || fs.existsSync(AUTH_STATE);
 
+// Without auth state the `authenticated` project below is simply not registered,
+// so the run passes having exercised zero authenticated flows — indistinguishable
+// from a run that checked them all. Locally that is fine; contributors without
+// production credentials should not be blocked. In CI it means the console is
+// unverified while the job reports success, so fail instead of going quiet.
+if (process.env.CI && !hasAuthState) {
+  throw new Error(
+    "E2E_AUTH_STATE_B64 is not set — the `authenticated` Playwright project would not be registered and this run would pass without testing a single authenticated flow. Add it as a REPOSITORY secret.",
+  );
+}
+
 export default defineConfig({
   testDir: ".",
   timeout: 60_000,
