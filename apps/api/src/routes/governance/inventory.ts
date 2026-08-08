@@ -81,7 +81,13 @@ const inventoryScanRoute = createRoute({
 inventoryRoutes.openapi(inventoryScanRoute, async (c) => {
   const { orgId } = c.req.valid("param");
   const body = c.req.valid("json");
-  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "publisher");
+  // `skillist inventory scan` is a CLI command, so the primary caller here
+  // authenticates with an API key. Naming the scope is what makes that possible:
+  // without one `requireOrgAccess` rates any key as a viewer, and this route's
+  // publisher minimum then rejects every key regardless of its actual scopes.
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "publisher", {
+    apiKeyScope: "skills:write",
+  });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
 
   const { resolveGithubToRegistry } = await import("../../lib/github-registry-map");
