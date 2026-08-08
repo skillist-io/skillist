@@ -123,7 +123,12 @@ const createSkillRoute = createRoute({
 
 skillRoutes.openapi(createSkillRoute, async (c) => {
   const { orgId } = c.req.valid("param");
-  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor");
+  // `skillist push` creates a skill on first publish, so an API key has to be
+  // able to reach this. An unnamed scope would rate the key as a viewer and 403
+  // it — see the note on `requireOrgAccess`.
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "editor", {
+    apiKeyScope: "skills:write",
+  });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
   const userId = access.actorId;
   const body = c.req.valid("json");

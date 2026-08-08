@@ -78,6 +78,12 @@ export async function requireOrgAccess(
     if (options?.apiKeyScope && !auth.apiKeyScopes.includes(options.apiKeyScope)) {
       return { ok: false, status: 403 };
     }
+    // An API key's effective role comes from the scope the ROUTE names, not from
+    // the scopes the key holds. Omitting `apiKeyScope` therefore rates every key
+    // as a viewer, and any route with a higher minimum rejects all API keys —
+    // silently, and no matter how privileged the key is. If a route is meant to
+    // be reachable by key, it must name a scope whose SCOPE_MIN_ROLE clears its
+    // own minimum. Leaving it unnamed is how you make a route console-only.
     const scopeRole = options?.apiKeyScope ? SCOPE_MIN_ROLE[options.apiKeyScope] : "viewer";
     if (!hasMinRole(scopeRole, minRole)) {
       return { ok: false, status: 403 };
