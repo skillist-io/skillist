@@ -18,6 +18,7 @@ import {
   isProductionEnv,
   safeExecutionCtx,
 } from "./lib/db";
+import { describeError } from "./lib/error-detail";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
 import { getOrgMembership } from "./lib/org-access";
 import { rateLimit } from "./lib/rate-limit";
@@ -86,7 +87,9 @@ app.onError((err, c) => {
       correlationId,
       method: c.req.method,
       path: c.req.path,
-      error: err instanceof Error ? err.message : String(err),
+      // Full cause chain, not just `err.message`: a Drizzle failure's message is
+      // the query, and the reason it failed is one level down on `cause`.
+      error: describeError(err),
     }),
   );
   return c.json({ error: "Internal Server Error", correlationId }, 500);
