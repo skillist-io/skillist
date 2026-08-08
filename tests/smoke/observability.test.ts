@@ -14,15 +14,14 @@ const API_URL = process.env.SMOKE_API_URL ?? "https://api.skillist.io";
  * A 500 here means the deployed Worker disagrees with the deployed schema.
  */
 describe.skipIf(!process.env.SKILLIST_E2E_API_KEY)("authenticated dashboard smoke", () => {
-  const apiKey = process.env.SKILLIST_E2E_API_KEY!;
-  const auth = { Authorization: `Bearer ${apiKey}` };
+  const auth = { Authorization: `Bearer ${process.env.SKILLIST_E2E_API_KEY ?? ""}` };
 
   async function firstOrgId(): Promise<string> {
     const res = await fetch(`${API_URL}/v1/orgs`, { headers: auth });
     expect(res.ok).toBe(true);
-    const orgs = (await res.json()) as { id: string }[];
-    expect(orgs.length).toBeGreaterThan(0);
-    return orgs[0]!.id;
+    const [org] = (await res.json()) as { id: string }[];
+    if (!org) throw new Error("no organizations returned — cannot smoke-test org endpoints");
+    return org.id;
   }
 
   it("serves the observability dashboard", async () => {
