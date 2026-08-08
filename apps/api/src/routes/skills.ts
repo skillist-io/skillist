@@ -16,6 +16,7 @@ import type { Env } from "../env";
 import { publishVersion, rollbackVersion } from "../lib/ai";
 import type { AuthContext } from "../lib/auth-middleware";
 import { isUniqueViolation, type WorkerDb } from "../lib/db";
+import { isDatabaseError } from "../lib/error-detail";
 import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 import { queueSkillEval } from "../lib/queue-eval";
@@ -474,6 +475,10 @@ skillRoutes.openapi(publishRoute, async (c) => {
     );
     return c.json(result, 200);
   } catch (err) {
+    // Publish rejections (gate not met, bad version) are the caller's to fix and
+    // their message is the useful part. A database failure is not — rethrow so
+    // the global handler logs it and answers 500 rather than echoing the SQL.
+    if (isDatabaseError(err)) throw err;
     return c.json({ error: err instanceof Error ? err.message : "Publish failed" }, 400);
   }
 });
@@ -525,6 +530,7 @@ skillRoutes.openapi(rollbackRoute, async (c) => {
     );
     return c.json(result, 200);
   } catch (err) {
+    if (isDatabaseError(err)) throw err;
     return c.json({ error: err instanceof Error ? err.message : "Rollback failed" }, 400);
   }
 });
