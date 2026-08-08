@@ -5,6 +5,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { describeError, isDatabaseError } from "../lib/error-detail";
 import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 import { checkRunQuota, RunQuotaExceededError } from "../lib/run-quota";
@@ -14,6 +15,7 @@ import {
   getRunnableScriptsFromBundle,
   runSkillScript,
   SkillExecutionBlockedError,
+  SkillNotFoundError,
 } from "../lib/skill-runner";
 
 type AppEnv = {
@@ -110,7 +112,11 @@ executionRoutes.openapi(listScriptsRoute, async (c) => {
       200,
     );
   } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : "Not found" }, 404);
+    // Only a genuinely missing skill is a 404. Anything else — a database or R2
+    // failure — propagates to the global handler, which logs it and answers 500
+    // instead of reporting infrastructure trouble as a client mistake.
+    if (err instanceof SkillNotFoundError) return c.json({ error: "Not found" }, 404);
+    throw err;
   }
 });
 
@@ -226,9 +232,15 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
           await recordActivation();
           send("done", result);
         } catch (err) {
-          send("error", {
-            message: err instanceof Error ? err.message : "Execution failed",
-          });
+          // The response has already started, so this cannot fall through to
+          // the global handler — log it here and send the client a sanitized
+          // message rather than streaming raw SQL into the browser.
+          if (isDatabaseError(err)) {
+            console.error(JSON.stringify({ msg: "run_stream_error", ...describeError(err) }));
+            send("error", { message: "Execution failed" });
+          } else {
+            send("error", { message: err instanceof Error ? err.message : "Execution failed" });
+          }
         } finally {
           controller.close();
         }
@@ -258,6 +270,13 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
     if (err instanceof SkillExecutionBlockedError) {
       return c.json({ error: err.message }, 403);
     }
+    if (err instanceof SkillNotFoundError) {
+      return c.json({ error: "Not found" }, 404);
+    }
+    // A failed script is the caller's problem (400) and its message is useful.
+    // A failed database call is ours, and its message is the raw SQL — hand it
+    // to the global handler so it is logged and answered as a 500.
+    if (isDatabaseError(err)) throw err;
     return c.json({ error: err instanceof Error ? err.message : "Execution failed" }, 400);
   }
 });

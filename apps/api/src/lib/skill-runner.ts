@@ -111,6 +111,21 @@ async function materializeBundle(
   }
 }
 
+/**
+ * The skill (or its org/published version) genuinely does not exist.
+ *
+ * Typed so a caller's catch can answer 404 for *this* and let everything else
+ * propagate. Without the distinction a dropped database connection inside the
+ * lookups below is indistinguishable from a missing row, and gets answered as a
+ * 404 whose body is the raw failing SQL.
+ */
+export class SkillNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SkillNotFoundError";
+  }
+}
+
 export async function getPublishedBundle(
   env: Env,
   db: WorkerDb,
@@ -126,7 +141,7 @@ export async function getPublishedBundle(
     .from(organizations)
     .where(eq(organizations.slug, orgSlug))
     .limit(1);
-  if (!org) throw new Error("Organization not found");
+  if (!org) throw new SkillNotFoundError("Organization not found");
 
   const [skill] = await db
     .select()
@@ -134,7 +149,7 @@ export async function getPublishedBundle(
     .where(and(eq(skills.orgId, org.id), eq(skills.repo, skillRepo)))
     .limit(1);
   if (!skill || !skill.latestPublishedVersionId) {
-    throw new Error("Published skill not found");
+    throw new SkillNotFoundError("Published skill not found");
   }
 
   const [version] = await db
@@ -142,7 +157,7 @@ export async function getPublishedBundle(
     .from(skillVersions)
     .where(eq(skillVersions.id, skill.latestPublishedVersionId))
     .limit(1);
-  if (!version) throw new Error("Published version not found");
+  if (!version) throw new SkillNotFoundError("Published version not found");
 
   const paths = await listBundlePaths(env.SKILLS_R2, version.r2Prefix);
   const bundle = await downloadBundleFromR2(env.SKILLS_R2, version.r2Prefix, paths);

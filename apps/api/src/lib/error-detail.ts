@@ -76,3 +76,35 @@ export function describeError(err: unknown): ErrorDetail & { causes?: ErrorDetai
 
   return causes.length > 0 ? { ...top, causes } : top;
 }
+
+/**
+ * True when the failure came from the database layer rather than from the
+ * caller's input.
+ *
+ * Handlers that end in `catch (err) { return c.json({ error: err.message }, 400) }`
+ * are shaped for *validation* failures, but they swallow infrastructure ones
+ * too: a dropped Hyperdrive connection comes back to the browser as a 4xx whose
+ * body is the raw failing SQL and its bound params. That reads as "your request
+ * was bad", never reaches `onError`, and so never gets logged or alerted on.
+ * Use this to rethrow those and let the global handler answer 500.
+ */
+export function isDatabaseError(err: unknown): boolean {
+  let current: unknown = err;
+  const seen = new Set<unknown>();
+  while (typeof current === "object" && current !== null && !seen.has(current)) {
+    seen.add(current);
+    // Drizzle wraps every driver failure in a DrizzleQueryError. Identified by
+    // its `query`/`params` fields rather than its class name, which does not
+    // survive the minified production bundle (and which it never sets anyway —
+    // `name` stays "Error").
+    const candidate = current as { query?: unknown; params?: unknown };
+    if (typeof candidate.query === "string" && Array.isArray(candidate.params)) return true;
+    // postgres-js errors carry `severity` (raised by the server) or a
+    // `CONNECTION_*` code (raised by the client when the socket goes away).
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === "string" && code.startsWith("CONNECTION_")) return true;
+    if (typeof (current as { severity?: unknown }).severity === "string") return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
