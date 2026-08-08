@@ -24,6 +24,9 @@ Then a **smoke** job runs `pnpm smoke` against production. So: land it on `main`
 
 - Requires Cloudflare credentials/secrets already configured. Use the **production** config: `apps/api/wrangler.production.jsonc` (custom domains, real resource IDs, larger containers). Never deploy the base `wrangler.jsonc` (that's local-dev bindings) to production.
 - Worker secrets are managed separately: `pnpm setup:secrets`. Never inline secrets into `vars`.
+- **Schema ships before the code that reads it.** `deploy-api` runs `pnpm db:migrate` against the `PRODUCTION_DATABASE_URL` secret before `wrangler deploy`. If you deploy the API by hand, apply pending migrations first — skipping that shipped a Worker querying a column production did not have, and 500'd the whole observability endpoint.
+- Locally, `.env`'s `DATABASE_URL` is the **dev** branch. Production is `DATABASE_URL_PROD`, and it must be passed explicitly:
+  `DATABASE_URL="$(grep -m1 '^DATABASE_URL_PROD=' .env | cut -d= -f2-)" pnpm db:migrate`
 
 ## npm packages (`@skillist/skill-format`, `@skillist/cli`)
 

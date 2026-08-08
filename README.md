@@ -162,6 +162,15 @@ cd ../console && pnpm build && pnpm deploy     # product → console.skillist.io
 
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on every PR; deploys API + web + console + docs to Cloudflare on `main` when `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are set.
 
+**Required repository secrets** (repository-level — organization secrets do not resolve in this workflow):
+
+| Secret | Used by | Purpose |
+|--------|---------|---------|
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | all deploy jobs | Cloudflare deploys |
+| `PRODUCTION_DATABASE_URL` | `deploy-api` | applies pending migrations **before** the Worker that reads them ships. Missing → the deploy fails rather than shipping code against an unmigrated schema |
+| `SKILLIST_E2E_API_KEY` | `smoke` | authenticated post-deploy checks; missing → those tests skip silently |
+| `NPM_TOKEN` | release | package publishing |
+
 **Provisioned resources** (General Account `2d19b3b18648f0776ff1435cba466210`):
 
 | Resource | ID / name |
