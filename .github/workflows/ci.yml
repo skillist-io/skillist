@@ -142,11 +142,17 @@ jobs:
       #
       # Deliberately NOT conditional on the secret being set: a skip here is
       # indistinguishable from success and puts us right back in this failure
-      # mode. If DATABASE_URL is missing, the deploy fails loudly instead.
+      # mode. If the secret is missing, the deploy fails loudly instead.
+      #
+      # The secret is PRODUCTION_DATABASE_URL, not DATABASE_URL, because
+      # `DATABASE_URL` already means the *dev* branch in a local .env. One name
+      # for two different databases is how a migration eventually lands on the
+      # wrong one. drizzle-kit still reads DATABASE_URL; only the secret is
+      # named for what it actually holds.
       - name: Migrate production database
         run: pnpm db:migrate
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
 
       - name: Deploy API
         uses: cloudflare/wrangler-action@v4
