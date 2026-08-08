@@ -6,6 +6,11 @@
   // Smart Placement runs the Worker near the database so multi-query requests
   // don't pay a client<->origin round-trip per query. No-op in local dev.
   "placement": { "mode": "smart" },
+  // Cache in FRONT of the Worker, so a delivery hit never travels to the Smart
+  // Placement colo. Opt-in per response: the global middleware in src/index.ts
+  // marks anything without an explicit Cache-Control as `no-store`. Keep in
+  // sync with wrangler.production.jsonc.
+  "cache": { "enabled": true },
   "vars": {
     "BETTER_AUTH_URL": "http://localhost:8787",
     "WEB_URL": "http://localhost:5173"

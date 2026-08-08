@@ -35,11 +35,31 @@ const SECURITY_HEADERS: Record<string, string> = {
   "referrer-policy": "strict-origin-when-cross-origin",
 };
 
+/**
+ * Fills in any missing security header rather than overwriting: asset responses
+ * already carry the stricter set from `public/_headers`, including a real
+ * `default-src`/`script-src` CSP. Overwriting meant the four-directive fallback
+ * above replaced that policy on every response — the strict CSP was written,
+ * deployed, and never actually served.
+ */
 function withSecurityHeaders(res: Response): Response {
   const headers = new Headers(res.headers);
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-    headers.set(key, value);
+    if (!headers.has(key)) headers.set(key, value);
   }
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+/**
+ * The SPA shell must never be cached hard. It lives here rather than in
+ * `_headers` because `_headers` applies every matching rule and concatenates
+ * the values, so a `Cache-Control` on `/*` also landed on `/assets/*`, where
+ * its `no-cache` beat the immutable directive and forced a revalidation of
+ * every hashed chunk on every load.
+ */
+function withShellCacheControl(res: Response): Response {
+  const headers = new Headers(res.headers);
+  headers.set("Cache-Control", "no-cache");
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
@@ -58,6 +78,11 @@ export default {
     ) {
       return env.API.fetch(request);
     }
-    return withSecurityHeaders(await env.ASSETS.fetch(request));
+    const res = await env.ASSETS.fetch(request);
+    // Only SPA routes reach the Worker now (hashed assets are served directly
+    // by the asset server), but a request for a real asset can still land here
+    // — so the shell's no-cache is applied by content type, not by assumption.
+    const isShell = res.headers.get("content-type")?.includes("text/html") ?? false;
+    return withSecurityHeaders(isShell ? withShellCacheControl(res) : res);
   },
 };

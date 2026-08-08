@@ -5,13 +5,27 @@
 
 # Vite emits content-hashed filenames, so asset URLs change whenever content
 # does and can be cached indefinitely.
+#
+# Cache-Control lives ONLY here, never in the `/*` block below. Every matching
+# rule is applied and the values are concatenated, so a `Cache-Control` on `/*`
+# reached these files as `no-cache, public, max-age=31536000, immutable` — and
+# `no-cache` wins, forcing a revalidation round-trip for every hashed asset on
+# every page load. The shell's `no-cache` is set by the Worker instead (it
+# already handles every HTML path), which keeps the two from colliding.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-/*
-  # index.html must never be cached hard: it is the shell every route is served
-  # from, and the Worker injects per-route metadata into it.
+# Belt-and-braces for the shell: the Worker sets `no-cache` on every HTML
+# response it returns, and it sees `/` (it injects the site JSON-LD there), but
+# `/index.html` can be requested directly and would otherwise carry no
+# Cache-Control at all. Exact paths — they cannot collide with /assets/*.
+/
   Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
