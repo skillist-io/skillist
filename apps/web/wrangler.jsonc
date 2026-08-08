@@ -14,7 +14,33 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": true
+    // The Worker is needed for the API proxy, the SEO text endpoints, and the
+    // HTML surfaces it injects head tags into — not for the bundle. As `true`,
+    // EVERY request including every hashed chunk was an inbound Worker
+    // invocation: billed at the standard request rate (asset requests are
+    // otherwise free and unlimited) and routed through an extra hop. Paths that
+    // match no asset still reach the Worker, so SPA deep links keep working via
+    // not_found_handling.
+    "run_worker_first": [
+      "/v1/*",
+      "/api/*",
+      "/runs/*",
+      // SEO surfaces this Worker renders itself.
+      "/robots.txt",
+      "/sitemap.xml",
+      "/llms.txt",
+      // The landing page: index.html IS an asset, so without this the asset
+      // server would answer first and the site-level JSON-LD would never be
+      // injected.
+      "/",
+      // Public skill pages `/{org}/{repo}` (per-skill head tags + JSON-LD) and
+      // the apex delivery paths under them. `*` spans segments, so this one
+      // rule covers `/{org}/{repo}/SKILL.md` and friends too — wrangler rejects
+      // the longer patterns as redundant. The bundle is the one thing under two
+      // segments that must NOT wake the Worker.
+      "/*/*",
+      "!/assets/*"
+    ]
   },
   "services": [
     {

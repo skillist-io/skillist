@@ -74,8 +74,18 @@ export async function purgePublishedSkill(
 }
 
 // Keep hot delivery reads in each colo's edge cache so repeat reads skip the
-// central KV store. Safe because publish/purge rewrite these keys immediately.
-const DELIVERY_KV_CACHE_TTL = 300;
+// central KV store. A write revalidates KV's regional and central cache tiers,
+// so a publish is visible quickly — but this is still the outer bound on how
+// stale a `latest` read can be, so it matches the `max-age=60` that
+// LATEST_CACHE_CONTROL promises rather than exceeding it (it was 300, five
+// times the advertised freshness window).
+const DELIVERY_KV_CACHE_TTL = 60;
+
+// Version-pinned keys are immutable: `{org}/{repo}/{semver}` addresses content
+// that never changes once published, which makes it the safest thing in the
+// system to hold in a colo. It previously passed no cacheTtl at all — so the
+// mutable `latest` reads were cached and the immutable ones were not.
+const VERSION_KV_CACHE_TTL = 86400;
 
 export async function getPublishedSkillMd(
   kv: KVNamespace,
@@ -119,6 +129,7 @@ export async function getVersionSkillMd(
 ): Promise<{ skillMd: string; meta: SkillMdKvMetadata } | null> {
   const { value: skillMd, metadata } = await kv.getWithMetadata<SkillMdKvMetadata>(
     skillVersionKey(orgSlug, skillRepo, version),
+    { cacheTtl: VERSION_KV_CACHE_TTL },
   );
   if (!skillMd || !metadata?.etag) return null;
   return { skillMd, meta: metadata };
@@ -130,7 +141,9 @@ export async function getVersionMeta(
   skillRepo: string,
   version: string,
 ): Promise<SkillKvContent["meta"] | null> {
-  const metaRaw = await kv.get(skillVersionMetaKey(orgSlug, skillRepo, version));
+  const metaRaw = await kv.get(skillVersionMetaKey(orgSlug, skillRepo, version), {
+    cacheTtl: VERSION_KV_CACHE_TTL,
+  });
   if (!metaRaw) return null;
   return JSON.parse(metaRaw);
 }

@@ -9,6 +9,7 @@ import {
   skillJsonLd,
   skillNoscriptBody,
 } from "./seo";
+import { withSecurityHeaders, withShellCacheControl } from "./worker-headers";
 
 /**
  * Proxies API traffic to the API Worker via service binding:
@@ -50,36 +51,6 @@ const TEXT_HEADERS = {
 
 function wantsHtml(request: Request): boolean {
   return request.method === "GET" && (request.headers.get("accept") ?? "").includes("text/html");
-}
-
-/**
- * Response headers this SPA worker adds to everything it serves itself (the API
- * proxy branch is skipped — the API worker sets its own via `secureHeaders()`).
- *
- * Deliberately scoped to directives that harden without risking breakage: no
- * `default-src`/`script-src`, because the app loads Google Tag Manager and an
- * inline theme-bootstrap script, and a wrong value there breaks the page with no
- * way to verify here. `object-src`/`base-uri`/`frame-ancestors`/`form-action`
- * add real defense (plugin injection, base-tag hijack, clickjacking, form
- * exfiltration) as a second layer behind the SEO-injection escaping — none of
- * which touch script/style/analytics loading. A strict script-src (hashing the
- * theme script + a GTM nonce) is a follow-up that needs a build+smoke check.
- */
-const SECURITY_HEADERS: Record<string, string> = {
-  "content-security-policy":
-    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
-  "x-frame-options": "DENY",
-  "x-content-type-options": "nosniff",
-  "referrer-policy": "strict-origin-when-cross-origin",
-};
-
-/** Copy a response and layer on the security headers (source headers may be immutable). */
-function withSecurityHeaders(res: Response): Response {
-  const headers = new Headers(res.headers);
-  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
-    headers.set(key, value);
-  }
-  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
 /** Fetches the SPA shell from the assets binding. */
@@ -149,8 +120,39 @@ function injectSkillPage(shellRes: Response, meta: SkillMeta): Response {
     .transform(shellRes);
 }
 
+/**
+ * Serve a Worker-rendered response from this colo's cache when one is stored.
+ *
+ * `/sitemap.xml` and `/llms.txt` each pull up to 1000 registry rows through the
+ * service binding, and a Worker's own responses are not cached by Cloudflare
+ * unless the Worker opts in — so every crawler hit ran the full query. This
+ * Worker is not smart-placed, so the cache entry lives in the colo nearest the
+ * requester. Freshness is bounded by the `Cache-Control` on TEXT_HEADERS.
+ */
+async function withEdgeCache(
+  request: Request,
+  ctx: ExecutionContext,
+  produce: () => Promise<Response>,
+): Promise<Response> {
+  // These paths are public, unauthenticated GETs, so the URL is a complete key.
+  const cacheKey = new Request(request.url, { method: "GET" });
+  const cache = caches.default;
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+
+  const res = await produce();
+  if (res.ok) {
+    try {
+      ctx.waitUntil(cache.put(cacheKey, res.clone()));
+    } catch {
+      // No executionCtx (tests): skip caching rather than block the response.
+    }
+  }
+  return res;
+}
+
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -168,45 +170,62 @@ export default {
 
     // Everything below is served by this worker (SEO text, injected skill
     // pages, the SPA shell/assets) — all get the security headers.
-    return withSecurityHeaders(await serve(request, env, url));
+    return withSecurityHeaders(await serve(request, env, url, ctx));
   },
 };
 
-async function serve(request: Request, env: Env, url: URL): Promise<Response> {
+async function serve(
+  request: Request,
+  env: Env,
+  url: URL,
+  ctx: ExecutionContext,
+): Promise<Response> {
   const { pathname } = url;
 
   if (pathname === "/robots.txt") {
+    // Rendered from a constant — no subrequest to save, so no cache lookup.
     return new Response(robotsTxt(), { headers: TEXT_HEADERS });
   }
 
   if (pathname === "/sitemap.xml") {
-    const entries = await fetchRegistry(env);
-    return new Response(sitemapXml(entries), {
-      headers: { ...TEXT_HEADERS, "content-type": "application/xml; charset=utf-8" },
+    return withEdgeCache(request, ctx, async () => {
+      const entries = await fetchRegistry(env);
+      return new Response(sitemapXml(entries), {
+        headers: { ...TEXT_HEADERS, "content-type": "application/xml; charset=utf-8" },
+      });
     });
   }
 
   if (pathname === "/llms.txt") {
-    const entries = await fetchRegistry(env);
-    return new Response(llmsTxt(entries), { headers: TEXT_HEADERS });
+    return withEdgeCache(request, ctx, async () => {
+      const entries = await fetchRegistry(env);
+      return new Response(llmsTxt(entries), { headers: TEXT_HEADERS });
+    });
   }
 
   const skillMatch = SKILL_PAGE_PATH.exec(pathname);
   if (skillMatch && wantsHtml(request)) {
     const [, org, repo] = skillMatch;
     if (org && repo && !RESERVED_SEGMENTS.has(org)) {
-      const meta = await fetchSkillMeta(env, org, repo);
-      const shellRes = await shell(request, env);
+      // Independent round-trips (meta comes from the API, the shell from the
+      // asset server) and both branches below need the shell, so they overlap
+      // rather than run back to back.
+      const [meta, shellRes] = await Promise.all([
+        fetchSkillMeta(env, org, repo),
+        shell(request, env),
+      ]);
       if (!meta) {
         // A missing/private skill previously returned 200 with the SPA shell —
         // a soft 404 that search engines treat as a site-quality problem. The
         // body is still the SPA, so the client renders its own 404 UI.
-        return new Response(shellRes.body, {
-          status: 404,
-          headers: shellRes.headers,
-        });
+        return withShellCacheControl(
+          new Response(shellRes.body, {
+            status: 404,
+            headers: shellRes.headers,
+          }),
+        );
       }
-      return injectSkillPage(shellRes, meta);
+      return withShellCacheControl(injectSkillPage(shellRes, meta));
     }
   }
 
@@ -214,14 +233,22 @@ async function serve(request: Request, env: Env, url: URL): Promise<Response> {
   // it is injected rather than duplicated into index.html).
   if ((pathname === "/" || pathname === "") && wantsHtml(request)) {
     const shellRes = await shell(request, env);
-    return new HTMLRewriter()
-      .on("head", {
-        element(el) {
-          el.append(`\n    ${siteJsonLd()}\n  `, { html: true });
-        },
-      })
-      .transform(shellRes);
+    return withShellCacheControl(
+      new HTMLRewriter()
+        .on("head", {
+          element(el) {
+            el.append(`\n    ${siteJsonLd()}\n  `, { html: true });
+          },
+        })
+        .transform(shellRes),
+    );
   }
 
-  return env.ASSETS.fetch(request);
+  const assetRes = await env.ASSETS.fetch(request);
+  // SPA deep links (/registry, /skills/…) resolve to index.html through
+  // not_found_handling, so they are the shell too and must not be cached hard.
+  // Hashed assets keep the immutable Cache-Control from `_headers`.
+  return wantsHtml(request) && assetRes.headers.get("content-type")?.includes("text/html")
+    ? withShellCacheControl(assetRes)
+    : assetRes;
 }

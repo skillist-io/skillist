@@ -12,6 +12,21 @@
   // Run the Worker near the database so multi-query requests don't pay a
   // client<->origin round-trip per query.
   "placement": { "mode": "smart" },
+  // Workers Caching sits IN FRONT of the Worker: a hit is served without
+  // running it. That is what makes the delivery Cache-Control headers real —
+  // a Worker's own responses are not otherwise cached by Cloudflare, and the
+  // per-colo Cache API in routes/delivery.ts could only ever be consulted
+  // AFTER the request had already travelled to the Smart Placement location
+  // beside the database. Measured: a pinned-version read that hit the Cache
+  // API still cost ~120ms of server time versus ~50ms for an edge-served
+  // asset, because the hit was in the placement colo, not the reader's.
+  //
+  // Caching is opt-in per response: a global middleware in src/index.ts marks
+  // anything without an explicit Cache-Control as `no-store`, so only the
+  // delivery routes are eligible. Note this also bills requests that are
+  // otherwise free — static assets (none here) and service-binding calls from
+  // the web/console Workers.
+  "cache": { "enabled": true },
   "vars": {
     "BETTER_AUTH_URL": "https://api.skillist.io",
     "WEB_URL": "https://skillist.io"

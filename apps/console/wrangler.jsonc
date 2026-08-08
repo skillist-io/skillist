@@ -14,7 +14,30 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": true
+    // Only the proxied paths need the Worker. As `true`, EVERY request — every
+    // hashed JS chunk, font, and image — was an inbound Worker invocation:
+    // billed at the standard request rate (asset requests are otherwise free
+    // and unlimited) and routed through an extra hop. Assets not listed here
+    // are served by the asset server directly, with `public/_headers` applied.
+    // Paths that match no asset still reach the Worker, so SPA deep links keep
+    // working via not_found_handling.
+    "run_worker_first": [
+      "/v1/*",
+      "/api/*",
+      "/agents/*",
+      "/runs/*",
+      // Apex delivery, mirroring APEX_API_PATH in src/worker.ts. Globs match a
+      // single segment, so each verb needs its own pattern.
+      "/*/*/SKILL.md",
+      "/*/*/meta",
+      "/*/*/bundle",
+      "/*/*/bundle/*",
+      "/*/*/scripts",
+      "/*/*/scripts/*",
+      "/*/*/run",
+      "/*/*/runs",
+      "/*/*/runs/*"
+    ]
   },
   "services": [
     {

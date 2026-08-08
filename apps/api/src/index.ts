@@ -18,6 +18,7 @@ import {
   isProductionEnv,
   safeExecutionCtx,
 } from "./lib/db";
+import { describeError } from "./lib/error-detail";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
 import { getOrgMembership } from "./lib/org-access";
 import { rateLimit } from "./lib/rate-limit";
@@ -66,6 +67,34 @@ app.use("*", async (c, next) => {
 // response. No CSP by default — the API is JSON + the Scalar docs page.
 app.use("*", secureHeaders());
 
+/**
+ * Default every response to uncacheable.
+ *
+ * Workers Caching is enabled for this Worker (see `cache` in wrangler.jsonc),
+ * which puts a cache IN FRONT of the Worker: a hit is served without running
+ * it at all. That is the point — it is what lets a distant reader get a skill
+ * from their own colo instead of travelling to the Smart-Placement location
+ * next to the database. But it also means an accidental omission is a
+ * correctness bug, not just a missed optimization: a response with no
+ * `Cache-Control` is eligible for heuristic caching under RFC 9111, and
+ * caching a per-user API response would serve it to someone else.
+ *
+ * So caching here is opt-in per route. Anything that has not deliberately set
+ * `Cache-Control` — every /v1 route, MCP, auth, execution — is marked
+ * `no-store`. The delivery routes set their own (see lib/delivery.ts) and are
+ * left untouched.
+ */
+app.use("*", async (c, next) => {
+  await next();
+  const res = c.res;
+  // A WebSocket upgrade carries no cacheable body and its response cannot be
+  // rebuilt — leave it exactly as the handler returned it.
+  if (res.status === 101 || res.headers.has("Cache-Control")) return;
+  const headers = new Headers(res.headers);
+  headers.set("Cache-Control", "no-store");
+  c.res = new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+});
+
 // Cap request bodies. Skill bundles are the largest legitimate payload; per-file
 // and file-count limits live in the Zod schema, this is the outer ceiling.
 app.use(
@@ -86,7 +115,9 @@ app.onError((err, c) => {
       correlationId,
       method: c.req.method,
       path: c.req.path,
-      error: err instanceof Error ? err.message : String(err),
+      // Full cause chain, not just `err.message`: a Drizzle failure's message is
+      // the query, and the reason it failed is one level down on `cause`.
+      error: describeError(err),
     }),
   );
   return c.json({ error: "Internal Server Error", correlationId }, 500);
