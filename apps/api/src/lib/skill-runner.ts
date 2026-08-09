@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "./audit";
 import type { WorkerDb } from "./db";
+import { persistableErrorMessage } from "./error-detail";
 import { downloadBundleFromR2, listBundlePaths } from "./r2";
 import { reserveRunSlot } from "./run-quota";
 import { resolveRunAllowedHosts } from "./sandbox-egress";
@@ -342,7 +343,9 @@ export async function runSkillScript(
       runtime,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Execution failed";
+    // `skill_runs.error` is rendered in the console run history, so a database
+    // failure here would durably park raw SQL in a user-visible column.
+    const message = persistableErrorMessage(err, "Execution failed");
     await db
       .update(skillRuns)
       .set({

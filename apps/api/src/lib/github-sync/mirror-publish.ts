@@ -23,6 +23,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Env } from "../../env";
 import { logAudit } from "../audit";
 import type { WorkerDb } from "../db";
+import { persistableErrorMessage } from "../error-detail";
 import { broadcastPublish, cachePublishedSkill } from "../publish";
 import { queueSkillEval } from "../queue-eval";
 import { putBundleObject, r2Prefix, sha256, uploadBundleToR2 } from "../r2";
@@ -270,7 +271,9 @@ export async function syncSource(
       discoveredCount: discovered.length,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown sync error";
+    // Surfaced on the source's sync status in the console — see
+    // `persistableErrorMessage` for why a database failure must not land here.
+    const message = persistableErrorMessage(err, "Unknown sync error");
     await db
       .update(skillSources)
       .set({
@@ -351,7 +354,7 @@ export async function recordPublishJobFailure(
   commitSha: string,
   error: unknown,
 ): Promise<void> {
-  const message = error instanceof Error ? error.message : "Publish failed";
+  const message = persistableErrorMessage(error, "Publish failed");
   await db
     .update(skillSources)
     .set({

@@ -1,6 +1,6 @@
 import { DrizzleQueryError } from "drizzle-orm/errors";
 import { describe, expect, it } from "vitest";
-import { describeError, isDatabaseError } from "./error-detail";
+import { describeError, isDatabaseError, persistableErrorMessage } from "./error-detail";
 
 describe("describeError", () => {
   it("surfaces the driver cause behind a Drizzle query error", () => {
@@ -100,5 +100,53 @@ describe("isDatabaseError", () => {
     a.cause = b;
     b.cause = a;
     expect(isDatabaseError(a)).toBe(false);
+  });
+});
+
+describe("persistableErrorMessage", () => {
+  it("keeps a script failure's message — that is what the column is for", () => {
+    const message = persistableErrorMessage(
+      new Error("preflight.sh: wrangler not found"),
+      "Execution failed",
+    );
+    expect(message).toBe("preflight.sh: wrangler not found");
+  });
+
+  it("masks a database failure so raw SQL never lands in a user-visible column", () => {
+    const err = new DrizzleQueryError(
+      'select "id", "org_id" from "skills" where …',
+      ["fc02aaed-7728-44ce-b30a-80a690240e60", "cloudflare-deploy"],
+      Object.assign(new Error("write CONNECTION_CLOSED"), { code: "CONNECTION_CLOSED" }),
+    );
+
+    const message = persistableErrorMessage(err, "Execution failed");
+
+    expect(message).toBe("Execution failed");
+    expect(message).not.toContain("select");
+    expect(message).not.toContain("fc02aaed");
+  });
+
+  it("logs the masked detail rather than dropping it", () => {
+    const logged: string[] = [];
+    const original = console.error;
+    console.error = (line: string) => logged.push(line);
+    try {
+      persistableErrorMessage(new DrizzleQueryError("select 1", [], new Error("nope")), "failed");
+    } finally {
+      console.error = original;
+    }
+
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toContain("database_error_masked");
+    expect(logged[0]).toContain("nope");
+  });
+
+  it("caps a stored message so nothing unbounded lands in a column", () => {
+    expect(persistableErrorMessage(new Error("x".repeat(5000)), "failed")).toHaveLength(1000);
+  });
+
+  it("falls back for a thrown non-error and an empty message", () => {
+    expect(persistableErrorMessage("just a string", "Sync failed")).toBe("Sync failed");
+    expect(persistableErrorMessage(new Error(""), "Sync failed")).toBe("Sync failed");
   });
 });

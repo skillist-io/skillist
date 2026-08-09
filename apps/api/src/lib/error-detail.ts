@@ -88,6 +88,35 @@ export function describeError(err: unknown): ErrorDetail & { causes?: ErrorDetai
  * was bad", never reaches `onError`, and so never gets logged or alerted on.
  * Use this to rethrow those and let the global handler answer 500.
  */
+/**
+ * Generous cap for a stored message. A script's stderr line is well under this;
+ * a Drizzle message (full SQL plus every bound param) is not, and has no reason
+ * to sit in a column forever.
+ */
+const MAX_STORED_LENGTH = 1000;
+
+/**
+ * A message safe to persist and show back to a user.
+ *
+ * `skill_runs.error` and `skill_sources.lastSyncError` are rendered in the
+ * console, so whatever goes in them is user-facing — and unlike a response body,
+ * it stays there. A failed script's message belongs there and is the whole point
+ * of the column. A database failure's message is the raw SQL and its bound
+ * params, which is both useless to the user and a durable leak.
+ *
+ * Logs the masked detail rather than dropping it: the failure being masked is
+ * exactly the one someone will need to debug, so it goes to Workers Logs on the
+ * way past.
+ */
+export function persistableErrorMessage(err: unknown, fallback: string): string {
+  if (isDatabaseError(err)) {
+    console.error(JSON.stringify({ msg: "database_error_masked", ...describeError(err) }));
+    return fallback;
+  }
+  const message = err instanceof Error ? err.message : "";
+  return (message || fallback).slice(0, MAX_STORED_LENGTH);
+}
+
 export function isDatabaseError(err: unknown): boolean {
   let current: unknown = err;
   const seen = new Set<unknown>();
