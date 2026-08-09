@@ -9,7 +9,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
 import type { AiJobMessage, Env } from "./env";
 import { runAiJob } from "./lib/ai";
-import { alertUnhandledError } from "./lib/alert";
+import { alertBackgroundError, alertUnhandledError, requestSource } from "./lib/alert";
 import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
 import {
@@ -19,7 +19,7 @@ import {
   isProductionEnv,
   safeExecutionCtx,
 } from "./lib/db";
-import { describeError } from "./lib/error-detail";
+import { describeError, persistableErrorMessage } from "./lib/error-detail";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
 import { getOrgMembership } from "./lib/org-access";
 import { rateLimit } from "./lib/rate-limit";
@@ -127,8 +127,7 @@ app.onError((err, c) => {
   safeExecutionCtx(c)?.waitUntil(
     alertUnhandledError(c.env, err, {
       correlationId,
-      method: c.req.method,
-      path: c.req.path,
+      source: requestSource(c.req.method, c.req.path),
     }),
   );
   return c.json({ error: "Internal Server Error", correlationId }, 500);
@@ -514,10 +513,19 @@ export default {
           await handleSyncQueueMessage(env, message.body as SyncQueueMessage);
           message.ack();
         } catch (err) {
+          // A retrying queue message looks like silence from the outside, so
+          // this surface has to raise its own alarm — nothing else will.
+          const { correlationId, alerting } = alertBackgroundError(
+            env,
+            err,
+            `queue:${batch.queue}`,
+          );
+          await alerting;
           console.error(
             JSON.stringify({
               msg: "sync_queue_error",
-              error: err instanceof Error ? err.message : String(err),
+              correlationId,
+              error: describeError(err),
               body: message.body,
             }),
           );
@@ -557,10 +565,15 @@ async function runDailyRetention(env: Env): Promise<void> {
       console.warn(JSON.stringify({ msg: "retention_backlog", ...report }));
     }
   } catch (err) {
+    // Nightly, unattended, and destructive when it half-works — exactly the
+    // shape of failure that goes unnoticed for weeks.
+    const { correlationId, alerting } = alertBackgroundError(env, err, "cron:retention");
+    await alerting;
     console.error(
       JSON.stringify({
         msg: "retention_failed",
-        error: err instanceof Error ? err.message : String(err),
+        correlationId,
+        error: describeError(err),
       }),
     );
   } finally {
@@ -595,6 +608,16 @@ async function handleDeadLetterBatch(
     );
   }
 
+  // Reaching a DLQ means every retry was exhausted — the least ambiguous "this
+  // is broken and has given up" signal the system produces, and until now it
+  // only logged. Alerted once per batch, not per message, so a flood of poison
+  // messages is still one alarm.
+  await alertBackgroundError(
+    env,
+    new Error(`${batch.messages.length} message(s) exhausted retries`),
+    `dlq:${batch.queue}`,
+  ).alerting;
+
   const db = createWorkerDb(env);
   try {
     const { logAudit } = await import("./lib/audit");
@@ -616,11 +639,14 @@ async function handleDeadLetterBatch(
   } catch (err) {
     // Never rethrow: failing here would leave the message unacked and cycling.
     // The console.error above is already durable in Workers Logs.
+    const { correlationId, alerting } = alertBackgroundError(env, err, `dlq-audit:${batch.queue}`);
+    await alerting;
     console.error(
       JSON.stringify({
         msg: "dead_letter_audit_failed",
         queue: batch.queue,
-        error: err instanceof Error ? err.message : String(err),
+        correlationId,
+        error: describeError(err),
       }),
     );
   } finally {
@@ -646,11 +672,18 @@ async function handleAiJobBatch(
         await runSkillEval(env, db, body.evalId);
         message.ack();
       } catch (err) {
+        const { correlationId, alerting } = alertBackgroundError(env, err, "queue:eval");
+        await alerting;
+        console.error(
+          JSON.stringify({ msg: "eval_job_failed", correlationId, error: describeError(err) }),
+        );
         await db
           .update(skillEvals)
           .set({
             status: "failed",
-            error: err instanceof Error ? err.message : "Unknown error",
+            // Rendered in the console evals panel — same reason `skill_runs.error`
+            // is masked: a database failure's message is the query and its params.
+            error: persistableErrorMessage(err, "Unknown error"),
           })
           .where(eq(skillEvals.id, body.evalId));
         message.retry();
@@ -666,11 +699,16 @@ async function handleAiJobBatch(
       await runAiJob(env, db, jobId, feedbackId);
       message.ack();
     } catch (err) {
+      const { correlationId, alerting } = alertBackgroundError(env, err, "queue:ai-job");
+      await alerting;
+      console.error(
+        JSON.stringify({ msg: "ai_job_failed", correlationId, error: describeError(err) }),
+      );
       await db
         .update(aiJobs)
         .set({
           status: "failed",
-          error: err instanceof Error ? err.message : "Unknown error",
+          error: persistableErrorMessage(err, "Unknown error"),
           completedAt: new Date(),
         })
         .where(eq(aiJobs.id, jobId));

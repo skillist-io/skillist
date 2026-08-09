@@ -32,9 +32,22 @@ const GLOBAL_BUDGET_KEY = "alert:budget";
 
 export type AlertContext = {
   correlationId: string;
-  method: string;
-  path: string;
+  /**
+   * Where the failure happened, already collapsed to a stable shape:
+   * `GET /v1/orgs/{id}/observability`, `queue:skillist-ai-jobs`, `cron:0 6 * * *`.
+   *
+   * A string rather than method/path because most of what can fail here is not a
+   * request. The fetch handler is the *only* surface `onError` sees; queue
+   * consumers, cron handlers, and Durable Objects fail with nobody watching a
+   * page, which is precisely where a silent failure survives longest.
+   */
+  source: string;
 };
+
+/** Convenience for the fetch handler, whose source is a request. */
+export function requestSource(method: string, path: string): string {
+  return `${method} ${routeShape(path)}`;
+}
 
 /**
  * Collapses a path to its route shape so one broken route is one fingerprint.
@@ -57,16 +70,16 @@ export function routeShape(path: string): string {
 }
 
 /**
- * What makes two failures "the same". Route shape plus the innermost error code
- * — so a connection drop and a constraint violation on one route stay distinct,
- * while the same fault repeating is one alert.
+ * What makes two failures "the same". Source plus the innermost error code — so
+ * a connection drop and a constraint violation on one route stay distinct, while
+ * the same fault repeating is one alert.
  */
 export function fingerprint(
-  path: string,
+  source: string,
   detail: ErrorDetail & { causes?: ErrorDetail[] },
 ): string {
   const root = detail.causes?.[detail.causes.length - 1] ?? detail;
-  return `${routeShape(path)}|${root.code ?? root.name ?? "unknown"}`;
+  return `${source}|${root.code ?? root.name ?? "unknown"}`;
 }
 
 /**
@@ -79,7 +92,7 @@ export function fingerprint(
 function alertSummary(ctx: AlertContext, detail: ErrorDetail & { causes?: ErrorDetail[] }) {
   const root = detail.causes?.[detail.causes.length - 1] ?? detail;
   return {
-    route: `${ctx.method} ${routeShape(ctx.path)}`,
+    route: ctx.source,
     errorType: root.name ?? "Error",
     errorCode: root.code ?? null,
     severity: root.severity ?? null,
@@ -172,7 +185,7 @@ export async function alertUnhandledError(
     if (!slackWebhook && !emailTo) return;
 
     const detail = describeError(err);
-    if (!(await shouldAlert(env, fingerprint(ctx.path, detail)))) return;
+    if (!(await shouldAlert(env, fingerprint(ctx.source, detail)))) return;
 
     const summary = alertSummary(ctx, detail);
     // One channel failing must not stop the other.
@@ -200,4 +213,25 @@ export async function alertUnhandledError(
       }),
     );
   }
+}
+
+/**
+ * Alert from a surface that has no request behind it — a queue consumer, a cron
+ * handler, a Durable Object.
+ *
+ * These are the failures most likely to go unnoticed: nobody is watching a page
+ * when a nightly cron dies, and a queue message that keeps retrying looks like
+ * silence from the outside. They also have no `cf-ray`, so a correlation id is
+ * minted here to join the alert to the log line.
+ */
+export function alertBackgroundError(
+  env: Env,
+  err: unknown,
+  source: string,
+): { correlationId: string; alerting: Promise<void> } {
+  const correlationId = crypto.randomUUID();
+  return {
+    correlationId,
+    alerting: alertUnhandledError(env, err, { correlationId, source }),
+  };
 }

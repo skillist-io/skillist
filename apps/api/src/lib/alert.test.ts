@@ -1,13 +1,18 @@
 import { DrizzleQueryError } from "drizzle-orm/errors";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../env";
-import { alertUnhandledError, fingerprint, routeShape } from "./alert";
+import {
+  alertBackgroundError,
+  alertUnhandledError,
+  fingerprint,
+  requestSource,
+  routeShape,
+} from "./alert";
 import { describeError } from "./error-detail";
 
 const CTX = {
   correlationId: "9a1b2c3d4e5f",
-  method: "GET",
-  path: "/v1/orgs/fc02aaed-7728-44ce-b30a-80a690240e60/observability",
+  source: requestSource("GET", "/v1/orgs/fc02aaed-7728-44ce-b30a-80a690240e60/observability"),
 };
 
 /** In-memory stand-in for SKILLS_KV, enough for the dedupe reads/writes. */
@@ -46,7 +51,9 @@ const dbError = () =>
 
 describe("routeShape", () => {
   it("collapses ids so one broken route is one fingerprint", () => {
-    expect(routeShape(CTX.path)).toBe("/v1/orgs/{id}/observability");
+    expect(routeShape("/v1/orgs/fc02aaed-7728-44ce-b30a-80a690240e60/observability")).toBe(
+      "/v1/orgs/{id}/observability",
+    );
   });
 
   it("collapses long opaque segments", () => {
@@ -62,8 +69,8 @@ describe("routeShape", () => {
 
 describe("fingerprint", () => {
   it("is stable across orgs but distinct across faults", () => {
-    const a = "/v1/orgs/fc02aaed-7728-44ce-b30a-80a690240e60/observability";
-    const b = "/v1/orgs/5859052d-ce2b-435d-a2b7-e2641c2b0933/observability";
+    const a = requestSource("GET", "/v1/orgs/fc02aaed-7728-44ce-b30a-80a690240e60/observability");
+    const b = requestSource("GET", "/v1/orgs/5859052d-ce2b-435d-a2b7-e2641c2b0933/observability");
     expect(fingerprint(a, describeError(dbError()))).toBe(fingerprint(b, describeError(dbError())));
 
     const other = new DrizzleQueryError(
@@ -179,5 +186,47 @@ describe("alertUnhandledError", () => {
     } as unknown as Partial<Env>);
 
     await expect(alertUnhandledError(env, dbError(), CTX)).resolves.toBeUndefined();
+  });
+});
+
+describe("alertBackgroundError", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("ok")));
+  });
+
+  it("alerts for a surface with no request behind it", async () => {
+    const env = fakeEnv();
+    const { correlationId, alerting } = alertBackgroundError(
+      env,
+      dbError(),
+      "queue:skillist-ai-jobs",
+    );
+    await alerting;
+
+    const body = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body;
+    expect(body).toContain("queue:skillist-ai-jobs");
+    // Minted here, since a queue consumer has no cf-ray to correlate with.
+    expect(correlationId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(body).toContain(correlationId);
+  });
+
+  it("keeps queue and cron failures on separate fingerprints from requests", async () => {
+    const env = fakeEnv();
+    await alertBackgroundError(env, dbError(), "queue:skillist-ai-jobs").alerting;
+    await alertBackgroundError(env, dbError(), "cron:retention").alerting;
+    await alertUnhandledError(env, dbError(), CTX);
+
+    // Same fault, three surfaces — three alarms, because fixing one need not
+    // mean the others are fine.
+    expect(env.EMAIL.send).toHaveBeenCalledTimes(3);
+  });
+
+  it("still dedupes a repeat from the same background surface", async () => {
+    const env = fakeEnv();
+    await alertBackgroundError(env, dbError(), "queue:skillist-ai-jobs").alerting;
+    await alertBackgroundError(env, dbError(), "queue:skillist-ai-jobs").alerting;
+
+    expect(env.EMAIL.send).toHaveBeenCalledTimes(1);
   });
 });
