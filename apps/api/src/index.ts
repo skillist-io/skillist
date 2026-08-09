@@ -9,6 +9,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { SkillRealtimeHub } from "./durable-objects/skill-realtime-hub";
 import type { AiJobMessage, Env } from "./env";
 import { runAiJob } from "./lib/ai";
+import { alertUnhandledError } from "./lib/alert";
 import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
 import {
@@ -118,6 +119,16 @@ app.onError((err, c) => {
       // Full cause chain, not just `err.message`: a Drizzle failure's message is
       // the query, and the reason it failed is one level down on `cause`.
       error: describeError(err),
+    }),
+  );
+  // Push the alert rather than waiting for someone to read the log. Deferred so
+  // it never delays the response, and non-throwing by contract — a failure to
+  // alert must not turn one 500 into two.
+  safeExecutionCtx(c)?.waitUntil(
+    alertUnhandledError(c.env, err, {
+      correlationId,
+      method: c.req.method,
+      path: c.req.path,
     }),
   );
   return c.json({ error: "Internal Server Error", correlationId }, 500);

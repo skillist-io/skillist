@@ -30,6 +30,9 @@
   "vars": {
     "BETTER_AUTH_URL": "https://api.skillist.io",
     "WEB_URL": "https://skillist.io"
+    // Alert routing (ALERT_EMAIL_TO, ALERT_SLACK_WEBHOOK_URL) is deliberately
+    // NOT here: this repository is public, and a `vars` block is committed.
+    // Both are set via `pnpm setup:secrets` from the gitignored .dev.vars.
   },
   "routes": [
     { "pattern": "api.skillist.io", "custom_domain": true },

@@ -52,6 +52,12 @@ export type Env = {
   VECTORIZE: VectorizeIndex;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
+  /** Slack incoming-webhook URL for unhandled-error alerts. Secret, not a var —
+   * the URL *is* the credential. Absent = that channel is off. */
+  ALERT_SLACK_WEBHOOK_URL?: string;
+  /** Destination for unhandled-error alert email. Absent = that channel is off;
+   * with neither set, alerting is off entirely. */
+  ALERT_EMAIL_TO?: string;
   WEB_URL?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;

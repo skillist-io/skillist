@@ -43,6 +43,12 @@ put_secret AI_GATEWAY_ACCOUNT_ID
 put_secret AI_GATEWAY_TOKEN
 put_secret GITHUB_TOKEN
 put_secret GITHUB_WEBHOOK_SECRET
+# Unhandled-error alert routing. Both go through `wrangler secret` rather than
+# the committed `vars` block because this repository is public: the Slack URL is
+# itself a credential, and the email address is personal data. Either may be
+# omitted — an absent value just turns that channel off.
+put_secret ALERT_SLACK_WEBHOOK_URL
+put_secret ALERT_EMAIL_TO
 put_secret SKILLIST_ADMIN_USER_IDS
 
 echo "Production secrets updated."
