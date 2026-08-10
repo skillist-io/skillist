@@ -252,6 +252,37 @@ export const inviteMemberSchema = z.object({
   role: orgRoleSchema.default("viewer"),
 });
 
+/**
+ * Result of inviting someone. `added` means they already had an account and
+ * are now a member; `invited` means a pending invitation was emailed. The
+ * console renders different confirmations for the two, so the distinction is
+ * part of the contract rather than something to infer from a status code.
+ */
+export const inviteMemberResultSchema = z.object({
+  ok: z.literal(true),
+  outcome: z.enum(["added", "invited"]),
+});
+
+export const orgInvitationSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  role: orgRoleSchema,
+  expiresAt: z.string(),
+  createdAt: z.string(),
+});
+
+/**
+ * What a token holder may see before signing in. Deliberately minimal: the org
+ * name and the invited address, enough to recognise the invitation as genuine,
+ * with no member list, skill count, or org id.
+ */
+export const invitationPreviewSchema = z.object({
+  orgName: z.string(),
+  email: z.string().email(),
+  role: orgRoleSchema,
+  expiresAt: z.string(),
+});
+
 export const publishPolicySchema = z.object({
   minQualityScore: z.number().int().min(0).max(100).optional(),
   requireSecurityPass: z.boolean().optional(),

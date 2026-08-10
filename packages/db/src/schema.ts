@@ -227,6 +227,45 @@ export const orgMembers = pgTable(
   ],
 );
 
+/**
+ * Pending invitations to join an org.
+ *
+ * `org_members` can only hold people who already have an account, so an invite
+ * to someone who has never signed in needs somewhere to live until they do.
+ * The emailed token is stored only as a sha256 (`tokenHash`) — the raw value
+ * exists in the invitee's inbox and nowhere else, so a database leak cannot be
+ * replayed into org access.
+ *
+ * Rows are never deleted on accept/revoke, only stamped: `acceptedAt` and
+ * `revokedAt` keep the audit trail of who was let into an org and when.
+ */
+export const orgInvitations = pgTable(
+  "org_invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Stored lowercased. Compared against the accepting session's verified
+    // email, so an invite cannot be redeemed by whoever else gets the link.
+    email: text("email").notNull(),
+    role: orgRoleEnum("role").notNull().default("viewer"),
+    tokenHash: text("token_hash").notNull(),
+    invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Accept looks an invitation up by hash alone, so this is both the lookup
+    // index and the guarantee that one token maps to at most one invitation.
+    uniqueIndex("org_invitations_token_hash_idx").on(t.tokenHash),
+    index("org_invitations_org_idx").on(t.orgId),
+    index("org_invitations_email_idx").on(t.email),
+  ],
+);
+
 export const skills = pgTable(
   "skills",
   {

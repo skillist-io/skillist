@@ -252,6 +252,23 @@ export type Org = {
   role: string;
 };
 
+/** A pending invitation to join an org, as returned by the org owner's view. */
+export type OrgInvitation = {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+  createdAt: string;
+};
+
+/** What an invitee may see about an invitation before signing in. */
+export type InvitationPreview = {
+  orgName: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+};
+
 export type Skill = {
   id: string;
   repo: string;

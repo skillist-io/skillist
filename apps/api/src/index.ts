@@ -36,6 +36,7 @@ import { deliveryRoutes } from "./routes/delivery";
 import { executionRoutes } from "./routes/execution";
 import { feedbackRoutes } from "./routes/feedback";
 import { governanceRoutes } from "./routes/governance";
+import { invitationRoutes } from "./routes/invitations";
 import { orgRoutes } from "./routes/orgs";
 import { projectRoutes } from "./routes/projects";
 import { realtimeRoutes } from "./routes/realtime";
@@ -353,6 +354,7 @@ app.all("/agents/*", async (c) => {
 const v1 = new OpenAPIHono<{ Bindings: Env }>();
 v1.route("/", accountRoutes);
 v1.route("/", orgRoutes);
+v1.route("/", invitationRoutes);
 v1.route("/", skillRoutes);
 v1.route("/", projectRoutes);
 v1.route("/", registryRoutes);

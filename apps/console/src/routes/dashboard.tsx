@@ -11,6 +11,7 @@ import {
   Label,
   NativeSelect,
   type Org,
+  type OrgInvitation,
   PageTitle,
   QueryError,
   type Skill,
@@ -143,18 +144,47 @@ function OrgCard({ org }: { org: Org }) {
     },
   });
 
+  const isOwner = org.role === "owner";
+
+  const { data: invitations } = useQuery({
+    queryKey: ["invitations", org.id],
+    queryFn: () => api<OrgInvitation[]>(`/v1/orgs/${org.id}/invitations`),
+    // Only owners may list invitations; for anyone else the request would 403.
+    enabled: isOwner,
+  });
+
   const inviteMember = useMutation({
     mutationFn: () =>
-      api(`/v1/orgs/${org.id}/members`, {
+      api<{ outcome: "added" | "invited" }>(`/v1/orgs/${org.id}/members`, {
         method: "POST",
         body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // Two genuinely different outcomes: an existing user is in the org now,
+      // an invited one still has to act on an email. Saying "invited" for both
+      // is what made the old flow feel broken when nothing happened.
+      setInviteMessage(
+        result.outcome === "added"
+          ? `${inviteEmail} was added to the organization.`
+          : `Invitation emailed to ${inviteEmail}.`,
+      );
       setInviteEmail("");
-      setInviteMessage("Member invited.");
+      queryClient.invalidateQueries({ queryKey: ["invitations", org.id] });
     },
     onError: (err) => {
       setInviteMessage(err instanceof Error ? err.message : "Invite failed");
+    },
+  });
+
+  const revokeInvitation = useMutation({
+    mutationFn: (invitationId: string) =>
+      api(`/v1/orgs/${org.id}/invitations/${invitationId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      setInviteMessage(null);
+      queryClient.invalidateQueries({ queryKey: ["invitations", org.id] });
+    },
+    onError: (err) => {
+      setInviteMessage(err instanceof Error ? err.message : "Could not revoke invitation");
     },
   });
 
@@ -201,7 +231,7 @@ function OrgCard({ org }: { org: Org }) {
             </li>
           ))}
         </ul>
-        {org.role === "owner" && (
+        {isOwner && (
           <div className="space-y-2 border-t pt-3">
             <Label>Invite member</Label>
             <div className="flex flex-wrap gap-2">
@@ -230,6 +260,30 @@ function OrgCard({ org }: { org: Org }) {
               </Button>
             </div>
             {inviteMessage && <p className="text-sm text-muted-foreground">{inviteMessage}</p>}
+            {invitations && invitations.length > 0 && (
+              <div className="space-y-1 pt-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Pending invitations
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {invitations.map((invitation) => (
+                    <li key={invitation.id} className="flex items-center justify-between gap-2">
+                      <span className="truncate">
+                        {invitation.email} <Badge className="ml-1">{invitation.role}</Badge>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => revokeInvitation.mutate(invitation.id)}
+                        disabled={revokeInvitation.isPending}
+                      >
+                        Revoke
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

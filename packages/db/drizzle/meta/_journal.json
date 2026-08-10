@@ -50,6 +50,13 @@
       "when": 1786140520654,
       "tag": "0006_ordinary_grey_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786318689860,
+      "tag": "0007_odd_mandroid",
+      "breakpoints": true
     }
   ]
 }
