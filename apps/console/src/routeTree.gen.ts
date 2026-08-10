@@ -16,6 +16,7 @@ import { Route as CoverageRouteImport } from './routes/coverage'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as GovernanceRouteImport } from './routes/governance'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ObservabilityRouteImport } from './routes/observability'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -57,6 +58,11 @@ const GovernanceRoute = GovernanceRouteImport.update({
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteRoute = InviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
   '/inventory': typeof InventoryRoute
+  '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
   '/inventory': typeof InventoryRoute
+  '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/governance': typeof GovernanceRoute
   '/inventory': typeof InventoryRoute
+  '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/governance'
     | '/inventory'
+    | '/invite'
     | '/login'
     | '/observability'
     | '/settings'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/governance'
     | '/inventory'
+    | '/invite'
     | '/login'
     | '/observability'
     | '/settings'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/governance'
     | '/inventory'
+    | '/invite'
     | '/login'
     | '/observability'
     | '/settings'
@@ -204,6 +216,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   GovernanceRoute: typeof GovernanceRoute
   InventoryRoute: typeof InventoryRoute
+  InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
   ObservabilityRoute: typeof ObservabilityRoute
   SettingsRoute: typeof SettingsRoute
@@ -262,6 +275,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite': {
+      id: '/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof InviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -324,6 +344,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   GovernanceRoute: GovernanceRoute,
   InventoryRoute: InventoryRoute,
+  InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,
   ObservabilityRoute: ObservabilityRoute,
   SettingsRoute: SettingsRoute,

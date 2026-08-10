@@ -1,11 +1,23 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { createApiKeySchema, createOrgSchema, inviteMemberSchema } from "@skillist/contracts";
+import {
+  createApiKeySchema,
+  createOrgSchema,
+  inviteMemberResultSchema,
+  inviteMemberSchema,
+} from "@skillist/contracts";
 import { apiKeys, organizations, orgMembers, users } from "@skillist/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Env } from "../env";
+import { createApiEmailSender } from "../lib/api-auth";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import {
+  buildInvitationEmail,
+  createOrgInvitation,
+  invitationAcceptUrl,
+  normalizeEmail,
+} from "../lib/invitations";
 import { errorResponses, okSchema } from "../lib/openapi";
 import { requireOrgRole } from "../lib/org-access";
 import { sha256 } from "../lib/r2";
@@ -128,7 +140,10 @@ const inviteRoute = createRoute({
   path: "/orgs/{orgId}/members",
   tags: ["Organizations"],
   operationId: "inviteOrgMember",
-  summary: "Add an existing user to an organization",
+  summary: "Invite a user to an organization",
+  description:
+    "Adds the user to the organization if they already have an account. " +
+    "Otherwise creates a pending invitation and emails them a link to accept.",
   request: {
     params: z.object({ orgId: z.string().uuid() }),
     body: {
@@ -137,8 +152,8 @@ const inviteRoute = createRoute({
   },
   responses: {
     201: {
-      content: { "application/json": { schema: okSchema } },
-      description: "Member invited",
+      content: { "application/json": { schema: inviteMemberResultSchema } },
+      description: "Member added, or invitation sent",
     },
     ...errorResponses(),
   },
@@ -150,24 +165,67 @@ orgRoutes.openapi(inviteRoute, async (c) => {
   const access = await requireOrgRole(c.var.db, orgId, userId, "owner");
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
   const body = c.req.valid("json");
-  const [user] = await c.var.db.select().from(users).where(eq(users.email, body.email)).limit(1);
-  if (!user) return c.json({ error: "User not found" }, 404);
-  await c.var.db.insert(orgMembers).values({
+  const email = normalizeEmail(body.email);
+
+  const [user] = await c.var.db.select().from(users).where(eq(users.email, email)).limit(1);
+
+  if (user) {
+    // Already has an account: add them directly, as this route always has.
+    // `onConflictDoNothing` makes re-inviting an existing member a no-op rather
+    // than a 500 on the (org_id, user_id) unique index.
+    await c.var.db
+      .insert(orgMembers)
+      .values({ orgId, userId: user.id, role: body.role })
+      .onConflictDoNothing();
+    // Granting org access is a privilege change; record who granted what to whom.
+    await logAudit(c.var.db, {
+      orgId,
+      actorId: userId,
+      actorType: "user",
+      action: "org.member.add",
+      resourceType: "org_member",
+      resourceId: user.id,
+      metadata: { email, role: body.role },
+    });
+    return c.json({ ok: true as const, outcome: "added" as const }, 201);
+  }
+
+  // No account yet — park a pending invitation and mail them a link.
+  const [org] = await c.var.db
+    .select({ name: organizations.name })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  if (!org) return c.json({ error: "Organization not found" }, 404);
+
+  const invitation = await createOrgInvitation(c.var.db, {
     orgId,
-    userId: user.id,
+    email,
     role: body.role,
+    invitedBy: userId,
   });
-  // Granting org access is a privilege change; record who granted what to whom.
+  const token = invitation.token;
+
+  const message = buildInvitationEmail({
+    orgName: org.name,
+    role: body.role,
+    url: invitationAcceptUrl(c.env, token),
+  });
+  // createApiEmailSender swallows and logs send failures. That is deliberate
+  // here too: the invitation row is already durable, so a transient mail outage
+  // should leave a revocable, re-sendable invite rather than fail the request.
+  await createApiEmailSender(c.env)({ to: email, ...message });
+
   await logAudit(c.var.db, {
     orgId,
     actorId: userId,
     actorType: "user",
-    action: "org.member.add",
-    resourceType: "org_member",
-    resourceId: user.id,
-    metadata: { email: body.email, role: body.role },
+    action: "org.invitation.create",
+    resourceType: "org_invitation",
+    resourceId: invitation.id,
+    metadata: { email, role: body.role },
   });
-  return c.json({ ok: true }, 201);
+  return c.json({ ok: true as const, outcome: "invited" as const }, 201);
 });
 
 const listMembersRoute = createRoute({
