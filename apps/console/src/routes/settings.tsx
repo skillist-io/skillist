@@ -349,6 +349,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   const [dailyRuns, setDailyRuns] = useState(500);
   const [containerHourly, setContainerHourly] = useState(10);
   const [anonymousHourly, setAnonymousHourly] = useState(10);
+  const [allowPublicRuns, setAllowPublicRuns] = useState(false);
   const [requiredOrgSlug, setRequiredOrgSlug] = useState("");
   const [requiredSkillSlug, setRequiredSkillSlug] = useState("");
 
@@ -409,6 +410,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
       if (p.dailyRunLimit != null) setDailyRuns(p.dailyRunLimit);
       if (p.containerHourlyLimit != null) setContainerHourly(p.containerHourlyLimit);
       if (p.anonymousHourlyLimit != null) setAnonymousHourly(p.anonymousHourlyLimit);
+      if (p.allowPublicRuns != null) setAllowPublicRuns(p.allowPublicRuns);
     }
   }, [executionData]);
 
@@ -447,6 +449,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
           dailyRunLimit: dailyRuns,
           containerHourlyLimit: containerHourly,
           anonymousHourlyLimit: anonymousHourly,
+          allowPublicRuns,
         }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["execution-policy", orgId] }),
@@ -674,6 +677,21 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
               />
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="allow-public-runs"
+              checked={allowPublicRuns}
+              onCheckedChange={setAllowPublicRuns}
+            />
+            <label htmlFor="allow-public-runs" className="text-sm">
+              Let other organizations run this org's public skills
+            </label>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Off by default. Public makes a skill readable by anyone; running it spends this
+            organization's run quota and sandbox compute, so callers outside this organization are
+            refused unless you turn this on.
+          </p>
           <Button
             onClick={() => saveExecutionPolicy.mutate()}
             disabled={saveExecutionPolicy.isPending}

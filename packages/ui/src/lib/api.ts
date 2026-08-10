@@ -111,6 +111,8 @@ export type ExecutionPolicy = {
   dailyRunLimit?: number;
   containerHourlyLimit?: number;
   anonymousHourlyLimit?: number;
+  /** Let callers outside the org run its public skills, on the org's quota. */
+  allowPublicRuns?: boolean;
 };
 
 export type PublishPolicy = {

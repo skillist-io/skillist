@@ -8,9 +8,17 @@ Skills can declare hosted scripts under `scripts/`. The runtime (`local`, `sandb
 ## Requirements
 
 - Signed-in Skillist account
-- Skill visibility that permits your org membership (public skills allow any authenticated user to run)
+- Membership of the org that owns the skill — or, for a public skill, an owner who has opted in to outside runs
 
 Anonymous sandbox runs return **401 Unauthorized**.
+
+### Running someone else's public skill
+
+Public governs who can **read** a skill, not who can run it at the owner's expense: a run spends the owning org's run quota and sandbox compute. So by default only that org's own members and API keys can run its public skills, and everyone else gets **403 Forbidden**.
+
+An org can open its public skills to outside callers with **Allow other organizations to run this org's public skills** in Settings → execution policy (`allowPublicRuns`). It is off by default. Turning it on means outside runs draw on your quota, so pair it with the run limits on the same screen.
+
+API keys need the `skills:run` scope either way; a `skills:read` key can never trigger a run.
 
 ## CLI
 
