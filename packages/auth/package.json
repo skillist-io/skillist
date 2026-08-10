@@ -12,9 +12,9 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@better-auth/passkey": "1.6.23",
+    "@better-auth/passkey": "1.6.26",
     "@skillist/db": "workspace:*",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.6.26",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
