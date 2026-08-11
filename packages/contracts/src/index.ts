@@ -330,6 +330,12 @@ export const executionPolicySchema = z.object({
   dailyRunLimit: z.number().int().min(1).max(100_000).optional(),
   containerHourlyLimit: z.number().int().min(1).max(1_000).optional(),
   anonymousHourlyLimit: z.number().int().min(0).max(1_000).optional(),
+  /**
+   * Let signed-in callers outside this org run its PUBLIC skills, spending this
+   * org's quota and sandbox compute. Defaults to false: public makes a skill
+   * readable, not runnable at the owner's expense.
+   */
+  allowPublicRuns: z.boolean().optional(),
 });
 export type ExecutionPolicy = z.infer<typeof executionPolicySchema>;
 export type PublishPolicy = z.infer<typeof publishPolicySchema>;

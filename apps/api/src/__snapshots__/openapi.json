@@ -11588,6 +11588,9 @@
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 1000
+                  },
+                  "allowPublicRuns": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -11627,6 +11630,9 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 1000
+                        },
+                        "allowPublicRuns": {
+                          "type": "boolean"
                         }
                       }
                     }
@@ -11799,6 +11805,9 @@
                           "type": "integer",
                           "minimum": 0,
                           "maximum": 1000
+                        },
+                        "allowPublicRuns": {
+                          "type": "boolean"
                         }
                       }
                     }

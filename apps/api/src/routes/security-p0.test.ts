@@ -53,6 +53,7 @@ describe.skipIf(!REAL_DB)("P0 security hardening — integration (requires DB)",
   // Separate tenant for the quota-reservation unit tests, so its run rows never
   // affect the history-scoping assertions above.
   const orgQId = crypto.randomUUID();
+  const orgQSlug = `sec-q-${suffix}`;
   let quotaSkillId = "";
   let quotaVersionId = "";
 
@@ -65,9 +66,18 @@ describe.skipIf(!REAL_DB)("P0 security hardening — integration (requires DB)",
       { id: userBId, name: "B", email: `b_${suffix}@ex.test` },
     ]);
     await db.insert(organizations).values([
-      { id: orgAId, name: `A ${suffix}`, slug: orgASlug },
+      // Org A opts in to outside runs of its public skills. Without this, a
+      // non-member is refused at the access check and the run-history
+      // isolation below would never be exercised — the opt-in is precisely the
+      // configuration in which cross-tenant leakage is possible at all.
+      {
+        id: orgAId,
+        name: `A ${suffix}`,
+        slug: orgASlug,
+        executionPolicy: { allowPublicRuns: true },
+      },
       { id: orgBId, name: `B ${suffix}`, slug: `sec-b-${suffix}` },
-      { id: orgQId, name: `Q ${suffix}`, slug: `sec-q-${suffix}` },
+      { id: orgQId, name: `Q ${suffix}`, slug: orgQSlug },
     ]);
     await db.insert(orgMembers).values([
       { orgId: orgAId, userId: userAId, role: "owner" },
@@ -216,6 +226,49 @@ describe.skipIf(!REAL_DB)("P0 security hardening — integration (requires DB)",
       headers: authHeader(keyBRaw),
     });
     expect(own.status).toBe(200);
+  });
+
+  it("H1: a non-member key cannot run a public skill unless the owner opted in", async () => {
+    // A dedicated tenant on the DEFAULT policy (no allowPublicRuns). Org A
+    // cannot be reused here — it opts in, which is the whole point of the
+    // fixture above. Kept self-contained so the shared quota fixture stays
+    // untouched.
+    const closedOrgId = crypto.randomUUID();
+    const closedSlug = `sec-closed-${suffix}`;
+    await db
+      .insert(organizations)
+      .values({ id: closedOrgId, name: `Closed ${suffix}`, slug: closedSlug });
+    const [closedSkill] = await db
+      .insert(skills)
+      .values({ orgId: closedOrgId, repo: "widget", visibility: "public", description: "c" })
+      .returning({ id: skills.id });
+    const [closedVersion] = await db
+      .insert(skillVersions)
+      .values({
+        skillId: closedSkill?.id ?? "",
+        semver: "1.0.0",
+        r2Prefix: `orgs/${closedOrgId}/skills/${closedSkill?.id}/1.0.0`,
+      })
+      .returning({ id: skillVersions.id });
+    await db
+      .update(skills)
+      .set({ latestPublishedVersionId: closedVersion?.id ?? null })
+      .where(eq(skills.id, closedSkill?.id ?? ""));
+
+    try {
+      // A run spends the OWNER's quota and sandbox compute, so org B must be
+      // refused — otherwise any account can drain another org's budget
+      // (denial-of-wallet). 403, not 404: the skill is readable, just not
+      // runnable by them.
+      const denied = await SELF.fetch(`http://localhost/${closedSlug}/widget/run`, {
+        method: "POST",
+        headers: authHeader(keyBRaw),
+        body: JSON.stringify({ scriptPath: "scripts/noop" }),
+      });
+      expect(denied.status).toBe(403);
+    } finally {
+      await db.delete(organizations).where(eq(organizations.id, closedOrgId));
+    }
   });
 
   // ---- H2: telemetry authz + dedupe --------------------------------------

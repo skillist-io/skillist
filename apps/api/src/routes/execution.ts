@@ -320,9 +320,12 @@ executionRoutes.openapi(listRunsRoute, async (c) => {
   }
 
   // Run rows carry stdout/stderr/args/targetUrl, which routinely hold the
-  // caller's secrets. For a PUBLIC skill `assertSkillRunAccess` passes for ANY
-  // authenticated user, so a non-member must only see their OWN runs — org
-  // members (any role) get the full history for skills their org owns.
+  // caller's secrets. On a PUBLIC skill whose org has set `allowPublicRuns`,
+  // `assertSkillRunAccess` passes for callers outside the org, so a non-member
+  // must only see their OWN runs — org members (any role) get the full history
+  // for skills their org owns. This still matters when the owner later turns
+  // the opt-in off: the outsider's earlier rows must not become visible to
+  // anyone else, and their own history must not widen to the whole skill.
   const orgAccess = await requireOrgAccess(c.var.db, loaded.skill.orgId, c.var.auth, "viewer");
   const where = orgAccess.ok
     ? eq(skillRuns.skillId, loaded.skill.id)

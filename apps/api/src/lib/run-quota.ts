@@ -9,6 +9,10 @@ const DEFAULT_POLICY: Required<ExecutionPolicy> = {
   dailyRunLimit: 500,
   containerHourlyLimit: 10,
   anonymousHourlyLimit: 10,
+  // Closed by default: publishing a skill publicly must not hand strangers a
+  // spending key to this org's sandbox budget. Enforced in
+  // lib/skill-execution-access.ts, not here — this is the default it reads.
+  allowPublicRuns: false,
 };
 
 function resolvePolicy(policy?: ExecutionPolicy | null): Required<ExecutionPolicy> {

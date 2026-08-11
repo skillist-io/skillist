@@ -201,6 +201,7 @@ export const organizations = pgTable(
       dailyRunLimit?: number;
       containerHourlyLimit?: number;
       anonymousHourlyLimit?: number;
+      allowPublicRuns?: boolean;
     }>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
