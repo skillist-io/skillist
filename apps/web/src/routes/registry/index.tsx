@@ -304,10 +304,10 @@ function RegistryPage() {
           <SignalField className={signalFieldClass} />
           <div className="relative z-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
             <div className="space-y-1">
-              <PageTitle>Public Registry</PageTitle>
+              <PageTitle>Skill registry</PageTitle>
               <p className="max-w-prose text-sm text-muted-foreground">
-                Browse Agent Skills scored for quality, impact, and security. Copy an install
-                command or open a skill for the full bundle.
+                Every skill scored for quality, impact, and security before you adopt it. Copy an
+                install command or open a skill for the full bundle.
               </p>
             </div>
             <p className="font-mono text-sm text-muted-foreground" aria-live="polite">

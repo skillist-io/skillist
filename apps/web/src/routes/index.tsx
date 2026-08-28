@@ -49,7 +49,7 @@ const CAPABILITIES: { title: string; desc: string; preview: ReactNode }[] = [
     ),
   },
   {
-    title: "Registry discovery",
+    title: "Discovery & install",
     desc: "Search by tag, agent, and runtime. Install from the CLI, an MCP client, or the apex URL.",
     preview: (
       <>
@@ -151,18 +151,18 @@ function HomePage() {
                     <span className="absolute inline-flex size-1.5 animate-ping bg-signal opacity-60 motion-reduce:hidden" />
                     <span className="inline-flex size-1.5 bg-signal" />
                   </span>
-                  Live registry · sub-10ms fan-out
+                  Cross-harness control plane
                 </span>
                 {/* `text-hero` is the sanctioned marketing display step — it carries
                   its own weight, tracking, and line-height (see styles.css), so this
                   no longer hand-rolls a clamp that silently outgrew the token scale. */}
                 <h1 className="text-balance text-hero text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2">
-                  The realtime registry{" "}
-                  <span className="text-muted-foreground">for Agent Skills</span>
+                  Skills that run and improve themselves{" "}
+                  <span className="text-muted-foreground">across every agent</span>
                 </h1>
                 <p className="max-w-xl text-lg leading-relaxed text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:delay-100 motion-safe:fill-mode-both">
-                  Publish, version, govern, and deliver SKILL.md bundles that run and improve
-                  themselves. Works with Claude Code, Cursor, VS Code, Gemini, Codex, and any{" "}
+                  Deliver, govern, and observe SKILL.md bundles on Claude Code, Cursor, VS Code,
+                  Gemini, Codex, and any{" "}
                   {/* Hover strengthens the rule rather than changing the ink. The
                     old `hover:text-signal` spent live/realtime violet on a
                     decorative hover, which the ≤10% budget reserves for state. */}
@@ -175,18 +175,18 @@ function HomePage() {
                   client.
                 </p>
                 <div className="flex flex-wrap gap-3 pt-2 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:delay-200 motion-safe:fill-mode-both">
-                  <Button size="lg" asChild>
-                    <Link to="/registry">Browse registry</Link>
-                  </Button>
                   {session?.user ? (
-                    <Button size="lg" variant="outline" asChild>
+                    <Button size="lg" asChild>
                       <a href={consoleUrl("/dashboard")}>Open dashboard</a>
                     </Button>
                   ) : (
-                    <Button size="lg" variant="outline" asChild>
-                      <a href={consoleUrl("/login")}>Start publishing</a>
+                    <Button size="lg" asChild>
+                      <a href={consoleUrl("/login")}>Start free</a>
                     </Button>
                   )}
+                  <Button size="lg" variant="outline" asChild>
+                    <Link to="/registry">Browse registry</Link>
+                  </Button>
                 </div>
               </div>
               <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3 motion-safe:delay-300 motion-safe:fill-mode-both">
@@ -234,25 +234,28 @@ function HomePage() {
           <AgentConnect selected={agent} onSelect={setAgent} />
         </div>
 
-        {/* Featured */}
+        {/* Featured — evidence for the claim, not a storefront shelf. */}
         <section className="mx-auto w-full max-w-6xl px-1 py-16">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div className="flex flex-col gap-1">
-              <h2 className="text-headline text-foreground">Featured skills</h2>
+              <h2 className="text-headline text-foreground">Skills running in production</h2>
               <p className="text-sm text-muted-foreground">
-                Curated picks to get started. Install with one command.
+                Live from the registry — each one scored for quality, impact, and security.
               </p>
             </div>
           </div>
           <RegistryFeatured />
         </section>
 
-        {/* Trending */}
+        {/* Most active — `sort=trending` is stars*3 + installs + activations,
+            so the subhead names all three rather than calling it an install count. */}
         <section className="mx-auto w-full max-w-6xl px-1 pb-20">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div className="flex flex-col gap-1">
-              <h2 className="text-headline text-foreground">Trending this week</h2>
-              <p className="text-sm text-muted-foreground">Most installed across the registry.</p>
+              <h2 className="text-headline text-foreground">Most active</h2>
+              <p className="text-sm text-muted-foreground">
+                Ranked by stars, installs, and activations across connected agents.
+              </p>
             </div>
             <Button variant="outline" size="sm" asChild>
               <Link to="/registry">View all</Link>

@@ -142,7 +142,7 @@ Each front-end app is a Cloudflare Worker serving static assets with a **service
 | `GET /{org}/{repo}/scripts` | List runnable scripts |
 | `POST /{org}/{repo}/run` | Hosted sandbox execution |
 | `GET /v1/realtime/skills/{org}/{repo}` | WebSocket fan-out |
-| `GET /v1/registry` | Public skill marketplace |
+| `GET /v1/registry` | Public registry browse API |
 | `POST /v1/feedback/{id}/approve` | Approve + queue AI draft |
 
 ## Deploy

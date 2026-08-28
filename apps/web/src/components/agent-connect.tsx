@@ -1,8 +1,8 @@
 import { CopyButton, cn } from "@skillist/ui";
-import { AGENT_MARKS, AgentMark } from "@/components/agent-marks";
+import { AGENT_NAMES } from "@/components/agent-names";
 
 /**
- * "Connect your agent" — the credible proof behind the logo row. Skillist
+ * "Connect your agent" — the credible proof behind the wordmark row. Skillist
  * delivers over MCP, the CLI, or a direct URL, so it works with any
  * agentskills.io / MCP client. Picking an agent shows the real config for it;
  * the CLI and URL methods below make clear the list isn't exhaustive.
@@ -114,15 +114,15 @@ export function AgentConnect({
       <div className="grid gap-px border border-border bg-border lg:grid-cols-[minmax(0,15rem)_1fr]">
         {/* Agent picker */}
         <div className="flex flex-col bg-background p-2" role="tablist" aria-label="Agents">
-          {AGENT_MARKS.map((agent) => {
-            const isActive = agent.name === selected;
+          {AGENT_NAMES.map((name) => {
+            const isActive = name === selected;
             return (
               <button
-                key={agent.name}
+                key={name}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => onSelect(agent.name)}
+                onClick={() => onSelect(name)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                   isActive
@@ -130,8 +130,7 @@ export function AgentConnect({
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <AgentMark data={agent} className="size-5 shrink-0" />
-                <span className="truncate">{agent.name}</span>
+                <span className="truncate">{name}</span>
               </button>
             );
           })}
