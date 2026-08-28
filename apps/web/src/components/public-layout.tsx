@@ -307,8 +307,8 @@ function SiteFooter() {
             <SkillistLogo />
           </Link>
           <p className="max-w-xs text-sm text-muted-foreground">
-            The realtime registry for Agent Skills. Publish, version, govern, and deliver SKILL.md
-            with sub-10ms edge fan-out.
+            The control plane for Agent Skills. Deliver, govern, and observe SKILL.md across every
+            agent, with sub-10ms edge fan-out.
           </p>
           <div className="mt-1 flex items-center gap-2">
             <span className="relative flex size-1.5 items-center justify-center">
@@ -343,7 +343,17 @@ function SiteFooter() {
             width,
           )}
         >
-          <p className="text-xs text-muted-foreground">© Skillist. Built on Cloudflare Workers.</p>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs text-muted-foreground">
+              © Skillist. Built on Cloudflare Workers.
+            </p>
+            {/* Client names are used nominatively to state compatibility. We ship no
+                vendor logos and claim no endorsement — see agent-names.ts. */}
+            <p className="max-w-prose text-xs text-muted-foreground/70">
+              Agent and client names are trademarks of their respective owners, used to state
+              compatibility. Skillist is not affiliated with or endorsed by them.
+            </p>
+          </div>
           <div className="flex items-center gap-5">
             {/* Honest signals, machine-voice — Skillist implements the spec and
                 delivers from the edge. No unearned compliance badges. */}

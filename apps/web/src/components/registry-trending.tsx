@@ -25,10 +25,15 @@ export function RegistryTrending() {
     );
   }
 
-  if (!data?.items.length) {
+  // `items` is optional-chained too, not just `data`. The query cache is
+  // persisted to localStorage for 24h (see packages/ui/src/lib/query-cache.ts),
+  // so an entry written before a response-shape change rehydrates as a truthy
+  // object with no `items` — a bare `.length` there threw and took the whole
+  // landing page down via the error boundary.
+  if (!data?.items?.length) {
     return (
       <p className="text-sm text-muted-foreground">
-        No public skills yet.{" "}
+        No skills published yet.{" "}
         <Link to="/registry" className="text-primary underline">
           Browse registry
         </Link>

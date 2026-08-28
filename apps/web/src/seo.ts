@@ -204,7 +204,7 @@ export function siteJsonLd(): string {
         name: "Skillist",
         url: SITE_ORIGIN,
         description:
-          "Realtime registry and control plane for Agent Skills, compliant with the agentskills.io spec.",
+          "Control plane for Agent Skills — realtime delivery, hosted execution, and evals, compliant with the agentskills.io spec.",
       },
       {
         "@type": "WebSite",
