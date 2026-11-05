@@ -35,6 +35,7 @@ function usage() {
   console.log(`Skillist CLI — sync agent skills with skillist.dev
 
 Usage:
+  skillist --version                       Print the CLI version
   skillist search [query]                  Search public registry
                                               [--category <cat>] [--tag <tag>]
                                               [--agent <name>] [--sort ...]
@@ -1047,6 +1048,15 @@ async function main() {
 
   if (!cmd || cmd === "help" || cmd === "--help") {
     usage();
+    return;
+  }
+
+  if (cmd === "version" || cmd === "--version" || cmd === "-v") {
+    // package.json sits one level above both src/ and dist/ and is always in
+    // the npm tarball. Reading it keeps this from drifting from the release,
+    // and tsc's rootDir of src/ rules out a static JSON import.
+    const pkg = await readFile(new URL("../package.json", import.meta.url), "utf8");
+    console.log((JSON.parse(pkg) as { version: string }).version);
     return;
   }
 
