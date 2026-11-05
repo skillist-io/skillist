@@ -1,0 +1,63 @@
+---
+title: Skills harness
+description: Run a task with an agent whose only capabilities are the skills you name.
+---
+
+The skills harness runs an agent whose only tools are Agent Skills. You name the skills, send a task, and the agent discovers, loads and runs them. It runs on Skillist's infrastructure, so you don't host a loop or a sandbox.
+
+:::note
+The skills harness is in private preview and isn't enabled for all accounts yet.
+:::
+
+## Start a session
+
+A session can only use the skills you list when you create it, up to 16. Scripts stay off unless you set `allowScripts`.
+
+```bash
+curl -X POST https://api.skillist.dev/v1/orgs/$ORG_ID/harness/sessions \
+  -H "Authorization: Bearer $SKILLIST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"skills": ["acme/deploy-checks"], "allowScripts": true}'
+```
+
+The request returns `404` if you can't access one of the skills. Your API key needs the `skills:run` scope.
+
+## Send a turn
+
+```bash
+curl -X POST https://api.skillist.dev/v1/orgs/$ORG_ID/harness/sessions/$SESSION_ID/turns \
+  -H "Authorization: Bearer $SKILLIST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Check whether main is safe to deploy."}'
+```
+
+The response holds the agent's answer in `text`, along with the steps and tokens the turn used. Earlier turns stay in context, so you can follow up in the same session.
+
+A session runs one turn at a time and allows 50 turns. Both limits return `409`. Each turn makes at most 12 model calls.
+
+## Read the event log
+
+Every message and tool call in a session is logged. Reading the log needs the `skills:read` scope.
+
+```bash
+curl "https://api.skillist.dev/v1/orgs/$ORG_ID/harness/sessions/$SESSION_ID/events?after=0&limit=100" \
+  -H "Authorization: Bearer $SKILLIST_API_KEY"
+```
+
+Pass the last `seq` you received as `after` to get the next page. A failed turn isn't logged, but it still counts toward the 50-turn limit.
+
+## What the agent can do
+
+| Tool | What it does |
+| --- | --- |
+| `list_skills` | Lists the session's skills |
+| `activate_skill` | Loads a skill's instructions and lists its files |
+| `read_skill_file` | Reads a text file from an activated skill |
+| `run_skill_script` | Runs a script from an activated skill. Only present with `allowScripts` |
+
+## Access and limits
+
+- **Access is checked every turn.** If you lose access to a skill, it drops out of the session. Each script run is checked again when it starts.
+- **Script runs follow normal execution rules.** They use the same [sandbox](/platform/sandbox/), quotas and security-scan checks as a direct run, and spend the skill owner's quota.
+- **Sessions are private.** Only the user or API key that created a session can use it.
+- **Skills run at their latest published version.** A new version takes effect on the next turn.

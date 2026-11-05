@@ -36,6 +36,7 @@ import { deliveryRoutes } from "./routes/delivery";
 import { executionRoutes } from "./routes/execution";
 import { feedbackRoutes } from "./routes/feedback";
 import { governanceRoutes } from "./routes/governance";
+import { harnessRoutes } from "./routes/harness";
 import { invitationRoutes } from "./routes/invitations";
 import { orgRoutes } from "./routes/orgs";
 import { projectRoutes } from "./routes/projects";
@@ -52,6 +53,7 @@ export { ContainerProxy } from "@cloudflare/sandbox";
 export { SkillistAgent } from "./agent/skillist-agent";
 export { Sandbox } from "./durable-objects/sandbox";
 export { SandboxHeavy } from "./durable-objects/sandbox-heavy";
+export { SkillHarnessSession } from "./durable-objects/skill-harness-session";
 export { FailureMiningWorkflow } from "./workflows/failure-mining";
 export { SyncSourceWorkflow } from "./workflows/sync-source";
 export { SkillRealtimeHub };
@@ -363,6 +365,7 @@ v1.route("/", governanceRoutes);
 v1.route("/", agentChatsRoutes);
 v1.route("/", agentMemoryRoutes);
 v1.route("/", agentApprovalsRoutes);
+v1.route("/", harnessRoutes);
 v1.route("/", realtimeRoutes);
 v1.route("/", sourcesRoutes);
 v1.route("/", adminDocsRoutes);
@@ -442,6 +445,7 @@ app.doc("/openapi.json", {
     { name: "Realtime", description: "WebSocket and SSE publish streams." },
     { name: "MCP Gateway", description: "Org-scoped MCP server registry and proxy." },
     { name: "Agent", description: "The platform agent: chats, memory, approvals." },
+    { name: "Harness", description: "Run tasks with a session limited to named skills." },
     { name: "AI", description: "Async AI job status." },
     { name: "Admin", description: "Internal platform administration. Not for external use." },
     { name: "Webhooks", description: "Inbound GitHub webhooks. Not called by clients." },

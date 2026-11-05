@@ -1,0 +1,23 @@
+{
+  "name": "@skillist/harness",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@skillist/skill-format": "workspace:*",
+    "ai": "^7.0.32",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@skillist/tsconfig": "workspace:*",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,4 +1,3 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { AIChatAgent } from "@cloudflare/ai-chat";
 import { registryQuerySchema } from "@skillist/contracts";
 import {
@@ -19,10 +18,8 @@ import {
   type ToolSet,
   tool,
   type UIMessage,
-  wrapLanguageModel,
 } from "ai";
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
-import { createWorkersAI } from "workers-ai-provider";
 import { z } from "zod";
 import type { Env } from "../env";
 import { requireApproval } from "../lib/agent/approvals";
@@ -34,8 +31,7 @@ import { searchDocs } from "../lib/docs-rag";
 import { getRegistryFacets, getRegistrySkill, listRegistry } from "../lib/registry-service";
 import { validateSkillMd } from "../lib/skill-validation";
 import { parseAgentName, shouldGenerateTitle } from "./agent-name";
-import { CLAUDE_MODEL_ID, WORKERS_MODEL_ID } from "./model-config";
-import { workersAiFallback } from "./model-fallback";
+import { buildAgentModel } from "./model";
 
 /**
  * The agent prefers Claude — small Workers AI models narrate tool calls instead
@@ -203,30 +199,7 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
    * still runs without the Anthropic secret. Reused for title generation.
    */
   private buildModel() {
-    // sessionAffinity pins this DO's turns to one Workers AI replica.
-    const workers = createWorkersAI({ binding: this.env.AI })(WORKERS_MODEL_ID, {
-      sessionAffinity: this.sessionAffinity,
-    });
-    // No Anthropic secret → run on Workers AI directly.
-    if (!this.env.ANTHROPIC_API_KEY) return workers;
-
-    const claude = createAnthropic({
-      apiKey: this.env.ANTHROPIC_API_KEY,
-      ...(this.env.AI_GATEWAY_ACCOUNT_ID
-        ? {
-            baseURL: `https://gateway.ai.cloudflare.com/v1/${this.env.AI_GATEWAY_ACCOUNT_ID}/skillist/anthropic`,
-            headers: this.env.AI_GATEWAY_TOKEN
-              ? { "cf-aig-authorization": `Bearer ${this.env.AI_GATEWAY_TOKEN}` }
-              : undefined,
-          }
-        : {}),
-    })(CLAUDE_MODEL_ID);
-
-    // Claude for reliable tool-calling, but if its call FAILS TO START (a
-    // bad/expired key, provider 4xx/5xx, gateway outage) fall back to Workers AI
-    // for that turn instead of failing the whole agent. A single bad credential
-    // used to take the agent fully down with no server-side log; now it degrades.
-    return wrapLanguageModel({ model: claude, middleware: workersAiFallback(workers) });
+    return buildAgentModel(this.env, { sessionAffinity: this.sessionAffinity });
   }
 
   /**

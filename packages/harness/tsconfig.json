@@ -1,0 +1,9 @@
+{
+  "extends": "@skillist/tsconfig/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}

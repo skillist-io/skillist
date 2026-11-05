@@ -451,6 +451,19 @@ export const runEvalSchema = z.object({
   scenarioCount: z.number().int().min(1).max(10).optional(),
 });
 
+/** Skills a harness session may use, as `org/repo`. Each loads per turn, so the list stays short. */
+export const createHarnessSessionSchema = z.object({
+  skills: z
+    .array(z.string().regex(/^[^/\s]+\/[^/\s]+$/, "skills must be org/repo refs"))
+    .min(1)
+    .max(16),
+  allowScripts: z.boolean().default(false),
+});
+
+export const harnessTurnSchema = z.object({
+  message: z.string().min(1).max(16_000),
+});
+
 export const runSkillSchema = z.object({
   scriptPath: z.string().regex(/^scripts\//, "scriptPath must be under scripts/"),
   args: z.array(z.string().max(512)).max(20).optional(),
