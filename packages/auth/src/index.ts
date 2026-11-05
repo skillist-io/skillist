@@ -123,7 +123,7 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
 
   return betterAuth({
     database: drizzleAdapter(db, {
-      provider: "pg",
+      provider: "sqlite",
       schema: {
         user: schema.users,
         session: schema.sessions,
@@ -152,8 +152,7 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
     ],
     // Pin the session lifecycle rather than inheriting it. cookieCache is the
     // consequential one: without it every getSession() — and authMiddleware
-    // calls it on every /v1 request — is a Postgres round-trip through the
-    // cache-disabled Hyperdrive.
+    // calls it on every /v1 request — is a database read.
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
@@ -169,7 +168,7 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
     // native Workers Rate Limiting binding applied to /api/auth/* in
     // apps/api/src/index.ts; these rules add per-endpoint granularity on top.
     // ("secondary-storage" is deliberately not used: supplying secondaryStorage
-    // also relocates session storage out of Postgres into KV, which is
+    // also relocates session storage out of the database into KV, which is
     // eventually consistent and would weaken session revocation.)
     rateLimit: {
       enabled: true,

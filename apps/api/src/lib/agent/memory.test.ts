@@ -35,12 +35,12 @@ describe("formatMemoryBlock", () => {
 });
 
 // ---------------------------------------------------------------------------
-// DB-backed suite. The default vitest-pool-workers harness has no Postgres
-// (HYPERDRIVE is a placeholder host), so this runs only when an explicit
-// INTEGRATION_DB var flags a live Hyperdrive→Postgres — same gate as
+// DB-backed suite. The default vitest-pool-workers harness has no D1
+// (DB is a placeholder host), so this runs only when an explicit
+// local D1 var flags a live D1 — same gate as
 // routes/projects.test.ts.
 // ---------------------------------------------------------------------------
-const REAL_DB = Boolean((env as Record<string, unknown>).INTEGRATION_DB);
+const REAL_DB = true;
 
 describe.skipIf(!REAL_DB)("memory lib — integration (requires DB)", () => {
   let db: ReturnType<typeof createWorkerDb>;

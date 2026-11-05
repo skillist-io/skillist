@@ -29,7 +29,7 @@ import { requireApproval } from "../lib/agent/approvals";
 import { buildMemoryBlock, forgetFact, rememberFact, searchMemory } from "../lib/agent/memory";
 import { logAudit } from "../lib/audit";
 import { computeCoverage } from "../lib/coverage";
-import { createWorkerDb, type WorkerDb } from "../lib/db";
+import { createWorkerDb, inList, type WorkerDb } from "../lib/db";
 import { searchDocs } from "../lib/docs-rag";
 import { getRegistryFacets, getRegistrySkill, listRegistry } from "../lib/registry-service";
 import { validateSkillMd } from "../lib/skill-validation";
@@ -657,7 +657,7 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
                 completedAt: skillEvals.completedAt,
               })
               .from(skillEvals)
-              .where(inArray(skillEvals.skillId, skillIds))
+              .where(inList(skillEvals.skillId, skillIds))
               .orderBy(desc(skillEvals.createdAt));
 
             // Keep only the newest eval per skill (rows arrive newest-first).
@@ -823,7 +823,7 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
   /**
    * Wrap every tool's `execute` with a best-effort `agent.tool_called` audit
    * event. The audit write is fired off the critical path (not awaited) so a
-   * slow Postgres never adds latency to the stream — mirroring how the rest of
+   * slow database never adds latency to the stream — mirroring how the rest of
    * the codebase fires audit/telemetry. Non-executing tool defs pass through.
    */
   private withToolAudit(

@@ -12,5 +12,5 @@ Skillist's enterprise-ready bar requires strict data hygiene: no persisted crede
 
 - **Never commit** `**/.dev.vars`, `.env` / `.env.*` (except `.example` / `.env.production`), `wrangler.local.jsonc`, or `tests/e2e/.auth/`. They are gitignored for a reason.
 - To change local secrets, edit the committed template (`apps/api/.dev.vars.example`, `.env.example`, `wrangler.local.jsonc.example`) or regenerate via `pnpm setup:local`. Push production secrets with `pnpm setup:secrets` — never inline them into `vars` or code.
-- The Worker reaches Neon Postgres **only through the `HYPERDRIVE` binding**. A raw connection string in Worker code or wrangler config is an anti-pattern.
+- The Worker reaches its database **only through the `DB` (D1) binding**, via `createWorkerDb(env)`.
 - Don't echo secret values into logs, tests, or chat. A `PreToolUse` hook blocks writes to these files as a backstop.

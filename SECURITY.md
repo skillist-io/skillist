@@ -26,7 +26,7 @@ In scope:
 
 Out of scope:
 
-- Third-party services we build on (Cloudflare, Neon, GitHub, Google) — report
+- Third-party services we build on (Cloudflare, GitHub, Google) — report
   those to the vendor
 - Findings that require a compromised device or a stolen credential you already
   hold

@@ -1,19 +1,19 @@
 #!/usr/bin/env npx tsx
-/**
- * Run evals synchronously for public skillist org skills (latest published versions).
- *
- * Usage:
- *   DATABASE_URL=... pnpm run:public-evals --all
- *   DATABASE_URL=... pnpm run:public-evals --skills roll-dice,web-perf-audit
- *   DATABASE_URL=... pnpm run:public-evals --all --force
- */
 import { execSync } from "node:child_process";
 import { readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createDb } from "@skillist/db";
 import { organizations, skillEvals, skills, skillVersions } from "@skillist/db/schema";
 import { and, desc, eq } from "drizzle-orm";
+/**
+ * Run evals synchronously for public skillist org skills (latest published versions).
+ *
+ * Usage:
+ *   pnpm run:public-evals --all
+ *   pnpm run:public-evals --skills roll-dice,web-perf-audit
+ *   pnpm run:public-evals --all --force
+ */
+import { openDb } from "./lib/open-db";
 
 const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const WRANGLER_DIR = join(ROOT, "apps", "api");
@@ -137,15 +137,9 @@ async function scorePrompt(prompt: string): Promise<number> {
 }
 
 async function main() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    console.error("DATABASE_URL is required");
-    process.exit(1);
-  }
-
   const force = hasFlag("--force");
   const explicitSkills = parseSkillsArg();
-  const db = createDb(connectionString);
+  const { db, dispose } = await openDb({ local: hasFlag("--local") });
 
   cfToken = getCloudflareToken();
   const useHeuristic = process.env.SKILLIST_EVAL_HEURISTIC === "1" || !cfToken;
@@ -284,6 +278,7 @@ async function main() {
 
   console.log("\nDone. Verify:");
   console.log("  curl https://api.skillist.dev/v1/registry/skillist/roll-dice | jq .eval");
+  await dispose();
 }
 
 main().catch((err) => {

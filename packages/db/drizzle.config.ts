@@ -1,16 +1,9 @@
-import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-// drizzle-kit runs with its cwd at packages/db, so load the monorepo-root .env.
-// dotenv does not override variables already set in the environment, so CI and
-// production (which set DATABASE_URL directly) are unaffected.
-config({ path: "../../.env", quiet: true });
-
+// Generates SQL only. Wrangler applies it (`wrangler d1 migrations apply`), which
+// is why `out` is the directory wrangler.jsonc's `migrations_dir` points at.
 export default defineConfig({
   schema: "./src/schema.ts",
-  out: "./drizzle",
-  dialect: "postgresql",
-  dbCredentials: {
-    url: process.env.DATABASE_URL!,
-  },
+  out: "./migrations",
+  dialect: "sqlite",
 });

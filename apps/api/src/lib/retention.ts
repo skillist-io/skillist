@@ -6,8 +6,8 @@ import {
   telemetryEvents,
   verifications,
 } from "@skillist/db/schema";
-import { and, inArray, lt, sql } from "drizzle-orm";
-import type { WorkerDb } from "./db";
+import { and, lt, sql } from "drizzle-orm";
+import { inList, type WorkerDb } from "./db";
 
 /**
  * Scheduled data retention.
@@ -57,7 +57,7 @@ function cutoff(now: number, days: number): Date {
  * pruning is how you discover months later that a rule was deleting far more
  * than intended.
  *
- * Postgres has no `DELETE ... LIMIT`, so each rule selects a bounded set of ids
+ * D1 builds without `DELETE ... LIMIT`, so each rule selects a bounded set of ids
  * and deletes by primary key.
  */
 export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<RetentionReport> {
@@ -70,7 +70,7 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
     .limit(RETENTION_BATCH);
   if (expiredSessions.length > 0) {
     await db.delete(sessions).where(
-      inArray(
+      inList(
         sessions.id,
         expiredSessions.map((r) => r.id),
       ),
@@ -85,7 +85,7 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
     .limit(RETENTION_BATCH);
   if (expiredVerifications.length > 0) {
     await db.delete(verifications).where(
-      inArray(
+      inList(
         verifications.id,
         expiredVerifications.map((r) => r.id),
       ),
@@ -105,7 +105,7 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
     .limit(RETENTION_BATCH);
   if (expiredTokens.length > 0) {
     await db.delete(oauthAccessTokens).where(
-      inArray(
+      inList(
         oauthAccessTokens.id,
         expiredTokens.map((r) => r.id),
       ),
@@ -116,15 +116,26 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
   // Blank the output but keep the row: status, timing, and exit code stay
   // available for observability long after the logs themselves should be gone.
   const scrubbed = await db
-    .update(skillRuns)
-    .set({ stdout: null, stderr: null })
+    .select({ id: skillRuns.id })
+    .from(skillRuns)
     .where(
       and(
         lt(skillRuns.createdAt, cutoff(now, RETENTION.runOutputDays)),
         sql`(${skillRuns.stdout} IS NOT NULL OR ${skillRuns.stderr} IS NOT NULL)`,
       ),
     )
-    .returning({ id: skillRuns.id });
+    .limit(RETENTION_BATCH);
+  if (scrubbed.length > 0) {
+    await db
+      .update(skillRuns)
+      .set({ stdout: null, stderr: null })
+      .where(
+        inList(
+          skillRuns.id,
+          scrubbed.map((r) => r.id),
+        ),
+      );
+  }
   report.skillRunOutputScrubbed = scrubbed.length;
 
   const oldRuns = await db
@@ -134,7 +145,7 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
     .limit(RETENTION_BATCH);
   if (oldRuns.length > 0) {
     await db.delete(skillRuns).where(
-      inArray(
+      inList(
         skillRuns.id,
         oldRuns.map((r) => r.id),
       ),
@@ -149,7 +160,7 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
     .limit(RETENTION_BATCH);
   if (oldTelemetry.length > 0) {
     await db.delete(telemetryEvents).where(
-      inArray(
+      inList(
         telemetryEvents.id,
         oldTelemetry.map((r) => r.id),
       ),
@@ -164,7 +175,7 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
     .limit(RETENTION_BATCH);
   if (oldAudit.length > 0) {
     await db.delete(auditEvents).where(
-      inArray(
+      inList(
         auditEvents.id,
         oldAudit.map((r) => r.id),
       ),

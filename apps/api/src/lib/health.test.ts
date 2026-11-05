@@ -10,19 +10,13 @@ import { checkDependencies } from "./health";
  * manufacturing confidence rather than measuring it. These assert the deep
  * probe actually reflects dependency state.
  */
-// Needs a database: without one the postgres client surfaces its connection
-// failure as an unhandled rejection rather than something the probe can catch,
-// which fails the run instead of exercising the degraded path.
 describe.skipIf(!hasTestDb)("checkDependencies", () => {
-  it("probes postgres, kv, and r2", async () => {
+  it("probes the database, kv, and r2", async () => {
     const result = await checkDependencies(env as unknown as Env);
-    expect(Object.keys(result.checks).sort()).toEqual(["kv", "postgres", "r2"]);
+    expect(Object.keys(result.checks).sort()).toEqual(["database", "kv", "r2"]);
   });
 
   it("reports degraded when a dependency fails, rather than throwing", async () => {
-    // No database is configured in this environment unless TEST_DATABASE_URL is
-    // set, so the postgres probe fails — which is precisely the case the old
-    // endpoint reported as "ok".
     const result = await checkDependencies(env as unknown as Env);
     const allOk = Object.values(result.checks).every((c) => c.ok);
     expect(result.status).toBe(allOk ? "ok" : "degraded");

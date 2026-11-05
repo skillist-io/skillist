@@ -22,15 +22,7 @@ export function authEnvFromBindings(env: Env): AuthEnv {
   };
 }
 
-/**
- * Build a Better Auth instance plus the Postgres connection behind it.
- *
- * The `db` is returned rather than hidden because the caller MUST close it —
- * `closeWorkerDb(db, ctx)` in a `finally`. Every auth request opens its own
- * connection, and an unclosed one lingers until the isolate is evicted, so the
- * pool against Hyperdrive grows well past the request rate. Returning a tuple is
- * what makes that ownership impossible to overlook at the call site.
- */
+/** Build a Better Auth instance plus the db behind it, for callers that need both. */
 export function createApiAuth(env: Env, sendEmail?: EmailSender): { auth: Auth; db: WorkerDb } {
   const db = createWorkerDb(env);
   return { auth: createAuth(db, authEnvFromBindings(env), sendEmail), db };

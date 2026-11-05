@@ -12,7 +12,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Env } from "../env";
-import { closeWorkerDb, createWorkerDb } from "../lib/db";
+import { createWorkerDb } from "../lib/db";
 import { sha256 } from "../lib/r2";
 import { RunQuotaExceededError, reserveRunSlot } from "../lib/run-quota";
 
@@ -21,10 +21,10 @@ import { RunQuotaExceededError, reserveRunSlot } from "../lib/run-quota";
 //   H2 — unauthenticated/unbounded telemetry ranking manipulation (observability.ts)
 //   H5 — run-quota TOCTOU race / denial-of-wallet (run-quota.ts reserveRunSlot)
 //
-// All three touch the database, so this suite runs only when a real Postgres is
-// wired (INTEGRATION_DB from TEST_DATABASE_URL). See apps/api/CLAUDE.md.
+// All three touch the database, so this suite runs only when a real database is
+// wired . See apps/api/CLAUDE.md.
 
-const REAL_DB = Boolean((env as Record<string, unknown>).INTEGRATION_DB);
+const REAL_DB = true;
 
 const authHeader = (rawKey: string) => ({
   Authorization: `Bearer ${rawKey}`,
@@ -188,7 +188,6 @@ describe.skipIf(!REAL_DB)("P0 security hardening — integration (requires DB)",
     await db.delete(organizations).where(eq(organizations.id, orgQId));
     await db.delete(users).where(eq(users.id, userAId));
     await db.delete(users).where(eq(users.id, userBId));
-    await closeWorkerDb(db);
   });
 
   // ---- H1: run-history tenant isolation ----------------------------------
@@ -414,7 +413,6 @@ describe.skipIf(!REAL_DB)("P0 security hardening — integration (requires DB)",
         .then((rows) => [{ count: rows.length }]);
       expect(count).toBe(LIMIT);
     } finally {
-      await Promise.all(clients.map((client) => closeWorkerDb(client)));
       await db.delete(organizations).where(eq(organizations.id, raceOrgId));
     }
   });

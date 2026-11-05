@@ -26,7 +26,12 @@
   // delivery routes are eligible. Note this also bills requests that are
   // otherwise free — static assets (none here) and service-binding calls from
   // the web/console Workers.
-  "cache": { "enabled": true },
+  //
+  // cross_version_cache: by default each deployed version starts with an empty
+  // cache, so every deploy would send all public traffic to the one database at
+  // once. Shared across versions instead, a deploy that changes a cached response
+  // takes effect as its TTL expires, which is minutes for everything here.
+  "cache": { "enabled": true, "cross_version_cache": true },
   "vars": {
     "BETTER_AUTH_URL": "https://api.skillist.dev",
     "WEB_URL": "https://skillist.dev"
@@ -56,16 +61,12 @@
   // trace points at unreadable positions. onError already logs a cf-ray
   // correlation id; this is what makes that id actionable.
   "upload_source_maps": true,
-  "hyperdrive": [
+  "d1_databases": [
     {
-      "binding": "HYPERDRIVE",
-      "id": "3864600443334cd68ad86d592df9fd4a"
-    },
-    {
-      // Caching-DISABLED config over the same DB. Default client for auth /
-      // permissions / writes, so a revoked key stops authenticating immediately.
-      "binding": "HYPERDRIVE_CACHE_DISABLED",
-      "id": "1f35001220914a8b986b7fddb4523c9d"
+      "binding": "DB",
+      "database_name": "skillist",
+      "database_id": "9b901aed-8945-4574-ae3c-65c9430d05c2",
+      "migrations_dir": "../../packages/db/migrations"
     }
   ],
   "kv_namespaces": [
@@ -98,7 +99,7 @@
     {
       // Session reads (`get-session`, `list-sessions`, `list-accounts`,
       // `list-user-passkeys`). Authenticated and usually served from the 60s
-      // cookie cache without touching Postgres, but the console calls
+      // cookie cache without touching the database, but the console calls
       // `get-session` on every route `beforeLoad` and every hover-preload — and
       // the key is per-IP, so a NAT'd office shares one bucket. Under the 20/60s
       // AUTH namespace that 429'd, and the client rendered the 429 as
@@ -202,7 +203,7 @@
         "max_batch_size": 1,
         "max_retries": 3,
         // Unset, max_concurrency scales to the platform maximum: a backlog then
-        // fans out arbitrarily many consumers, each opening a Hyperdrive→Neon
+        // fans out arbitrarily many consumers, each opening a database
         // connection AND calling the AI provider. Bounded so a burst cannot
         // exhaust the connection pool and the AI budget at the same time.
         "max_concurrency": 3,

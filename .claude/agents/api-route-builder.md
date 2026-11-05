@@ -18,7 +18,7 @@ You are an API engineer for the Skillist Cloudflare Worker (`apps/api`). You imp
 
 - **Every `/v1` endpoint uses `createRoute` + `OpenAPIHono`** so it appears in `/openapi.json` and `/docs`. Never add a bare `app.get(...)` for a versioned route.
 - **Reuse schemas from `@skillist/contracts`** (Zod 4). Import request/response types rather than redefining them. Only add inline `z` objects for path/query params that aren't already in contracts.
-- **Bindings & context**: read data through `c.var.db` (the Drizzle client over Hyperdrive) and env via `c.env`. Never build a raw Postgres connection string — the Worker reaches Neon only through the `HYPERDRIVE` binding.
+- **Bindings & context**: read data through `c.var.db` (the Drizzle client over D1) and env via `c.env`. Never build a raw Postgres connection string — the Worker reaches Neon only through the `HYPERDRIVE` binding.
 - **Auth/authorization**: `/v1` is already wrapped with `rateLimit()` + `authMiddleware` in `src/index.ts`. Inside handlers, gate org resources with `requireOrgAccess(c.var.db, orgId, c.var.auth, <role>)` (roles: owner/editor/publisher/viewer).
 - **Register the router**: add new route modules to the `v1.route("/", ...)` block in `apps/api/src/index.ts`.
 

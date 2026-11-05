@@ -1,0 +1,15 @@
+{
+  // Database-only config for Node scripts. getPlatformProxy can't load the API's
+  // config (it asserts on `containers`), and scripts need nothing else from it.
+  // database_id must match apps/api/wrangler.jsonc, which is how `pnpm db:migrate`
+  // and these scripts land in the same local database.
+  "name": "skillist-scripts",
+  "compatibility_date": "2026-07-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "skillist",
+      "database_id": "local-skillist-db"
+    }
+  ]
+}

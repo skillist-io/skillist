@@ -1,18 +1,18 @@
 # packages/db — Drizzle schema + migrations (@skillist/db)
 
-Postgres schema for Skillist, consumed as **source** (`workspace:*`, no build step). Exports `.` and `./schema`.
+SQLite schema for Cloudflare D1, consumed as **source** (`workspace:*`, no build step). Exports `.` and `./schema`.
 
-## Change flow (the only correct one)
+## Workflow
 
-1. Edit **`src/schema.ts`** — the single source of truth (~30 `pgTable`s + `pgEnum`s: users/sessions/auth, organizations/orgMembers, skills/skillVersions/skillFiles, feedback/approvals, registryEntries, apiKeys, aiJobs, auditEvents, telemetryEvents, skillEvals, skillRuns, skillSources/provenance, oauth*, etc.).
-2. `pnpm db:generate` — drizzle-kit writes SQL to `drizzle/NNNN_*.sql` + `meta/_journal.json`.
-3. `pnpm db:migrate` — applies against `DATABASE_URL` from the root `.env`.
-
-→ skill: `/db-change`, agent: `db-migrator`.
+1. Edit `src/schema.ts`.
+2. `pnpm db:generate` — drizzle-kit writes SQL to `migrations/NNNN_*.sql`.
+3. `pnpm db:migrate` — applies to the local D1. CI applies to production before it deploys.
 
 ## Rules
 
-- 🚫 **Never hand-edit `drizzle/`** — generated and Biome-ignored. Fix `schema.ts` and regenerate.
-- Enums shared with the app mirror `@skillist/contracts` — keep them in sync.
-- Two clients: the Worker uses `createWorkerDb(env)` over `HYPERDRIVE` (`apps/api/src/lib/db.ts`); migration/seed scripts use `createDb(connectionString)` (`src/index.ts`). Don't mix them.
-- Prefer additive, backward-compatible migrations; flag any drop/rename/type-narrow and its data risk before running `db:migrate`.
+- 🚫 **Never hand-edit `migrations/`** — generated and Biome-ignored. Fix `schema.ts` and regenerate.
+- 🚫 **Never apply a migration to production by hand.** CI runs it before the deploy.
+- A migration must work with the code already deployed: add first, drop or rename in a later change.
+- Timestamps are `integer` with `mode: "timestamp_ms"`, booleans `integer` with `mode: "boolean"`, JSON `text` with `mode: "json"`. Callers see `Date`, `boolean` and objects.
+- SQLite treats NULLs as distinct in unique indexes, and drizzle-kit can't emit expression indexes. Use a generated column (see `agent_memory.user_scope`).
+- `neon-export.ts` is the one-time Neon → D1 export. Delete it once the move is finished.

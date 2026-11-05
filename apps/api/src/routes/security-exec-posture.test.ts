@@ -9,7 +9,7 @@ import {
 } from "@skillist/db/schema";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { closeWorkerDb, createWorkerDb } from "../lib/db";
+import { createWorkerDb } from "../lib/db";
 import { sha256 } from "../lib/r2";
 
 // Regression for H4: the run path must re-check the stored security posture, not
@@ -20,7 +20,7 @@ import { sha256 } from "../lib/r2";
 // these cases exercise it without a container — an unblocked run just proceeds
 // to the "script not found in bundle" 400 (the test seeds no R2 objects).
 
-const REAL_DB = Boolean((env as Record<string, unknown>).INTEGRATION_DB);
+const REAL_DB = true;
 
 const authHeader = (rawKey: string) => ({
   Authorization: `Bearer ${rawKey}`,
@@ -78,7 +78,6 @@ describe.skipIf(!REAL_DB)("execution security-posture gate — integration (requ
     if (!REAL_DB || !db) return;
     await db.delete(organizations).where(eq(organizations.id, orgId));
     await db.delete(users).where(eq(users.id, userId));
-    await closeWorkerDb(db);
   });
 
   const run = (repo: string) =>

@@ -27,7 +27,7 @@ describe("/api/auth/* rate limiting", () => {
     expect(statuses).not.toContain(429);
   });
 
-  // Needs a real Postgres: unlike `get-session`, magic-link sign-in reaches the
+  // Needs a real database: unlike `get-session`, magic-link sign-in reaches the
   // database before the response, so without one the pool dies rather than 429s.
   it.skipIf(!hasTestDb)(
     "still throttles the expensive unauthenticated auth endpoints",

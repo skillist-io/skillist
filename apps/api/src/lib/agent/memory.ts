@@ -1,5 +1,5 @@
 import { agentMemory } from "@skillist/db/schema";
-import { and, desc, eq, ilike, isNull, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNull, or, type SQL, sql } from "drizzle-orm";
 import type { WorkerDb } from "../db";
 import { type RedactionResult, redactPII } from "../pii";
 
@@ -7,7 +7,7 @@ import { type RedactionResult, redactPII } from "../pii";
  * Durable governance memory for the platform agent.
  *
  * Rows live in `agent_memory`, keyed by (orgId, userId, key) with a
- * NULLS-NOT-DISTINCT unique constraint. A NULL `userId` is an ORG-WIDE fact
+ * unique index on the generated `user_scope`. A NULL `userId` is an ORG-WIDE fact
  * (governance policy, a skill's known quirk, a naming convention); a set
  * `userId` is a fact scoped to one user. The agent reads the org's visible
  * memories into its system prompt each turn and writes new ones via the
@@ -62,9 +62,9 @@ export async function rememberFact(
       value: redaction.text,
     })
     .onConflictDoUpdate({
-      // Matches the NULLS-NOT-DISTINCT unique constraint (org_id, user_id, key)
-      // so a null userId still dedupes org-wide facts.
-      target: [agentMemory.orgId, agentMemory.userId, agentMemory.key],
+      // user_scope, not user_id: SQLite treats NULLs as distinct, so this generated
+      // column is what makes a null userId dedupe org-wide facts.
+      target: [agentMemory.orgId, agentMemory.userScope, agentMemory.key],
       set: { value: redaction.text, updatedAt: new Date() },
     });
   return { redaction };
@@ -84,8 +84,13 @@ export async function searchMemory(
   const conditions: Array<SQL | undefined> = [eq(agentMemory.orgId, orgId), visibleTo(userId)];
   const q = query?.trim();
   if (q) {
-    const pattern = `%${q}%`;
-    conditions.push(or(ilike(agentMemory.key, pattern), ilike(agentMemory.value, pattern)));
+    // instr, not LIKE: D1 caps a LIKE pattern at 50 bytes.
+    conditions.push(
+      or(
+        sql`instr(lower(${agentMemory.key}), lower(${q})) > 0`,
+        sql`instr(lower(${agentMemory.value}), lower(${q})) > 0`,
+      ),
+    );
   }
   return db
     .select()

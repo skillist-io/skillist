@@ -15,7 +15,7 @@ import { and, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import { publishVersion, rollbackVersion } from "../lib/ai";
 import type { AuthContext } from "../lib/auth-middleware";
-import { isUniqueViolation, type WorkerDb } from "../lib/db";
+import { chunkRows, isUniqueViolation, SKILL_FILE_COLUMNS, type WorkerDb } from "../lib/db";
 import { isDatabaseError } from "../lib/error-detail";
 import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
@@ -150,28 +150,30 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
   // fail, delete the R2 objects we just wrote so no orphaned bundle is left.
   let created: { id: string; repo: string; visibility: string };
   try {
-    created = await c.var.db.transaction(async (tx) => {
-      const [skill] = await tx
+    const skillId = crypto.randomUUID();
+    const [insertedSkills] = await c.var.db.batch([
+      c.var.db
         .insert(skills)
-        .values({ orgId, repo: body.repo, visibility: body.visibility, description })
-        .returning();
-      if (!skill) throw new Error("skill insert returned no row");
-      await tx.insert(skillVersions).values({
+        .values({ id: skillId, orgId, repo: body.repo, visibility: body.visibility, description })
+        .returning(),
+      c.var.db.insert(skillVersions).values({
         id: versionId,
-        skillId: skill.id,
+        skillId,
         status: "draft",
         semver: "0.1.0",
         r2Prefix: prefix,
         createdBy: userId,
-      });
-      await tx.insert(skillFiles).values({
+      }),
+      c.var.db.insert(skillFiles).values({
         versionId,
         path: "SKILL.md",
         sha256: skillMdSha,
         size: skillMd.length,
-      });
-      return { id: skill.id, repo: skill.repo, visibility: skill.visibility };
-    });
+      }),
+    ]);
+    const skill = insertedSkills[0];
+    if (!skill) throw new Error("skill insert returned no row");
+    created = { id: skill.id, repo: skill.repo, visibility: skill.visibility };
   } catch (err) {
     await deleteBundleFromR2(c.env.SKILLS_R2, prefix).catch(() => {});
     throw err;
@@ -335,8 +337,8 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
   // wrote so a failed upload leaves no orphaned bundle.
   let version: typeof skillVersions.$inferSelect;
   try {
-    version = await c.var.db.transaction(async (tx) => {
-      const [inserted] = await tx
+    const [insertedVersions] = await c.var.db.batch([
+      c.var.db
         .insert(skillVersions)
         .values({
           id: versionId,
@@ -347,13 +349,14 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
           parentVersionId: body.parentVersionId,
           createdBy: userId,
         })
-        .returning();
-      if (!inserted) throw new Error("version insert returned no row");
-      if (fileRows.length > 0) {
-        await tx.insert(skillFiles).values(fileRows);
-      }
-      return inserted;
-    });
+        .returning(),
+      ...chunkRows(fileRows, SKILL_FILE_COLUMNS).map((rows) =>
+        c.var.db.insert(skillFiles).values(rows),
+      ),
+    ]);
+    const inserted = insertedVersions[0];
+    if (!inserted) throw new Error("version insert returned no row");
+    version = inserted;
   } catch (err) {
     await deleteBundleFromR2(c.env.SKILLS_R2, prefix).catch(() => {});
     // The read-then-compare above is a fast path, not the guarantee: two

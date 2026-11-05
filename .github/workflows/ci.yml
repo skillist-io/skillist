@@ -46,23 +46,6 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    services:
-      # Backs the DB-dependent suites. Without it they skip and the run still
-      # goes green, which is exactly how org RBAC and account deletion went
-      # untested for so long.
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: skillist
-          POSTGRES_PASSWORD: skillist
-          POSTGRES_DB: skillist_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -72,15 +55,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # Applies the schema (and pg_trgm) to the service container so the suite
-      # runs against a real database instead of skipping.
-      - run: pnpm db:migrate
-        env:
-          DATABASE_URL: postgresql://skillist:skillist@localhost:5432/skillist_test
-
       - run: pnpm test
-        env:
-          TEST_DATABASE_URL: postgresql://skillist:skillist@localhost:5432/skillist_test
 
   smoke:
     needs: [lint-build, test, deploy-api, deploy-web, deploy-console, deploy-docs]
@@ -113,8 +88,23 @@ jobs:
           # goes green having exercised zero authenticated flows.
           E2E_AUTH_STATE_B64: ${{ secrets.E2E_AUTH_STATE_B64 }}
 
-  deploy-api:
+  # wrangler uploads and ACTIVATES a Worker before it attaches routes, so a token
+  # missing a permission fails after the new code is already live. That half-deploy
+  # took sign-in down in #144. Every deploy job waits on this, so a bad token now
+  # fails with nothing changed.
+  preflight:
     needs: [lint-build, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash scripts/ci-preflight.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-api:
+    needs: [lint-build, test, preflight]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -144,15 +134,13 @@ jobs:
       # indistinguishable from success and puts us right back in this failure
       # mode. If the secret is missing, the deploy fails loudly instead.
       #
-      # The secret is PRODUCTION_DATABASE_URL, not DATABASE_URL, because
-      # `DATABASE_URL` already means the *dev* branch in a local .env. One name
-      # for two different databases is how a migration eventually lands on the
-      # wrong one. drizzle-kit still reads DATABASE_URL; only the secret is
-      # named for what it actually holds.
       - name: Migrate production database
-        run: pnpm db:migrate
-        env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/api
+          command: d1 migrations apply skillist --remote --config wrangler.production.jsonc
 
       - name: Deploy API
         uses: cloudflare/wrangler-action@v4
@@ -163,7 +151,7 @@ jobs:
           command: deploy --config wrangler.production.jsonc
 
   deploy-web:
-    needs: [lint-build, test]
+    needs: [lint-build, test, preflight]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -196,7 +184,7 @@ jobs:
           command: deploy
 
   deploy-console:
-    needs: [lint-build, test]
+    needs: [lint-build, test, preflight]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -228,7 +216,7 @@ jobs:
           command: deploy
 
   deploy-docs:
-    needs: [lint-build, test]
+    needs: [lint-build, test, preflight]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

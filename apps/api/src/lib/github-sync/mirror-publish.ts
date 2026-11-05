@@ -22,7 +22,7 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Env } from "../../env";
 import { logAudit } from "../audit";
-import type { WorkerDb } from "../db";
+import { chunkRows, inList, SKILL_FILE_COLUMNS, type WorkerDb } from "../db";
 import { persistableErrorMessage } from "../error-detail";
 import { broadcastPublish, cachePublishedSkill } from "../publish";
 import { queueSkillEval } from "../queue-eval";
@@ -234,7 +234,7 @@ export async function syncSource(
       const provenanceRows = await db
         .select({ skillId: skillProvenance.skillId, contentHash: skillProvenance.contentHash })
         .from(skillProvenance)
-        .where(inArray(skillProvenance.skillId, skillIds));
+        .where(inList(skillProvenance.skillId, skillIds));
       for (const row of provenanceRows) {
         provenanceBySkillId.set(row.skillId, row.contentHash);
       }
@@ -480,29 +480,30 @@ export async function mirrorPublishSkill(
     })),
   );
 
-  await db.insert(skillVersions).values({
-    id: versionId,
-    skillId: skill.id,
-    status: "draft",
-    semver,
-    r2Prefix: prefix,
-    reviewChecks: review.checks.map(({ id, label, passed, message }) => ({
-      id,
-      label,
-      passed,
-      message,
-    })),
-    qualityScore: review.score,
-    impactScore,
-    securityStatus: security.status,
-    securityIssues: security.issues,
-    pluginManifest: pluginManifest ?? null,
-    parentVersionId: latest?.id ?? null,
-  });
-
-  if (fileRows.length) {
-    await db.insert(skillFiles).values(fileRows);
-  }
+  // One batch: a version row without its file rows would be retried into a
+  // unique-index conflict and never finish.
+  await db.batch([
+    db.insert(skillVersions).values({
+      id: versionId,
+      skillId: skill.id,
+      status: "draft",
+      semver,
+      r2Prefix: prefix,
+      reviewChecks: review.checks.map(({ id, label, passed, message }) => ({
+        id,
+        label,
+        passed,
+        message,
+      })),
+      qualityScore: review.score,
+      impactScore,
+      securityStatus: security.status,
+      securityIssues: security.issues,
+      pluginManifest: pluginManifest ?? null,
+      parentVersionId: latest?.id ?? null,
+    }),
+    ...chunkRows(fileRows, SKILL_FILE_COLUMNS).map((rows) => db.insert(skillFiles).values(rows)),
+  ]);
 
   const skillMd = bundle.get("SKILL.md")!;
   const contentSha256 = await sha256(skillMd);

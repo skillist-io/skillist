@@ -2,7 +2,7 @@ version: 2
 
 # There was no dependency-vulnerability gate at all: no Dependabot, no Renovate,
 # no `pnpm audit` in CI. The Worker runtime pulls better-auth, hono, the MCP SDK,
-# and postgres on `^` ranges, and CI holds Cloudflare deploy and npm publish
+# on `^` ranges, and CI holds Cloudflare deploy and npm publish
 # tokens — so a compromised transitive dependency is a credible path to both.
 updates:
   - package-ecosystem: npm

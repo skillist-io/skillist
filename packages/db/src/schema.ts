@@ -1,82 +1,50 @@
 import { sql } from "drizzle-orm";
-import {
-  boolean,
-  index,
-  integer,
-  jsonb,
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-export const orgRoleEnum = pgEnum("org_role", ["owner", "editor", "publisher", "viewer"]);
-export const skillVisibilityEnum = pgEnum("skill_visibility", ["private", "org", "public"]);
-export const versionStatusEnum = pgEnum("version_status", ["draft", "published", "archived"]);
-export const feedbackSourceEnum = pgEnum("feedback_source", ["human", "agent"]);
-export const feedbackStatusEnum = pgEnum("feedback_status", ["pending", "approved", "rejected"]);
-export const aiJobStatusEnum = pgEnum("ai_job_status", [
-  "queued",
-  "running",
-  "completed",
-  "failed",
-]);
-export const securityStatusEnum = pgEnum("security_status", ["pass", "advisory", "fail"]);
-export const telemetryEventEnum = pgEnum("telemetry_event", ["install", "activation"]);
-export const evalStatusEnum = pgEnum("eval_status", ["queued", "running", "completed", "failed"]);
-export const skillRuntimeEnum = pgEnum("skill_runtime", ["local", "sandbox", "container"]);
-export const skillRunStatusEnum = pgEnum("skill_run_status", [
-  "queued",
-  "running",
-  "completed",
-  "failed",
-]);
-export const skillSourceTypeEnum = pgEnum("skill_source_type", ["native", "mirror"]);
-export const skillTrustTierEnum = pgEnum("skill_trust_tier", ["official_mirror"]);
-export const skillSyncStatusEnum = pgEnum("skill_sync_status", [
-  "idle",
-  "running",
-  "success",
-  "failed",
-]);
-export const skillSourceSuggestionStatusEnum = pgEnum("skill_source_suggestion_status", [
-  "pending",
-  "approved",
-  "rejected",
-]);
-export const projectItemKindEnum = pgEnum("project_item_kind", ["skill", "external"]);
-export const projectVisibilityEnum = pgEnum("project_visibility", ["private", "shared"]);
-export const projectRoleEnum = pgEnum("project_role", ["viewer", "editor", "admin"]);
-export const failurePatternStatusEnum = pgEnum("failure_pattern_status", [
-  "open",
-  "drafted",
-  "dismissed",
-]);
-export const agentApprovalStatusEnum = pgEnum("agent_approval_status", [
-  "pending",
-  "approved",
-  "denied",
-]);
+/**
+ * Timestamps are epoch milliseconds, surfaced as `Date` by `timestamp_ms` mode so
+ * callers see the same type Postgres gave them. Cast because `unixepoch` returns
+ * a float with 'subsecond', and an INTEGER column would keep it as a REAL.
+ */
+const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
+
+export const orgRoleEnum = ["owner", "editor", "publisher", "viewer"] as const;
+export const skillVisibilityEnum = ["private", "org", "public"] as const;
+export const versionStatusEnum = ["draft", "published", "archived"] as const;
+export const feedbackSourceEnum = ["human", "agent"] as const;
+export const feedbackStatusEnum = ["pending", "approved", "rejected"] as const;
+export const aiJobStatusEnum = ["queued", "running", "completed", "failed"] as const;
+export const securityStatusEnum = ["pass", "advisory", "fail"] as const;
+export const telemetryEventEnum = ["install", "activation"] as const;
+export const evalStatusEnum = ["queued", "running", "completed", "failed"] as const;
+export const skillRuntimeEnum = ["local", "sandbox", "container"] as const;
+export const skillRunStatusEnum = ["queued", "running", "completed", "failed"] as const;
+export const skillSourceTypeEnum = ["native", "mirror"] as const;
+export const skillTrustTierEnum = ["official_mirror"] as const;
+export const skillSyncStatusEnum = ["idle", "running", "success", "failed"] as const;
+export const skillSourceSuggestionStatusEnum = ["pending", "approved", "rejected"] as const;
+export const projectItemKindEnum = ["skill", "external"] as const;
+export const projectVisibilityEnum = ["private", "shared"] as const;
+export const projectRoleEnum = ["viewer", "editor", "admin"] as const;
+export const failurePatternStatusEnum = ["open", "drafted", "dismissed"] as const;
+export const agentApprovalStatusEnum = ["pending", "approved", "denied"] as const;
 
 // Better Auth tables
-export const users = pgTable("users", {
+export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
+  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
   image: text("image"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
 });
 
 // The Better Auth tables below carry explicit indexes on the columns Better
 // Auth actually filters on. Without them every sign-in and session resolve is a
 // sequential scan of a table that grows with each login, and sessions/accounts
 // also seq-scan on cascade delete of a user.
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   "sessions",
   {
     id: text("id").primaryKey(),
@@ -84,11 +52,11 @@ export const sessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     token: text("token").notNull().unique(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("sessions_user_idx").on(t.userId),
@@ -97,7 +65,7 @@ export const sessions = pgTable(
   ],
 );
 
-export const accounts = pgTable(
+export const accounts = sqliteTable(
   "accounts",
   {
     id: text("id").primaryKey(),
@@ -108,17 +76,13 @@ export const accounts = pgTable(
     providerId: text("provider_id").notNull(),
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", {
-      withTimezone: true,
-    }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
-      withTimezone: true,
-    }),
+    accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp_ms" }),
+    refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp_ms" }),
     scope: text("scope"),
     idToken: text("id_token"),
     password: text("password"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("accounts_user_idx").on(t.userId),
@@ -128,15 +92,15 @@ export const accounts = pgTable(
   ],
 );
 
-export const verifications = pgTable(
+export const verifications = sqliteTable(
   "verifications",
   {
     id: text("id").primaryKey(),
     identifier: text("identifier").notNull(),
     value: text("value").notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     // Every magic-link verify filters on identifier. This table grows with every
@@ -146,7 +110,7 @@ export const verifications = pgTable(
   ],
 );
 
-export const passkeys = pgTable(
+export const passkeys = sqliteTable(
   "passkeys",
   {
     id: text("id").primaryKey(),
@@ -158,35 +122,37 @@ export const passkeys = pgTable(
     credentialId: text("credential_id").notNull().unique(),
     counter: integer("counter").notNull().default(0),
     deviceType: text("device_type"),
-    backedUp: boolean("backed_up").notNull().default(false),
+    backedUp: integer("backed_up", { mode: "boolean" }).notNull().default(false),
     transports: text("transports"),
     aaguid: text("aaguid"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [index("passkeys_user_idx").on(t.userId)],
 );
 
-export const organizations = pgTable(
+export const organizations = sqliteTable(
   "organizations",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
-    publishPolicy: jsonb("publish_policy").$type<{
+    publishPolicy: text("publish_policy", { mode: "json" }).$type<{
       minQualityScore?: number;
       requireSecurityPass?: boolean;
       blockOnAdvisory?: boolean;
       minEvalUplift?: number;
       requireEval?: boolean;
     }>(),
-    installPolicy: jsonb("install_policy").$type<{
+    installPolicy: text("install_policy", { mode: "json" }).$type<{
       warnSeverity?: "low" | "medium" | "high" | "critical";
       blockSeverity?: "low" | "medium" | "high" | "critical";
       allowedSources?: "registry_org_only" | "registry_any" | "registry_plus_git";
       gitAllowlist?: string[];
       minReleaseAgeDays?: number;
     }>(),
-    reviewRubric: jsonb("review_rubric").$type<{
+    reviewRubric: text("review_rubric", { mode: "json" }).$type<{
       validationWeight?: number;
       checks?: { id: string; weight: number; enabled?: boolean }[];
       llmJudges?: {
@@ -196,31 +162,33 @@ export const organizations = pgTable(
         evaluationTarget?: string;
       }[];
     }>(),
-    executionPolicy: jsonb("execution_policy").$type<{
+    executionPolicy: text("execution_policy", { mode: "json" }).$type<{
       hourlyRunLimit?: number;
       dailyRunLimit?: number;
       containerHourlyLimit?: number;
       anonymousHourlyLimit?: number;
       allowPublicRuns?: boolean;
     }>(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [uniqueIndex("organizations_slug_idx").on(t.slug)],
 );
 
-export const orgMembers = pgTable(
+export const orgMembers = sqliteTable(
   "org_members",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: orgRoleEnum("role").notNull().default("viewer"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    role: text("role", { enum: orgRoleEnum }).notNull().default("viewer"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     uniqueIndex("org_members_org_user_idx").on(t.orgId, t.userId),
@@ -240,23 +208,25 @@ export const orgMembers = pgTable(
  * Rows are never deleted on accept/revoke, only stamped: `acceptedAt` and
  * `revokedAt` keep the audit trail of who was let into an org and when.
  */
-export const orgInvitations = pgTable(
+export const orgInvitations = sqliteTable(
   "org_invitations",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     // Stored lowercased. Compared against the accepting session's verified
     // email, so an invite cannot be redeemed by whoever else gets the link.
     email: text("email").notNull(),
-    role: orgRoleEnum("role").notNull().default("viewer"),
+    role: text("role", { enum: orgRoleEnum }).notNull().default("viewer"),
     tokenHash: text("token_hash").notNull(),
     invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
-    revokedAt: timestamp("revoked_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
+    revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     // Accept looks an invitation up by hash alone, so this is both the lookup
@@ -267,20 +237,22 @@ export const orgInvitations = pgTable(
   ],
 );
 
-export const skills = pgTable(
+export const skills = sqliteTable(
   "skills",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     repo: text("repo").notNull(),
-    visibility: skillVisibilityEnum("visibility").notNull().default("private"),
+    visibility: text("visibility", { enum: skillVisibilityEnum }).notNull().default("private"),
     description: text("description"),
-    runtime: skillRuntimeEnum("runtime").notNull().default("local"),
-    latestPublishedVersionId: uuid("latest_published_version_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    runtime: text("runtime", { enum: skillRuntimeEnum }).notNull().default("local"),
+    latestPublishedVersionId: text("latest_published_version_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     uniqueIndex("skills_org_repo_idx").on(t.orgId, t.repo),
@@ -288,20 +260,22 @@ export const skills = pgTable(
   ],
 );
 
-export const projects = pgTable(
+export const projects = sqliteTable(
   "projects",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     description: text("description"),
-    visibility: projectVisibilityEnum("visibility").notNull().default("private"),
+    visibility: text("visibility", { enum: projectVisibilityEnum }).notNull().default("private"),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     uniqueIndex("projects_org_slug_idx").on(t.orgId, t.slug),
@@ -309,15 +283,17 @@ export const projects = pgTable(
   ],
 );
 
-export const projectItems = pgTable(
+export const projectItems = sqliteTable(
   "project_items",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    projectId: uuid("project_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    kind: projectItemKindEnum("kind").notNull(),
-    skillId: uuid("skill_id").references(() => skills.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: projectItemKindEnum }).notNull(),
+    skillId: text("skill_id").references(() => skills.id, { onDelete: "cascade" }),
     externalUrl: text("external_url"),
     externalName: text("external_name"),
     path: text("path").notNull().default(""),
@@ -325,7 +301,7 @@ export const projectItems = pgTable(
     label: text("label"),
     note: text("note"),
     addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("project_items_project_idx").on(t.projectId),
@@ -338,19 +314,21 @@ export const projectItems = pgTable(
   ],
 );
 
-export const projectMembers = pgTable(
+export const projectMembers = sqliteTable(
   "project_members",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    projectId: uuid("project_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: projectRoleEnum("role").notNull().default("viewer"),
+    role: text("role", { enum: projectRoleEnum }).notNull().default("viewer"),
     addedBy: text("added_by").references(() => users.id, { onDelete: "set null" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     uniqueIndex("project_members_project_user_idx").on(t.projectId, t.userId),
@@ -358,33 +336,35 @@ export const projectMembers = pgTable(
   ],
 );
 
-export const skillVersions = pgTable(
+export const skillVersions = sqliteTable(
   "skill_versions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    skillId: uuid("skill_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    status: versionStatusEnum("status").notNull().default("draft"),
+    status: text("status", { enum: versionStatusEnum }).notNull().default("draft"),
     semver: text("semver").notNull(),
     r2Prefix: text("r2_prefix").notNull(),
     kvEtag: text("kv_etag"),
     qualityScore: integer("quality_score"),
     impactScore: integer("impact_score"),
-    securityStatus: securityStatusEnum("security_status"),
-    securityIssues:
-      jsonb("security_issues").$type<{ severity: string; path: string; message: string }[]>(),
-    reviewChecks:
-      jsonb("review_checks").$type<
-        { id: string; label: string; passed: boolean; message: string }[]
-      >(),
-    pluginManifest: jsonb("plugin_manifest"),
-    parentVersionId: uuid("parent_version_id"),
+    securityStatus: text("security_status", { enum: securityStatusEnum }),
+    securityIssues: text("security_issues", { mode: "json" }).$type<
+      { severity: string; path: string; message: string }[]
+    >(),
+    reviewChecks: text("review_checks", { mode: "json" }).$type<
+      { id: string; label: string; passed: boolean; message: string }[]
+    >(),
+    pluginManifest: text("plugin_manifest", { mode: "json" }),
+    parentVersionId: text("parent_version_id"),
     createdBy: text("created_by").references(() => users.id, {
       onDelete: "set null",
     }),
-    publishedAt: timestamp("published_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("skill_versions_skill_idx").on(t.skillId),
@@ -398,41 +378,45 @@ export const skillVersions = pgTable(
   ],
 );
 
-export const skillFiles = pgTable(
+export const skillFiles = sqliteTable(
   "skill_files",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    versionId: uuid("version_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    versionId: text("version_id")
       .notNull()
       .references(() => skillVersions.id, { onDelete: "cascade" }),
     path: text("path").notNull(),
     sha256: text("sha256").notNull(),
     size: integer("size").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [uniqueIndex("skill_files_version_path_idx").on(t.versionId, t.path)],
 );
 
-export const feedback = pgTable(
+export const feedback = sqliteTable(
   "feedback",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    skillId: uuid("skill_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    targetVersionId: uuid("target_version_id")
+    targetVersionId: text("target_version_id")
       .notNull()
       .references(() => skillVersions.id, { onDelete: "cascade" }),
-    source: feedbackSourceEnum("source").notNull(),
+    source: text("source", { enum: feedbackSourceEnum }).notNull(),
     body: text("body").notNull(),
     suggestedPatch: text("suggested_patch"),
-    status: feedbackStatusEnum("status").notNull().default("pending"),
+    status: text("status", { enum: feedbackStatusEnum }).notNull().default("pending"),
     submittedBy: text("submitted_by").references(() => users.id, {
       onDelete: "set null",
     }),
-    apiKeyId: uuid("api_key_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    apiKeyId: text("api_key_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("feedback_skill_idx").on(t.skillId),
@@ -442,18 +426,20 @@ export const feedback = pgTable(
   ],
 );
 
-export const approvals = pgTable(
+export const approvals = sqliteTable(
   "approvals",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    feedbackId: uuid("feedback_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    feedbackId: text("feedback_id")
       .notNull()
       .references(() => feedback.id, { onDelete: "cascade" }),
     approvedBy: text("approved_by")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     comment: text("comment"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   // Both are FKs with no prior index — cascade parent deletes seq-scanned.
   (t) => [
@@ -462,11 +448,13 @@ export const approvals = pgTable(
   ],
 );
 
-export const registryEntries = pgTable(
+export const registryEntries = sqliteTable(
   "registry_entries",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    skillId: uuid("skill_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" })
       .unique(),
@@ -477,33 +465,33 @@ export const registryEntries = pgTable(
     latestVersion: text("latest_version"),
     qualityScore: integer("quality_score"),
     impactScore: integer("impact_score"),
-    securityStatus: securityStatusEnum("security_status"),
+    securityStatus: text("security_status", { enum: securityStatusEnum }),
     installCount: integer("install_count").notNull().default(0),
     activationCount: integer("activation_count").notNull().default(0),
     stars: integer("stars").notNull().default(0),
     category: text("category"),
-    tags: jsonb("tags").$type<string[]>().notNull().default([]),
-    compatibleAgents: jsonb("compatible_agents").$type<string[]>().notNull().default([]),
-    sourceType: skillSourceTypeEnum("source_type").notNull().default("native"),
+    tags: text("tags", { mode: "json" }).$type<string[]>().notNull().default([]),
+    compatibleAgents: text("compatible_agents", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    sourceType: text("source_type", { enum: skillSourceTypeEnum }).notNull().default("native"),
     upstreamRepo: text("upstream_repo"),
     upstreamUrl: text("upstream_url"),
-    lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp_ms" }),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     uniqueIndex("registry_org_skill_idx").on(t.orgSlug, t.skillRepo),
     // Retained for ORDER BY name (btree). Leading-wildcard ILIKE search can't
     // use it — the trigram GIN indexes below serve `%q%` search instead.
-    index("registry_search_idx").on(t.name, t.description),
+    // Name only: search is a substring scan no index helps, and this serves the sort.
+    index("registry_name_idx").on(t.name),
     // GIN trigram indexes power the registry search's `ILIKE '%q%'` on name and
     // description. Requires the pg_trgm extension (see the migration note).
-    index("registry_name_trgm_idx").using("gin", sql`${t.name} gin_trgm_ops`),
-    index("registry_description_trgm_idx").using("gin", sql`${t.description} gin_trgm_ops`),
     // Search ORs these two columns as well (registry-service buildRegistryWhere);
     // without trigram indexes the OR branch forces a seq scan even when name and
     // description are indexed. Trigram-index them too.
-    index("registry_repo_trgm_idx").using("gin", sql`${t.skillRepo} gin_trgm_ops`),
-    index("registry_org_slug_trgm_idx").using("gin", sql`${t.orgSlug} gin_trgm_ops`),
     index("registry_category_idx").on(t.category),
     index("registry_source_type_idx").on(t.sourceType),
     // Coverage resolves entries by repo alone; the composite unique above leads
@@ -512,56 +500,62 @@ export const registryEntries = pgTable(
   ],
 );
 
-export const subscriptions = pgTable(
+export const subscriptions = sqliteTable(
   "subscriptions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    skillId: uuid("skill_id")
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [uniqueIndex("subscriptions_user_skill_idx").on(t.userId, t.skillId)],
 );
 
-export const registryStars = pgTable(
+export const registryStars = sqliteTable(
   "registry_stars",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    skillId: uuid("skill_id")
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [uniqueIndex("registry_stars_user_skill_idx").on(t.userId, t.skillId)],
 );
 
-export const apiKeys = pgTable(
+export const apiKeys = sqliteTable(
   "api_keys",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     keyHash: text("key_hash").notNull(),
     keyPrefix: text("key_prefix").notNull(),
-    scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
+    scopes: text("scopes", { mode: "json" }).$type<string[]>().notNull().default([]),
     createdBy: text("created_by").references(() => users.id, {
       onDelete: "set null",
     }),
-    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
     // Optional expiry: a key past this instant is rejected at auth time.
-    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
     // Revocation: set to disable a key while preserving its row for audit.
-    revokedAt: timestamp("revoked_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("api_keys_org_idx").on(t.orgId),
@@ -575,29 +569,33 @@ export const apiKeys = pgTable(
   ],
 );
 
-export const aiJobs = pgTable(
+export const aiJobs = sqliteTable(
   "ai_jobs",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    feedbackId: uuid("feedback_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    feedbackId: text("feedback_id")
       .notNull()
       .references(() => feedback.id, { onDelete: "cascade" }),
-    status: aiJobStatusEnum("status").notNull().default("queued"),
+    status: text("status", { enum: aiJobStatusEnum }).notNull().default("queued"),
     model: text("model"),
     gatewayId: text("gateway_id"),
-    resultDraftVersionId: uuid("result_draft_version_id"),
+    resultDraftVersionId: text("result_draft_version_id"),
     error: text("error"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
   },
   (t) => [index("ai_jobs_feedback_idx").on(t.feedbackId)],
 );
 
-export const auditEvents = pgTable(
+export const auditEvents = sqliteTable(
   "audit_events",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id").references(() => organizations.id, {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id").references(() => organizations.id, {
       onDelete: "cascade",
     }),
     actorId: text("actor_id"),
@@ -605,24 +603,25 @@ export const auditEvents = pgTable(
     action: text("action").notNull(),
     resourceType: text("resource_type").notNull(),
     resourceId: text("resource_id"),
-    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
-    index("audit_events_org_idx").on(t.orgId),
     index("audit_events_created_idx").on(t.createdAt),
     // Audit log listing filters org_id and orders by created_at desc.
     index("audit_events_org_created_idx").on(t.orgId, t.createdAt),
   ],
 );
 
-export const telemetryEvents = pgTable(
+export const telemetryEvents = sqliteTable(
   "telemetry_events",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     orgSlug: text("org_slug").notNull(),
     skillRepo: text("skill_repo").notNull(),
-    eventType: telemetryEventEnum("event_type").notNull(),
+    eventType: text("event_type", { enum: telemetryEventEnum }).notNull(),
     projectHash: text("project_hash"),
     // Which agent harness the skill was delivered to, and whether it landed in
     // the project or the user's home directory (`skillist sync`). Deliberately
@@ -632,12 +631,15 @@ export const telemetryEvents = pgTable(
     harness: text("harness"),
     scope: text("scope"),
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
-    apiKeyId: uuid("api_key_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    apiKeyId: text("api_key_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
-    index("telemetry_skill_idx").on(t.orgSlug, t.skillRepo),
-    index("telemetry_type_idx").on(t.eventType),
+    // Every index here is another row written per event, on the one table written
+    // on every install and activation. Keep this list short: drop any index whose
+    // columns are a prefix of another, and any too unselective to be used.
+    // Retention prunes by age; without this it scans the whole table.
+    index("telemetry_created_idx").on(t.createdAt),
     // Analytics filters (org_slug, skill_repo) over a created_at window and
     // groups by day (observability + org telemetry routes). `harness` trails
     // the window column so the per-harness breakdown is served by this index
@@ -651,34 +653,35 @@ export const telemetryEvents = pgTable(
   ],
 );
 
-export const skillEvals = pgTable(
+export const skillEvals = sqliteTable(
   "skill_evals",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    skillId: uuid("skill_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    versionId: uuid("version_id")
+    versionId: text("version_id")
       .notNull()
       .references(() => skillVersions.id, { onDelete: "cascade" }),
-    status: evalStatusEnum("status").notNull().default("queued"),
-    scenarios: jsonb("scenarios").$type<{ name: string; prompt: string }[]>(),
+    status: text("status", { enum: evalStatusEnum }).notNull().default("queued"),
+    scenarios: text("scenarios", { mode: "json" }).$type<{ name: string; prompt: string }[]>(),
     baselineScore: integer("baseline_score"),
     withSkillScore: integer("with_skill_score"),
     uplift: integer("uplift"),
-    results:
-      jsonb("results").$type<
-        {
-          name: string;
-          prompt: string;
-          baselineScore: number;
-          withSkillScore: number;
-          uplift: number;
-        }[]
-      >(),
+    results: text("results", { mode: "json" }).$type<
+      {
+        name: string;
+        prompt: string;
+        baselineScore: number;
+        withSkillScore: number;
+        uplift: number;
+      }[]
+    >(),
     error: text("error"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
   },
   (t) => [
     index("skill_evals_skill_idx").on(t.skillId),
@@ -688,55 +691,63 @@ export const skillEvals = pgTable(
   ],
 );
 
-export const orgRequiredSkills = pgTable(
+export const orgRequiredSkills = sqliteTable(
   "org_required_skills",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     orgSlug: text("org_slug").notNull(),
     skillRepo: text("skill_repo").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [uniqueIndex("org_required_skills_idx").on(t.orgId, t.orgSlug, t.skillRepo)],
 );
 
-export const skillInventory = pgTable(
+export const skillInventory = sqliteTable(
   "skill_inventory",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     repoFullName: text("repo_full_name").notNull(),
     filePath: text("file_path").notNull(),
     localSlug: text("local_slug"),
-    managed: boolean("managed").notNull().default(false),
+    managed: integer("managed", { mode: "boolean" }).notNull().default(false),
     registryOrgSlug: text("registry_org_slug"),
     registryRepo: text("registry_repo"),
     sourceType: text("source_type"),
     scope: text("scope"),
     marketplace: text("marketplace"),
     pluginName: text("plugin_name"),
-    isSymlink: boolean("is_symlink").notNull().default(false),
+    isSymlink: integer("is_symlink", { mode: "boolean" }).notNull().default(false),
     conformanceStatus: text("conformance_status"),
-    conformanceIssues:
-      jsonb("conformance_issues").$type<{ level: string; field?: string; message: string }[]>(),
+    conformanceIssues: text("conformance_issues", { mode: "json" }).$type<
+      { level: string; field?: string; message: string }[]
+    >(),
     contentHash: text("content_hash"),
-    securityStatus: securityStatusEnum("security_status"),
-    securityIssues:
-      jsonb("security_issues").$type<{ severity: string; path: string; message: string }[]>(),
-    scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull().defaultNow(),
+    securityStatus: text("security_status", { enum: securityStatusEnum }),
+    securityIssues: text("security_issues", { mode: "json" }).$type<
+      { severity: string; path: string; message: string }[]
+    >(),
+    scannedAt: integer("scanned_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [uniqueIndex("skill_inventory_repo_path_idx").on(t.orgId, t.repoFullName, t.filePath)],
 );
 
-export const orgMcpServers = pgTable(
+export const orgMcpServers = sqliteTable(
   "org_mcp_servers",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
@@ -750,28 +761,30 @@ export const orgMcpServers = pgTable(
     accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     status: text("status").notNull().default("unauthorized"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [uniqueIndex("org_mcp_servers_org_name_idx").on(t.orgId, t.name)],
 );
 
-export const skillRuns = pgTable(
+export const skillRuns = sqliteTable(
   "skill_runs",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    skillId: uuid("skill_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
-    versionId: uuid("version_id")
+    versionId: text("version_id")
       .notNull()
       .references(() => skillVersions.id, { onDelete: "cascade" }),
     orgSlug: text("org_slug").notNull(),
     skillRepo: text("skill_repo").notNull(),
     scriptPath: text("script_path").notNull(),
-    runtime: skillRuntimeEnum("runtime").notNull(),
-    status: skillRunStatusEnum("status").notNull().default("queued"),
-    args: jsonb("args").$type<string[]>(),
+    runtime: text("runtime", { enum: skillRuntimeEnum }).notNull(),
+    status: text("status", { enum: skillRunStatusEnum }).notNull().default("queued"),
+    args: text("args", { mode: "json" }).$type<string[]>(),
     targetUrl: text("target_url"),
     stdout: text("stdout"),
     stderr: text("stderr"),
@@ -780,11 +793,10 @@ export const skillRuns = pgTable(
     error: text("error"),
     actorId: text("actor_id"),
     actorType: text("actor_type"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    completedAt: integer("completed_at", { mode: "timestamp_ms" }),
   },
   (t) => [
-    index("skill_runs_skill_idx").on(t.skillId),
     index("skill_runs_created_idx").on(t.createdAt),
     // Run-quota counts join skill_id over a created_at window on every hosted
     // run; a composite index serves those hot COUNT(*) queries directly.
@@ -796,11 +808,13 @@ export const skillRuns = pgTable(
   ],
 );
 
-export const skillFailurePatterns = pgTable(
+export const skillFailurePatterns = sqliteTable(
   "skill_failure_patterns",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    skillId: uuid("skill_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" }),
     orgSlug: text("org_slug").notNull(),
@@ -811,12 +825,15 @@ export const skillFailurePatterns = pgTable(
     summary: text("summary").notNull(),
     suggestedFix: text("suggested_fix"),
     occurrences: integer("occurrences").notNull().default(1),
-    exemplarRunIds: jsonb("exemplar_run_ids").$type<string[]>().notNull().default([]),
-    status: failurePatternStatusEnum("status").notNull().default("open"),
+    exemplarRunIds: text("exemplar_run_ids", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    status: text("status", { enum: failurePatternStatusEnum }).notNull().default("open"),
     // Set once an agent-drafted feedback row is opened for this pattern.
-    feedbackId: uuid("feedback_id"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    feedbackId: text("feedback_id"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     uniqueIndex("skill_failure_patterns_sig_idx").on(t.skillId, t.signature),
@@ -825,26 +842,35 @@ export const skillFailurePatterns = pgTable(
   ],
 );
 
-export const skillSources = pgTable(
+export const skillSources = sqliteTable(
   "skill_sources",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     githubOwner: text("github_owner").notNull(),
     githubRepo: text("github_repo").notNull(),
     defaultBranch: text("default_branch").notNull().default("main"),
-    discoveryRoots: jsonb("discovery_roots").$type<string[]>().notNull().default(["skills"]),
-    trustTier: skillTrustTierEnum("trust_tier").notNull().default("official_mirror"),
-    syncEnabled: boolean("sync_enabled").notNull().default(true),
-    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    discoveryRoots: text("discovery_roots", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(["skills"]),
+    trustTier: text("trust_tier", { enum: skillTrustTierEnum })
+      .notNull()
+      .default("official_mirror"),
+    syncEnabled: integer("sync_enabled", { mode: "boolean" }).notNull().default(true),
+    lastSyncedAt: integer("last_synced_at", { mode: "timestamp_ms" }),
     lastCommitSha: text("last_commit_sha"),
-    lastSyncStatus: skillSyncStatusEnum("last_sync_status").notNull().default("idle"),
+    lastSyncStatus: text("last_sync_status", { enum: skillSyncStatusEnum })
+      .notNull()
+      .default("idle"),
     lastSyncError: text("last_sync_error"),
     pendingCommitSha: text("pending_commit_sha"),
     pendingPublishCount: integer("pending_publish_count").notNull().default(0),
     license: text("license"),
     homepageUrl: text("homepage_url"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     uniqueIndex("skill_sources_owner_repo_idx").on(t.githubOwner, t.githubRepo),
@@ -852,21 +878,23 @@ export const skillSources = pgTable(
   ],
 );
 
-export const skillSourceSuggestions = pgTable(
+export const skillSourceSuggestions = sqliteTable(
   "skill_source_suggestions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     githubOwner: text("github_owner").notNull(),
     githubRepo: text("github_repo").notNull(),
     discoveredVia: text("discovered_via").notNull(),
     stars: integer("stars").notNull().default(0),
     license: text("license"),
     matchScore: integer("match_score").notNull().default(0),
-    status: skillSourceSuggestionStatusEnum("status").notNull().default("pending"),
-    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    status: text("status", { enum: skillSourceSuggestionStatusEnum }).notNull().default("pending"),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }),
     reviewedBy: text("reviewed_by").references(() => users.id, { onDelete: "set null" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     uniqueIndex("skill_source_suggestions_owner_repo_idx").on(t.githubOwner, t.githubRepo),
@@ -874,26 +902,28 @@ export const skillSourceSuggestions = pgTable(
   ],
 );
 
-export const skillProvenance = pgTable(
+export const skillProvenance = sqliteTable(
   "skill_provenance",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    skillId: uuid("skill_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    skillId: text("skill_id")
       .notNull()
       .references(() => skills.id, { onDelete: "cascade" })
       .unique(),
-    sourceId: uuid("source_id").references(() => skillSources.id, { onDelete: "set null" }),
+    sourceId: text("source_id").references(() => skillSources.id, { onDelete: "set null" }),
     sourcePath: text("source_path").notNull(),
     sourceCommitSha: text("source_commit_sha"),
     sourceUrl: text("source_url"),
     contentHash: text("content_hash").notNull(),
-    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+    syncedAt: integer("synced_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [index("skill_provenance_source_idx").on(t.sourceId)],
 );
 
 // Better Auth MCP / OIDC provider tables
-export const oauthApplications = pgTable(
+export const oauthApplications = sqliteTable(
   "oauth_application",
   {
     id: text("id").primaryKey(),
@@ -904,31 +934,27 @@ export const oauthApplications = pgTable(
     clientSecret: text("client_secret"),
     redirectUrls: text("redirect_urls").notNull(),
     type: text("type").notNull(),
-    disabled: boolean("disabled").notNull().default(false),
+    disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [index("oauth_application_user_idx").on(t.userId)],
 );
 
-export const oauthAccessTokens = pgTable(
+export const oauthAccessTokens = sqliteTable(
   "oauth_access_token",
   {
     id: text("id").primaryKey(),
     accessToken: text("access_token").notNull().unique(),
     refreshToken: text("refresh_token").notNull().unique(),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", {
-      withTimezone: true,
-    }).notNull(),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
-      withTimezone: true,
-    }).notNull(),
+    accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp_ms" }).notNull(),
+    refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp_ms" }).notNull(),
     clientId: text("client_id").notNull(),
     userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     scopes: text("scopes").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("oauth_access_token_client_idx").on(t.clientId),
@@ -936,7 +962,7 @@ export const oauthAccessTokens = pgTable(
   ],
 );
 
-export const oauthConsents = pgTable(
+export const oauthConsents = sqliteTable(
   "oauth_consent",
   {
     id: text("id").primaryKey(),
@@ -945,9 +971,9 @@ export const oauthConsents = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     scopes: text("scopes").notNull(),
-    consentGiven: boolean("consent_given").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    consentGiven: integer("consent_given", { mode: "boolean" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("oauth_consent_client_idx").on(t.clientId),
@@ -957,19 +983,21 @@ export const oauthConsents = pgTable(
 );
 
 // Platform-agent v2: per-user chats, durable memory, HITL approvals
-export const agentChats = pgTable(
+export const agentChats = sqliteTable(
   "agent_chats",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     title: text("title"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
     index("agent_chats_org_user_idx").on(t.orgId, t.userId),
@@ -978,34 +1006,40 @@ export const agentChats = pgTable(
   ],
 );
 
-export const agentMemory = pgTable(
+export const agentMemory = sqliteTable(
   "agent_memory",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     // Null userId = org-wide memory; set-null on user delete preserves org facts.
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    userScope: text("user_scope").generatedAlwaysAs(sql`coalesce(user_id, '')`, {
+      mode: "virtual",
+    }),
     key: text("key").notNull(),
     value: text("value").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (t) => [
-    // NULLS NOT DISTINCT so a null userId still dedupes org-wide keys (PG15+/Neon PG17).
-    // drizzle 0.45.2 only exposes nullsNotDistinct on the unique-constraint builder,
-    // not uniqueIndex — this emits an equivalent UNIQUE(...) NULLS NOT DISTINCT constraint.
-    unique("agent_memory_org_user_key_idx").on(t.orgId, t.userId, t.key).nullsNotDistinct(),
+    // SQLite treats NULLs as distinct in a unique index, so org-wide facts (a null
+    // user_id) would never dedupe on user_id itself. user_scope is why it exists.
+    uniqueIndex("agent_memory_org_user_key_idx").on(t.orgId, t.userScope, t.key),
     index("agent_memory_org_user_idx").on(t.orgId, t.userId),
   ],
 );
 
-export const agentApprovals = pgTable(
+export const agentApprovals = sqliteTable(
   "agent_approvals",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    orgId: uuid("org_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    orgId: text("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id")
@@ -1014,10 +1048,10 @@ export const agentApprovals = pgTable(
     toolName: text("tool_name").notNull(),
     // sha256 of the sorted tool-call args — dedupes identical pending requests.
     callSignature: text("call_signature").notNull(),
-    args: jsonb("args").$type<Record<string, unknown>>(),
-    status: agentApprovalStatusEnum("status").notNull().default("pending"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    args: text("args", { mode: "json" }).$type<Record<string, unknown>>(),
+    status: text("status", { enum: agentApprovalStatusEnum }).notNull().default("pending"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
   },
   (t) => [
     uniqueIndex("agent_approvals_call_idx").on(t.orgId, t.userId, t.toolName, t.callSignature),

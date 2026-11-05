@@ -33,7 +33,7 @@ export async function checkRunQuota(
   const orgFilter = and(eq(skills.orgId, orgId), gte(skillRuns.createdAt, hourAgo));
 
   const [hourly] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({ count: sql<number>`count(*)` })
     .from(skillRuns)
     .innerJoin(skills, eq(skillRuns.skillId, skills.id))
     .where(orgFilter);
@@ -47,7 +47,7 @@ export async function checkRunQuota(
   }
 
   const [daily] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({ count: sql<number>`count(*)` })
     .from(skillRuns)
     .innerJoin(skills, eq(skillRuns.skillId, skills.id))
     .where(and(eq(skills.orgId, orgId), gte(skillRuns.createdAt, dayAgo)));
@@ -62,7 +62,7 @@ export async function checkRunQuota(
 
   if (runtime === "container") {
     const [containerHourly] = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(skillRuns)
       .innerJoin(skills, eq(skillRuns.skillId, skills.id))
       .where(
@@ -84,7 +84,7 @@ export async function checkRunQuota(
 
   if (isAnonymous && limits.anonymousHourlyLimit > 0) {
     const [anonHourly] = await db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(skillRuns)
       .innerJoin(skills, eq(skillRuns.skillId, skills.id))
       .where(
@@ -124,92 +124,83 @@ export type ReserveRunInput = {
 };
 
 /**
- * Atomically enforce the org's run quota AND insert the run reservation row.
+ * Enforce the org's run quota and take a run slot.
  *
- * `checkRunQuota` on its own is a read-then-act check: concurrent runs all read
- * the same `count(*)` before any of them inserts a row, so a burst all passes
- * (TOCTOU) and blows past the limit. Because running a PUBLIC skill spends the
- * OWNER org's quota and sandbox compute, that race is a cross-tenant
- * denial-of-wallet, not just a self-inflicted overage.
+ * `checkRunQuota` alone is read-then-act: a concurrent burst all reads the same
+ * count before any of them inserts, so all pass and blow past the limit. Because
+ * running a PUBLIC skill spends the OWNER org's quota and sandbox compute, that
+ * race is a cross-tenant denial-of-wallet, not just a self-inflicted overage.
  *
- * Serializing every quota decision for an org on a transaction-scoped advisory
- * lock closes the window: the second caller blocks until the first commits,
- * then its `count(*)` sees the row the first one inserted. The lock is released
- * automatically when the transaction ends (commit or abort), so a failure can't
- * leave it held.
+ * D1 has no locks or interactive transactions, so this inserts first and then
+ * ranks: each caller counts only the rows at or before its own `rowid`. That
+ * order is fixed by D1's single writer, so the first `limit` rows pass and every
+ * later one sees itself over and removes its row. Ranking matters: counting all
+ * rows would make concurrent callers at the boundary all back out together.
  */
 export async function reserveRunSlot(
   db: WorkerDb,
   input: ReserveRunInput,
 ): Promise<typeof skillRuns.$inferSelect> {
   const limits = resolvePolicy(input.policy);
+  const [runRow] = await db.insert(skillRuns).values(input.values).returning();
+  if (!runRow) throw new Error("Failed to reserve run row");
 
-  return db.transaction(async (tx) => {
-    // Per-org mutex, held until this transaction commits/aborts. `hashtext`
-    // maps the key to the int the advisory-lock function wants; only runs for
-    // the SAME org contend, so unrelated orgs never block each other.
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`run-quota:${input.orgId}`}))`);
+  const hourAgo = Date.now() - 60 * 60 * 1000;
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const inLastHour = sql`${skillRuns.createdAt} >= ${hourAgo}`;
 
-    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    const countRuns = async (where: SQL | undefined): Promise<number> => {
-      const [row] = await tx
-        .select({ count: sql<number>`count(*)::int` })
-        .from(skillRuns)
-        .innerJoin(skills, eq(skillRuns.skillId, skills.id))
-        .where(where);
-      return row?.count ?? 0;
-    };
-
-    const hourly = await countRuns(
-      and(eq(skills.orgId, input.orgId), gte(skillRuns.createdAt, hourAgo)),
+  // One read for every window. Each count includes this caller's own row, so
+  // `limit` runs are allowed and the next one is over.
+  const [counts] = await db
+    .select({
+      hourly: sql<number>`count(*) filter (where ${inLastHour})`,
+      daily: sql<number>`count(*)`,
+      containerHourly: sql<number>`count(*) filter (where ${inLastHour} and ${skillRuns.runtime} = 'container')`,
+      anonHourly: sql<number>`count(*) filter (where ${inLastHour} and ${skillRuns.actorType} = 'system')`,
+    })
+    .from(skillRuns)
+    .innerJoin(skills, eq(skillRuns.skillId, skills.id))
+    .where(
+      and(
+        eq(skills.orgId, input.orgId),
+        sql`${skillRuns.createdAt} >= ${dayAgo}`,
+        sql`${skillRuns}.rowid <= (SELECT rowid FROM ${skillRuns} WHERE ${skillRuns.id} = ${runRow.id})`,
+      ),
     );
-    if (hourly >= limits.hourlyRunLimit) {
-      throw new RunQuotaExceededError(
-        `Hourly run limit (${limits.hourlyRunLimit}) exceeded for this organization`,
-      );
-    }
 
-    const daily = await countRuns(
-      and(eq(skills.orgId, input.orgId), gte(skillRuns.createdAt, dayAgo)),
-    );
-    if (daily >= limits.dailyRunLimit) {
-      throw new RunQuotaExceededError(
-        `Daily run limit (${limits.dailyRunLimit}) exceeded for this organization`,
-      );
-    }
-
-    if (input.runtime === "container") {
-      const containerHourly = await countRuns(
-        and(
-          eq(skills.orgId, input.orgId),
-          eq(skillRuns.runtime, "container"),
-          gte(skillRuns.createdAt, hourAgo),
-        ),
-      );
-      if (containerHourly >= limits.containerHourlyLimit) {
-        throw new RunQuotaExceededError(
-          `Container hourly limit (${limits.containerHourlyLimit}) exceeded`,
-        );
-      }
-    }
-
-    if (input.isAnonymous && limits.anonymousHourlyLimit > 0) {
-      const anonHourly = await countRuns(
-        and(
-          eq(skills.orgId, input.orgId),
-          eq(skillRuns.actorType, "system"),
-          gte(skillRuns.createdAt, hourAgo),
-        ),
-      );
-      if (anonHourly >= limits.anonymousHourlyLimit) {
-        throw new RunQuotaExceededError("Anonymous run limit exceeded — sign in to continue");
-      }
-    }
-
-    const [runRow] = await tx.insert(skillRuns).values(input.values).returning();
-    if (!runRow) throw new Error("Failed to reserve run row");
-    return runRow;
+  const exceeded = quotaExceededMessage(input, limits, {
+    hourly: counts?.hourly ?? 0,
+    daily: counts?.daily ?? 0,
+    containerHourly: counts?.containerHourly ?? 0,
+    anonHourly: counts?.anonHourly ?? 0,
   });
+  if (exceeded) {
+    await db.delete(skillRuns).where(eq(skillRuns.id, runRow.id));
+    throw new RunQuotaExceededError(exceeded);
+  }
+  return runRow;
+}
+
+function quotaExceededMessage(
+  input: ReserveRunInput,
+  limits: ReturnType<typeof resolvePolicy>,
+  counts: { hourly: number; daily: number; containerHourly: number; anonHourly: number },
+): string | null {
+  if (counts.hourly > limits.hourlyRunLimit) {
+    return `Hourly run limit (${limits.hourlyRunLimit}) exceeded for this organization`;
+  }
+  if (counts.daily > limits.dailyRunLimit) {
+    return `Daily run limit (${limits.dailyRunLimit}) exceeded for this organization`;
+  }
+  if (input.runtime === "container" && counts.containerHourly > limits.containerHourlyLimit) {
+    return `Container hourly limit (${limits.containerHourlyLimit}) exceeded`;
+  }
+  if (
+    input.isAnonymous &&
+    limits.anonymousHourlyLimit > 0 &&
+    counts.anonHourly > limits.anonymousHourlyLimit
+  ) {
+    return "Anonymous run limit exceeded — sign in to continue";
+  }
+  return null;
 }

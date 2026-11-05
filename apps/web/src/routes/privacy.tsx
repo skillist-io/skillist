@@ -22,7 +22,7 @@ function PrivacyPage() {
     <PublicLayout>
       <div className="mx-auto max-w-3xl px-4 py-16 md:px-6">
         <h1 className="text-3xl font-semibold tracking-tight">Privacy</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Last updated: 20 July 2026</p>
+        <p className="mt-3 text-sm text-muted-foreground">Last updated: 4 November 2026</p>
 
         <div className="mt-10 space-y-10 text-sm leading-relaxed">
           <Section title="Who runs Skillist">
@@ -44,37 +44,37 @@ function PrivacyPage() {
                 [
                   "Email address, display name, avatar",
                   "Your account. Supplied by GitHub or Google when you sign in with them, or entered by you for a magic link.",
-                  "Neon Postgres (US East)",
+                  "Cloudflare D1 (US East)",
                 ],
                 [
                   "Session records, including IP address and user agent",
                   "Keeping you signed in, and letting you see and revoke active sessions.",
-                  "Neon Postgres",
+                  "Cloudflare D1",
                 ],
                 [
                   "Passkey public keys",
                   "Passwordless sign-in. Private keys never leave your device.",
-                  "Neon Postgres",
+                  "Cloudflare D1",
                 ],
                 [
                   "Organisations, skills, versions, and bundle contents you publish",
                   "The product itself.",
-                  "Neon Postgres + Cloudflare R2",
+                  "Cloudflare D1 + Cloudflare R2",
                 ],
                 [
                   "Install and activation events",
                   "Registry rankings and your org's coverage reporting. Recorded against your org, not your browsing.",
-                  "Neon Postgres",
+                  "Cloudflare D1",
                 ],
                 [
                   "Skill run output (stdout/stderr)",
                   "Showing you the result of a sandbox run. This is whatever your skill's scripts print — treat it as yours, and avoid printing secrets.",
-                  "Neon Postgres",
+                  "Cloudflare D1",
                 ],
                 [
                   "Audit events",
                   "Security. Records who performed privileged actions such as creating an API key or making a skill public.",
-                  "Neon Postgres",
+                  "Cloudflare D1",
                 ],
               ]}
             />
@@ -127,7 +127,6 @@ function PrivacyPage() {
                   "Cloudflare",
                   "Hosting, edge delivery, bundle storage (R2), sandboxed skill execution",
                 ],
-                ["Neon", "Managed Postgres (US East)"],
                 ["GitHub / Google", "OAuth sign-in, only if you choose those methods"],
                 ["Google", "Analytics, only with your consent"],
                 ["Anthropic / Cloudflare Workers AI", "AI-drafted skill improvements and evals"],

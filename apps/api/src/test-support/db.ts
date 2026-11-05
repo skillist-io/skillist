@@ -2,41 +2,19 @@ import { env } from "cloudflare:test";
 import { organizations, orgMembers, users } from "@skillist/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import type { Env } from "../env";
-import { closeWorkerDb, createWorkerDb } from "../lib/db";
+import { createWorkerDb } from "../lib/db";
 
-/**
- * Helpers for tests that need a real database.
- *
- * A Postgres connection is optional for the suite: most tests do not need one,
- * but anything behind authMiddleware does, because it opens a connection on
- * every request. Set TEST_DATABASE_URL to run those — see vitest.config.ts for
- * the two commands that stand one up.
- */
+/** Helpers for tests that need a real database: Miniflare's local D1. */
 
-/**
- * True when a test database is configured.
- *
- * Reads the same INTEGRATION_DB binding that routes/projects.test.ts and
- * lib/agent/memory.test.ts already gate on; vitest.config.ts sets it from
- * TEST_DATABASE_URL. Gate DB-dependent suites with
- * `describe.skipIf(!hasTestDb)` so they skip rather than fail for anyone
- * without one.
- */
-export const hasTestDb = Boolean((env as Record<string, unknown>).INTEGRATION_DB);
+/** Local D1 is always present. Kept so suites can state their dependency. */
+export const hasTestDb = true;
 
 export function testDb() {
   return createWorkerDb(env as unknown as Env);
 }
 
 export async function withDb<T>(fn: (db: ReturnType<typeof testDb>) => Promise<T>): Promise<T> {
-  const db = testDb();
-  try {
-    return await fn(db);
-  } finally {
-    // Awaited, not fire-and-forget: a test that returns mid-close tears the
-    // runtime down under the socket and reports a cancelled stream.
-    await closeWorkerDb(db);
-  }
+  return fn(testDb());
 }
 
 let counter = 0;

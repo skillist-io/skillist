@@ -14,10 +14,7 @@
     "check:fix": "biome check --write .",
     "test": "turbo test",
     "db:generate": "pnpm --filter @skillist/db generate",
-    "db:migrate": "pnpm --filter @skillist/db migrate",
-    "db:up": "docker compose up -d --wait neon-local",
-    "db:down": "docker compose down",
-    "db:migrate:local": "pnpm --filter @skillist/db migrate",
+    "db:migrate": "pnpm --filter @skillist/api exec wrangler d1 migrations apply skillist --local",
     "typecheck": "turbo typecheck",
     "smoke": "pnpm cli:build && vitest run --config tests/vitest.config.ts",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
@@ -36,6 +33,9 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "pg": "^8.22.0",
+    "wrangler": "^4.112.0",
     "@biomejs/biome": "2.5.4",
     "@playwright/test": "^1.55.0",
     "@skillist/db": "workspace:*",

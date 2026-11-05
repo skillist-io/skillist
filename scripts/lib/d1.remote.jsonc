@@ -1,0 +1,14 @@
+{
+  // Database-only config for Node scripts that target production D1.
+  "name": "skillist-scripts",
+  "account_id": "2d19b3b18648f0776ff1435cba466210",
+  "compatibility_date": "2026-07-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "skillist",
+      "database_id": "9b901aed-8945-4574-ae3c-65c9430d05c2",
+      "remote": true
+    }
+  ]
+}

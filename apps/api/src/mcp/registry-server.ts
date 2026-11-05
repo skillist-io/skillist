@@ -12,7 +12,7 @@ import type { McpSession } from "better-auth/plugins/mcp/client";
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { AuthContext } from "../lib/auth-middleware";
-import type { WorkerDb } from "../lib/db";
+import { inList, type WorkerDb } from "../lib/db";
 import { requireProjectAccess } from "../lib/project-access";
 import {
   CLI_INSTALL,
@@ -95,12 +95,12 @@ async function toolMyProjects(db: WorkerDb, userId: string) {
 
   const conditions = [];
   if (ownerOrgIds.length > 0) {
-    conditions.push(inArray(projects.orgId, ownerOrgIds));
+    conditions.push(inList(projects.orgId, ownerOrgIds));
   }
   if (nonOwnerOrgIds.length > 0) {
     conditions.push(
       and(
-        inArray(projects.orgId, nonOwnerOrgIds),
+        inList(projects.orgId, nonOwnerOrgIds),
         or(eq(projects.visibility, "shared"), inArray(projects.id, memberProjectIds)),
       ),
     );

@@ -14,7 +14,7 @@
       "!**/.turbo",
       "!**/node_modules",
       "!**/routeTree.gen.ts",
-      "!**/packages/db/drizzle",
+      "!**/packages/db/migrations",
       "!**/apps/web/public/clients",
       "!**/__snapshots__",
       "!**/test-results",

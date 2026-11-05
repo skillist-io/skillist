@@ -1,26 +1,8 @@
-import type {
-  Ai,
-  DurableObjectNamespace,
-  Hyperdrive,
-  RateLimit,
-  SendEmail,
-} from "@cloudflare/workers-types";
+import type { Ai, DurableObjectNamespace, RateLimit, SendEmail } from "@cloudflare/workers-types";
 import type { SyncQueueMessage } from "@skillist/contracts";
 
 export type Env = {
-  /**
-   * Caching-enabled Hyperdrive (default query cache). Used only for the
-   * read-heavy, staleness-tolerant registry browse queries.
-   */
-  HYPERDRIVE: Hyperdrive;
-  /**
-   * Caching-DISABLED Hyperdrive over the same database. This is the default
-   * client for everything else — auth, permissions, writes, and read-after-write
-   * — where a 60s stale read would be wrong (e.g. a revoked API key must stop
-   * authenticating immediately). Optional so local dev / tests fall back to the
-   * single HYPERDRIVE binding.
-   */
-  HYPERDRIVE_CACHE_DISABLED?: Hyperdrive;
+  DB: D1Database;
   SKILLS_KV: KVNamespace;
   SKILLS_R2: R2Bucket;
   SKILL_HUB: DurableObjectNamespace;

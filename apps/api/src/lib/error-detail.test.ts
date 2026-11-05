@@ -4,11 +4,7 @@ import { describeError, isDatabaseError, persistableErrorMessage } from "./error
 
 describe("describeError", () => {
   it("surfaces the driver cause behind a Drizzle query error", () => {
-    // Shape postgres-js throws when Hyperdrive drops the socket mid-query.
-    const driverError = Object.assign(new Error("write CONNECTION_CLOSED"), {
-      code: "CONNECTION_CLOSED",
-      severity: "FATAL",
-    });
+    const driverError = new Error("D1_ERROR: database is locked: SQLITE_BUSY");
     const err = new DrizzleQueryError('select "id" from "skills"', ["org", "repo"], driverError);
 
     const detail = describeError(err);
@@ -16,44 +12,28 @@ describe("describeError", () => {
     expect(detail.message).toContain("Failed query");
     expect(detail.causes).toHaveLength(1);
     expect(detail.causes?.[0]).toMatchObject({
-      message: "write CONNECTION_CLOSED",
-      code: "CONNECTION_CLOSED",
-      severity: "FATAL",
+      message: "D1_ERROR: database is locked: SQLITE_BUSY",
+      code: "SQLITE_BUSY",
     });
   });
 
-  it("keeps the SQLSTATE and constraint of a unique violation", () => {
+  it("reads the SQLite code out of a D1 message, which carries no code field", () => {
     const err = new DrizzleQueryError(
       'insert into "skills"',
       [],
-      Object.assign(new Error("duplicate key value violates unique constraint"), {
-        code: "23505",
-        constraint_name: "skills_org_repo_idx",
-        routine: "_bt_check_unique",
-      }),
+      new Error("D1_ERROR: UNIQUE constraint failed: skills.repo: SQLITE_CONSTRAINT"),
     );
+    expect(describeError(err).causes?.[0]?.code).toBe("SQLITE_CONSTRAINT");
+  });
 
-    expect(describeError(err).causes?.[0]).toMatchObject({
-      code: "23505",
-      constraint: "skills_org_repo_idx",
-      routine: "_bt_check_unique",
-    });
+  it("falls back to the D1 code when no SQLite code is present", () => {
+    expect(describeError(new Error("D1_ERROR: internal failure")).code).toBe("D1_ERROR");
   });
 
   it("omits `causes` for a plain error", () => {
     const detail = describeError(new Error("boom"));
     expect(detail).toMatchObject({ name: "Error", message: "boom" });
     expect(detail.causes).toBeUndefined();
-  });
-
-  it("does not log the Postgres detail/hint fields, which echo row values", () => {
-    const err = Object.assign(new Error("duplicate key"), {
-      code: "23505",
-      detail: "Key (email)=(person@example.com) already exists.",
-      hint: "try another email",
-    });
-
-    expect(JSON.stringify(describeError(err))).not.toContain("person@example.com");
   });
 
   it("terminates on a cyclic cause chain", () => {
@@ -75,15 +55,9 @@ describe("isDatabaseError", () => {
     expect(isDatabaseError(new DrizzleQueryError("select 1", [], new Error("nope")))).toBe(true);
   });
 
-  it("recognises a driver connection failure nested as a cause", () => {
-    const err = new Error("wrapped", {
-      cause: Object.assign(new Error("write CONNECTION_CLOSED"), { code: "CONNECTION_CLOSED" }),
-    });
+  it("recognises a raw D1 failure nested as a cause", () => {
+    const err = new Error("wrapped", { cause: new Error("D1_ERROR: database is locked") });
     expect(isDatabaseError(err)).toBe(true);
-  });
-
-  it("recognises a server-side Postgres error by its severity", () => {
-    expect(isDatabaseError(Object.assign(new Error("boom"), { severity: "ERROR" }))).toBe(true);
   });
 
   it("leaves application errors alone, so they still answer 4xx", () => {
