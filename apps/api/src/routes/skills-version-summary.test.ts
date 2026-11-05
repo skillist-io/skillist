@@ -1,7 +1,7 @@
 import { skills, skillVersions } from "@skillist/db/schema";
 import { describe, expect, it } from "vitest";
+import { loadOrgVersions, summarizeVersions } from "../lib/skill-version-summary";
 import { cleanup, seedOrg, seedUser, withDb } from "../test-support/db";
-import { loadOrgVersions, summarizeVersions } from "./skills";
 
 const row = (status: string, semver: string, skillId = "a") => ({ skillId, status, semver });
 

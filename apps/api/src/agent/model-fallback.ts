@@ -40,12 +40,10 @@ export async function withFallback<T>(
 
 /**
  * Middleware that keeps the agent responsive when the primary model's call
- * FAILS TO START — an auth error (bad/expired key), a provider 4xx/5xx, or a
- * gateway outage — by transparently retrying that turn on `fallback` (Workers
- * AI). Only pre-first-token failures fall back cleanly; an error mid-stream
- * still surfaces. The outage class we care about — an invalid ANTHROPIC_API_KEY —
- * fails before any tokens, so this turns a total agent outage into a
- * degraded-but-live turn (Workers AI is weaker at tool-calling, but it answers).
+ * FAILS TO START — a capacity or model error, a provider 4xx/5xx, or a gateway
+ * outage — by transparently retrying that turn on `fallback`. Only pre-first-token failures fall back cleanly; an error mid-stream
+ * still surfaces. The outages we care about fail before any tokens, so this turns
+ * a total agent outage into a live turn on the fallback model.
  */
 export function workersAiFallback(fallback: FallbackModel): LanguageModelMiddleware {
   return {

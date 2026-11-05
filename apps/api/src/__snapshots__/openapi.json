@@ -18789,10 +18789,10 @@
           "Admin"
         ],
         "operationId": "getAgentHealth",
-        "summary": "Whether the platform agent's configured model authenticates (spends no tokens)",
+        "summary": "Which model the platform agent runs, and whether its binding is present",
         "responses": {
           "200": {
-            "description": "Agent model status — `ok:false` flags a bad/expired Anthropic key.",
+            "description": "Agent model status — `ok:false` means the Workers AI binding is missing.",
             "content": {
               "application/json": {
                 "schema": {
@@ -18801,7 +18801,6 @@
                     "provider": {
                       "type": "string",
                       "enum": [
-                        "anthropic",
                         "workers-ai"
                       ]
                     },

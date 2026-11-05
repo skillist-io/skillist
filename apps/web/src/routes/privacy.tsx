@@ -22,7 +22,7 @@ function PrivacyPage() {
     <PublicLayout>
       <div className="mx-auto max-w-3xl px-4 py-16 md:px-6">
         <h1 className="text-3xl font-semibold tracking-tight">Privacy</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Last updated: 4 November 2026</p>
+        <p className="mt-3 text-sm text-muted-foreground">Last updated: 5 November 2026</p>
 
         <div className="mt-10 space-y-10 text-sm leading-relaxed">
           <Section title="Who runs Skillist">
@@ -129,7 +129,7 @@ function PrivacyPage() {
                 ],
                 ["GitHub / Google", "OAuth sign-in, only if you choose those methods"],
                 ["Google", "Analytics, only with your consent"],
-                ["Anthropic / Cloudflare Workers AI", "AI-drafted skill improvements and evals"],
+                ["Cloudflare Workers AI", "AI-drafted skill improvements and evals"],
               ]}
             />
             <p className="mt-4">
