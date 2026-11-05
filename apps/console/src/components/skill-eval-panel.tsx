@@ -20,6 +20,11 @@ type SkillEvalPanelProps = {
   isRunning: boolean;
 };
 
+/** Signed, so a skill that made things worse reads "-5" rather than "+-5". */
+export function formatUplift(uplift: number): string {
+  return uplift >= 0 ? `+${uplift}` : String(uplift);
+}
+
 function statusVariant(status: string) {
   if (status === "completed") return "default";
   if (status === "failed") return "destructive";
@@ -86,7 +91,7 @@ export function SkillEvalPanel({
                   </div>
                   <span className="font-mono text-xs">
                     {ev.baselineScore != null && ev.withSkillScore != null
-                      ? `${ev.baselineScore} → ${ev.withSkillScore} (+${ev.uplift ?? 0})`
+                      ? `${ev.baselineScore} → ${ev.withSkillScore} (${formatUplift(ev.uplift ?? 0)})`
                       : (ev.error ?? "Pending")}
                   </span>
                 </button>
