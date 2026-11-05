@@ -30,15 +30,14 @@ import { createWorkerDb, inList, type WorkerDb } from "../lib/db";
 import { searchDocs } from "../lib/docs-rag";
 import { getRegistryFacets, getRegistrySkill, listRegistry } from "../lib/registry-service";
 import { validateSkillMd } from "../lib/skill-validation";
+import { loadOrgVersions, summarizeVersions } from "../lib/skill-version-summary";
 import { parseAgentName, shouldGenerateTitle } from "./agent-name";
 import { buildAgentModel } from "./model";
 
 /**
- * The agent prefers Claude — small Workers AI models narrate tool calls instead
- * of invoking them, which breaks the governance toolset. Claude is used when
- * ANTHROPIC_API_KEY is configured (routed through the Cloudflare AI Gateway when
- * AI_GATEWAY_ACCOUNT_ID is set, for caching + observability), and we fall back
- * to a tool-capable Workers AI model so the agent still runs without the secret.
+ * The agent runs on Workers AI. Keep it on a model built for tool calling: small
+ * models narrate tool calls instead of invoking them, which breaks the governance
+ * toolset. See `model-config.ts`.
  */
 
 /** Evals older than this (or never run) count as stale. */
@@ -70,7 +69,8 @@ const SYSTEM_PROMPT = [
   "• Curation: projects group skills (and external references) into curated collections.",
   "• Governance: an org declares required skills (its baseline) and tracks coverage across three",
   "  layers — published (in registry) → covered (in scanned inventory or curated) → activated",
-  "  (agents turned it on) — plus drift (required but not covered). Use get_coverage.",
+  "  (agents turned it on) — plus drift (required but not covered). Use get_coverage, which",
+  "  counts required skills only. For the skills an org actually has, use list_org_skills.",
   "• Evals: skills are scored for uplift; stale/failed evals are flagged for re-run.",
   "• Hosted execution: skill scripts run in Cloudflare Sandbox containers (local/sandbox/",
   "  container runtimes; heavy skills get a heavier sandbox), gated by quotas and access.",
@@ -193,10 +193,7 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
   }
 
   /**
-   * Build the language model for a turn. Prefers Claude for reliable
-   * tool-calling (routed through the AI Gateway when configured for caching +
-   * observability); falls back to a tool-capable Workers AI model so the agent
-   * still runs without the Anthropic secret. Reused for title generation.
+   * Build the language model for a turn. Reused for title generation.
    */
   private buildModel() {
     return buildAgentModel(this.env, { sessionAffinity: this.sessionAffinity });
@@ -511,9 +508,29 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
       }),
 
       // ── Org-scoped governance tools ─────────────────────────────────────────
+      list_org_skills: tool({
+        description:
+          "Every skill this org owns, with its live version, any unpublished draft, and visibility. Use for 'what skills do we have?', 'what's published?', and before saying the org has no skills.",
+        inputSchema: z.object({}),
+        execute: () =>
+          requireOrg(async (oid) => {
+            const [rows, versions] = await Promise.all([
+              db.select().from(skills).where(eq(skills.orgId, oid)),
+              loadOrgVersions(db, oid),
+            ]);
+            return {
+              skills: rows.map((row) => ({
+                repo: row.repo,
+                visibility: row.visibility,
+                ...summarizeVersions(versions, row.id),
+              })),
+            };
+          }),
+      }),
+
       get_coverage: tool({
         description:
-          "Required-skill coverage for this org across three layers: published (in the registry), covered (present in scanned inventory or curated into a project), and activated (agents have turned it on). Also returns drift — required skills that are not covered. Use for 'are we covered?', 'what's drifting?', coverage %.",
+          "Required-skill coverage for this org. It counts REQUIRED skills only, so zero here says nothing about how many skills the org has: use list_org_skills for that. Reports three layers: published (in the registry), covered (present in scanned inventory or curated into a project), and activated (agents have turned it on). Also returns drift — required skills that are not covered. Use for 'are we covered?', 'what's drifting?', coverage %.",
         inputSchema: z.object({}),
         execute: () => requireOrg((oid) => computeCoverage(db, oid)),
       }),

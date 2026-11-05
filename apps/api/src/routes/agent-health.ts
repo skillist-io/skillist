@@ -16,7 +16,7 @@ type AppEnv = {
 export const agentHealthRoutes = new OpenAPIHono<AppEnv>();
 
 const healthSchema = z.object({
-  provider: z.enum(["anthropic", "workers-ai"]),
+  provider: z.enum(["workers-ai"]),
   model: z.string(),
   configured: z.boolean(),
   ok: z.boolean(),
@@ -29,10 +29,10 @@ const healthRoute = createRoute({
   path: "/admin/agent-health",
   tags: ["Admin"],
   operationId: "getAgentHealth",
-  summary: "Whether the platform agent's configured model authenticates (spends no tokens)",
+  summary: "Which model the platform agent runs, and whether its binding is present",
   responses: {
     200: {
-      description: "Agent model status — `ok:false` flags a bad/expired Anthropic key.",
+      description: "Agent model status — `ok:false` means the Workers AI binding is missing.",
       content: { "application/json": { schema: healthSchema } },
     },
     ...errorResponses({ validates: false, notFound: false }),
@@ -42,6 +42,6 @@ const healthRoute = createRoute({
 agentHealthRoutes.openapi(healthRoute, async (c) => {
   const gate = requireDocsAdmin(c.env, c.var.auth);
   if (!gate.ok) return c.json({ error: gate.error }, gate.status);
-  const health = await checkAgentModel(c.env);
+  const health = checkAgentModel(c.env);
   return c.json(health, 200);
 });

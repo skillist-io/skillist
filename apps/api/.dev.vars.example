@@ -27,15 +27,10 @@ SSO_DISCOVERY_URL=
 # SSO_USERINFO_URL=
 # SSO_SCOPES=openid email profile
 
-# Cloudflare AI Gateway (optional) — routes Workers AI + Claude calls through a
-# gateway for caching + observability. Account id + a gateway auth token.
+# Cloudflare AI Gateway (optional) — routes Workers AI calls through a gateway
+# for caching + observability. Account id + a gateway auth token.
 AI_GATEWAY_ACCOUNT_ID=
 AI_GATEWAY_TOKEN=
-
-# Platform agent model (console → /agent). When set, the agent uses Claude via
-# the Anthropic API — through the AI Gateway above when configured. Left blank,
-# it falls back to Workers AI (weaker tool-calling). https://console.anthropic.com/
-ANTHROPIC_API_KEY=
 
 # GitHub API token for the mirror-sync pipeline (reads public repos). A classic
 # PAT with `public_repo` is enough. https://github.com/settings/tokens
