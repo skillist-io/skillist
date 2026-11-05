@@ -1,7 +1,6 @@
 import { api, Button, type RegistryItem, ScoreReadout } from "@skillist/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { PublicEvalBadge } from "@/components/public-eval-badge";
 
 const FEATURED = [
   {
@@ -96,7 +95,6 @@ export function RegistryFeatured() {
                 impact={item.impactScore}
                 security={item.securityStatus}
               />
-              <PublicEvalBadge eval={item.eval} />
             </div>
             <div className="border-t border-border pt-3">
               <Link
