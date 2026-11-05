@@ -12,6 +12,3 @@ export const AGENT_MODEL_ID = "@cf/deepseek-ai/deepseek-v4-flash-0731";
 
 /** Takes over a turn when the primary fails to start. */
 export const AGENT_FALLBACK_MODEL_ID = "@cf/zai-org/glm-5.2";
-
-/** The AI Gateway the agent's traffic is logged through. */
-export const AI_GATEWAY_ID = "skillist";

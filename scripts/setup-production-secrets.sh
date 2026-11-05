@@ -35,8 +35,6 @@ put_secret GITHUB_CLIENT_ID
 put_secret GITHUB_CLIENT_SECRET
 put_secret GOOGLE_CLIENT_ID
 put_secret GOOGLE_CLIENT_SECRET
-put_secret AI_GATEWAY_ACCOUNT_ID
-put_secret AI_GATEWAY_TOKEN
 put_secret GITHUB_TOKEN
 put_secret GITHUB_WEBHOOK_SECRET
 # Unhandled-error alert routing. Both go through `wrangler secret` rather than

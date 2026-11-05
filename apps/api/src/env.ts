@@ -57,8 +57,6 @@ export type Env = {
   SSO_TOKEN_URL?: string;
   SSO_USERINFO_URL?: string;
   SSO_SCOPES?: string;
-  AI_GATEWAY_ACCOUNT_ID?: string;
-  AI_GATEWAY_TOKEN?: string;
   GITHUB_TOKEN?: string;
   GITHUB_WEBHOOK_SECRET?: string;
   /** Comma-separated Better Auth user IDs allowed to manage mirrors. */
