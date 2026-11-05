@@ -17,7 +17,7 @@ import {
  *
  * The contract block reads the served OpenAPI document and needs no database.
  * The behaviour block needs one — every /v1 request opens a connection through
- * authMiddleware — so it is gated on TEST_DATABASE_URL (see vitest.config.ts).
+ * authMiddleware — so it is gated on local D1 (see vitest.config.ts).
  */
 describe("DELETE /v1/account contract", () => {
   async function deleteAccountOp() {

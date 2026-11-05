@@ -73,6 +73,51 @@ describe("pinned-version edge cache", () => {
     }
   });
 
+  it.each([
+    ["an exact match", '"abc123"'],
+    ["a weak validator", 'W/"abc123"'],
+    ["a list containing it", '"other", "abc123"'],
+    ["a wildcard", "*"],
+  ])("answers 304 on a cache hit for %s", async (_name, ifNoneMatch) => {
+    const original = globalThis.caches;
+    const hit = new Response("body", {
+      headers: { ETag: '"abc123"', "Cache-Control": "public, max-age=60" },
+    });
+    Object.defineProperty(globalThis, "caches", {
+      configurable: true,
+      value: { default: { match: async () => hit.clone(), put: async () => {} } },
+    });
+    try {
+      const res = await deliveryRoutes.request(
+        "/acme/widget@1.2.3/SKILL.md",
+        { headers: { "If-None-Match": ifNoneMatch } },
+        env,
+      );
+      expect(res.status).toBe(304);
+    } finally {
+      Object.defineProperty(globalThis, "caches", { configurable: true, value: original });
+    }
+  });
+
+  it("serves the body on a cache hit when the validator differs", async () => {
+    const original = globalThis.caches;
+    const hit = new Response("body", { headers: { ETag: '"abc123"' } });
+    Object.defineProperty(globalThis, "caches", {
+      configurable: true,
+      value: { default: { match: async () => hit.clone(), put: async () => {} } },
+    });
+    try {
+      const res = await deliveryRoutes.request(
+        "/acme/widget@1.2.3/SKILL.md",
+        { headers: { "If-None-Match": '"different"' } },
+        env,
+      );
+      expect(res.status).toBe(200);
+    } finally {
+      Object.defineProperty(globalThis, "caches", { configurable: true, value: original });
+    }
+  });
+
   it("does not cache a non-200 (missing skill fails closed)", async () => {
     const c = stubCaches();
     try {

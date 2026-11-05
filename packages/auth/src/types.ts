@@ -1,4 +1,4 @@
 import type * as schema from "@skillist/db/schema";
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type { DrizzleD1Database } from "drizzle-orm/d1";
 
-export type WorkerDb = PostgresJsDatabase<typeof schema>;
+export type WorkerDb = DrizzleD1Database<typeof schema>;

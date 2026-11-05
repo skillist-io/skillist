@@ -12,7 +12,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Env } from "../env";
-import { closeWorkerDb, createWorkerDb } from "../lib/db";
+import { createWorkerDb } from "../lib/db";
 import { sha256 } from "../lib/r2";
 
 // `skillist sync` materializes one skill into every agent harness in a project
@@ -23,9 +23,9 @@ import { sha256 } from "../lib/r2";
 //   2. The per-harness rows do NOT multiply the public ranking counter — that
 //      stays deduped per actor/day (see security-p0.test.ts H2).
 //
-// Requires a real Postgres (INTEGRATION_DB from TEST_DATABASE_URL); see
+// Requires a real database ; see
 // apps/api/CLAUDE.md.
-const REAL_DB = Boolean((env as Record<string, unknown>).INTEGRATION_DB);
+const REAL_DB = true;
 
 describe.skipIf(!REAL_DB)("telemetry harness attribution (requires DB)", () => {
   let db: ReturnType<typeof createWorkerDb>;
@@ -78,7 +78,6 @@ describe.skipIf(!REAL_DB)("telemetry harness attribution (requires DB)", () => {
     await db.delete(telemetryEvents).where(eq(telemetryEvents.orgSlug, orgSlug));
     await db.delete(organizations).where(eq(organizations.id, orgId));
     await db.delete(users).where(eq(users.id, userId));
-    await closeWorkerDb(db);
   });
 
   it("persists harness and scope on the event row", async () => {

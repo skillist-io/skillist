@@ -71,7 +71,7 @@ export function routeShape(path: string): string {
 
 /**
  * What makes two failures "the same". Source plus the innermost error code — so
- * a connection drop and a constraint violation on one route stay distinct, while
+ * a busy database and a constraint violation on one route stay distinct, while
  * the same fault repeating is one alert.
  */
 export function fingerprint(
@@ -86,7 +86,7 @@ export function fingerprint(
  * A body safe to send off-platform: identifiers only, no message text.
  *
  * Deliberately excludes `message` at every level. A Drizzle message carries the
- * query and its bound params; a Postgres one can echo row values. The
+ * query and its bound params; a database one can echo row values. The
  * correlation id is the join key back to the full detail in Workers Logs.
  */
 function alertSummary(ctx: AlertContext, detail: ErrorDetail & { causes?: ErrorDetail[] }) {
@@ -95,8 +95,6 @@ function alertSummary(ctx: AlertContext, detail: ErrorDetail & { causes?: ErrorD
     route: ctx.source,
     errorType: root.name ?? "Error",
     errorCode: root.code ?? null,
-    severity: root.severity ?? null,
-    constraint: root.constraint ?? null,
     correlationId: ctx.correlationId,
   };
 }
@@ -129,7 +127,6 @@ async function postToSlack(webhookUrl: string, summary: ReturnType<typeof alertS
   const lines = [
     `*Unhandled error* — \`${summary.route}\``,
     `type: \`${summary.errorType}\`${summary.errorCode ? ` · code: \`${summary.errorCode}\`` : ""}`,
-    summary.constraint ? `constraint: \`${summary.constraint}\`` : null,
     `correlation id: \`${summary.correlationId}\``,
     `_Repeats of this fault are suppressed for the next hour._`,
   ].filter(Boolean);
@@ -147,8 +144,6 @@ async function sendAlertEmail(env: Env, to: string, summary: ReturnType<typeof a
     "",
     `Type:           ${summary.errorType}`,
     `Code:           ${summary.errorCode ?? "—"}`,
-    `Severity:       ${summary.severity ?? "—"}`,
-    `Constraint:     ${summary.constraint ?? "—"}`,
     `Correlation id: ${summary.correlationId}`,
     "",
     "Full detail is in Workers Logs — search the correlation id.",

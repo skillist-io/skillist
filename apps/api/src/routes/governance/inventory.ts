@@ -4,6 +4,7 @@ import { organizations, registryEntries, skillInventory, skills } from "@skillis
 import { scanSkillSecurity } from "@skillist/skill-format";
 import { and, desc, eq, getTableColumns, inArray } from "drizzle-orm";
 import { logAudit } from "../../lib/audit";
+import { inList } from "../../lib/db";
 import { errorResponses } from "../../lib/openapi";
 import { requireOrgAccess } from "../../lib/org-access";
 import type { AppEnv } from "./shared";
@@ -102,10 +103,7 @@ inventoryRoutes.openapi(inventoryScanRoute, async (c) => {
           })
           .from(skillInventory)
           .where(
-            and(
-              eq(skillInventory.orgId, orgId),
-              inArray(skillInventory.repoFullName, scannedRepos),
-            ),
+            and(eq(skillInventory.orgId, orgId), inList(skillInventory.repoFullName, scannedRepos)),
           )
       : [];
   const previousKeys = new Set(previous.map((p) => `${p.repoFullName}\0${p.filePath}`));

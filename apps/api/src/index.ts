@@ -12,11 +12,12 @@ import { runAiJob } from "./lib/ai";
 import { alertBackgroundError, alertUnhandledError, requestSource } from "./lib/alert";
 import { createApiAuth, createApiEmailSender } from "./lib/api-auth";
 import { authMiddleware } from "./lib/auth-middleware";
+import { checkDatabaseSize } from "./lib/database-size";
 import {
   assertProductionBindings,
-  closeWorkerDb,
   createWorkerDb,
   isProductionEnv,
+  isTransientD1Error,
   safeExecutionCtx,
 } from "./lib/db";
 import { describeError, persistableErrorMessage } from "./lib/error-detail";
@@ -60,8 +61,8 @@ export { SkillRealtimeHub };
 
 const app = new OpenAPIHono<{ Bindings: Env }>();
 
-// Fail loud on production config drift (missing cache-disabled Hyperdrive /
-// distributed rate limiter) before handling any request.
+// Warn on production config drift (a missing distributed rate limiter) before
+// handling any request.
 app.use("*", async (c, next) => {
   assertProductionBindings(c.env);
   await next();
@@ -133,6 +134,10 @@ app.onError((err, c) => {
       source: requestSource(c.req.method, c.req.path),
     }),
   );
+  if (isTransientD1Error(err)) {
+    c.header("Retry-After", "1");
+    return c.json({ error: "Service temporarily unavailable", correlationId }, 503);
+  }
   return c.json({ error: "Internal Server Error", correlationId }, 500);
 });
 
@@ -159,28 +164,22 @@ app.use(
   }),
 );
 // /mcp is unauthenticated for registry reads, so it is the one surface with an
-// unthrottled path to Postgres. Registered before the handler — Hono applies
+// unthrottled path to the database. Registered before the handler — Hono applies
 // middleware in registration order.
 app.use("/mcp", rateLimit(60, 60_000, "AUTH_RATE_LIMITER"));
 app.all("/mcp", handleMcpRequest);
 app.options("/mcp", (c) => c.body(null, 204));
 
 app.get("/.well-known/oauth-authorization-server", async (c) => {
-  const { auth, db } = createApiAuth(c.env, createApiEmailSender(c.env));
-  try {
-    return await oAuthDiscoveryMetadata(auth)(c.req.raw);
-  } finally {
-    closeWorkerDb(db, safeExecutionCtx(c));
-  }
+  const { auth } = createApiAuth(c.env, createApiEmailSender(c.env));
+
+  return await oAuthDiscoveryMetadata(auth)(c.req.raw);
 });
 
 app.get("/.well-known/oauth-protected-resource", async (c) => {
-  const { auth, db } = createApiAuth(c.env, createApiEmailSender(c.env));
-  try {
-    return await oAuthProtectedResourceMetadata(auth)(c.req.raw);
-  } finally {
-    closeWorkerDb(db, safeExecutionCtx(c));
-  }
+  const { auth } = createApiAuth(c.env, createApiEmailSender(c.env));
+
+  return await oAuthProtectedResourceMetadata(auth)(c.req.raw);
 });
 
 // Production origins are always allowed. Console opens the platform agent
@@ -225,7 +224,7 @@ app.use("*", async (c, next) => {
   });
 });
 
-// `?deep=1` actually touches Postgres, KV, and R2 and returns 503 when any of
+// `?deep=1` actually touches D1, KV, and R2 and returns 503 when any of
 // them is down. The default shallow response reports static config only, so it
 // answered "ok" with a dead database behind it — point uptime monitoring at the
 // deep variant.
@@ -264,7 +263,7 @@ app.get("/health", async (c) => {
 // endpoints were completely unthrottled.
 //
 // Session READS get their own, much larger namespace. They are authenticated
-// and normally served from the 60s cookie cache without touching Postgres, but
+// and normally served from the 60s cookie cache without touching D1, but
 // the console calls `get-session` on every route `beforeLoad` (and every
 // hover-preload, since `defaultPreload: "intent"` runs beforeLoad). The limiter
 // key is per-IP and truncated to `/api/auth`, so every auth endpoint shared one
@@ -289,17 +288,8 @@ app.use("/api/auth/*", (c, next) =>
   SESSION_READ_PATHS.has(c.req.path) ? sessionLimiter(c, next) : authLimiter(c, next),
 );
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
-  const { auth, db } = createApiAuth(c.env, createApiEmailSender(c.env));
-  try {
-    return await auth.handler(c.req.raw);
-  } finally {
-    // Release the Postgres connection the auth instance holds. Without this the
-    // socket lingers until the isolate is evicted, so auth traffic accumulates
-    // connections against Hyperdrive's upstream pool far beyond what the request
-    // rate implies — and pool exhaustion surfaces as an intermittent 500 on
-    // get-session, which the console also renders as a signed-out user.
-    closeWorkerDb(db, safeExecutionCtx(c));
-  }
+  const { auth } = createApiAuth(c.env, createApiEmailSender(c.env));
+  return await auth.handler(c.req.raw);
 });
 
 // Platform agent (Cloudflare Agents SDK). Auth-gated on the Better Auth session
@@ -332,12 +322,10 @@ app.all("/agents/*", async (c) => {
   const db = createWorkerDb(c.env);
   let userId: string | null;
   let membership: Awaited<ReturnType<typeof getOrgMembership>>;
-  try {
-    userId = await resolveSessionUserId(db, c.env, c.req.raw.headers);
-    membership = userId ? await getOrgMembership(db, orgId, userId) : null;
-  } finally {
-    closeWorkerDb(db, c.executionCtx);
-  }
+
+  userId = await resolveSessionUserId(db, c.env, c.req.raw.headers);
+  membership = userId ? await getOrgMembership(db, orgId, userId) : null;
+
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
   if (!membership) return c.json({ error: "Forbidden" }, 403);
 
@@ -477,23 +465,21 @@ export default {
     // FailureMiningWorkflow for each.
     if (cron === "0 */6 * * *") {
       const db = createWorkerDb(env);
-      try {
-        const { skillRuns } = await import("@skillist/db/schema");
-        const { and, desc, eq, gte, sql } = await import("drizzle-orm");
-        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const rows = await db
-          .select({ skillId: skillRuns.skillId })
-          .from(skillRuns)
-          .where(and(eq(skillRuns.status, "failed"), gte(skillRuns.createdAt, since)))
-          .groupBy(skillRuns.skillId)
-          .orderBy(desc(sql`count(*)`))
-          .limit(25);
-        for (const { skillId } of rows) {
-          ctx.waitUntil(env.FAILURE_WORKFLOW.create({ params: { skillId } }));
-        }
-      } finally {
-        closeWorkerDb(db, ctx);
+
+      const { skillRuns } = await import("@skillist/db/schema");
+      const { and, desc, eq, gte, sql } = await import("drizzle-orm");
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const rows = await db
+        .select({ skillId: skillRuns.skillId })
+        .from(skillRuns)
+        .where(and(eq(skillRuns.status, "failed"), gte(skillRuns.createdAt, since)))
+        .groupBy(skillRuns.skillId)
+        .orderBy(desc(sql`count(*)`))
+        .limit(25);
+      for (const { skillId } of rows) {
+        ctx.waitUntil(env.FAILURE_WORKFLOW.create({ params: { skillId } }));
       }
+
       return;
     }
     // Daily 06:00 UTC: mirror sync, plus data retention. Retention runs on its
@@ -542,14 +528,7 @@ export default {
     }
 
     const db = createWorkerDb(env);
-    try {
-      await handleAiJobBatch(env, db, batch);
-    } finally {
-      // Queue consumers are long-lived relative to a request and run at
-      // whatever concurrency Queues chooses, so an unreleased connection per
-      // invocation is the fastest way to exhaust the upstream pool.
-      closeWorkerDb(db);
-    }
+    await handleAiJobBatch(env, db, batch);
   },
 };
 
@@ -565,6 +544,7 @@ async function runDailyRetention(env: Env): Promise<void> {
     const { applyRetention, hasMoreWork } = await import("./lib/retention");
     const report = await applyRetention(db);
     console.log(JSON.stringify({ msg: "retention_complete", ...report }));
+    await checkDatabaseSize(env);
     if (hasMoreWork(report)) {
       // Hit the per-run batch cap, so a backlog remains. Expected on the first
       // few runs after launch; sustained, it means a window needs revisiting.
@@ -582,8 +562,6 @@ async function runDailyRetention(env: Env): Promise<void> {
         error: describeError(err),
       }),
     );
-  } finally {
-    closeWorkerDb(db);
   }
 }
 
@@ -655,8 +633,6 @@ async function handleDeadLetterBatch(
         error: describeError(err),
       }),
     );
-  } finally {
-    closeWorkerDb(db);
   }
 
   for (const message of batch.messages) message.ack();

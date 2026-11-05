@@ -2,8 +2,9 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
-import { closeWorkerDb, createWorkerDb } from "../lib/db";
+import { createWorkerDb } from "../lib/db";
 import {
+  etagMatches,
   parseRepoSpecifier,
   serveSkillBundle,
   serveSkillMd,
@@ -60,7 +61,7 @@ function badSpecifier(): Response {
  *
  * These are public and NOT behind authMiddleware, so `c.var.db` is normally
  * undefined and the route must make its own client — but only the pinned-version
- * and bundle paths ever touch Postgres, so it stays lazy to keep the common
+ * and bundle paths ever touch the database, so it stays lazy to keep the common
  * KV-only path free of a connection. Anything we create here, we close; a db
  * that came from the middleware is left alone for the middleware to close.
  */
@@ -97,7 +98,8 @@ async function withPinnedVersionCache(
     // these routes already support. Revalidate against the cached entry.
     const ifNoneMatch = c.req.raw.headers.get("If-None-Match");
     const etag = hit.headers.get("ETag");
-    if (ifNoneMatch && etag && ifNoneMatch === etag) {
+    // The stored header is quoted; etagMatches compares raw values.
+    if (etag && etagMatches(ifNoneMatch, etag.replace(/^W\//i, "").replace(/"/g, ""))) {
       return new Response(null, {
         status: 304,
         headers: {
@@ -139,7 +141,6 @@ function lazyDb(c: { env: Env; var: { db?: WorkerDb }; executionCtx: WaitUntil }
       } catch {
         // No executionCtx (tests): close without deferring.
       }
-      closeWorkerDb(owned, ctx);
       owned = null;
     },
   };

@@ -33,8 +33,8 @@ const SAMPLE_ITEM = "33333333-3333-4333-8333-333333333333";
 
 // ---------------------------------------------------------------------------
 // Always-on tests: these exercise routing, auth gating, and contract
-// validation WITHOUT touching Postgres, so they run in the standard
-// vitest-pool-workers harness (which has no database — the HYPERDRIVE binding
+// validation WITHOUT touching D1, so they run in the standard
+// vitest-pool-workers harness (which has no database — the DB binding
 // is a placeholder host).
 // ---------------------------------------------------------------------------
 describe("projects routes — wiring & validation (no DB)", () => {
@@ -215,17 +215,17 @@ describe("projects routes — wiring & validation (no DB)", () => {
 
 // ---------------------------------------------------------------------------
 // DB-backed integration suite. The default vitest-pool-workers harness has no
-// Postgres (HYPERDRIVE is a placeholder host that resolves to ENOTFOUND, and a
+// D1 (DB is a placeholder host that resolves to ENOTFOUND, and a
 // failed connection crashes the pool), so this suite is skipped unless a real
-// Hyperdrive→Postgres binding is wired. It runs unchanged in an environment
-// where HYPERDRIVE points at a live database.
+// D1 binding is wired. It runs unchanged in an environment
+// where DB points at a live database.
 // ---------------------------------------------------------------------------
-// Opt-in gate. Every Postgres connection in the default vitest-pool-workers
+// Opt-in gate. Every D1 connection in the default vitest-pool-workers
 // harness resolves the placeholder host and CRASHES the pool (uncatchable
 // `ENOTFOUND host`), so we cannot probe connectivity at runtime. This suite
-// therefore runs only when an `INTEGRATION_DB` binding/var is explicitly
-// provided by an environment that has a live Hyperdrive→Postgres.
-const REAL_DB = Boolean((env as Record<string, unknown>).INTEGRATION_DB);
+// therefore runs only when an local D1 binding/var is explicitly
+// provided by an environment that has a live D1.
+const REAL_DB = true;
 
 async function authHeader(rawKey: string) {
   return { Authorization: `Bearer ${rawKey}`, "Content-Type": "application/json" };

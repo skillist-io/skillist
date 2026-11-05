@@ -2,7 +2,7 @@
 
 Realtime Agent Skills management, improvement, and versioning platform for [skillist.dev](https://skillist.dev).
 
-Built on Cloudflare Workers with Hono, Durable Objects, KV, R2, Worker AI, AI Gateway, Neon Postgres via Hyperdrive, and Better Auth (passwordless). Compliant with the [agentskills.io](https://agentskills.io/home) specification.
+Built on Cloudflare Workers with Hono, Durable Objects, KV, R2, Worker AI, AI Gateway, D1, and Better Auth (passwordless). Compliant with the [agentskills.io](https://agentskills.io/home) specification.
 
 ## Stack
 
@@ -10,7 +10,7 @@ Built on Cloudflare Workers with Hono, Durable Objects, KV, R2, Worker AI, AI Ga
 |-------|------------|
 | API | Hono, zod-openapi, Scalar docs |
 | Realtime | Durable Objects (WebSocket + SSE), KV hot path |
-| Storage | R2 (bundles), KV (published SKILL.md), Neon + Hyperdrive |
+| Storage | D1 (metadata), R2 (bundles), KV (published SKILL.md) |
 | Auth | Better Auth — OAuth, magic link, passkeys (no passwords) |
 | AI | Worker AI + AI Gateway, Queues for async jobs |
 | Front-end | Vite, TanStack Router/Query, shadcn/ui, Tailwind CSS v4 — split into `apps/web` (marketing) + `apps/console` (product) over shared `packages/ui` |
@@ -51,12 +51,7 @@ Copy `apps/api/.dev.vars.example` → `apps/api/.dev.vars` and set `GITHUB_CLIEN
 ```bash
 pnpm install
 pnpm setup:local        # creates .env, .dev.vars, wrangler.local.jsonc
-# then set NEON_API_KEY in .env (see .env.example) — needed by Neon Local
-
-pnpm db:up              # Neon Local: fresh ephemeral branch at localhost:5432 (needs Docker)
-pnpm db:migrate:local   # apply migrations to that branch
-# ... work ...
-# pnpm db:down          # stop Neon Local (the ephemeral branch is deleted)
+pnpm db:migrate         # create the local D1
 
 # Terminal 1 — API
 pnpm dev:api
@@ -76,7 +71,7 @@ pnpm dev:docs
 - Web (marketing): http://localhost:5173
 - Console (product): http://localhost:5174
 
-Local dev uses **Neon Local** (`docker-compose.yml`): `pnpm db:up` spawns an ephemeral branch off the clean `local-baseline` parent of Neon project `lively-dew-31540211` at `localhost:5432`, and `pnpm db:down` deletes it — so each run gets an isolated, throwaway database. `setup:local` points `DATABASE_URL` (and the Hyperdrive local connection) at it; migrations run via `db:migrate:local`. To use a Neon cloud branch directly instead, set `DATABASE_URL` in `.env` and skip `db:up`.
+Local dev uses a local D1 through Wrangler, so there is no database to run.
 
 ## Smoke tests
 
@@ -148,11 +143,11 @@ Each front-end app is a Cloudflare Worker serving static assets with a **service
 ## Deploy
 
 ```bash
-# Create Cloudflare resources (KV, R2, Hyperdrive, Queue)
+# Create Cloudflare resources (KV, R2, D1, Queue)
 cd apps/api
 wrangler kv namespace create SKILLS_KV
 wrangler r2 bucket create skillist-skills
-wrangler hyperdrive create skillist-db --connection-string="$DATABASE_URL"
+wrangler d1 create skillist --location enam
 wrangler secret put BETTER_AUTH_SECRET
 
 ./scripts/deploy-api.sh
@@ -167,7 +162,6 @@ GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on 
 | Secret | Used by | Purpose |
 |--------|---------|---------|
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | all deploy jobs | Cloudflare deploys |
-| `PRODUCTION_DATABASE_URL` | `deploy-api` | applies pending migrations **before** the Worker that reads them ships. Missing → the deploy fails rather than shipping code against an unmigrated schema |
 | `SKILLIST_E2E_API_KEY` | `smoke` | authenticated post-deploy checks; missing → those tests skip silently |
 | `NPM_TOKEN` | release | package publishing |
 
@@ -176,7 +170,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on 
 | Resource | ID / name |
 |----------|-----------|
 | KV `SKILLS_KV` | `e3efe45d7f14430ab6c5868235e6755f` |
-| Hyperdrive `skillist-db` | `3864600443334cd68ad86d592df9fd4a` |
+| D1 `skillist` | `9b901aed-8945-4574-ae3c-65c9430d05c2` |
 | R2 bucket | `skillist-skills` |
 | Queue | `skillist-ai-jobs` |
 

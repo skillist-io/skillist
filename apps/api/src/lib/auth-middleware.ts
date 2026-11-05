@@ -2,7 +2,7 @@ import { apiKeys } from "@skillist/db/schema";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import type { Env } from "../env";
-import { closeWorkerDb, createWorkerDb } from "./db";
+import { createWorkerDb } from "./db";
 import { sha256 } from "./r2";
 import { resolveSessionUserId } from "./session";
 
@@ -78,7 +78,6 @@ export const authMiddleware = createMiddleware<{
     } catch {
       // No executionCtx (tests): close without deferring.
     }
-    closeWorkerDb(db, ctx);
   }
 });
 

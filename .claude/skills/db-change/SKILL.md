@@ -1,7 +1,7 @@
 ---
 name: db-change
 description: >-
-  The correct flow for changing the Postgres schema (packages/db, Drizzle):
+  The correct flow for changing the D1 schema (packages/db, Drizzle):
   edit schema.ts, generate the migration, migrate. Use when adding/altering
   tables, columns, enums, indexes, or relations.
 paths:
@@ -16,12 +16,12 @@ Change requested: `$ARGUMENTS`
 ## The only correct flow
 
 1. **Edit `packages/db/src/schema.ts`** — the single source of truth (~30 `pgTable`s + `pgEnum`s). Match existing naming, enum reuse, `references()` relations, and timestamp conventions. Enums shared with the app mirror `@skillist/contracts` — keep them in sync.
-2. **`pnpm db:generate`** — drizzle-kit writes SQL to `packages/db/drizzle/NNNN_*.sql` and updates `meta/_journal.json`.
-3. **`pnpm db:migrate`** — applies against `DATABASE_URL` from the root `.env`.
+2. **`pnpm db:generate`** — drizzle-kit writes SQL to `packages/db/migrations/NNNN_*.sql` and updates `meta/_journal.json`.
+3. **`pnpm db:migrate`** — applies to the local D1. CI applies to production before it deploys.
 
 ## Rules
 
-- 🚫 **Never hand-edit `packages/db/drizzle/`** — it's generated and Biome-ignored. Wrong SQL? Fix `schema.ts` and regenerate.
+- 🚫 **Never hand-edit `packages/db/migrations/`** — it's generated and Biome-ignored. Wrong SQL? Fix `schema.ts` and regenerate.
 - Prefer additive, backward-compatible changes. For any drop/rename/type-narrow, state the data-loss risk before running `db:migrate`.
 - After changing a table, grep `apps/api/src` for readers/writers and update contracts + route handlers to match. The Worker reads the schema via `createWorkerDb(env)` over the `HYPERDRIVE` binding.
 

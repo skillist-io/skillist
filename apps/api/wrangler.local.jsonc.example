@@ -1,12 +1,5 @@
 {
   "main": "src/index.ts",
   "compatibility_date": "2025-01-15",
-  "compatibility_flags": ["nodejs_compat"],
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "local-hyperdrive",
-      "localConnectionString": "postgresql://user:pass@host/neondb?sslmode=require"
-    }
-  ]
+  "compatibility_flags": ["nodejs_compat"]
 }

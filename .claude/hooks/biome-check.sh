@@ -15,7 +15,7 @@ esac
 
 # Skip generated / ignored paths (Biome ignores them too, but avoid the spawn).
 case "$file" in
-  */routeTree.gen.ts | */packages/db/drizzle/* | */dist/* | */.wrangler/* | */.turbo/*) exit 0 ;;
+  */routeTree.gen.ts | */packages/db/migrations/* | */dist/* | */.wrangler/* | */.turbo/*) exit 0 ;;
 esac
 
 cd "${CLAUDE_PROJECT_DIR:-.}"

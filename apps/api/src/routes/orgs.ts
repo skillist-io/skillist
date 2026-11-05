@@ -122,16 +122,17 @@ orgRoutes.openapi(createOrgRoute, async (c) => {
   const userId = await resolveUserId(c);
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
   const body = c.req.valid("json");
-  const [org] = await c.var.db
-    .insert(organizations)
-    .values({ name: body.name, slug: body.slug })
-    .returning();
+  // One batch: an org with no owner would be unreachable and hold its slug forever.
+  const orgId = crypto.randomUUID();
+  const [inserted] = await c.var.db.batch([
+    c.var.db
+      .insert(organizations)
+      .values({ id: orgId, name: body.name, slug: body.slug })
+      .returning(),
+    c.var.db.insert(orgMembers).values({ orgId, userId, role: "owner" }),
+  ]);
+  const org = inserted[0];
   if (!org) return c.json({ error: "Failed to create org" }, 500);
-  await c.var.db.insert(orgMembers).values({
-    orgId: org.id,
-    userId,
-    role: "owner",
-  });
   return c.json(org, 201);
 });
 

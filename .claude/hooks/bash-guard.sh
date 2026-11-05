@@ -13,7 +13,7 @@ deny() {
 }
 
 # 1) Shell writes (redirect / tee / sed -i / cp / mv) into generated or secret files.
-if printf '%s' "$cmd" | grep -Eq '(>>?|[[:space:]]tee[[:space:]]|sed[[:space:]]+(-i|--in-place)|(^|[[:space:]])(cp|mv)[[:space:]]).*(routeTree\.gen\.ts|packages/db/drizzle/|\.dev\.vars|wrangler\.local\.jsonc|(^|[[:space:]/])\.env([[:space:]]|$|\.local))'; then
+if printf '%s' "$cmd" | grep -Eq '(>>?|[[:space:]]tee[[:space:]]|sed[[:space:]]+(-i|--in-place)|(^|[[:space:]])(cp|mv)[[:space:]]).*(routeTree\.gen\.ts|packages/db/migrations/|\.dev\.vars|wrangler\.local\.jsonc|(^|[[:space:]/])\.env([[:space:]]|$|\.local))'; then
   deny "Command writes to a generated or secret file. Generated code: edit the source (packages/db/src/schema.ts, apps/web/src/routes/) and regenerate. Secrets: edit the committed .example template or run \`pnpm setup:local\`."
 fi
 

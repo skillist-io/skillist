@@ -9,7 +9,7 @@ import {
   telemetryEvents,
 } from "@skillist/db/schema";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import type { WorkerDb } from "./db";
+import { inList, type WorkerDb } from "./db";
 
 const ref = (orgSlug: string, skillRepo: string) => `${orgSlug}/${skillRepo}`;
 
@@ -80,7 +80,7 @@ export async function computeCoverage(db: WorkerDb, orgId: string): Promise<Cove
   const published = await db
     .select({ orgSlug: registryEntries.orgSlug, skillRepo: registryEntries.skillRepo })
     .from(registryEntries)
-    .where(inArray(registryEntries.skillRepo, repos));
+    .where(inList(registryEntries.skillRepo, repos));
   const publishedSet = new Set(published.map((p) => ref(p.orgSlug, p.skillRepo)));
 
   // Layer 2a — covered via inventory: distinct scanned repos that carry a
@@ -89,7 +89,7 @@ export async function computeCoverage(db: WorkerDb, orgId: string): Promise<Cove
     .select({
       orgSlug: skillInventory.registryOrgSlug,
       skillRepo: skillInventory.registryRepo,
-      repoCount: sql<number>`count(distinct ${skillInventory.repoFullName})::int`,
+      repoCount: sql<number>`count(distinct ${skillInventory.repoFullName})`,
     })
     .from(skillInventory)
     .where(and(eq(skillInventory.orgId, orgId), eq(skillInventory.managed, true)))
@@ -106,7 +106,7 @@ export async function computeCoverage(db: WorkerDb, orgId: string): Promise<Cove
     .select({
       orgSlug: organizations.slug,
       skillRepo: skills.repo,
-      projectCount: sql<number>`count(distinct ${projectItems.projectId})::int`,
+      projectCount: sql<number>`count(distinct ${projectItems.projectId})`,
     })
     .from(projectItems)
     .innerJoin(projects, eq(projects.id, projectItems.projectId))
@@ -122,14 +122,14 @@ export async function computeCoverage(db: WorkerDb, orgId: string): Promise<Cove
     .select({
       orgSlug: telemetryEvents.orgSlug,
       skillRepo: telemetryEvents.skillRepo,
-      installs: sql<number>`count(*) filter (where ${telemetryEvents.eventType} = 'install')::int`,
-      activations: sql<number>`count(*) filter (where ${telemetryEvents.eventType} = 'activation')::int`,
+      installs: sql<number>`count(*) filter (where ${telemetryEvents.eventType} = 'install')`,
+      activations: sql<number>`count(*) filter (where ${telemetryEvents.eventType} = 'activation')`,
       lastActivatedAt: sql<
-        string | null
+        number | null
       >`max(${telemetryEvents.createdAt}) filter (where ${telemetryEvents.eventType} = 'activation')`,
     })
     .from(telemetryEvents)
-    .where(inArray(telemetryEvents.skillRepo, repos))
+    .where(inList(telemetryEvents.skillRepo, repos))
     .groupBy(telemetryEvents.orgSlug, telemetryEvents.skillRepo);
   const telemetryMap = new Map<
     string,
@@ -139,7 +139,7 @@ export async function computeCoverage(db: WorkerDb, orgId: string): Promise<Cove
     telemetryMap.set(ref(row.orgSlug, row.skillRepo), {
       installs: row.installs,
       activations: row.activations,
-      lastActivatedAt: row.lastActivatedAt,
+      lastActivatedAt: row.lastActivatedAt ? new Date(row.lastActivatedAt).toISOString() : null,
     });
   }
 

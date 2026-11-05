@@ -14,7 +14,7 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
-import { closeWorkerDb, createWorkerDbCached, type WorkerDb } from "../lib/db";
+import { createReadDb, type WorkerDb } from "../lib/db";
 import { errorResponses, okSchema } from "../lib/openapi";
 import { listRegistry } from "../lib/registry-service";
 import { resolveUserId } from "../lib/session";
@@ -26,6 +26,16 @@ type AppEnv = {
   Bindings: Env;
   Variables: { auth: AuthContext; db: WorkerDb };
 };
+
+/**
+ * Public browse pages are the same for every caller and tolerate a minute of
+ * staleness, so the edge can answer them without the Worker or D1 running at
+ * all (`cache` in wrangler.production.jsonc). This is what keeps read traffic off
+ * the single database, so it must stay on any route that serves browse data.
+ * `stale-if-error` keeps the registry readable through a database failure.
+ */
+const REGISTRY_CACHE_CONTROL =
+  "public, max-age=60, stale-while-revalidate=300, stale-if-error=86400";
 
 export const registryRoutes = new OpenAPIHono<AppEnv>();
 
@@ -106,17 +116,13 @@ const listRegistryRoute = createRoute({
 
 registryRoutes.openapi(listRegistryRoute, async (c) => {
   const query = c.req.valid("query");
-  // Public registry browse is high-volume and tolerates ~60s staleness, so it
-  // uses the caching-enabled Hyperdrive binding. The query itself is the shared
-  // listRegistry() — this route previously kept a byte-for-byte copy of the
-  // filter and ordering logic, so a change to one silently did nothing in the
-  // other.
-  const db = createWorkerDbCached(c.env);
-  try {
-    return c.json(await listRegistry(db, query));
-  } finally {
-    closeWorkerDb(db, c.executionCtx);
-  }
+  // The query is the shared listRegistry(): this route previously kept a
+  // byte-for-byte copy of the filter and ordering logic, so a change to one
+  // silently did nothing in the other.
+  const body = await listRegistry(createReadDb(c.env), query);
+  // Set after the query: a header set first would ride along on an error response.
+  c.header("Cache-Control", REGISTRY_CACHE_CONTROL);
+  return c.json(body);
 });
 
 const registryFacetsRoute = createRoute({
@@ -146,48 +152,42 @@ const registryFacetsRoute = createRoute({
 });
 
 registryRoutes.openapi(registryFacetsRoute, async (c) => {
-  // Facets are staleness-tolerant public browse data — use the cached binding.
-  const db = createWorkerDbCached(c.env);
-  try {
-    const categoryRows = await db
-      .selectDistinct({ category: registryEntries.category })
-      .from(registryEntries)
-      .where(sql`${registryEntries.category} IS NOT NULL`);
+  const db = createReadDb(c.env);
 
-    // Expand the jsonb string arrays and dedupe in SQL rather than scanning every
-    // row into memory. `tags`/`compatible_agents` are non-null jsonb string arrays;
-    // set-returning `jsonb_array_elements_text` yields no rows for empty arrays.
-    const tagRows = await db
-      .selectDistinct({ tag: sql<string>`jsonb_array_elements_text(${registryEntries.tags})` })
-      .from(registryEntries);
+  const categoryRows = await db
+    .selectDistinct({ category: registryEntries.category })
+    .from(registryEntries)
+    .where(sql`${registryEntries.category} IS NOT NULL`);
 
-    const agentRows = await db
-      .selectDistinct({
-        agent: sql<string>`jsonb_array_elements_text(${registryEntries.compatibleAgents})`,
-      })
-      .from(registryEntries);
+  // Expand the JSON string arrays and dedupe in SQL rather than scanning every
+  // row into memory. json_each yields no rows for an empty array.
+  const tagRows = await db.all<{ tag: string }>(
+    sql`SELECT DISTINCT je.value AS tag FROM ${registryEntries}, json_each(${registryEntries.tags}) AS je`,
+  );
 
-    return c.json(
-      {
-        categories: categoryRows
-          .map((r) => r.category)
-          .filter(Boolean)
-          .sort(),
-        tags: tagRows
-          .map((r) => r.tag)
-          .filter(Boolean)
-          .sort(),
-        agents: agentRows
-          .map((r) => r.agent)
-          .filter(Boolean)
-          .sort(),
-        sourceTypes: ["native", "mirror"],
-      },
-      200,
-    );
-  } finally {
-    closeWorkerDb(db, c.executionCtx);
-  }
+  const agentRows = await db.all<{ agent: string }>(
+    sql`SELECT DISTINCT je.value AS agent FROM ${registryEntries}, json_each(${registryEntries.compatibleAgents}) AS je`,
+  );
+
+  c.header("Cache-Control", REGISTRY_CACHE_CONTROL);
+  return c.json(
+    {
+      categories: categoryRows
+        .map((r) => r.category)
+        .filter(Boolean)
+        .sort(),
+      tags: tagRows
+        .map((r) => r.tag)
+        .filter(Boolean)
+        .sort(),
+      agents: agentRows
+        .map((r) => r.agent)
+        .filter(Boolean)
+        .sort(),
+      sourceTypes: ["native", "mirror"],
+    },
+    200,
+  );
 });
 
 const getRegistrySkillRoute = createRoute({
@@ -303,6 +303,19 @@ registryRoutes.openapi(getRegistrySkillRoute, async (c) => {
   );
 });
 
+/**
+ * Recount rather than increment: a batch can't branch on whether the star row
+ * actually changed, and a recount also repairs any drift. `updatedAt` feeds the
+ * "recent" sort, so a no-op re-star must not touch the row.
+ */
+export function syncStarCount(db: WorkerDb, skillId: string) {
+  const count = sql`(SELECT count(*) FROM ${registryStars} WHERE ${registryStars.skillId} = ${skillId})`;
+  return db
+    .update(registryEntries)
+    .set({ stars: count, updatedAt: new Date() })
+    .where(and(eq(registryEntries.skillId, skillId), sql`${registryEntries.stars} != ${count}`));
+}
+
 const starSkillRoute = createRoute({
   method: "post",
   path: "/registry/{org}/{repo}/star",
@@ -338,23 +351,10 @@ registryRoutes.openapi(starSkillRoute, async (c) => {
 
   // Star row + denormalized counter must move together, or a crash between them
   // drifts registry_entries.stars from the true registry_stars count.
-  await c.var.db.transaction(async (tx) => {
-    const inserted = await tx
-      .insert(registryStars)
-      .values({ userId, skillId: entry.skillId })
-      .onConflictDoNothing()
-      .returning();
-
-    if (inserted.length > 0) {
-      await tx
-        .update(registryEntries)
-        .set({
-          stars: sql`${registryEntries.stars} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(registryEntries.skillId, entry.skillId));
-    }
-  });
+  await c.var.db.batch([
+    c.var.db.insert(registryStars).values({ userId, skillId: entry.skillId }).onConflictDoNothing(),
+    syncStarCount(c.var.db, entry.skillId),
+  ]);
 
   return c.json({ ok: true, starred: true }, 201);
 });
@@ -389,22 +389,12 @@ registryRoutes.openapi(unstarSkillRoute, async (c) => {
     .limit(1);
   if (!entry) return c.json({ error: "Not found" }, 404);
 
-  await c.var.db.transaction(async (tx) => {
-    const removed = await tx
+  await c.var.db.batch([
+    c.var.db
       .delete(registryStars)
-      .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, entry.skillId)))
-      .returning();
-
-    if (removed.length > 0) {
-      await tx
-        .update(registryEntries)
-        .set({
-          stars: sql`GREATEST(${registryEntries.stars} - 1, 0)`,
-          updatedAt: new Date(),
-        })
-        .where(eq(registryEntries.skillId, entry.skillId));
-    }
-  });
+      .where(and(eq(registryStars.userId, userId), eq(registryStars.skillId, entry.skillId))),
+    syncStarCount(c.var.db, entry.skillId),
+  ]);
 
   return c.json({ ok: true, starred: false }, 200);
 });
@@ -450,9 +440,9 @@ registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
   // sum every matching event (the rolling `since` window, as before).
   const eventRows = await c.var.db
     .select({
-      day: sql<string>`(${telemetryEvents.createdAt} AT TIME ZONE 'UTC')::date::text`,
+      day: sql<string>`date(${telemetryEvents.createdAt} / 1000, 'unixepoch')`,
       eventType: telemetryEvents.eventType,
-      count: sql<number>`count(*)::int`,
+      count: sql<number>`count(*)`,
     })
     .from(telemetryEvents)
     .where(
@@ -463,7 +453,7 @@ registryRoutes.openapi(registryAnalyticsRoute, async (c) => {
       ),
     )
     .groupBy(
-      sql`(${telemetryEvents.createdAt} AT TIME ZONE 'UTC')::date`,
+      sql`date(${telemetryEvents.createdAt} / 1000, 'unixepoch')`,
       telemetryEvents.eventType,
     );
 

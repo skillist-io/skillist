@@ -27,11 +27,12 @@
     "enabled": true,
     "head_sampling_rate": 1
   },
-  "hyperdrive": [
+  "d1_databases": [
     {
-      "binding": "HYPERDRIVE",
-      "id": "local-hyperdrive",
-      "localConnectionString": "postgresql://user:pass@host/neondb?sslmode=require"
+      "binding": "DB",
+      "database_name": "skillist",
+      "database_id": "local-skillist-db",
+      "migrations_dir": "../../packages/db/migrations"
     }
   ],
   "kv_namespaces": [

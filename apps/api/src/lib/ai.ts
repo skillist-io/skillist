@@ -27,7 +27,7 @@ import {
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import { logAudit } from "./audit";
-import type { WorkerDb } from "./db";
+import { chunkRows, SKILL_FILE_COLUMNS, type WorkerDb } from "./db";
 import { runModel } from "./model";
 import { broadcastPublish, cachePublishedSkill, purgePublishedSkill } from "./publish";
 import { evaluatePublishPolicy } from "./publish-policy";
@@ -121,8 +121,8 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
 
   // Version row, file rows, and job completion move together; onConflictDoNothing
   // makes the insert half idempotent under retry (deterministic ids above).
-  await db.transaction(async (tx) => {
-    await tx
+  await db.batch([
+    db
       .insert(skillVersions)
       .values({
         id: versionId,
@@ -133,21 +133,19 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
         parentVersionId: version.id,
         createdBy: job.submittedBy,
       })
-      .onConflictDoNothing();
-
-    if (fileRows.length > 0) {
-      await tx.insert(skillFiles).values(fileRows).onConflictDoNothing();
-    }
-
-    await tx
+      .onConflictDoNothing(),
+    ...chunkRows(fileRows, SKILL_FILE_COLUMNS).map((rows) =>
+      db.insert(skillFiles).values(rows).onConflictDoNothing(),
+    ),
+    db
       .update(aiJobs)
       .set({
         status: "completed",
         resultDraftVersionId: versionId,
         completedAt: new Date(),
       })
-      .where(eq(aiJobs.id, jobId));
-  });
+      .where(eq(aiJobs.id, jobId)),
+  ]);
 }
 
 /**
@@ -218,14 +216,11 @@ async function commitPublishedVersion(params: {
   const runtime = detectSkillRuntime(bundle);
   const discovery = extractRegistryDiscovery(frontmatter);
 
-  await db.transaction(async (tx) => {
-    // Serialize concurrent publishes of the same skill. Without this lock two
-    // publishes can interleave: each archives the other's not-yet-committed
-    // "published" version and races to set latestPublishedVersionId. Locking the
-    // skills row up front makes the archive → publish → set-latest sequence atomic.
-    await tx.execute(sql`select id from skills where id = ${skill.id} for update`);
-
-    await tx
+  // One batch, so the archive → publish → set-latest sequence is atomic and two
+  // concurrent publishes can't interleave: D1 runs a batch as one transaction on
+  // its single writer, so the later publish simply archives the earlier one.
+  await db.batch([
+    db
       .update(skillVersions)
       .set({ status: "archived" })
       .where(
@@ -234,9 +229,8 @@ async function commitPublishedVersion(params: {
           eq(skillVersions.status, "published"),
           ne(skillVersions.id, version.id),
         ),
-      );
-
-    await tx
+      ),
+    db
       .update(skillVersions)
       .set({
         status: "published",
@@ -249,9 +243,8 @@ async function commitPublishedVersion(params: {
         reviewChecks,
         pluginManifest: pluginManifest ?? null,
       })
-      .where(eq(skillVersions.id, version.id));
-
-    await tx
+      .where(eq(skillVersions.id, version.id)),
+    db
       .update(skills)
       .set({
         latestPublishedVersionId: version.id,
@@ -259,44 +252,45 @@ async function commitPublishedVersion(params: {
         runtime,
         updatedAt: new Date(),
       })
-      .where(eq(skills.id, skill.id));
-
-    if (isPublic) {
-      await tx
-        .insert(registryEntries)
-        .values({
-          skillId: skill.id,
-          orgSlug: org.slug,
-          skillRepo: skill.repo,
-          name: frontmatter.name,
-          description: frontmatter.description,
-          latestVersion: version.semver,
-          qualityScore: review.score,
-          impactScore,
-          securityStatus: security.status,
-          category: discovery.category,
-          tags: discovery.tags,
-          compatibleAgents,
-          lastReviewedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: registryEntries.skillId,
-          set: {
-            name: frontmatter.name,
-            description: frontmatter.description,
-            latestVersion: version.semver,
-            qualityScore: review.score,
-            impactScore,
-            securityStatus: security.status,
-            category: discovery.category,
-            tags: discovery.tags,
-            compatibleAgents,
-            lastReviewedAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
-    }
-  });
+      .where(eq(skills.id, skill.id)),
+    ...(isPublic
+      ? [
+          db
+            .insert(registryEntries)
+            .values({
+              skillId: skill.id,
+              orgSlug: org.slug,
+              skillRepo: skill.repo,
+              name: frontmatter.name,
+              description: frontmatter.description,
+              latestVersion: version.semver,
+              qualityScore: review.score,
+              impactScore,
+              securityStatus: security.status,
+              category: discovery.category,
+              tags: discovery.tags,
+              compatibleAgents,
+              lastReviewedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: registryEntries.skillId,
+              set: {
+                name: frontmatter.name,
+                description: frontmatter.description,
+                latestVersion: version.semver,
+                qualityScore: review.score,
+                impactScore,
+                securityStatus: security.status,
+                category: discovery.category,
+                tags: discovery.tags,
+                compatibleAgents,
+                lastReviewedAt: new Date(),
+                updatedAt: new Date(),
+              },
+            }),
+        ]
+      : []),
+  ]);
 
   // KV is edge-eventual and non-transactional, so write it only after the DB
   // commit — otherwise a rolled-back transaction would leave the edge serving a

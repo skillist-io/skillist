@@ -23,3 +23,5 @@ tests/e2e/.auth/
 .cursor/
 .impeccable/
 !.env.development
+
+# Neon → D1 export: real user data

@@ -10,20 +10,15 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "generate": "drizzle-kit generate",
-    "ensure-extensions": "node scripts/ensure-extensions.mjs",
-    "migrate": "pnpm ensure-extensions && drizzle-kit migrate",
-    "push": "pnpm ensure-extensions && drizzle-kit push"
+    "generate": "drizzle-kit generate"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260721.1",
     "@skillist/tsconfig": "workspace:*",
-    "@types/pg": "^8.20.0",
-    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
-    "pg": "^8.22.0",
     "typescript": "^7.0.2"
   }
 }

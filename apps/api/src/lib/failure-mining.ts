@@ -298,25 +298,25 @@ export async function mineSkillFailures(
         .join("\n")
         .trim();
 
-      const [fb] = await db
-        .insert(feedback)
-        .values({
+      // One batch: a feedback row the pattern doesn't point at would be opened
+      // again on the next run.
+      const feedbackId = crypto.randomUUID();
+      await db.batch([
+        db.insert(feedback).values({
+          id: feedbackId,
           skillId,
           targetVersionId: skill.latestPublishedVersionId,
           source: "agent",
           status: "pending",
           body,
           submittedBy: null,
-        })
-        .returning();
-
-      if (fb) {
-        await db
+        }),
+        db
           .update(skillFailurePatterns)
-          .set({ feedbackId: fb.id, status: "drafted", updatedAt: new Date() })
-          .where(eq(skillFailurePatterns.id, pattern.id));
-        feedbackOpened += 1;
-      }
+          .set({ feedbackId, status: "drafted", updatedAt: new Date() })
+          .where(eq(skillFailurePatterns.id, pattern.id)),
+      ]);
+      feedbackOpened += 1;
     }
   }
 

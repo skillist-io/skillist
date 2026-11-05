@@ -18,7 +18,7 @@ apps/
   docs/     Astro + Starlight user docs (@skillist/docs)
 packages/
   ui/            Shared design system — UI primitives (`components/ui/*`), shared components, clients (`api`, `auth-client`, `theme`, `urls`). Consumed as SOURCE by web + console as `@skillist/ui`
-  db/            Drizzle schema + migrations (drizzle-kit, Postgres). Exports `.` and `./schema`
+  db/            Drizzle schema + migrations (drizzle-kit, D1/SQLite). Exports `.` and `./schema`
   contracts/     Shared Zod schemas / event types used across api + web + console
   harness/       Skills-only agent loop: catalog, skill tools, turn runner. Platform-free; apps/api supplies the host
   skill-format/  agentskills.io bundle validator, semver, security/review helpers (published to npm)
@@ -36,7 +36,7 @@ Run from repo root (Turborepo fans out to workspaces):
 ```bash
 pnpm install
 pnpm setup:local          # generates .env, apps/api/.dev.vars, wrangler.local.jsonc
-pnpm db:migrate           # drizzle-kit migrate against DATABASE_URL in .env
+pnpm db:migrate           # apply migrations to the local D1
 
 pnpm dev:api              # Worker on :8787 (also serves /docs API reference + /mcp)
 pnpm dev:web              # marketing SPA on :5173
@@ -57,7 +57,7 @@ Testing specifics:
 - `pnpm test:e2e` — Playwright against skillist.dev (`tests/e2e/`).
 - CI (`.github/workflows/ci.yml`) runs `check → typecheck → test → playwright → build`, then deploys api/web/console/docs to Cloudflare on `main`.
 
-DB workflow: edit `packages/db/src/schema.ts` → `pnpm db:generate` (writes SQL to `packages/db/drizzle/`) → `pnpm db:migrate`.
+DB workflow: edit `packages/db/src/schema.ts` → `pnpm db:generate` (writes SQL to `packages/db/migrations/`) → `pnpm db:migrate` (local). CI applies migrations to production before it deploys; never apply them by hand.
 
 ## API architecture (apps/api)
 
@@ -70,10 +70,12 @@ DB workflow: edit `packages/db/src/schema.ts` → `pnpm db:generate` (writes SQL
 - **Skill execution** runs untrusted skill scripts in Cloudflare Sandbox containers. `lib/skill-runtime.ts` picks a runtime (`local`/`sandbox`/`container`) from the bundle; heavy skills (wrangler/deploy) route to `SandboxHeavy` (`Dockerfile.heavy`), others to `Sandbox` (`Dockerfile`). Quotas/access in `lib/run-quota.ts`, `lib/skill-execution-access.ts`.
 - **Skills harness.** `/v1/orgs/{orgId}/harness/sessions` runs an agent whose only tools are skills (`packages/harness`). The loop runs in the Worker request, not the DO, so tools use the caller's live credentials; `SkillHarnessSession` only stores the event log and turn lease. `lib/harness-host.ts` mirrors `POST /{org}/{repo}/run`'s access and quota path: change one, change both.
 - **Auth is Better Auth** (passwordless: OAuth GitHub/Google, magic link, passkeys), configured in `packages/auth` + `lib/api-auth.ts`. Also exposes MCP OAuth discovery (`/.well-known/oauth-*`) and a remote **MCP server** at `/mcp` (`src/mcp/`, registry tools). API-key auth (`sk_...`) for CLI/programmatic writes in `lib/api-auth.ts`.
-- **Data:** Neon Postgres reached through **Hyperdrive** (`HYPERDRIVE` binding) — never a direct connection string in the Worker. `createWorkerDb(env)` (`lib/db.ts`) builds the Drizzle client; schema/tables from `@skillist/db/schema`.
+- **Data:** Cloudflare D1 (`DB` binding). `createWorkerDb(env)` (`lib/db.ts`) builds the Drizzle client; schema/tables from `@skillist/db/schema`.
+- **Scaling on one D1.** Public browse reads use `createReadDb` and an edge `Cache-Control`; keep both on any new browse route. `lib/database-size.ts` alerts before the 10 GB cap. Migrations must be additive: D1 has no down migration and CI applies them before the deploy.
+- **D1 limits are design inputs.** No interactive transactions: `db.transaction()` type-checks but throws, so atomic writes use `db.batch()`. At most 100 bound parameters per statement: `chunkRows` for bulk inserts, `inList` for lists sized by user data. One writer, so keep writes off hot read paths. Timestamps are epoch ms (`timestamp_ms`), so raw `sql` needs `.getTime()` values and `max(col)` returns a number, not a `Date`.
 
 ### Wrangler configs (apps/api)
-- `wrangler.jsonc` — base + local dev bindings. `pnpm dev:api` merges it with gitignored `wrangler.local.jsonc` (real Hyperdrive→Neon). `pnpm setup:local` regenerates the overlay from `DATABASE_URL`.
+- `wrangler.jsonc` — base + local dev bindings. `pnpm dev:api` uses a local D1; `pnpm db:migrate` sets it up.
 - `wrangler.production.jsonc` — used by CI deploy (`wrangler deploy --config wrangler.production.jsonc`).
 - Secrets (`BETTER_AUTH_SECRET`, OAuth client secrets, AI Gateway token) are Worker secrets, not in vars. `apps/api/.dev.vars` holds them locally; `pnpm setup:secrets` pushes to production.
 

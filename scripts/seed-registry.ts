@@ -4,8 +4,8 @@ import { execSync } from "node:child_process";
  * Seed public registry skills from examples/skills/ into production.
  *
  * Usage:
- *   DATABASE_URL=... pnpm seed:registry
- *   DATABASE_URL=... pnpm seed:registry --local   # wrangler dev R2/KV
+ *   pnpm seed:registry            # production D1, R2 and KV
+ *   pnpm seed:registry --local    # local D1, R2 and KV
  *
  * Requires: wrangler logged in or CLOUDFLARE_API_TOKEN set.
  */
@@ -14,7 +14,7 @@ import { unlinkSync, writeFileSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createDb } from "@skillist/db";
+import type { Database } from "@skillist/db";
 import {
   organizations,
   orgMembers,
@@ -36,6 +36,7 @@ import {
 } from "@skillist/skill-format";
 import { and, eq } from "drizzle-orm";
 import { detectSkillRuntime } from "../apps/api/src/lib/skill-runtime.ts";
+import { openDb } from "./lib/open-db";
 
 const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const EXAMPLES_DIR = join(ROOT, "examples", "skills");
@@ -43,30 +44,9 @@ const ORG_SLUG = "skillist";
 const ORG_NAME = "Skillist";
 const IS_LOCAL = process.argv.includes("--local");
 
-// --local writes R2/KV to the local wrangler simulator, but the DB write always
-// goes to DATABASE_URL. If that URL points at a remote (production) database,
-// the seed inserts version rows whose r2Prefix objects exist only on this
-// machine — production then serves empty bundles and the console editor renders
-// an empty SKILL.md. This exact mismatch corrupted the skillist org on
-// 2026-07-19, so refuse the combination outright.
-const dbHost = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : "";
-const dbIsLocal = dbHost === "localhost" || dbHost === "127.0.0.1";
-if (IS_LOCAL && !dbIsLocal) {
-  console.error(
-    `--local seeds local R2/KV, but DATABASE_URL points at remote host "${dbHost}".\n` +
-      "That would write version rows to a remote database for bundles that only exist locally.\n" +
-      "Use a local DATABASE_URL with --local, or drop --local to seed production end to end.",
-  );
-  process.exit(1);
-}
-if (!IS_LOCAL && dbIsLocal) {
-  console.error(
-    "Production mode (no --local) seeds remote R2/KV, but DATABASE_URL is local.\n" +
-      "That would write production bundles for version rows that only exist locally.\n" +
-      "Pass --local for a fully local seed, or point DATABASE_URL at production.",
-  );
-  process.exit(1);
-}
+// One flag picks the database, R2 and KV together. They used to be chosen
+// separately, and a local seed against a remote database corrupted the skillist
+// org on 2026-07-19, so keep it impossible to mix them.
 
 const R2_BUCKET = IS_LOCAL ? "skillist-skills-preview" : "skillist-skills";
 const KV_NAMESPACE_ID = "e3efe45d7f14430ab6c5868235e6755f";
@@ -158,7 +138,7 @@ async function uploadBundleToR2(prefix: string, bundle: Map<string, string>): Pr
   await rm(tmpDir, { recursive: true, force: true });
 }
 
-async function ensureOrg(db: ReturnType<typeof createDb>) {
+async function ensureOrg(db: Database) {
   const [existing] = await db
     .select()
     .from(organizations)
@@ -193,7 +173,7 @@ async function ensureOrg(db: ReturnType<typeof createDb>) {
 }
 
 async function seedSkill(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   org: { id: string; slug: string },
   slug: string,
   bundle: Map<string, string>,
@@ -369,13 +349,7 @@ async function seedSkill(
 }
 
 async function main() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    console.error("DATABASE_URL is required");
-    process.exit(1);
-  }
-
-  const db = createDb(connectionString);
+  const { db, dispose } = await openDb({ local: IS_LOCAL });
   const org = await ensureOrg(db);
 
   const entries = await readdir(EXAMPLES_DIR, { withFileTypes: true });
@@ -397,6 +371,7 @@ async function main() {
   console.log(`  curl ${api}/v1/registry`);
   console.log(`  curl ${delivery}/${ORG_SLUG}/roll-dice/SKILL.md`);
   console.log(`  open ${delivery}/${ORG_SLUG}/roll-dice`);
+  await dispose();
 }
 
 main().catch((err) => {

@@ -69,7 +69,7 @@ function notFound(): Response {
  * RFC 9110 If-None-Match check. Our stored etags are raw hex; we serve them
  * quoted and accept quoted, weak-prefixed, bare, and `*` forms back.
  */
-function etagMatches(ifNoneMatch: string | null, etag: string): boolean {
+export function etagMatches(ifNoneMatch: string | null, etag: string): boolean {
   if (!ifNoneMatch) return false;
   if (ifNoneMatch.trim() === "*") return true;
   return ifNoneMatch
@@ -194,7 +194,7 @@ export async function serveSkillMetaAtVersion(
 /**
  * Miss path for versions published before per-version KV keys existed (or
  * evicted-by-nothing — KV keys have no TTL, so in practice: pre-feature
- * versions). Loads the version from Postgres + R2, writes the per-version KV
+ * versions). Loads the version from D1 + R2, writes the per-version KV
  * keys through (jsDelivr-style lazy permanent fill), and returns the snapshot.
  * The DB is only ever touched on this one-time-per-version miss, keeping the
  * hot path KV-only.

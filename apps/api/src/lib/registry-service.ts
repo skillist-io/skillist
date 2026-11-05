@@ -6,22 +6,33 @@ import {
   skills,
   skillVersions,
 } from "@skillist/db/schema";
-import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { type AnyColumn, and, asc, desc, eq, gte, or, sql } from "drizzle-orm";
 import type { z } from "zod";
 import type { WorkerDb } from "./db";
 
 export const CLI_INSTALL = "npm install -g @skillist/cli";
 
+/**
+ * Case-insensitive substring match. Not LIKE: D1 caps a LIKE pattern at 50 bytes,
+ * so a longer search would fail, and `%` or `_` in a term would act as wildcards.
+ * Both sides go through SQLite's `lower()`, which is ASCII-only: lowering the term
+ * in JS would turn "É" into "é", which never matches a stored "É".
+ */
+function contains(column: AnyColumn, term: string) {
+  return sql`instr(lower(${column}), lower(${term})) > 0`;
+}
+
 function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
   const clauses = [];
 
   if (query.q) {
+    const term = query.q;
     clauses.push(
       or(
-        ilike(registryEntries.name, `%${query.q}%`),
-        ilike(registryEntries.description, `%${query.q}%`),
-        ilike(registryEntries.skillRepo, `%${query.q}%`),
-        ilike(registryEntries.orgSlug, `%${query.q}%`),
+        contains(registryEntries.name, term),
+        contains(registryEntries.description, term),
+        contains(registryEntries.skillRepo, term),
+        contains(registryEntries.orgSlug, term),
       ),
     );
   }
@@ -44,13 +55,13 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
 
   if (query.tag) {
     clauses.push(
-      sql`${registryEntries.tags} @> ${JSON.stringify([query.tag.toLowerCase()])}::jsonb`,
+      sql`EXISTS (SELECT 1 FROM json_each(${registryEntries.tags}) WHERE value = ${query.tag.toLowerCase()})`,
     );
   }
 
   if (query.agent) {
     clauses.push(
-      sql`${registryEntries.compatibleAgents} @> ${JSON.stringify([query.agent.toLowerCase()])}::jsonb`,
+      sql`EXISTS (SELECT 1 FROM json_each(${registryEntries.compatibleAgents}) WHERE value = ${query.agent.toLowerCase()})`,
     );
   }
 
@@ -72,19 +83,23 @@ function buildRegistryWhere(query: z.infer<typeof registryQuerySchema>) {
  * counts. Quality breaks ties, so equally-relevant skills surface best-first.
  */
 function relevanceScore(q: string) {
-  const term = q.toLowerCase();
+  const term = sql`lower(${q})`;
+  const name = sql`lower(${registryEntries.name})`;
+  const repo = sql`lower(${registryEntries.skillRepo})`;
+  const org = sql`lower(${registryEntries.orgSlug})`;
+  const description = sql`lower(${registryEntries.description})`;
   return sql<number>`(
-    CASE WHEN lower(${registryEntries.name}) = ${term} THEN 120
-         WHEN lower(${registryEntries.name}) LIKE ${`${term}%`} THEN 90
-         WHEN lower(${registryEntries.name}) LIKE ${`%${term}%`} THEN 55
+    CASE WHEN ${name} = ${term} THEN 120
+         WHEN instr(${name}, ${term}) = 1 THEN 90
+         WHEN instr(${name}, ${term}) > 0 THEN 55
          ELSE 0 END
-    + CASE WHEN lower(${registryEntries.skillRepo}) = ${term} THEN 60
-           WHEN lower(${registryEntries.skillRepo}) LIKE ${`%${term}%`} THEN 40
+    + CASE WHEN ${repo} = ${term} THEN 60
+           WHEN instr(${repo}, ${term}) > 0 THEN 40
            ELSE 0 END
-    + CASE WHEN lower(${registryEntries.orgSlug}) = ${term} THEN 45
-           WHEN lower(${registryEntries.orgSlug}) LIKE ${`%${term}%`} THEN 25
+    + CASE WHEN ${org} = ${term} THEN 45
+           WHEN instr(${org}, ${term}) > 0 THEN 25
            ELSE 0 END
-    + CASE WHEN lower(${registryEntries.description}) LIKE ${`%${term}%`} THEN 20
+    + CASE WHEN instr(${description}, ${term}) > 0 THEN 20
            ELSE 0 END
   )`;
 }
@@ -162,7 +177,7 @@ export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQ
     .offset(offset);
 
   const [countRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
+    .select({ count: sql<number>`count(*)` })
     .from(registryEntries)
     .innerJoin(skills, eq(registryEntries.skillId, skills.id))
     .where(where);
@@ -186,23 +201,23 @@ export async function listRegistry(db: WorkerDb, query: z.infer<typeof registryQ
 }
 
 export async function getRegistryFacets(db: WorkerDb) {
-  // Dedupe tags/agents in SQL (unnest + DISTINCT) instead of streaming every
+  // Dedupe tags/agents in SQL (json_each + DISTINCT) instead of streaming every
   // row's arrays into the isolate, and run all three facet queries in parallel.
   const [categoryRows, tagRows, agentRows] = await Promise.all([
     db
       .selectDistinct({ category: registryEntries.category })
       .from(registryEntries)
       .where(sql`${registryEntries.category} IS NOT NULL`),
-    db.execute(
-      sql`SELECT DISTINCT jsonb_array_elements_text(${registryEntries.tags}) AS value FROM ${registryEntries}`,
+    db.all<{ value: string | null }>(
+      sql`SELECT DISTINCT je.value AS value FROM ${registryEntries}, json_each(${registryEntries.tags}) AS je`,
     ),
-    db.execute(
-      sql`SELECT DISTINCT jsonb_array_elements_text(${registryEntries.compatibleAgents}) AS value FROM ${registryEntries}`,
+    db.all<{ value: string | null }>(
+      sql`SELECT DISTINCT je.value AS value FROM ${registryEntries}, json_each(${registryEntries.compatibleAgents}) AS je`,
     ),
   ]);
 
-  const toSortedValues = (rows: unknown): string[] =>
-    (rows as { value: string | null }[])
+  const toSortedValues = (rows: { value: string | null }[]): string[] =>
+    rows
       .map((r) => r.value)
       .filter((v): v is string => Boolean(v))
       .sort();

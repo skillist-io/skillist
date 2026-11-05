@@ -5,7 +5,7 @@ import { isProductionEnv } from "./db";
 const envFor = (url?: string) => ({ BETTER_AUTH_URL: url }) as unknown as Env;
 
 /**
- * This guard gates alerting, the Hyperdrive cache-binding check, and whether
+ * This guard gates alerting and whether
  * localhost CORS origins are allowed. Its hostname is a regex, so a domain
  * rename done by plain text search skips it and every one of those flips
  * silently — pin it directly rather than relying on the alert tests to notice.

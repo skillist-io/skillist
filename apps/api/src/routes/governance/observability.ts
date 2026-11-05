@@ -249,7 +249,7 @@ observabilityRoutes.openapi(orgTelemetryRoute, async (c) => {
   const countRows = await c.var.db
     .select({
       eventType: telemetryEvents.eventType,
-      count: sql<number>`count(*)::int`,
+      count: sql<number>`count(*)`,
     })
     .from(telemetryEvents)
     .where(and(eq(telemetryEvents.orgSlug, org.slug), gte(telemetryEvents.createdAt, since)))
@@ -345,14 +345,14 @@ observabilityRoutes.openapi(observabilityRoute, async (c) => {
   // Per-day telemetry counts by event type (UTC day, matching the JS bucketing).
   const eventRows = await c.var.db
     .select({
-      day: sql<string>`(${telemetryEvents.createdAt} AT TIME ZONE 'UTC')::date::text`,
+      day: sql<string>`date(${telemetryEvents.createdAt} / 1000, 'unixepoch')`,
       eventType: telemetryEvents.eventType,
-      count: sql<number>`count(*)::int`,
+      count: sql<number>`count(*)`,
     })
     .from(telemetryEvents)
     .where(and(eq(telemetryEvents.orgSlug, org.slug), gte(telemetryEvents.createdAt, since)))
     .groupBy(
-      sql`(${telemetryEvents.createdAt} AT TIME ZONE 'UTC')::date`,
+      sql`date(${telemetryEvents.createdAt} / 1000, 'unixepoch')`,
       telemetryEvents.eventType,
     );
 
@@ -373,10 +373,10 @@ observabilityRoutes.openapi(observabilityRoute, async (c) => {
   const harnessRows = await c.var.db
     .select({
       harness: telemetryEvents.harness,
-      activations: sql<number>`count(*)::int`,
-      skills: sql<number>`count(distinct ${telemetryEvents.skillRepo})::int`,
-      projectScoped: sql<number>`(count(*) filter (where ${telemetryEvents.scope} = 'project'))::int`,
-      userScoped: sql<number>`(count(*) filter (where ${telemetryEvents.scope} = 'user'))::int`,
+      activations: sql<number>`count(*)`,
+      skills: sql<number>`count(distinct ${telemetryEvents.skillRepo})`,
+      projectScoped: sql<number>`(count(*) filter (where ${telemetryEvents.scope} = 'project'))`,
+      userScoped: sql<number>`(count(*) filter (where ${telemetryEvents.scope} = 'user'))`,
     })
     .from(telemetryEvents)
     .where(
@@ -395,24 +395,24 @@ observabilityRoutes.openapi(observabilityRoute, async (c) => {
   // Per-day run + success counts (success = exitCode 0, matching the JS check).
   const runDayRows = await c.var.db
     .select({
-      day: sql<string>`(${skillRuns.createdAt} AT TIME ZONE 'UTC')::date::text`,
-      total: sql<number>`count(*)::int`,
-      successes: sql<number>`(count(*) filter (where ${skillRuns.exitCode} = 0))::int`,
+      day: sql<string>`date(${skillRuns.createdAt} / 1000, 'unixepoch')`,
+      total: sql<number>`count(*)`,
+      successes: sql<number>`(count(*) filter (where ${skillRuns.exitCode} = 0))`,
     })
     .from(skillRuns)
     .where(runsWhere)
-    .groupBy(sql`(${skillRuns.createdAt} AT TIME ZONE 'UTC')::date`);
+    .groupBy(sql`date(${skillRuns.createdAt} / 1000, 'unixepoch')`);
 
   // Scalar run aggregates. `finished` = completed|failed; `succeeded` = finished
   // with exitCode 0. Duration sum/count are returned raw so the JS-side
   // Math.round(sum / count) stays byte-identical to the previous in-memory math.
   const [runStats] = await c.var.db
     .select({
-      total: sql<number>`count(*)::int`,
-      finished: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed')))::int`,
-      succeeded: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.exitCode} = 0))::int`,
-      durationSum: sql<number>`coalesce((sum(${skillRuns.durationMs}) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.durationMs} > 0)), 0)::float8`,
-      durationCount: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.durationMs} > 0))::int`,
+      total: sql<number>`count(*)`,
+      finished: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed')))`,
+      succeeded: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.exitCode} = 0))`,
+      durationSum: sql<number>`coalesce((sum(${skillRuns.durationMs}) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.durationMs} > 0)), 0)`,
+      durationCount: sql<number>`(count(*) filter (where ${skillRuns.status} in ('completed', 'failed') and ${skillRuns.durationMs} > 0))`,
     })
     .from(skillRuns)
     .where(runsWhere);
@@ -421,7 +421,7 @@ observabilityRoutes.openapi(observabilityRoute, async (c) => {
   // reproduces the first-seen insertion order of the previous JS reduce over
   // runs sorted by createdAt desc, so the object's key order is preserved.
   const runtimeRows = await c.var.db
-    .select({ runtime: skillRuns.runtime, count: sql<number>`count(*)::int` })
+    .select({ runtime: skillRuns.runtime, count: sql<number>`count(*)` })
     .from(skillRuns)
     .where(runsWhere)
     .groupBy(skillRuns.runtime)

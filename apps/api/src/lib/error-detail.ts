@@ -2,14 +2,11 @@
  * Flattens an error into a loggable shape, following the `cause` chain.
  *
  * Drizzle wraps every driver failure in a `DrizzleQueryError` whose message is
- * only `Failed query: <sql>\nparams: <...>`. What actually went wrong — a
- * Postgres SQLSTATE, or a connection Hyperdrive dropped mid-flight — is on
+ * only `Failed query: <sql>\nparams: <...>`. What actually went wrong is on
  * `.cause`, so logging `err.message` alone turns every production DB failure
  * into a line that names the query but never the fault. Walking the chain is
- * the difference between "a select on skills failed" and "CONNECTION_CLOSED".
- *
- * Deliberately omits the Postgres `detail`/`hint` fields: they echo row values
- * back (an api-key hash, an email), and this lands in Workers Logs.
+ * the difference between "a select on skills failed" and "UNIQUE constraint
+ * failed: skills.repo".
  */
 
 /** Depth guard — a cause chain is 2-3 deep in practice; anything longer is a cycle. */
@@ -21,12 +18,7 @@ const MAX_MESSAGE_LENGTH = 500;
 export type ErrorDetail = {
   name?: string;
   message: string;
-  /** postgres-js/Postgres error code — an SQLSTATE ("23505") or a driver code ("CONNECTION_CLOSED"). */
   code?: string;
-  severity?: string;
-  /** Postgres source routine (e.g. "_bt_check_unique") — pinpoints the failing check. */
-  routine?: string;
-  constraint?: string;
 };
 
 function readString(source: Record<string, unknown>, key: string): string | undefined {
@@ -47,11 +39,17 @@ function describeOne(err: unknown): ErrorDetail {
   return {
     name: err instanceof Error ? err.name : readString(source, "name"),
     message: message.slice(0, MAX_MESSAGE_LENGTH),
-    code: readString(source, "code"),
-    severity: readString(source, "severity"),
-    routine: readString(source, "routine"),
-    constraint: readString(source, "constraint_name") ?? readString(source, "constraint"),
+    code: readString(source, "code") ?? d1ErrorCode(message),
   };
+}
+
+/**
+ * D1 errors carry no `code`, only text like "D1_ERROR: UNIQUE constraint failed:
+ * skills.repo: SQLITE_CONSTRAINT". Alert deduplication keys on the code, so
+ * without this every database fault on a route would collapse into one alert.
+ */
+function d1ErrorCode(message: string): string | undefined {
+  return message.match(/SQLITE_[A-Z_]+/)?.[0] ?? message.match(/D1_[A-Z_]+/)?.[0];
 }
 
 /**
@@ -83,7 +81,7 @@ export function describeError(err: unknown): ErrorDetail & { causes?: ErrorDetai
  *
  * Handlers that end in `catch (err) { return c.json({ error: err.message }, 400) }`
  * are shaped for *validation* failures, but they swallow infrastructure ones
- * too: a dropped Hyperdrive connection comes back to the browser as a 4xx whose
+ * too: a failed query comes back to the browser as a 4xx whose
  * body is the raw failing SQL and its bound params. That reads as "your request
  * was bad", never reaches `onError`, and so never gets logged or alerted on.
  * Use this to rethrow those and let the global handler answer 500.
@@ -128,11 +126,8 @@ export function isDatabaseError(err: unknown): boolean {
     // `name` stays "Error").
     const candidate = current as { query?: unknown; params?: unknown };
     if (typeof candidate.query === "string" && Array.isArray(candidate.params)) return true;
-    // postgres-js errors carry `severity` (raised by the server) or a
-    // `CONNECTION_*` code (raised by the client when the socket goes away).
-    const code = (current as { code?: unknown }).code;
-    if (typeof code === "string" && code.startsWith("CONNECTION_")) return true;
-    if (typeof (current as { severity?: unknown }).severity === "string") return true;
+    // A raw D1 failure, which `db.batch()` can surface without the wrapper above.
+    if (current instanceof Error && current.message.startsWith("D1_")) return true;
     current = (current as { cause?: unknown }).cause;
   }
   return false;

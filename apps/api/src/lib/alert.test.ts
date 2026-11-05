@@ -45,7 +45,6 @@ const dbError = () =>
     ["fc02aaed-7728-44ce-b30a-80a690240e60", "cloudflare-deploy"],
     Object.assign(new Error("write CONNECTION_CLOSED"), {
       code: "CONNECTION_CLOSED",
-      severity: "FATAL",
     }),
   );
 

@@ -20,7 +20,7 @@ import {
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
-import type { WorkerDb } from "../lib/db";
+import { isUniqueViolation, type WorkerDb } from "../lib/db";
 import { errorResponses, okSchema } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 import { canWriteProject, requireProjectAccess } from "../lib/project-access";
@@ -44,17 +44,6 @@ const memberParam = z.object({
   projectId: z.string().uuid(),
   userId: z.string().min(1),
 });
-
-// Postgres unique-violation SQLSTATE. The partial-unique indexes on
-// (project_id, skill_id) and (project_id, external_url) surface as 23505.
-function isUniqueViolation(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const code = (err as { code?: unknown }).code;
-  if (code === "23505") return true;
-  const cause = (err as { cause?: unknown }).cause;
-  if (cause && cause !== err) return isUniqueViolation(cause);
-  return false;
-}
 
 /** A row of `projects`; timestamps serialize to ISO strings. */
 const projectRowSchema = z.object({
@@ -163,7 +152,7 @@ projectRoutes.openapi(listProjectsRoute, async (c) => {
       visibility: projects.visibility,
       role: projectMembers.role,
       createdAt: projects.createdAt,
-      itemCount: sql<number>`count(${projectItems.id})::int`,
+      itemCount: sql<number>`count(${projectItems.id})`,
     })
     .from(projects)
     .leftJoin(projectItems, eq(projectItems.projectId, projects.id))
@@ -171,7 +160,7 @@ projectRoutes.openapi(listProjectsRoute, async (c) => {
       projectMembers,
       and(
         eq(projectMembers.projectId, projects.id),
-        actorId ? eq(projectMembers.userId, actorId) : sql`false`,
+        actorId ? eq(projectMembers.userId, actorId) : sql`0`,
       ),
     )
     .where(visibilityFilter)
@@ -834,7 +823,7 @@ projectRoutes.openapi(updateMemberRoute, async (c) => {
   // role is not admin, refuse — a project must always retain an admin.
   if (existing.role === "admin" && body.role !== "admin") {
     const [row] = await c.var.db
-      .select({ adminCount: sql<number>`count(*)::int` })
+      .select({ adminCount: sql<number>`count(*)` })
       .from(projectMembers)
       .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.role, "admin")));
     if ((row?.adminCount ?? 0) <= 1) {
@@ -889,7 +878,7 @@ projectRoutes.openapi(deleteMemberRoute, async (c) => {
   // Never orphan a project: refuse to remove its last admin.
   if (existing.role === "admin") {
     const [row] = await c.var.db
-      .select({ adminCount: sql<number>`count(*)::int` })
+      .select({ adminCount: sql<number>`count(*)` })
       .from(projectMembers)
       .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.role, "admin")));
     if ((row?.adminCount ?? 0) <= 1) {
