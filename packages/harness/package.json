@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@skillist/skill-format": "workspace:*",
-    "ai": "^7.0.32",
-    "zod": "^4.4.3"
+    "ai": "^7.0.159",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@skillist/tsconfig": "workspace:*",
