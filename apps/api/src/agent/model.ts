@@ -1,7 +1,7 @@
 import { type LanguageModel, wrapLanguageModel } from "ai";
 import { createWorkersAI } from "workers-ai-provider";
 import type { Env } from "../env";
-import { AI_GATEWAY_ID } from "../lib/model";
+import { AI_GATEWAY_ID, NO_PAYLOAD_LOGGING } from "../lib/model";
 import { AGENT_FALLBACK_MODEL_ID, AGENT_MODEL_ID } from "./model-config";
 import { workersAiFallback } from "./model-fallback";
 
@@ -22,7 +22,7 @@ export function buildAgentModel(
   const primary = createWorkersAI({
     binding: env.AI,
     gateway: { id: AI_GATEWAY_ID },
-  })(AGENT_MODEL_ID, settings);
+  })(AGENT_MODEL_ID, { ...settings, extraHeaders: NO_PAYLOAD_LOGGING });
   const fallback = createWorkersAI({ binding: env.AI })(AGENT_FALLBACK_MODEL_ID, settings);
 
   return wrapLanguageModel({ model: primary, middleware: workersAiFallback(fallback) });
