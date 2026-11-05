@@ -596,26 +596,14 @@ function OrgBlock({
                   to="/orgs/$orgId/skills/$repo"
                   params={{ orgId: org.id, repo: skill.repo }}
                   className={cn(
-                    "group/skill flex flex-col items-start gap-1 px-4 py-3 text-sm leading-tight hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    "flex flex-col items-start gap-1 px-4 py-3 text-sm leading-tight hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     rowFocus,
                     active &&
                       "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_2px_0_0_0_currentColor]",
                   )}
                 >
                   <span className="font-medium">{skill.repo}</span>
-                  {/* Muted ink drops to 4.34:1 on the wash in light mode, so the
-                      caption steps up to the wash's own ink, thinned to stay
-                      secondary. */}
-                  <span
-                    className={cn(
-                      "text-xs",
-                      active
-                        ? "text-sidebar-accent-foreground/75"
-                        : "text-muted-foreground group-hover/skill:text-sidebar-accent-foreground/75",
-                    )}
-                  >
-                    {skill.visibility}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{skill.visibility}</span>
                 </Link>
               );
             })
@@ -757,7 +745,7 @@ function SidebarProjectNode({
         )}
         <span className="truncate">{project.name}</span>
         <ProjectVisibilityIcon visibility={project.visibility} className="ml-auto" />
-        <span className="font-mono text-xs text-muted-foreground tabular-nums group-hover/proj:text-sidebar-accent-foreground/75">
+        <span className="font-mono text-xs text-muted-foreground tabular-nums">
           {project.itemCount}
         </span>
       </CollapsibleTrigger>

@@ -108,7 +108,10 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* 0.54, not the 0.556 of the Tailwind neutral ramp: that clears 4.5:1 on white
+     but only 4.34:1 on --muted/--accent, where hover, active and inset rows put
+     this same text. 0.547 is the lightest value that passes on both. */
+  --muted-foreground: oklch(0.54 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);

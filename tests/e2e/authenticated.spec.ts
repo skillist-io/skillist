@@ -14,12 +14,17 @@ async function skipIfSignedOut(page: Page, testInfo: TestInfo, path = "/dashboar
   }
 }
 
+const explorerFilter = (page: Page) => page.getByPlaceholder("Filter orgs and skills...");
+
+/** The panel only, so a skill or "public" on the page itself can't satisfy a check. */
+const explorer = (page: Page) =>
+  page.locator('[data-slot="sidebar-content"]').filter({ has: page.getByText("Skills") });
+
 async function ensureExplorerOpen(page: Page) {
-  const privateOnly = page.getByText("Private only");
-  if (!(await privateOnly.isVisible())) {
+  if (!(await explorerFilter(page).isVisible())) {
     await page.getByRole("button", { name: "Toggle Sidebar" }).click();
   }
-  await expect(privateOnly).toBeVisible();
+  await expect(explorerFilter(page)).toBeVisible();
 }
 
 test.describe("signed-in flows", () => {
@@ -62,18 +67,33 @@ test.describe("signed-in flows", () => {
   test("dashboard shows org/skill explorer with private-only filter", async ({ page }) => {
     await ensureExplorerOpen(page);
 
-    await expect(page.getByPlaceholder("Filter orgs and skills...")).toBeVisible();
-
-    const publicBadges = page.getByText("public", { exact: true });
+    const publicBadges = explorer(page).getByText("public", { exact: true });
     const hadPublic = (await publicBadges.count()) > 0;
 
-    await page.locator("#sidebar-private-only").click();
+    await page.getByRole("button", { name: "Show only private skills" }).click();
 
     if (hadPublic) {
       await expect(publicBadges).toHaveCount(0);
     } else {
       await expect(page.getByText("No private skills match your filters.")).toBeVisible();
     }
+  });
+
+  test("explorer filter finds a skill by name and says when nothing matches", async ({
+    page,
+  }, testInfo) => {
+    await ensureExplorerOpen(page);
+    const skillLink = explorer(page).locator('a[href*="/skills/"]').first();
+    if ((await skillLink.count()) === 0) {
+      testInfo.skip(true, "No skills in this account to filter for");
+    }
+    const repo = (await skillLink.getAttribute("href"))?.split("/").pop() ?? "";
+
+    await explorerFilter(page).fill(repo);
+    await expect(explorer(page).locator(`a[href$="/skills/${repo}"]`).first()).toBeVisible();
+
+    await explorerFilter(page).fill("no-skill-is-called-this");
+    await expect(page.getByText("No skills match your filters.")).toBeVisible();
   });
 
   test("inventory shows sidebar explorer toggle", async ({ page }, testInfo) => {
@@ -87,13 +107,13 @@ test.describe("signed-in flows", () => {
 
     const toggle = page.getByRole("button", { name: "Toggle Sidebar" });
     await toggle.click();
-    await expect(page.getByText("Private only")).toBeHidden();
+    await expect(explorerFilter(page)).toBeHidden();
 
     await page.reload();
-    await expect(page.getByText("Private only")).toBeHidden();
+    await expect(explorerFilter(page)).toBeHidden();
 
     await toggle.click();
-    await expect(page.getByText("Private only")).toBeVisible();
+    await expect(explorerFilter(page)).toBeVisible();
   });
 
   test("skill bundle editor renders tree, tabs, and live validation", async ({
@@ -126,6 +146,21 @@ test.describe("signed-in flows", () => {
     await page.getByRole("tab", { name: "Frontmatter" }).click();
     await expect(page.getByLabel("name", { exact: true })).toBeVisible();
     await expect(page.getByText("agentskills.io conformance, checked as you type")).toBeVisible();
+  });
+
+  test.describe("on a phone-sized screen", () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    test("sheet carries the explorer and closes after navigating", async ({ page }) => {
+      const sheet = page.locator('[data-mobile="true"]');
+      await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+
+      await expect(sheet.getByPlaceholder("Filter orgs and skills...")).toBeVisible();
+
+      await sheet.getByRole("link", { name: "Inventory" }).click();
+      await expect(page).toHaveURL(/\/inventory/);
+      await expect(sheet).toBeHidden();
+    });
   });
 
   test("logout from sidebar redirects to login and clears session", async ({ page }) => {
