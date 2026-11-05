@@ -20,6 +20,7 @@
     "@skillist/auth": "workspace:*",
     "@skillist/contracts": "workspace:*",
     "@skillist/db": "workspace:*",
+    "@skillist/harness": "workspace:*",
     "@skillist/skill-format": "workspace:*",
     "agents": "^0.17.4",
     "ai": "^7.0.32",
