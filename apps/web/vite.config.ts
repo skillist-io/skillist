@@ -39,7 +39,8 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       "/api": "http://localhost:8787",
-      "/v1": "http://localhost:8787",
+      // ws: the skill page's realtime socket upgrades on this path.
+      "/v1": { target: "http://localhost:8787", ws: true },
       "/docs": "http://localhost:8787",
       "/openapi.json": "http://localhost:8787",
       // GitHub-style apex API: /{org}/{repo}/SKILL.md|meta|bundle|scripts|run|runs

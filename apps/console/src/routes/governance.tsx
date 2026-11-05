@@ -36,7 +36,7 @@ function GovernancePage() {
           to manage governance.
         </p>
       ) : canManageGovernance(activeOrg.role) ? (
-        <GovernancePanel orgId={activeOrg.id} />
+        <GovernancePanel org={activeOrg} />
       ) : (
         // Permission state (not an error) — the global switcher lists every org,
         // so surface the gate here instead of switching to a different org.

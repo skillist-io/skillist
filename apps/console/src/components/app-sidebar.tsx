@@ -147,6 +147,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     queryFn: () => api<Org[]>("/v1/orgs"),
   });
 
+  // Admin rights come from server config, so the only client-side signal is
+  // whether this call succeeds. Same key as the Mirrors page, so no extra fetch
+  // there; everyone else makes one refused request instead of finding a wall.
+  const { isSuccess: isAdmin } = useQuery({
+    queryKey: ["admin", "sources"],
+    queryFn: () => api<{ items: unknown[] }>("/v1/admin/sources"),
+    retry: false,
+  });
+  const visibleNav = navMain.filter((item) => item.section !== "mirrors" || isAdmin);
+
   const user = {
     name: session?.user?.name ?? "User",
     email: session?.user?.email ?? "",
@@ -193,7 +203,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroup>
             <SidebarGroupContent className="px-1.5 md:px-0">
               <SidebarMenu>
-                {navMain.map((item) => (
+                {visibleNav.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       tooltip={{ children: item.title, hidden: false }}

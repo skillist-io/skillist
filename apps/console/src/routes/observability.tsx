@@ -45,7 +45,7 @@ function MetricCard({
     <Card size="sm" className="flex flex-col">
       <CardHeader className="pb-2">
         <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-3xl tabular-nums">{value}</CardTitle>
+        <p className="font-heading text-3xl font-semibold tabular-nums">{value}</p>
       </CardHeader>
       {hint ? (
         <CardContent className="mt-auto pt-0 text-xs text-muted-foreground">{hint}</CardContent>
@@ -199,7 +199,9 @@ function ObservabilityPage() {
                     >
                       <span>{row.skillRepo}</span>
                       <span className="font-mono text-xs text-muted-foreground">
-                        {row.installCount} installs · {row.activationCount} activations
+                        {row.installCount} {row.installCount === 1 ? "install" : "installs"} ·{" "}
+                        {row.activationCount}{" "}
+                        {row.activationCount === 1 ? "activation" : "activations"}
                       </span>
                     </div>
                   ))

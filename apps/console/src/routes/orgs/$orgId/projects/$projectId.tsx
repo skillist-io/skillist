@@ -147,7 +147,7 @@ function ProjectDetailPage() {
   const itemCount = project.items.length;
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-1">

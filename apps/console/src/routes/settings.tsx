@@ -10,15 +10,20 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ConfirmDialog,
   CopyButton,
   type ExecutionPolicy,
   Input,
   type InstallPolicy,
   Label,
   NativeSelect,
+  notify,
+  type Org,
+  type OrgInvitation,
   PageTitle,
   type PublishPolicy,
   SegmentedControl,
+  type Skill,
   Switch,
   type Theme,
   useTheme,
@@ -26,6 +31,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { AuditLog } from "@/components/audit-log";
 import { useActiveOrg } from "@/lib/active-org";
 import { requireAuth } from "@/lib/require-auth";
 
@@ -63,8 +69,8 @@ function SettingsPage() {
     <div className="mx-auto w-full max-w-6xl space-y-8">
       <div>
         <PageTitle>Settings</PageTitle>
-        <p className="text-muted-foreground">
-          Org OAuth setup and agent API keys. Personal profile and passkeys are on{" "}
+        <p className="max-w-prose text-muted-foreground">
+          Members, agent API keys, and org OAuth setup. Personal profile and passkeys are on{" "}
           <Link to="/account" className="text-primary underline">
             Account
           </Link>
@@ -73,6 +79,54 @@ function SettingsPage() {
       </div>
 
       <AppearanceCard />
+
+      {activeOrg && isOwner && <MembersCard org={activeOrg} />}
+
+      <Card size="sm" id="api-keys">
+        <CardHeader>
+          <CardTitle>Agent API keys</CardTitle>
+          <CardDescription>
+            Scoped keys for CLI and agent clients. See the{" "}
+            <a
+              href={apiUrl("/docs")}
+              className="text-primary underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              API reference
+            </a>
+            .
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!activeOrg ? (
+            <p className="text-sm text-muted-foreground">
+              Create an organization on the dashboard to manage API keys.
+            </p>
+          ) : !isOwner ? (
+            // Permission state (not an error) — the global switcher lists every
+            // org, so surface the gate here instead of switching orgs.
+            <div className="border border-border p-6">
+              <h3 className="text-sm font-semibold text-foreground">Owner access required</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Managing settings for {activeOrg.name} needs an owner role. You have the{" "}
+                {activeOrg.role} role.
+              </p>
+            </div>
+          ) : (
+            <>
+              <ApiKeyManager orgId={activeOrg.id} />
+              <p className="text-sm text-muted-foreground">
+                Publish policies, quotas, and audit logs are on the{" "}
+                <a href="/governance" className="text-primary underline">
+                  Governance
+                </a>{" "}
+                page.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card size="sm" id="github-oauth">
         <CardHeader>
@@ -123,52 +177,115 @@ function SettingsPage() {
           </div>
         </CardContent>
       </Card>
-
-      <Card size="sm" id="api-keys">
-        <CardHeader>
-          <CardTitle>Agent API keys</CardTitle>
-          <CardDescription>
-            Scoped keys for CLI and agent clients. Docs at{" "}
-            <a
-              href={apiUrl("/docs")}
-              className="text-primary underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              {apiUrl("/docs")}
-            </a>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!activeOrg ? (
-            <p className="text-sm text-muted-foreground">
-              Create an organization on the dashboard to manage API keys.
-            </p>
-          ) : !isOwner ? (
-            // Permission state (not an error) — the global switcher lists every
-            // org, so surface the gate here instead of switching orgs.
-            <div className="border border-border p-6">
-              <h3 className="text-sm font-semibold text-foreground">Owner access required</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Managing settings for {activeOrg.name} needs an owner role. You have the{" "}
-                {activeOrg.role} role.
-              </p>
-            </div>
-          ) : (
-            <>
-              <ApiKeyManager orgId={activeOrg.id} />
-              <p className="text-sm text-muted-foreground">
-                Publish policies, quotas, and audit logs are on the{" "}
-                <a href="/governance" className="text-primary underline">
-                  Governance
-                </a>{" "}
-                page.
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
     </div>
+  );
+}
+
+function MembersCard({ org }: { org: Org }) {
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("viewer");
+  const [message, setMessage] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: invitations } = useQuery({
+    queryKey: ["invitations", org.id],
+    queryFn: () => api<OrgInvitation[]>(`/v1/orgs/${org.id}/invitations`),
+  });
+
+  const inviteMember = useMutation({
+    mutationFn: () =>
+      api<{ outcome: "added" | "invited" }>(`/v1/orgs/${org.id}/members`, {
+        method: "POST",
+        body: JSON.stringify({ email, role }),
+      }),
+    onSuccess: (result) => {
+      // Two genuinely different outcomes: an existing user is in the org now,
+      // an invited one still has to act on an email. Saying "invited" for both
+      // is what made the old flow feel broken when nothing happened.
+      setMessage(
+        result.outcome === "added"
+          ? `${email} was added to the organization.`
+          : `Invitation emailed to ${email}.`,
+      );
+      setEmail("");
+      queryClient.invalidateQueries({ queryKey: ["invitations", org.id] });
+      queryClient.invalidateQueries({ queryKey: ["members", org.id] });
+    },
+    onError: (err) => {
+      setMessage(err instanceof Error ? err.message : "Invite failed");
+    },
+  });
+
+  const revokeInvitation = useMutation({
+    mutationFn: (invitationId: string) =>
+      api(`/v1/orgs/${org.id}/invitations/${invitationId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      setMessage(null);
+      queryClient.invalidateQueries({ queryKey: ["invitations", org.id] });
+    },
+    onError: (err) => {
+      setMessage(err instanceof Error ? err.message : "Could not revoke invitation");
+    },
+  });
+
+  return (
+    <Card size="sm" id="members">
+      <CardHeader>
+        <CardTitle>Members</CardTitle>
+        <CardDescription>Invite people to {org.name}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Input
+            type="email"
+            aria-label="Email address"
+            placeholder="teammate@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="min-w-[200px] flex-1"
+          />
+          <NativeSelect
+            aria-label="Member role"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option value="viewer">Viewer</option>
+            <option value="editor">Editor</option>
+            <option value="owner">Owner</option>
+          </NativeSelect>
+          <Button
+            variant="outline"
+            onClick={() => inviteMember.mutate()}
+            disabled={!email || inviteMember.isPending}
+          >
+            Invite
+          </Button>
+        </div>
+        {message && <p className="text-sm text-muted-foreground">{message}</p>}
+        {invitations && invitations.length > 0 && (
+          <div className="space-y-1 pt-1">
+            <Label>Pending invitations</Label>
+            <ul className="space-y-1 text-sm">
+              {invitations.map((invitation) => (
+                <li key={invitation.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">
+                    {invitation.email} <Badge className="ml-1">{invitation.role}</Badge>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => revokeInvitation.mutate(invitation.id)}
+                    disabled={revokeInvitation.isPending}
+                  >
+                    Revoke
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -223,6 +340,7 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState<string[]>(["skills:read", "skills:write"]);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<ApiKeyRow | null>(null);
 
   const { data: keys } = useQuery({
     queryKey: ["api-keys", orgId],
@@ -230,6 +348,7 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
   });
 
   const createKey = useMutation({
+    meta: { failure: "Could not create the key" },
     mutationFn: () =>
       api<{ id: string; key: string; prefix: string }>(`/v1/orgs/${orgId}/api-keys`, {
         method: "POST",
@@ -243,8 +362,10 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
   });
 
   const revokeKey = useMutation({
+    meta: { success: "Key revoked", failure: "Could not revoke the key" },
     mutationFn: (keyId: string) => api(`/v1/orgs/${orgId}/api-keys/${keyId}`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["api-keys", orgId] }),
+    onSettled: () => setRevoking(null),
   });
 
   function toggleScope(scope: string) {
@@ -314,7 +435,7 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => revokeKey.mutate(key.id)}
+                onClick={() => setRevoking(key)}
                 disabled={revokeKey.isPending}
               >
                 Revoke
@@ -323,11 +444,61 @@ function ApiKeyManager({ orgId }: { orgId: string }) {
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        open={revoking !== null}
+        onOpenChange={(open) => {
+          if (!open) setRevoking(null);
+        }}
+        title={`Revoke ${revoking?.name ?? "this key"}?`}
+        description="Anything using this key, including CI and agents, starts failing right away. This can't be undone."
+        confirmLabel="Revoke key"
+        destructive
+        isPending={revokeKey.isPending}
+        onConfirm={() => {
+          if (revoking) revokeKey.mutate(revoking.id);
+        }}
+      />
     </div>
   );
 }
 
-export function GovernancePanel({ orgId }: { orgId: string }) {
+const GOVERNANCE_SECTIONS = [
+  { id: "governance", label: "Publish" },
+  { id: "install-policy", label: "Install" },
+  { id: "execution-quotas", label: "Quotas" },
+  { id: "required-skills", label: "Required skills" },
+  { id: "audit-log", label: "Audit log" },
+] as const;
+
+/** Shows when a section last saved, next to the button that saved it. */
+function SaveButton({
+  label,
+  mutation,
+}: {
+  label: string;
+  mutation: { mutate: () => void; isPending: boolean; isSuccess: boolean; submittedAt: number };
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+        {mutation.isPending ? "Saving…" : label}
+      </Button>
+      {mutation.isSuccess && (
+        <span className="font-mono text-xs text-muted-foreground">
+          Saved{" "}
+          {new Date(mutation.submittedAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function GovernancePanel({ org }: { org: Org }) {
+  const orgId = org.id;
   const queryClient = useQueryClient();
   const [minQuality, setMinQuality] = useState(60);
   const [requirePass, setRequirePass] = useState(false);
@@ -352,6 +523,11 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   const [allowPublicRuns, setAllowPublicRuns] = useState(false);
   const [requiredOrgSlug, setRequiredOrgSlug] = useState("");
   const [requiredSkillSlug, setRequiredSkillSlug] = useState("");
+  const [removingRequired, setRemovingRequired] = useState<{
+    id: string;
+    orgSlug: string;
+    skillRepo: string;
+  } | null>(null);
 
   const { data: policyData } = useQuery({
     queryKey: ["publish-policy", orgId],
@@ -368,28 +544,25 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
     queryFn: () => api<{ installPolicy: InstallPolicy }>(`/v1/orgs/${orgId}/install-policy`),
   });
 
-  const { data: auditData } = useQuery({
-    queryKey: ["audit", orgId],
-    queryFn: () => api<{ items: AuditEvent[] }>(`/v1/orgs/${orgId}/audit?limit=20`),
-  });
-
-  const { data: telemetryData } = useQuery({
-    queryKey: ["telemetry", orgId],
-    queryFn: () =>
-      api<{
-        events: number;
-        installs: number;
-        activations: number;
-        bySkill: { skillRepo: string; installCount: number; activationCount: number }[];
-      }>(`/v1/orgs/${orgId}/telemetry`),
-  });
-
   const { data: requiredData } = useQuery({
     queryKey: ["required-skills", orgId],
     queryFn: () =>
       api<{ items: { id: string; orgSlug: string; skillRepo: string }[] }>(
         `/v1/orgs/${orgId}/required-skills`,
       ),
+  });
+
+  // Suggestions for the required-skill fields. Skills can come from any registry
+  // org, so these guide the typing rather than limit it.
+  const { data: orgs } = useQuery({
+    queryKey: ["orgs"],
+    queryFn: () => api<Org[]>("/v1/orgs"),
+  });
+  const suggestedOrg = orgs?.find((o) => o.slug === requiredOrgSlug);
+  const { data: suggestedSkills } = useQuery({
+    queryKey: ["skills", suggestedOrg?.id],
+    queryFn: () => api<Skill[]>(`/v1/orgs/${suggestedOrg!.id}/skills`),
+    enabled: !!suggestedOrg,
   });
 
   useEffect(() => {
@@ -426,6 +599,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   }, [installData]);
 
   const savePolicy = useMutation({
+    meta: { success: "Publish policy saved", failure: "Could not save the publish policy" },
     mutationFn: () =>
       api(`/v1/orgs/${orgId}/publish-policy`, {
         method: "PATCH",
@@ -441,6 +615,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   });
 
   const saveExecutionPolicy = useMutation({
+    meta: { success: "Quotas saved", failure: "Could not save the quotas" },
     mutationFn: () =>
       api(`/v1/orgs/${orgId}/execution-policy`, {
         method: "PATCH",
@@ -456,6 +631,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   });
 
   const saveInstallPolicy = useMutation({
+    meta: { success: "Install policy saved", failure: "Could not save the install policy" },
     mutationFn: () =>
       api(`/v1/orgs/${orgId}/install-policy`, {
         method: "PATCH",
@@ -474,6 +650,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
   });
 
   const addRequired = useMutation({
+    meta: { failure: "Could not add the required skill" },
     mutationFn: () =>
       api(`/v1/orgs/${orgId}/required-skills`, {
         method: "POST",
@@ -484,20 +661,38 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["required-skills", orgId] });
+      notify("success", `${requiredOrgSlug}/${requiredSkillSlug} is now required`);
       setRequiredOrgSlug("");
       setRequiredSkillSlug("");
     },
   });
 
   const removeRequired = useMutation({
+    meta: { success: "Required skill removed", failure: "Could not remove the required skill" },
     mutationFn: (id: string) =>
       api(`/v1/orgs/${orgId}/required-skills/${id}`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["required-skills", orgId] }),
+    onSettled: () => setRemovingRequired(null),
   });
 
   return (
     <div className="space-y-4">
-      <Card size="sm" id="governance">
+      <nav
+        aria-label="Governance sections"
+        className="sticky top-14 z-[5] -mx-1 flex gap-4 overflow-x-auto border-b border-border bg-background px-1 py-2 text-sm"
+      >
+        {GOVERNANCE_SECTIONS.map((section) => (
+          <a
+            key={section.id}
+            href={`#${section.id}`}
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            {section.label}
+          </a>
+        ))}
+      </nav>
+
+      <Card size="sm" id="governance" className="scroll-mt-28">
         <CardHeader>
           <CardTitle>Publish policies</CardTitle>
           <CardDescription>
@@ -551,13 +746,11 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
               onChange={(e) => setMinEvalUplift(Number(e.target.value))}
             />
           </div>
-          <Button onClick={() => savePolicy.mutate()} disabled={savePolicy.isPending}>
-            Save policy
-          </Button>
+          <SaveButton label="Save policy" mutation={savePolicy} />
         </CardContent>
       </Card>
 
-      <Card size="sm" id="install-policy">
+      <Card size="sm" id="install-policy" className="scroll-mt-28">
         <CardHeader>
           <CardTitle>Install policies</CardTitle>
           <CardDescription>
@@ -623,13 +816,11 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
               onChange={(e) => setMinReleaseAgeDays(Number(e.target.value))}
             />
           </div>
-          <Button onClick={() => saveInstallPolicy.mutate()} disabled={saveInstallPolicy.isPending}>
-            Save install policy
-          </Button>
+          <SaveButton label="Save install policy" mutation={saveInstallPolicy} />
         </CardContent>
       </Card>
 
-      <Card size="sm">
+      <Card size="sm" id="execution-quotas" className="scroll-mt-28">
         <CardHeader>
           <CardTitle>Execution quotas</CardTitle>
           <CardDescription>Limit hosted script runs per organization</CardDescription>
@@ -692,16 +883,11 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
             organization's run quota and sandbox compute, so callers outside this organization are
             refused unless you turn this on.
           </p>
-          <Button
-            onClick={() => saveExecutionPolicy.mutate()}
-            disabled={saveExecutionPolicy.isPending}
-          >
-            Save quotas
-          </Button>
+          <SaveButton label="Save quotas" mutation={saveExecutionPolicy} />
         </CardContent>
       </Card>
 
-      <Card size="sm">
+      <Card size="sm" id="required-skills" className="scroll-mt-28">
         <CardHeader>
           <CardTitle>Required skills</CardTitle>
           <CardDescription>Skills every project in this org should install</CardDescription>
@@ -709,18 +895,32 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <Input
+              aria-label="Registry organization"
+              list="required-org-options"
               placeholder="registry-org"
               value={requiredOrgSlug}
               onChange={(e) => setRequiredOrgSlug(e.target.value)}
             />
+            <datalist id="required-org-options">
+              {orgs?.map((o) => (
+                <option key={o.id} value={o.slug} />
+              ))}
+            </datalist>
             <Input
+              aria-label="Skill"
+              list="required-skill-options"
               placeholder="skill-slug"
               value={requiredSkillSlug}
               onChange={(e) => setRequiredSkillSlug(e.target.value)}
             />
+            <datalist id="required-skill-options">
+              {suggestedSkills?.map((skill) => (
+                <option key={skill.id} value={skill.repo} />
+              ))}
+            </datalist>
             <Button
               onClick={() => addRequired.mutate()}
-              disabled={!requiredOrgSlug || !requiredSkillSlug}
+              disabled={!requiredOrgSlug || !requiredSkillSlug || addRequired.isPending}
             >
               Add
             </Button>
@@ -733,7 +933,7 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
               <span>
                 {item.orgSlug}/{item.skillRepo}
               </span>
-              <Button size="sm" variant="outline" onClick={() => removeRequired.mutate(item.id)}>
+              <Button size="sm" variant="outline" onClick={() => setRemovingRequired(item)}>
                 Remove
               </Button>
             </div>
@@ -741,52 +941,22 @@ export function GovernancePanel({ orgId }: { orgId: string }) {
         </CardContent>
       </Card>
 
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>Telemetry funnel</CardTitle>
-          <CardDescription>Published → installed → activated (last 30 days)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>{telemetryData?.events ?? 0} events recorded</p>
-          <p>
-            {telemetryData?.installs ?? 0} installs · {telemetryData?.activations ?? 0} activations
-          </p>
-          {telemetryData?.bySkill?.map((s) => (
-            <div key={s.skillRepo} className="flex justify-between border border-border px-2 py-1">
-              <span>{s.skillRepo}</span>
-              <span className="text-muted-foreground">
-                {s.installCount} / {s.activationCount}
-              </span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      <ConfirmDialog
+        open={removingRequired !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemovingRequired(null);
+        }}
+        title={`Stop requiring ${removingRequired?.skillRepo ?? "this skill"}?`}
+        description="Projects no longer have to install it, and it drops out of Coverage."
+        confirmLabel="Remove"
+        destructive
+        isPending={removeRequired.isPending}
+        onConfirm={() => {
+          if (removingRequired) removeRequired.mutate(removingRequired.id);
+        }}
+      />
 
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>Audit log</CardTitle>
-          <CardDescription>Recent governance and publish events</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {auditData?.items?.length ? (
-            auditData.items.map((e) => (
-              <div key={e.id} className="border border-border px-2 py-1">
-                <div className="flex justify-between">
-                  <span className="font-medium">{e.action}</span>
-                  <span className="text-muted-foreground">
-                    {new Date(e.createdAt).toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-muted-foreground">
-                  {e.resourceType} {e.resourceId ?? ""}
-                </p>
-              </div>
-            ))
-          ) : (
-            <p className="text-muted-foreground">No audit events yet.</p>
-          )}
-        </CardContent>
-      </Card>
+      <AuditLog org={org} />
     </div>
   );
 }

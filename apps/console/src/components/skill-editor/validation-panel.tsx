@@ -27,7 +27,12 @@ export function ValidationPanel({
           >
             <CircleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden />
             <span className="min-w-0">
-              <span className="font-mono font-medium">{error.path}</span>{" "}
+              {/* "SKILL.md is required" already names its file. */}
+              {!error.message.startsWith(error.path) && (
+                <>
+                  <span className="font-mono font-medium">{error.path}</span>{" "}
+                </>
+              )}
               <span className="text-muted-foreground">{error.message}</span>
             </span>
           </button>

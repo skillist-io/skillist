@@ -11,7 +11,7 @@ import {
   scanSkillSecurity,
   validateSkillBundle,
 } from "@skillist/skill-format";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Env } from "../env";
 import { publishVersion, rollbackVersion } from "../lib/ai";
 import type { AuthContext } from "../lib/auth-middleware";
@@ -182,6 +182,42 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
   return c.json(created, 201);
 });
 
+/**
+ * One query for the whole org: callers show version state per row, and a
+ * request per skill would not survive a catalog of any real size.
+ */
+export function loadOrgVersions(db: WorkerDb, orgId: string) {
+  return db
+    .select({
+      skillId: skillVersions.skillId,
+      status: skillVersions.status,
+      semver: skillVersions.semver,
+    })
+    .from(skillVersions)
+    .innerJoin(skills, eq(skills.id, skillVersions.skillId))
+    .where(and(eq(skills.orgId, orgId), inArray(skillVersions.status, ["draft", "published"])));
+}
+
+/**
+ * A draft only counts when it is newer than what's live. Older drafts stay
+ * behind after a later version publishes, and they aren't waiting on anyone.
+ */
+export function summarizeVersions(
+  versions: { skillId: string; status: string; semver: string }[],
+  skillId: string,
+): { publishedSemver: string | null; draftSemver: string | null } {
+  const highest = (status: string) =>
+    versions
+      .filter((v) => v.skillId === skillId && v.status === status)
+      .map((v) => v.semver)
+      .sort(compareSemver)
+      .at(-1) ?? null;
+  const publishedSemver = highest("published");
+  const draft = highest("draft");
+  const isNewer = draft && (!publishedSemver || compareSemver(draft, publishedSemver) > 0);
+  return { publishedSemver, draftSemver: isNewer ? draft : null };
+}
+
 const listSkillsRoute = createRoute({
   method: "get",
   path: "/orgs/{orgId}/skills",
@@ -199,6 +235,8 @@ const listSkillsRoute = createRoute({
               repo: z.string(),
               visibility: z.string(),
               description: z.string().nullable(),
+              publishedSemver: z.string().nullable(),
+              draftSemver: z.string().nullable(),
             }),
           ),
         },
@@ -216,7 +254,13 @@ skillRoutes.openapi(listSkillsRoute, async (c) => {
   });
   if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
   const rows = await c.var.db.select().from(skills).where(eq(skills.orgId, orgId));
-  return c.json(rows, 200);
+
+  const versions = await loadOrgVersions(c.var.db, orgId);
+
+  return c.json(
+    rows.map((row) => ({ ...row, ...summarizeVersions(versions, row.id) })),
+    200,
+  );
 });
 
 const uploadVersionRoute = createRoute({
