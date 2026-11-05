@@ -75,6 +75,7 @@ export default defineConfig({
             { label: "Required-skill coverage", slug: "platform/coverage" },
             { label: "Self-improving skills", slug: "platform/self-improving" },
             { label: "Platform agent", slug: "platform/agent" },
+            { label: "Skills harness", slug: "platform/harness" },
             { label: "Authentication", slug: "platform/authentication" },
             { label: "Sandbox execution", slug: "platform/sandbox" },
           ],

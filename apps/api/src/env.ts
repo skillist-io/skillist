@@ -1,5 +1,6 @@
 import type { Ai, DurableObjectNamespace, RateLimit, SendEmail } from "@cloudflare/workers-types";
 import type { SyncQueueMessage } from "@skillist/contracts";
+import type { SkillHarnessSession } from "./durable-objects/skill-harness-session";
 
 export type Env = {
   DB: D1Database;
@@ -10,6 +11,9 @@ export type Env = {
   SANDBOX_HEAVY: DurableObjectNamespace;
   /** Per-org platform agent (AIChatAgent DO). Instance name = orgId. */
   SKILLIST_AGENT: DurableObjectNamespace;
+  SKILL_HARNESS: DurableObjectNamespace<SkillHarnessSession>;
+  /** "true" turns on the harness routes. See routes/harness.ts before enabling in production. */
+  HARNESS_ENABLED?: string;
   AI: Ai;
   EMAIL: SendEmail;
   /** Native Workers Rate Limiting binding (distributed). Optional so local dev

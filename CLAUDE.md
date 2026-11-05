@@ -20,13 +20,14 @@ packages/
   ui/            Shared design system — UI primitives (`components/ui/*`), shared components, clients (`api`, `auth-client`, `theme`, `urls`). Consumed as SOURCE by web + console as `@skillist/ui`
   db/            Drizzle schema + migrations (drizzle-kit, D1/SQLite). Exports `.` and `./schema`
   contracts/     Shared Zod schemas / event types used across api + web + console
+  harness/       Skills-only agent loop: catalog, skill tools, turn runner. Platform-free; apps/api supplies the host
   skill-format/  agentskills.io bundle validator, semver, security/review helpers (published to npm)
   cli/           `@skillist/cli` — pull/push skills (published to npm)
   auth/          Better Auth config shared by api + console
   tsconfig/      Shared tsconfig bases
 ```
 
-`packages/db`, `contracts`, `auth`, `ui` are consumed as source (`workspace:*`, no build step); `skill-format` and `cli` are built with `tsc` and published to npm. Shared dependency versions are pinned via **pnpm catalogs** (`pnpm-workspace.yaml` `catalog:`) so React-context singletons (router, query, auth) resolve to one instance — package.jsons reference `"catalog:"`.
+`packages/db`, `contracts`, `auth`, `ui`, `harness` are consumed as source (`workspace:*`, no build step); `skill-format` and `cli` are built with `tsc` and published to npm. Shared dependency versions are pinned via **pnpm catalogs** (`pnpm-workspace.yaml` `catalog:`) so React-context singletons (router, query, auth) resolve to one instance — package.jsons reference `"catalog:"`.
 
 ## Commands
 
@@ -67,6 +68,7 @@ DB workflow: edit `packages/db/src/schema.ts` → `pnpm db:generate` (writes SQL
 - **Realtime.** `SkillRealtimeHub` DO (one instance per `org:repo`, keyed by `idFromName`) fans out publish events over WebSocket + SSE. Publish flow calls `broadcastPublish` → DO `/broadcast`.
 - **Async jobs via Queue.** `AI_QUEUE` (`skillist-ai-jobs`) carries `AiJobMessage` (`type: "feedback" | "eval"`). The `queue()` handler in `index.ts` dispatches to `lib/ai.ts` (AI-drafted skill improvements from approved feedback) and `lib/eval.ts` (skill evals). Uses Worker AI + AI Gateway.
 - **Skill execution** runs untrusted skill scripts in Cloudflare Sandbox containers. `lib/skill-runtime.ts` picks a runtime (`local`/`sandbox`/`container`) from the bundle; heavy skills (wrangler/deploy) route to `SandboxHeavy` (`Dockerfile.heavy`), others to `Sandbox` (`Dockerfile`). Quotas/access in `lib/run-quota.ts`, `lib/skill-execution-access.ts`.
+- **Skills harness.** `/v1/orgs/{orgId}/harness/sessions` runs an agent whose only tools are skills (`packages/harness`). The loop runs in the Worker request, not the DO, so tools use the caller's live credentials; `SkillHarnessSession` only stores the event log and turn lease. `lib/harness-host.ts` mirrors `POST /{org}/{repo}/run`'s access and quota path: change one, change both.
 - **Auth is Better Auth** (passwordless: OAuth GitHub/Google, magic link, passkeys), configured in `packages/auth` + `lib/api-auth.ts`. Also exposes MCP OAuth discovery (`/.well-known/oauth-*`) and a remote **MCP server** at `/mcp` (`src/mcp/`, registry tools). API-key auth (`sk_...`) for CLI/programmatic writes in `lib/api-auth.ts`.
 - **Data:** Cloudflare D1 (`DB` binding). `createWorkerDb(env)` (`lib/db.ts`) builds the Drizzle client; schema/tables from `@skillist/db/schema`.
 - **Scaling on one D1.** Public browse reads use `createReadDb` and an edge `Cache-Control`; keep both on any new browse route. `lib/database-size.ts` alerts before the 10 GB cap. Migrations must be additive: D1 has no down migration and CI applies them before the deploy.

@@ -128,6 +128,10 @@
         // routeAgentRequest in src/index.ts). class_name points at the DO.
         "name": "SKILLIST_AGENT",
         "class_name": "SkillistAgent"
+      },
+      {
+        "name": "SKILL_HARNESS",
+        "class_name": "SkillHarnessSession"
       }
     ]
   },
@@ -161,6 +165,10 @@
     {
       "tag": "v4",
       "new_sqlite_classes": ["SkillistAgent"]
+    },
+    {
+      "tag": "v5",
+      "new_sqlite_classes": ["SkillHarnessSession"]
     }
   ],
   "ai": {
