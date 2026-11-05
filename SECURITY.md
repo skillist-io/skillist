@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Email **security@skillist.io**. Please do not open a public issue for anything
+Email **security@skillist.dev**. Please do not open a public issue for anything
 exploitable.
 
 Include enough to reproduce it — a request, a skill bundle, a sequence of steps.
@@ -20,9 +20,9 @@ policy. There is no bug bounty.
 
 In scope:
 
-- `skillist.io`, `console.skillist.io`, `docs.skillist.io`, `api.skillist.io`
+- `skillist.dev`, `console.skillist.dev`, `docs.skillist.dev`, `api.skillist.dev`
 - The published packages: `@skillist/cli`, `@skillist/skill-format`
-- The MCP server at `api.skillist.io/mcp`
+- The MCP server at `api.skillist.dev/mcp`
 
 Out of scope:
 
@@ -53,7 +53,7 @@ If you find a way out of that, it is exactly what we want to hear about.
 
 ## Handling of your data
 
-Covered in the [privacy policy](https://skillist.io/privacy), including what is
+Covered in the [privacy policy](https://skillist.dev/privacy), including what is
 stored, for how long, and which processors are involved.
 
 Two things worth repeating here: **API keys are stored hashed** (SHA-256, shown

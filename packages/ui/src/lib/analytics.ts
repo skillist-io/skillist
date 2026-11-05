@@ -109,10 +109,10 @@ export function readConsent(): ConsentChoice | null {
  */
 export function setConsent(choice: ConsentChoice): void {
   if (typeof document === "undefined") return;
-  // Shared across skillist.io and console.skillist.io so the decision is made
+  // Shared across skillist.dev and console.skillist.dev so the decision is made
   // once; 6 months is a common CMP default.
   const maxAge = 60 * 60 * 24 * 180;
-  const domain = location.hostname.endsWith("skillist.io") ? "; domain=.skillist.io" : "";
+  const domain = location.hostname.endsWith("skillist.dev") ? "; domain=.skillist.dev" : "";
   document.cookie = `${CONSENT_COOKIE}=${choice}; path=/; max-age=${maxAge}; SameSite=Lax${domain}${
     location.protocol === "https:" ? "; Secure" : ""
   }`;

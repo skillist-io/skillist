@@ -110,9 +110,9 @@ export function createWorkerDbCached(env: Env): import("@skillist/auth").WorkerD
 
 export type { WorkerDb } from "@skillist/auth";
 
-/** True when running against the production deployment (api.skillist.io). */
+/** True when running against the production deployment (api.skillist.dev). */
 export function isProductionEnv(env: Env): boolean {
-  return /(?:^|\/\/)(?:[^/]*\.)?skillist\.io(?:[:/]|$)/.test(env.BETTER_AUTH_URL ?? "");
+  return /(?:^|\/\/)(?:[^/]*\.)?skillist\.dev(?:[:/]|$)/.test(env.BETTER_AUTH_URL ?? "");
 }
 
 let cacheDisabledBindingOk = false;

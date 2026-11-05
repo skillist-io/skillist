@@ -263,7 +263,7 @@ function SkillRepoPage() {
                 org={org}
                 repo={repo}
                 scripts={scripts}
-                defaultTargetUrl="https://skillist.io"
+                defaultTargetUrl="https://skillist.dev"
               />
             )}
 

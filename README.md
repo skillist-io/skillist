@@ -1,6 +1,6 @@
 # Skillist
 
-Realtime Agent Skills management, improvement, and versioning platform for [skillist.io](https://skillist.io).
+Realtime Agent Skills management, improvement, and versioning platform for [skillist.dev](https://skillist.dev).
 
 Built on Cloudflare Workers with Hono, Durable Objects, KV, R2, Worker AI, AI Gateway, Neon Postgres via Hyperdrive, and Better Auth (passwordless). Compliant with the [agentskills.io](https://agentskills.io/home) specification.
 
@@ -37,8 +37,8 @@ Configure GitHub and Google OAuth apps with the redirect URIs below. See the [Gi
 
 | Provider | Local redirect URI | Production redirect URI |
 |----------|-------------------|-------------------------|
-| GitHub | `http://localhost:8787/api/auth/callback/github` | `https://api.skillist.io/api/auth/callback/github` |
-| Google | `http://localhost:8787/api/auth/callback/google` | `https://api.skillist.io/api/auth/callback/google` |
+| GitHub | `http://localhost:8787/api/auth/callback/github` | `https://api.skillist.dev/api/auth/callback/github` |
+| Google | `http://localhost:8787/api/auth/callback/google` | `https://api.skillist.dev/api/auth/callback/google` |
 
 Copy `apps/api/.dev.vars.example` → `apps/api/.dev.vars` and set `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 
@@ -82,7 +82,7 @@ Local dev uses **Neon Local** (`docker-compose.yml`): `pnpm db:up` spawns an eph
 
 ```bash
 pnpm smoke          # API + web HTTP checks against production
-pnpm test:e2e       # Playwright browser checks against skillist.io
+pnpm test:e2e       # Playwright browser checks against skillist.dev
 ```
 
 ## Agent CLI
@@ -119,8 +119,8 @@ Or trigger **Publish npm packages** in GitHub Actions after adding the `NPM_TOKE
 ```
 apps/
   api/      Cloudflare Worker (Hono API + SkillRealtimeHub DO)
-  web/      React SPA — public marketing site (skillist.io): landing, registry browse, public skill pages
-  console/  React SPA — authenticated product (console.skillist.io): dashboard, inventory, editor, governance, feedback
+  web/      React SPA — public marketing site (skillist.dev): landing, registry browse, public skill pages
+  console/  React SPA — authenticated product (console.skillist.dev): dashboard, inventory, editor, governance, feedback
 packages/
   ui/           Shared design system + UI primitives + clients, consumed as source (@skillist/ui)
   auth/         Better Auth config
@@ -136,7 +136,7 @@ Each front-end app is a Cloudflare Worker serving static assets with a **service
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /{org}/{repo}/SKILL.md` | Hot KV read (&lt;10ms edge) on skillist.io |
+| `GET /{org}/{repo}/SKILL.md` | Hot KV read (&lt;10ms edge) on skillist.dev |
 | `GET /{org}/{repo}/meta` | Discovery metadata only |
 | `GET /{org}/{repo}/bundle` | Full published skill bundle |
 | `GET /{org}/{repo}/scripts` | List runnable scripts |
@@ -156,8 +156,8 @@ wrangler hyperdrive create skillist-db --connection-string="$DATABASE_URL"
 wrangler secret put BETTER_AUTH_SECRET
 
 ./scripts/deploy-api.sh
-cd ../web && pnpm build && pnpm deploy         # marketing → skillist.io
-cd ../console && pnpm build && pnpm deploy     # product → console.skillist.io
+cd ../web && pnpm build && pnpm deploy         # marketing → skillist.dev
+cd ../console && pnpm build && pnpm deploy     # product → console.skillist.dev
 ```
 
 GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on every PR; deploys API + web + console + docs to Cloudflare on `main` when `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are set.
@@ -180,7 +180,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on 
 | R2 bucket | `skillist-skills` |
 | Queue | `skillist-ai-jobs` |
 
-Configure `skillist.io` (marketing web), `console.skillist.io` (product console), and `api.skillist.io` routes in Cloudflare dashboard; both front-end workers hold a service binding to the API worker. Email Sending is enabled on `skillist.io`.
+Configure `skillist.dev` (marketing web), `console.skillist.dev` (product console), and `api.skillist.dev` routes in Cloudflare dashboard; both front-end workers hold a service binding to the API worker. Email Sending is enabled on `skillist.dev`.
 
 ### OAuth & secrets
 

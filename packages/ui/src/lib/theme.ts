@@ -4,14 +4,14 @@ const STORAGE_KEY = "skillist-theme";
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 // Persist the theme in a cookie (not localStorage) so it is shared across the
-// marketing (skillist.io) and console (console.skillist.io) apps — different
-// origins that don't share localStorage. On skillist.io hosts the cookie is
+// marketing (skillist.dev) and console (console.skillist.dev) apps — different
+// origins that don't share localStorage. On skillist.dev hosts the cookie is
 // scoped to the parent domain; on localhost it's host-only (still shared across
 // ports, which cookies ignore). Must match the anti-flash script in each app's
 // index.html.
 function cookieDomainAttr(): string {
   if (typeof window === "undefined") return "";
-  return window.location.hostname.endsWith("skillist.io") ? "; domain=.skillist.io" : "";
+  return window.location.hostname.endsWith("skillist.dev") ? "; domain=.skillist.dev" : "";
 }
 
 function readThemeCookie(): string | null {

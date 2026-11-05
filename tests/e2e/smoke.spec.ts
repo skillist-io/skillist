@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-// Authenticated surfaces moved to the console app (console.skillist.io); the
+// Authenticated surfaces moved to the console app (console.skillist.dev); the
 // marketing site (baseURL) no longer has /dashboard or /inventory.
-const CONSOLE_URL = process.env.SMOKE_CONSOLE_URL ?? "https://console.skillist.io";
+const CONSOLE_URL = process.env.SMOKE_CONSOLE_URL ?? "https://console.skillist.dev";
 
 test("homepage shows hero and connect section", async ({ page }) => {
   await page.goto("/");

@@ -34,13 +34,13 @@ describe("skillHeadTags", () => {
     // The bug this whole change exists to fix: every page previously canonicalised
     // to "/", telling crawlers the entire registry was duplicate content.
     expect(skillHeadTags(meta)).toContain(
-      '<link rel="canonical" href="https://skillist.io/skillist/web-perf-audit" />',
+      '<link rel="canonical" href="https://skillist.dev/skillist/web-perf-audit" />',
     );
   });
 
   it("advertises the raw markdown alternate for AI crawlers", () => {
     expect(skillHeadTags(meta)).toContain(
-      'rel="alternate" type="text/markdown" href="https://skillist.io/skillist/web-perf-audit/SKILL.md"',
+      'rel="alternate" type="text/markdown" href="https://skillist.dev/skillist/web-perf-audit/SKILL.md"',
     );
   });
 
@@ -56,7 +56,7 @@ describe("skillHeadTags", () => {
     // two must never drift apart.
     const html = skillHeadTags(meta);
     expect(html).toContain('name="twitter:card" content="summary_large_image"');
-    expect(html).toContain('property="og:image" content="https://skillist.io/og-default.png"');
+    expect(html).toContain('property="og:image" content="https://skillist.dev/og-default.png"');
     expect(html).toContain('name="twitter:image"');
   });
 
@@ -76,7 +76,7 @@ describe("skillJsonLd", () => {
     const app = parsed["@graph"][0];
     expect(app["@type"]).toBe("SoftwareApplication");
     expect(app.softwareVersion).toBe("1.2.3");
-    expect(app.downloadUrl).toBe("https://skillist.io/skillist/web-perf-audit/bundle");
+    expect(app.downloadUrl).toBe("https://skillist.dev/skillist/web-perf-audit/bundle");
   });
 
   it("omits interaction counters that have no data instead of emitting zeros", () => {
@@ -107,7 +107,7 @@ describe("robotsTxt", () => {
     for (const agent of ["GPTBot", "ClaudeBot", "PerplexityBot"]) {
       expect(txt).toContain(`User-agent: ${agent}`);
     }
-    expect(txt).toContain("Sitemap: https://skillist.io/sitemap.xml");
+    expect(txt).toContain("Sitemap: https://skillist.dev/sitemap.xml");
   });
 });
 
@@ -116,7 +116,7 @@ describe("sitemapXml", () => {
     const xml = sitemapXml([
       { orgSlug: "acme", skillRepo: "widget", updatedAt: "2026-07-01T00:00:00.000Z" },
     ]);
-    expect(xml).toContain("<loc>https://skillist.io/acme/widget</loc>");
+    expect(xml).toContain("<loc>https://skillist.dev/acme/widget</loc>");
     expect(xml).toContain("<lastmod>2026-07-01T00:00:00.000Z</lastmod>");
   });
 
@@ -133,16 +133,16 @@ describe("sitemapXml", () => {
     // /privacy is linked from the consent banner on all three surfaces, so it
     // must be indexable rather than an orphan.
     const xml = sitemapXml([]);
-    expect(xml).toContain("<loc>https://skillist.io/</loc>");
-    expect(xml).toContain("<loc>https://skillist.io/registry</loc>");
-    expect(xml).toContain("<loc>https://skillist.io/privacy</loc>");
+    expect(xml).toContain("<loc>https://skillist.dev/</loc>");
+    expect(xml).toContain("<loc>https://skillist.dev/registry</loc>");
+    expect(xml).toContain("<loc>https://skillist.dev/privacy</loc>");
   });
 });
 
 describe("llmsTxt", () => {
   it("links each skill to its markdown, not its HTML page", () => {
     const txt = llmsTxt([{ orgSlug: "acme", skillRepo: "widget", description: "Does a thing." }]);
-    expect(txt).toContain("[acme/widget](https://skillist.io/acme/widget/SKILL.md)");
+    expect(txt).toContain("[acme/widget](https://skillist.dev/acme/widget/SKILL.md)");
     expect(txt).toContain("Does a thing.");
   });
 });

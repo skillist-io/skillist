@@ -54,7 +54,7 @@ export function RealtimeFanout() {
           </span>
           Publish fan-out
         </span>
-        <span className="font-mono text-[0.65rem] text-muted-foreground">api.skillist.io</span>
+        <span className="font-mono text-[0.65rem] text-muted-foreground">api.skillist.dev</span>
       </div>
 
       <div className="px-4 py-4">

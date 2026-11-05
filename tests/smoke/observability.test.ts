@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-const API_URL = process.env.SMOKE_API_URL ?? "https://api.skillist.io";
+const API_URL = process.env.SMOKE_API_URL ?? "https://api.skillist.dev";
 
 /**
  * Post-deploy checks for the authenticated dashboard endpoints the console's

@@ -667,7 +667,7 @@ function RegistryRow({
                   ? { kind: "skill", skillId: item.skillId, label: item.name }
                   : {
                       kind: "external",
-                      externalUrl: `https://skillist.io/${item.orgSlug}/${item.skillRepo}`,
+                      externalUrl: `https://skillist.dev/${item.orgSlug}/${item.skillRepo}`,
                       externalName: item.name,
                     }
               }
@@ -791,7 +791,7 @@ function RegistryCard({ item }: { item: RegistryItem }) {
                   ? { kind: "skill", skillId: item.skillId, label: item.name }
                   : {
                       kind: "external",
-                      externalUrl: `https://skillist.io/${item.orgSlug}/${item.skillRepo}`,
+                      externalUrl: `https://skillist.dev/${item.orgSlug}/${item.skillRepo}`,
                       externalName: item.name,
                     }
               }

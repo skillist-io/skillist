@@ -8,7 +8,7 @@ import { AGENT_NAMES } from "@/components/agent-names";
  * the CLI and URL methods below make clear the list isn't exhaustive.
  */
 
-const ENDPOINT = "https://api.skillist.io/mcp";
+const ENDPOINT = "https://api.skillist.dev/mcp";
 
 type Connect = { where: string; code: string };
 
@@ -174,10 +174,10 @@ export function AgentConnect({
           </h3>
           <div className="flex items-center justify-between gap-2">
             <code className="truncate font-mono text-sm text-foreground">
-              curl skillist.io/skillist/web-perf-audit/SKILL.md
+              curl skillist.dev/skillist/web-perf-audit/SKILL.md
             </code>
             <CopyButton
-              value="curl https://skillist.io/skillist/web-perf-audit/SKILL.md"
+              value="curl https://skillist.dev/skillist/web-perf-audit/SKILL.md"
               label="Copy"
               size="xs"
             />

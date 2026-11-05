@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Skillist ([skillist.io](https://skillist.io)) is a realtime Agent Skills registry — publish, version, improve, and deliver skills compliant with the [agentskills.io](https://agentskills.io) spec. It runs entirely on Cloudflare Workers.
+Skillist ([skillist.dev](https://skillist.dev)) is a realtime Agent Skills registry — publish, version, improve, and deliver skills compliant with the [agentskills.io](https://agentskills.io) spec. It runs entirely on Cloudflare Workers.
 
 ## Monorepo layout
 
@@ -13,8 +13,8 @@ pnpm + Turborepo workspace (`apps/*`, `packages/*`). Node >= 20, pnpm 11.
 ```
 apps/
   api/      Cloudflare Worker — Hono API, Durable Objects, Queue consumer, MCP server (@skillist/api)
-  web/      React SPA — public MARKETING site → skillist.io: landing, registry browse, public skill pages /{org}/{repo} (@skillist/web)
-  console/  React SPA — authenticated PRODUCT → console.skillist.io: dashboard, inventory, observability, governance, settings, editor (@skillist/console)
+  web/      React SPA — public MARKETING site → skillist.dev: landing, registry browse, public skill pages /{org}/{repo} (@skillist/web)
+  console/  React SPA — authenticated PRODUCT → console.skillist.dev: dashboard, inventory, observability, governance, settings, editor (@skillist/console)
   docs/     Astro + Starlight user docs (@skillist/docs)
 packages/
   ui/            Shared design system — UI primitives (`components/ui/*`), shared components, clients (`api`, `auth-client`, `theme`, `urls`). Consumed as SOURCE by web + console as `@skillist/ui`
@@ -53,7 +53,7 @@ Testing specifics:
 - **Unit tests** live next to source (`*.test.ts`). API tests run under `@cloudflare/vitest-pool-workers` (real Workers runtime), config in `apps/api/vitest.config.ts`.
 - Run one workspace: `pnpm --filter @skillist/api test`. Run one file: `pnpm --filter @skillist/api exec vitest run src/publish-latency.test.ts`.
 - `pnpm smoke` — HTTP checks against **production** (`tests/vitest.config.ts`); builds the CLI first.
-- `pnpm test:e2e` — Playwright against skillist.io (`tests/e2e/`).
+- `pnpm test:e2e` — Playwright against skillist.dev (`tests/e2e/`).
 - CI (`.github/workflows/ci.yml`) runs `check → typecheck → test → playwright → build`, then deploys api/web/console/docs to Cloudflare on `main`.
 
 DB workflow: edit `packages/db/src/schema.ts` → `pnpm db:generate` (writes SQL to `packages/db/drizzle/`) → `pnpm db:migrate`.
@@ -86,7 +86,7 @@ DB workflow: edit `packages/db/src/schema.ts` → `pnpm db:generate` (writes SQL
 
 Frontend strategy lives in `PRODUCT.md` (and `DESIGN.md` for the visual system). Read them before UI work. In brief:
 
-- **Register:** `product` by default (the authenticated tool is `apps/console` → console.skillist.io, the daily-driver), with the public landing/registry marketing surface `apps/web` → skillist.io as a co-equal `brand` surface. They stay visibly one system via the shared `packages/ui` design system.
+- **Register:** `product` by default (the authenticated tool is `apps/console` → console.skillist.dev, the daily-driver), with the public landing/registry marketing surface `apps/web` → skillist.dev as a co-equal `brand` surface. They stay visibly one system via the shared `packages/ui` design system.
 - **Personality:** precise, technical, calm — engineering-grade restraint (Linear / Vercel / Warp composure, not their palettes). Trust + control is the primary outcome.
 - **Anti-references:** generic shadcn/AI-default (the current stock grayscale-neutral + Inter + default-purple is the thing to leave behind), playful/consumer/rounded, cluttered enterprise dashboard, loud SaaS marketing.
 - **Accessibility:** WCAG 2.2 AA — 4.5:1 body contrast, full keyboard nav + visible focus, light **and** dark themes both pass, reduced-motion alternatives, never color-only status.

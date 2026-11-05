@@ -47,7 +47,7 @@ describe("invitation tokens and email (no DB)", () => {
     const message = buildInvitationEmail({
       orgName: '<img src=x onerror="alert(1)">Acme',
       role: "viewer",
-      url: "https://console.skillist.io/invite?token=inv_abc",
+      url: "https://console.skillist.dev/invite?token=inv_abc",
     });
     expect(message.html).not.toContain("<img");
     expect(message.html).toContain("&lt;img");
@@ -56,7 +56,7 @@ describe("invitation tokens and email (no DB)", () => {
   });
 
   it("puts the accept URL in both the HTML and text parts", () => {
-    const url = "https://console.skillist.io/invite?token=inv_abc";
+    const url = "https://console.skillist.dev/invite?token=inv_abc";
     const message = buildInvitationEmail({ orgName: "Acme", role: "editor", url });
     expect(message.html).toContain(url);
     expect(message.text).toContain(url);

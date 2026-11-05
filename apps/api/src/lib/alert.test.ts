@@ -30,10 +30,10 @@ function fakeKv() {
 function fakeEnv(overrides: Partial<Env> = {}) {
   return {
     // Production-looking, so the isProductionEnv guard lets alerts through.
-    BETTER_AUTH_URL: "https://api.skillist.io",
+    BETTER_AUTH_URL: "https://api.skillist.dev",
     SKILLS_KV: fakeKv(),
     EMAIL: { send: vi.fn().mockResolvedValue(undefined) },
-    ALERT_EMAIL_TO: "alerts@skillist.io",
+    ALERT_EMAIL_TO: "alerts@skillist.dev",
     ALERT_SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/T/B/xxx",
     ...overrides,
   } as unknown as Env;

@@ -3,11 +3,11 @@
   "info": {
     "title": "Skillist API",
     "version": "1.0.0",
-    "description": "Realtime Agent Skills management, versioning, and delivery API. Compliant with agentskills.io.\n\n**Two URL surfaces.** `/v1/*` is this versioned API. Public delivery also lives on\nGitHub-style apex paths — `/{org}/{repo}/SKILL.md`, `/meta`, `/bundle` — which are\nunauthenticated and served from the edge; those work on both api.skillist.io and\nskillist.io.\n\n**Auth.** Either an org API key (`Authorization: Bearer sk_...`) or a browser session\ncookie. Delivery reads need neither. Sign-in and account endpoints live under\n`/api/auth/*` (Better Auth) and are not documented here.\n\n**Rate limits.** 120 requests / 60s per IP on `/v1/*`; a tighter budget on `/api/auth/*`\nand `/mcp`. Exceeding it returns 429.\n\n**Errors.** `{ \"error\": string }`, plus a `correlationId` on 500 — quote it in support\nrequests. Request bodies are capped at 25 MB (413).\n\nSee https://docs.skillist.io for guides, and https://docs.skillist.io/mcp/ for the MCP server."
+    "description": "Realtime Agent Skills management, versioning, and delivery API. Compliant with agentskills.io.\n\n**Two URL surfaces.** `/v1/*` is this versioned API. Public delivery also lives on\nGitHub-style apex paths — `/{org}/{repo}/SKILL.md`, `/meta`, `/bundle` — which are\nunauthenticated and served from the edge; those work on both api.skillist.dev and\nskillist.dev.\n\n**Auth.** Either an org API key (`Authorization: Bearer sk_...`) or a browser session\ncookie. Delivery reads need neither. Sign-in and account endpoints live under\n`/api/auth/*` (Better Auth) and are not documented here.\n\n**Rate limits.** 120 requests / 60s per IP on `/v1/*`; a tighter budget on `/api/auth/*`\nand `/mcp`. Exceeding it returns 429.\n\n**Errors.** `{ \"error\": string }`, plus a `correlationId` on 500 — quote it in support\nrequests. Request bodies are capped at 25 MB (413).\n\nSee https://docs.skillist.dev for guides, and https://docs.skillist.dev/mcp/ for the MCP server."
   },
   "servers": [
     {
-      "url": "https://api.skillist.io",
+      "url": "https://api.skillist.dev",
       "description": "Production"
     },
     {
@@ -108,7 +108,7 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "__Secure-better-auth.session_token",
-        "description": "Browser session cookie, issued by Better Auth on sign-in at console.skillist.io."
+        "description": "Browser session cookie, issued by Better Auth on sign-in at console.skillist.dev."
       }
     },
     "schemas": {},

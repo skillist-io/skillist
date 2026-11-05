@@ -32,7 +32,7 @@ export type AuthEnv = {
   SSO_TOKEN_URL?: string;
   SSO_USERINFO_URL?: string;
   SSO_SCOPES?: string;
-  /** Console app origin (console.skillist.io); the authed surfaces + /login. */
+  /** Console app origin (console.skillist.dev); the authed surfaces + /login. */
   CONSOLE_URL?: string;
 };
 
@@ -48,7 +48,7 @@ export function resolveWebUrl(env: AuthEnv): string {
   if (env.BETTER_AUTH_URL.includes("localhost")) {
     return "http://localhost:5173";
   }
-  return "https://skillist.io";
+  return "https://skillist.dev";
 }
 
 /** Console app origin — where /login and the authed surfaces live. */
@@ -57,7 +57,7 @@ export function resolveConsoleUrl(env: AuthEnv): string {
   if (env.BETTER_AUTH_URL.includes("localhost")) {
     return "http://localhost:5174";
   }
-  return "https://console.skillist.io";
+  return "https://console.skillist.dev";
 }
 
 function resolveAuthBaseURL(env: AuthEnv) {
@@ -65,10 +65,10 @@ function resolveAuthBaseURL(env: AuthEnv) {
     return env.BETTER_AUTH_URL;
   }
 
-  // Auth is served same-origin on skillist.io/api/*, console.skillist.io/api/*
-  // (SPA worker proxies) and api.skillist.io.
+  // Auth is served same-origin on skillist.dev/api/*, console.skillist.dev/api/*
+  // (SPA worker proxies) and api.skillist.dev.
   return {
-    allowedHosts: ["skillist.io", "console.skillist.io", "api.skillist.io"],
+    allowedHosts: ["skillist.dev", "console.skillist.dev", "api.skillist.dev"],
     fallback: env.BETTER_AUTH_URL,
     protocol: "https" as const,
   };
@@ -146,9 +146,9 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
       ...(isLocal
         ? ["http://localhost:5173", "http://localhost:5174", "http://localhost:8787"]
         : []),
-      "https://skillist.io",
-      "https://console.skillist.io",
-      "https://api.skillist.io",
+      "https://skillist.dev",
+      "https://console.skillist.dev",
+      "https://api.skillist.dev",
     ],
     // Pin the session lifecycle rather than inheriting it. cookieCache is the
     // consequential one: without it every getSession() — and authMiddleware
@@ -188,7 +188,7 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
       : {
           crossSubDomainCookies: {
             enabled: true,
-            domain: ".skillist.io",
+            domain: ".skillist.dev",
           },
           defaultCookieAttributes: {
             secure: true,
@@ -227,16 +227,16 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
       // NOTE: emailOTP was removed. It had no client plugin and no UI, so its
       // only effect was to expose an unauthenticated, unthrottled
       // /api/auth/email-otp/send-verification-otp that anyone could use to fan
-      // out mail from welcome@skillist.io. Re-add it together with a client,
+      // out mail from welcome@skillist.dev. Re-add it together with a client,
       // rate limits, and disableSignUp if OTP sign-in is ever wanted.
       passkey({
         // rpID is the registrable parent domain so passkeys work on both
-        // skillist.io and console.skillist.io.
-        rpID: isLocal ? "localhost" : "skillist.io",
+        // skillist.dev and console.skillist.dev.
+        rpID: isLocal ? "localhost" : "skillist.dev",
         rpName: "Skillist",
         origin: isLocal
           ? ["http://localhost:5173", "http://localhost:5174", "http://localhost:8787"]
-          : ["https://skillist.io", "https://console.skillist.io", "https://api.skillist.io"],
+          : ["https://skillist.dev", "https://console.skillist.dev", "https://api.skillist.dev"],
       }),
       mcp({
         // /login lives on the console app now.

@@ -222,7 +222,7 @@ function InventoryPage() {
                   )}
                   {item.managed && item.registryOrgSlug && item.registryRepo && (
                     <p className="text-xs text-muted-foreground">
-                      → skillist.io/{item.registryOrgSlug}/{item.registryRepo}
+                      → skillist.dev/{item.registryOrgSlug}/{item.registryRepo}
                     </p>
                   )}
                 </div>
@@ -264,7 +264,7 @@ function InventoryPage() {
                               }
                             : {
                                 kind: "external",
-                                externalUrl: `https://skillist.io/${item.registryOrgSlug}/${item.registryRepo}`,
+                                externalUrl: `https://skillist.dev/${item.registryOrgSlug}/${item.registryRepo}`,
                                 externalName: item.localSlug ?? item.registryRepo,
                               }
                         }

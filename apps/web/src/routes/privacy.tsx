@@ -29,7 +29,7 @@ function PrivacyPage() {
             <p>
               Skillist is operated by an individual developer, not an incorporated company. For any
               privacy question, or to request access to or deletion of your data, email{" "}
-              <Mail to="privacy@skillist.io" />.
+              <Mail to="privacy@skillist.dev" />.
             </p>
           </Section>
 
@@ -86,7 +86,7 @@ function PrivacyPage() {
               rows={[
                 [
                   "Better Auth session",
-                  "Keeps you signed in. Strictly necessary. Scoped to .skillist.io so one sign-in covers the site and the console.",
+                  "Keeps you signed in. Strictly necessary. Scoped to .skillist.dev so one sign-in covers the site and the console.",
                 ],
                 ["skillist-theme", "Remembers light/dark preference. Strictly necessary."],
                 [
@@ -178,8 +178,8 @@ function PrivacyPage() {
             </p>
             <p className="mt-4">
               For a copy of your data, a correction, or anything else, email{" "}
-              <Mail to="privacy@skillist.io" />. If you are in the UK or EU, you also have the right
-              to complain to your data protection authority.
+              <Mail to="privacy@skillist.dev" />. If you are in the UK or EU, you also have the
+              right to complain to your data protection authority.
             </p>
           </Section>
 

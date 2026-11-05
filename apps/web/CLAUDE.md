@@ -1,6 +1,6 @@
 # apps/web — public marketing SPA (@skillist/web)
 
-The public **marketing** site → `skillist.io`: landing, registry browse, and public skill pages `/{org}/{repo}`. (The authenticated product is a separate app, `apps/console` → console.skillist.io.) React 19, Vite 8, TanStack Router (file-based) + Query, Tailwind v4.
+The public **marketing** site → `skillist.dev`: landing, registry browse, and public skill pages `/{org}/{repo}`. (The authenticated product is a separate app, `apps/console` → console.skillist.dev.) React 19, Vite 8, TanStack Router (file-based) + Query, Tailwind v4.
 
 ## Conventions
 

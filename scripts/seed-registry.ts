@@ -392,8 +392,8 @@ async function main() {
   }
 
   console.log("\nDone. Verify:");
-  const delivery = IS_LOCAL ? "http://localhost:8787" : "https://skillist.io";
-  const api = IS_LOCAL ? "http://localhost:8787" : "https://api.skillist.io";
+  const delivery = IS_LOCAL ? "http://localhost:8787" : "https://skillist.dev";
+  const api = IS_LOCAL ? "http://localhost:8787" : "https://api.skillist.dev";
   console.log(`  curl ${api}/v1/registry`);
   console.log(`  curl ${delivery}/${ORG_SLUG}/roll-dice/SKILL.md`);
   console.log(`  open ${delivery}/${ORG_SLUG}/roll-dice`);

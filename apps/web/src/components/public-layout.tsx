@@ -61,7 +61,7 @@ type NavItem = { label: string; to: string } | { label: string; href: string };
 const PRIMARY_NAV: NavItem[] = [
   { label: "Registry", to: "/registry" },
   { label: "Clients", to: "/clients" },
-  { label: "Docs", href: "https://docs.skillist.io" },
+  { label: "Docs", href: "https://docs.skillist.dev" },
   { label: "API", href: apiUrl("/docs") },
 ];
 
@@ -132,7 +132,7 @@ function AuthActions({ onNavigate, className }: { onNavigate?: () => void; class
             onNavigate?.();
             // Home, not the shared "/login" default: this app has no /login
             // route (sign-in lives on the console), so the default resolved to
-            // skillist.io/login and 404'd. Signing out of a public browsing
+            // skillist.dev/login and 404'd. Signing out of a public browsing
             // surface should leave you on it.
             void signOutAndRedirect("/");
           }}
@@ -255,9 +255,9 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Developers",
     links: [
-      { label: "Docs", href: "https://docs.skillist.io" },
+      { label: "Docs", href: "https://docs.skillist.dev" },
       { label: "API reference", href: apiUrl("/docs") },
-      { label: "CLI", href: "https://docs.skillist.io/getting-started/cli/" },
+      { label: "CLI", href: "https://docs.skillist.dev/getting-started/cli/" },
       { label: "MCP server", href: apiUrl("/mcp") },
     ],
   },

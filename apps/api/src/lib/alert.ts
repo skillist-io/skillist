@@ -157,7 +157,7 @@ async function sendAlertEmail(env: Env, to: string, summary: ReturnType<typeof a
 
   await env.EMAIL.send({
     to,
-    from: "welcome@skillist.io",
+    from: "welcome@skillist.dev",
     subject: `[skillist] Unhandled error — ${summary.route}`,
     text,
     html: `<pre style="font:13px/1.5 ui-monospace,monospace">${text.replace(/[<&]/g, (c) => (c === "<" ? "&lt;" : "&amp;"))}</pre>`,

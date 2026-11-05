@@ -45,5 +45,11 @@
       "service": "skillist-api-production"
     }
   ],
-  "routes": [{ "pattern": "console.skillist.io", "custom_domain": true }]
+  // console.skillist.io stays attached only so the host keeps resolving: the zone's
+  // redirect rule (scripts/setup-legacy-redirect.sh) 301s it to skillist.dev at
+  // the edge, before this Worker runs.
+  "routes": [
+    { "pattern": "console.skillist.dev", "custom_domain": true },
+    { "pattern": "console.skillist.io", "custom_domain": true }
+  ]
 }
