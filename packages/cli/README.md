@@ -50,6 +50,7 @@ https://skillist.dev/{org}/{repo}/SKILL.md
 ## Commands
 
 - `skillist search [query]` — search registry with filters
+- `skillist --version` — print the CLI version
 - `skillist install <org>/<repo>[@version]` — download, verify the published sha256, and record in `.skillist.lock`
 - `skillist pull <org>/<repo>[@version]` — download without lockfile
 - `skillist push <org>/<repo> <dir>` — upload draft version
