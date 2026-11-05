@@ -3,7 +3,6 @@ import { Button, cn, SkillistMark, Textarea } from "@skillist/ui";
 import { useAgent } from "agents/react";
 import { ArrowUp, Square, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { agentHost } from "@/lib/agent-connection";
 import { type AgentContext, describeContext, formatContext } from "@/lib/agent-context";
 import { AgentMessage } from "./agent-message";
 
@@ -58,8 +57,11 @@ export function AgentChat({
 
   const agent = useAgent({
     agent: "skillist-agent",
+    // No `host`: the socket stays on this origin, where the Worker forwards
+    // /agents/* to the API and the session cookie rides along. CI builds set
+    // VITE_API_URL, so deriving the host from it sent the socket to the API
+    // domain, which the CSP blocks, and chat never connected.
     name: `${orgId}::${chatId}`,
-    host: agentHost(),
     onOpen: () => {
       setConnState("connected");
       setConnError(null);
