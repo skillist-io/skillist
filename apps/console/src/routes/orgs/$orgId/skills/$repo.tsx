@@ -41,7 +41,7 @@ import { errorLinesForSkillMd } from "@/components/skill-editor/frontmatter-line
 import { SkillBundleEditor } from "@/components/skill-editor/skill-bundle-editor";
 import { useSkillBundle } from "@/components/skill-editor/use-skill-bundle";
 import { ValidationPanel } from "@/components/skill-editor/validation-panel";
-import { SkillEvalPanel } from "@/components/skill-eval-panel";
+import { formatUplift, SkillEvalPanel } from "@/components/skill-eval-panel";
 import { SkillEvalRegression } from "@/components/skill-eval-regression";
 import { SkillStateStrip } from "@/components/skill-state-strip";
 import { useSyncActiveOrgFromParam } from "@/lib/active-org";
@@ -211,7 +211,7 @@ function SkillEditorPage() {
       publishPolicy?.minEvalUplift != null &&
       (draftEval.uplift == null || draftEval.uplift < publishPolicy.minEvalUplift)
     ) {
-      return `Eval uplift +${draftEval.uplift ?? 0} is below minimum +${publishPolicy.minEvalUplift}.`;
+      return `Eval uplift ${formatUplift(draftEval.uplift ?? 0)} is below minimum ${formatUplift(publishPolicy.minEvalUplift)}.`;
     }
     return null;
   }, [latestDraft, evalGateRequired, draftEval, publishPolicy]);

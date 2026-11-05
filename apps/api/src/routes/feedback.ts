@@ -12,6 +12,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { AiJobMessage, Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
+import { MODEL } from "../lib/model";
 import { errorResponses, okSchema } from "../lib/openapi";
 import { requireOrgAccess, requireOrgRole } from "../lib/org-access";
 import { resolveUserId } from "../lib/session";
@@ -271,7 +272,7 @@ feedbackRoutes.openapi(approveRoute, async (c) => {
   if (body.triggerAi) {
     const [job] = await c.var.db
       .insert(aiJobs)
-      .values({ feedbackId: id, status: "queued", model: "llama-3.1-8b" })
+      .values({ feedbackId: id, status: "queued", model: MODEL })
       .returning();
 
     const { organizations } = await import("@skillist/db/schema");

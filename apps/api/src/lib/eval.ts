@@ -2,7 +2,7 @@ import { skillEvals, skills, skillVersions } from "@skillist/db/schema";
 import { eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { WorkerDb } from "./db";
-import { runModel } from "./model";
+import { DETERMINISTIC, runModel } from "./model";
 import { downloadBundleFromR2, listBundlePaths } from "./r2";
 
 export type EvalScenario = {
@@ -37,12 +37,20 @@ const DEFAULT_SCENARIOS: EvalScenario[] = [
   },
 ];
 
+/**
+ * Scenarios from a bundle or the generator are tasks, not scoring prompts, so
+ * without this the model carries out the task and returns no score. It goes last,
+ * after any skill text, so nothing inside a skill can have the last word.
+ */
+const JUDGE_INSTRUCTION =
+  "You are scoring, not doing the task. Rate 0-100 how well an agent with only the information above could complete the task. Reply with only a number.";
+
+/**
+ * Failures propagate so the eval is marked failed. These scores can gate
+ * publishing, so a made-up default is worse than no score.
+ */
 async function scorePrompt(env: Env, prompt: string): Promise<number> {
-  try {
-    return parseScore((await runModel(env, prompt)) || "50");
-  } catch {
-    return 50;
-  }
+  return parseScore(await runModel(env, `${prompt}\n\n${JUDGE_INSTRUCTION}`, DETERMINISTIC));
 }
 
 async function generateScenariosFromSkill(
@@ -72,10 +80,10 @@ ${skillMd.slice(0, 6000)}
   }
 }
 
-function parseScore(text: string): number {
+export function parseScore(text: string): number {
   const match = text.match(/\d{1,3}/);
-  const n = match ? Number(match[0]) : 50;
-  return Math.min(100, Math.max(0, n));
+  if (!match) throw new Error("The judge did not return a score");
+  return Math.min(100, Math.max(0, Number(match[0])));
 }
 
 /** Load durable scenarios from bundle `evals/.../scenario.json` or `evals/scenarios.json`. */

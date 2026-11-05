@@ -37,8 +37,22 @@ describe("runModel", () => {
     await expect(runModel(envWith(run), "hi")).rejects.toThrow("model down");
   });
 
-  it("treats a response with no text as empty", async () => {
-    const run = vi.fn().mockResolvedValue({});
-    await expect(runModel(envWith(run), "hi")).resolves.toBe("");
+  it("reads OpenAI-style choices", async () => {
+    const run = vi.fn().mockResolvedValue({ choices: [{ message: { content: "73" } }] });
+    await expect(runModel(envWith(run), "hi")).resolves.toBe("73");
+  });
+
+  it("rejects a reply that hit the token limit", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const run = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: "# Half a ski" }, finish_reason: "length" }],
+    });
+    await expect(runModel(envWith(run), "hi")).rejects.toThrow("cut off");
+  });
+
+  it("fails rather than returning empty text", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const run = vi.fn().mockResolvedValue({ choices: [{ message: { content: "" } }] });
+    await expect(runModel(envWith(run), "hi")).rejects.toThrow("The model returned no text");
   });
 });
