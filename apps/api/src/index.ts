@@ -182,12 +182,12 @@ app.get("/.well-known/oauth-protected-resource", async (c) => {
 });
 
 // Production origins are always allowed. Console opens the platform agent
-// WebSocket/RPC cross-subdomain; cookies are scoped to .skillist.io so the
+// WebSocket/RPC cross-subdomain; cookies are scoped to .skillist.dev so the
 // session rides along.
 const PROD_CORS_ORIGINS = [
-  "https://skillist.io",
-  "https://api.skillist.io",
-  "https://console.skillist.io",
+  "https://skillist.dev",
+  "https://api.skillist.dev",
+  "https://console.skillist.dev",
 ];
 // Dev SPA origins — trusted ONLY when this deployment is itself local. Shipping
 // them to production would let a localhost page make credentialed cross-origin
@@ -387,7 +387,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "sessionCookie", {
   type: "apiKey",
   in: "cookie",
   name: "__Secure-better-auth.session_token",
-  description: "Browser session cookie, issued by Better Auth on sign-in at console.skillist.io.",
+  description: "Browser session cookie, issued by Better Auth on sign-in at console.skillist.dev.",
 });
 
 app.doc("/openapi.json", {
@@ -400,8 +400,8 @@ app.doc("/openapi.json", {
       "",
       "**Two URL surfaces.** `/v1/*` is this versioned API. Public delivery also lives on",
       "GitHub-style apex paths — `/{org}/{repo}/SKILL.md`, `/meta`, `/bundle` — which are",
-      "unauthenticated and served from the edge; those work on both api.skillist.io and",
-      "skillist.io.",
+      "unauthenticated and served from the edge; those work on both api.skillist.dev and",
+      "skillist.dev.",
       "",
       "**Auth.** Either an org API key (`Authorization: Bearer sk_...`) or a browser session",
       "cookie. Delivery reads need neither. Sign-in and account endpoints live under",
@@ -413,14 +413,14 @@ app.doc("/openapi.json", {
       '**Errors.** `{ "error": string }`, plus a `correlationId` on 500 — quote it in support',
       "requests. Request bodies are capped at 25 MB (413).",
       "",
-      "See https://docs.skillist.io for guides, and https://docs.skillist.io/mcp/ for the MCP server.",
+      "See https://docs.skillist.dev for guides, and https://docs.skillist.dev/mcp/ for the MCP server.",
     ].join("\n"),
   },
   // NB: no `/v1` suffix. Routes are registered under /v1 already, so a
   // /v1-suffixed server made every URL in the reference resolve to /v1/v1/...
   // and every "Try it" return 404.
   servers: [
-    { url: "https://api.skillist.io", description: "Production" },
+    { url: "https://api.skillist.dev", description: "Production" },
     { url: "http://localhost:8787", description: "Local" },
   ],
   // Document-level default: everything requires one of these unless a route

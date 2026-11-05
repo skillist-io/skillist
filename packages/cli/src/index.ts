@@ -27,12 +27,12 @@ import {
   writeManifest,
 } from "./sync.js";
 
-const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.io";
-const DELIVERY_URL = process.env.SKILLIST_DELIVERY_URL ?? "https://skillist.io";
+const API_URL = process.env.SKILLIST_API_URL ?? "https://api.skillist.dev";
+const DELIVERY_URL = process.env.SKILLIST_DELIVERY_URL ?? "https://skillist.dev";
 const API_KEY = process.env.SKILLIST_API_KEY;
 
 function usage() {
-  console.log(`Skillist CLI — sync agent skills with skillist.io
+  console.log(`Skillist CLI — sync agent skills with skillist.dev
 
 Usage:
   skillist search [query]                  Search public registry
@@ -72,8 +72,8 @@ Usage:
   skillist mcp proxy <org>/<name>          Stdio proxy to org MCP gateway server
 
 Environment:
-  SKILLIST_API_URL        API base URL (default: https://api.skillist.io)
-  SKILLIST_DELIVERY_URL   Public delivery URL (default: https://skillist.io)
+  SKILLIST_API_URL        API base URL (default: https://api.skillist.dev)
+  SKILLIST_DELIVERY_URL   Public delivery URL (default: https://skillist.dev)
   SKILLIST_API_KEY        Bearer token (sk_...) — required for push/publish
 `);
 }

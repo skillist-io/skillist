@@ -5,7 +5,7 @@
   "compatibility_flags": ["nodejs_compat"],
   // Serve ONLY on the routes below. Left enabled, the default
   // skillist-api-production.<subdomain>.workers.dev hostname exposes the whole
-  // API — auth, /v1, /mcp, apex execution — while bypassing the skillist.io
+  // API — auth, /v1, /mcp, apex execution — while bypassing the skillist.dev
   // zone, and with it the WAF, zone rate-limiting rules, and bot protection.
   "workers_dev": false,
   "preview_urls": false,
@@ -28,16 +28,21 @@
   // the web/console Workers.
   "cache": { "enabled": true },
   "vars": {
-    "BETTER_AUTH_URL": "https://api.skillist.io",
-    "WEB_URL": "https://skillist.io"
+    "BETTER_AUTH_URL": "https://api.skillist.dev",
+    "WEB_URL": "https://skillist.dev"
     // Alert routing (ALERT_EMAIL_TO, ALERT_SLACK_WEBHOOK_URL) is deliberately
     // NOT here: this repository is public, and a `vars` block is committed.
     // Both are set via `pnpm setup:secrets` from the gitignored .dev.vars.
   },
   "routes": [
+    { "pattern": "api.skillist.dev", "custom_domain": true },
+    // Legacy host, kept on purpose: published @skillist/cli <= 0.4.0 hardcodes
+    // it as its API default and registered GitHub mirror webhooks POST to it.
+    // A redirect can't stand in here — fetch drops Authorization on a
+    // cross-origin hop and webhook senders don't follow POST redirects.
     { "pattern": "api.skillist.io", "custom_domain": true },
-    { "pattern": "skillist.io/api/*", "zone_name": "skillist.io" },
-    { "pattern": "skillist.io/v1/*", "zone_name": "skillist.io" }
+    { "pattern": "skillist.dev/api/*", "zone_name": "skillist.dev" },
+    { "pattern": "skillist.dev/v1/*", "zone_name": "skillist.dev" }
   ],
   "triggers": {
     // Daily 06:00 UTC sync; weekly Sunday 07:00 UTC discover (CF: 1=Sun…7=Sat, not 0=Sun)

@@ -21,7 +21,7 @@
  *   SKILLIST_API_KEY=sk_...  pnpm embed:docs
  *   # SKILLIST_API_KEY must be an API key created by a platform admin (a user id
  *   # in SKILLIST_ADMIN_USER_IDS). Override the target with SKILLIST_API_URL
- *   # (defaults to https://api.skillist.io).
+ *   # (defaults to https://api.skillist.dev).
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -32,7 +32,7 @@ const API_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const REPO_ROOT = join(API_ROOT, "..", "..");
 const DOCS_DIR = join(REPO_ROOT, "apps", "docs", "src", "content", "docs");
 
-const API_URL = (process.env.SKILLIST_API_URL ?? "https://api.skillist.io").replace(/\/$/, "");
+const API_URL = (process.env.SKILLIST_API_URL ?? "https://api.skillist.dev").replace(/\/$/, "");
 const API_KEY = process.env.SKILLIST_API_KEY;
 // The endpoint caps a request at 100 chunks; stay under it and keep each embed
 // batch a reasonable size for Workers AI.

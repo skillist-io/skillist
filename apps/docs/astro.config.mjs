@@ -9,7 +9,7 @@ import { defineConfig } from "astro/config";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  site: "https://docs.skillist.io",
+  site: "https://docs.skillist.dev",
   output: "static",
   integrations: [
     react(),
@@ -36,8 +36,8 @@ export default defineConfig({
       social: [
         {
           icon: "external",
-          label: "skillist.io",
-          href: "https://skillist.io",
+          label: "skillist.dev",
+          href: "https://skillist.dev",
         },
         // GitHub social link and editLink removed: they pointed at
         // skillist-dev/skillist, which does not exist (404), and the source

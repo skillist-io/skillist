@@ -102,7 +102,7 @@ jobs:
         env:
           SKILLIST_E2E_API_KEY: ${{ secrets.SKILLIST_E2E_API_KEY }}
 
-      # e2e runs post-deploy against prod (skillist.io), not in the PR gate —
+      # e2e runs post-deploy against prod (skillist.dev), not in the PR gate —
       # a PR can't be validated against a not-yet-deployed landing.
       - run: pnpm exec playwright install chromium --with-deps
 
@@ -182,7 +182,7 @@ jobs:
       # emits the .d.ts the web tsc build needs) before building web itself.
       - run: pnpm --filter @skillist/skill-format build && pnpm --filter @skillist/web build
         env:
-          VITE_API_URL: https://api.skillist.io
+          VITE_API_URL: https://api.skillist.dev
           # Marketing container. Absent locally and in previews, so GTM only
           # loads on the deployed site.
           VITE_GTM_ID: ${{ secrets.VITE_GTM_ID_WEB }}
@@ -214,7 +214,7 @@ jobs:
       # skill-format emits the .d.ts the console tsc build needs.
       - run: pnpm --filter @skillist/skill-format build && pnpm --filter @skillist/console build
         env:
-          VITE_API_URL: https://api.skillist.io
+          VITE_API_URL: https://api.skillist.dev
           # SEPARATE container from web: authenticated product usage must not be
           # mixed into the marketing property's acquisition reporting.
           VITE_GTM_ID: ${{ secrets.VITE_GTM_ID_CONSOLE }}

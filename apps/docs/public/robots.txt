@@ -1,4 +1,4 @@
-# docs.skillist.io
+# docs.skillist.dev
 # AI crawlers are explicitly allowed: agents discovering and reading these docs
 # is the point of the product, and naming them guards against a future
 # blanket-disallow default.
@@ -26,4 +26,4 @@ Allow: /
 User-agent: Google-Extended
 Allow: /
 
-Sitemap: https://docs.skillist.io/sitemap-index.xml
+Sitemap: https://docs.skillist.dev/sitemap-index.xml

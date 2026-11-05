@@ -146,7 +146,7 @@ A pure grayscale ink ramp from paper-white to near-black, plus exactly two commi
 
 **The Literal White Rule.** Light surface is exactly `oklch(1 0 0)`. Never warm-tint the background toward cream, sand, or paper. Color on screen lives in the two signals (red, violet), never in the canvas.
 
-**The Dark Hero Exception.** The marketing hero on skillist.io renders on the near-black ground (`oklch(0.145 0 0)`) in **both** themes. Nowhere else. Not the rest of the marketing page, not the registry, not one surface of the console.
+**The Dark Hero Exception.** The marketing hero on skillist.dev renders on the near-black ground (`oklch(0.145 0 0)`) in **both** themes. Nowhere else. Not the rest of the marketing page, not the registry, not one surface of the console.
 
 This is a real departure and it is worth being honest about the cost: PRODUCT.md's fifth design principle says a visitor who converts on the landing should recognise the same identity inside the app, and a dark landing above a white console weakens that. It is taken deliberately, for one reason. The hero is the only surface on the entire product with no prior context to work with, and the thing it has to communicate — realtime fan-out — is a *light* moving through a *grid*. On white the signal violet has to fight the canvas for attention and the fan-out reads as decoration. On near-black it reads as an instrument in a darkened room, which is what the product actually is.
 

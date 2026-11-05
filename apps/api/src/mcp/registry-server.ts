@@ -70,8 +70,8 @@ function buildSkillCommands(orgSlug: string, repo: string, runtime: string | nul
       runtime && runtime !== "local"
         ? `skillist run ${orgSlug}/${repo} --script scripts/<script>`
         : null,
-    skillMdUrl: `https://skillist.io/${orgSlug}/${repo}/SKILL.md`,
-    registryUrl: `https://skillist.io/${orgSlug}/${repo}`,
+    skillMdUrl: `https://skillist.dev/${orgSlug}/${repo}/SKILL.md`,
+    registryUrl: `https://skillist.dev/${orgSlug}/${repo}`,
   };
 }
 
@@ -491,8 +491,8 @@ export function buildRegistryMcpServer(db: WorkerDb, session: McpSession | null)
           skill.runtime && skill.runtime !== "local"
             ? `skillist run ${org}/${repo} --script scripts/<script>`
             : null,
-        skillMdUrl: `https://skillist.io/${org}/${repo}/SKILL.md`,
-        registryUrl: `https://skillist.io/${org}/${repo}`,
+        skillMdUrl: `https://skillist.dev/${org}/${repo}/SKILL.md`,
+        registryUrl: `https://skillist.dev/${org}/${repo}`,
         sourceType: skill.sourceType ?? "native",
         upstreamRepo: skill.upstreamRepo ?? null,
         upstreamUrl: skill.upstreamUrl ?? null,
@@ -565,7 +565,7 @@ export function buildRegistryMcpServer(db: WorkerDb, session: McpSession | null)
 }
 
 export function mcpServerInfo(apiBaseUrl?: string) {
-  const base = apiBaseUrl?.replace(/\/$/, "") ?? "https://api.skillist.io";
+  const base = apiBaseUrl?.replace(/\/$/, "") ?? "https://api.skillist.dev";
   return {
     name: "skillist-registry",
     version: "1.0.0",
@@ -577,12 +577,12 @@ export function mcpServerInfo(apiBaseUrl?: string) {
     oauth: {
       authorizationServer: `${base}/.well-known/oauth-authorization-server`,
       protectedResource: `${base}/.well-known/oauth-protected-resource`,
-      // /login lives on the console app; skillist.io/login is not a route and
+      // /login lives on the console app; skillist.dev/login is not a route and
       // resolves to the SPA shell with a 200, so agents following this URL
       // would land on a soft-404 instead of a sign-in page.
-      loginPage: "https://console.skillist.io/login",
+      loginPage: "https://console.skillist.dev/login",
     },
     tools: REGISTRY_MCP_TOOL_NAMES,
-    docs: "https://docs.skillist.io",
+    docs: "https://docs.skillist.dev",
   };
 }

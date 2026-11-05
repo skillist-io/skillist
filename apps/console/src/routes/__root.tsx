@@ -4,9 +4,9 @@ import { createRootRouteWithContext, Outlet, useRouterState } from "@tanstack/re
 import { AppShell } from "@/components/app-shell";
 import { AuthShell } from "@/components/auth-shell";
 
-// Console (console.skillist.io): /login and /invite get the auth shell,
+// Console (console.skillist.dev): /login and /invite get the auth shell,
 // everything else is an authenticated surface in the app shell. There is no
-// public marketing layout here — that lives on the web app (skillist.io).
+// public marketing layout here — that lives on the web app (skillist.dev).
 //
 // /invite is here because an invitee arrives from an email while signed out.
 // The app shell mounts ActiveOrgProvider and the org switcher, which would

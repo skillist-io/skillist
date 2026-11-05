@@ -6,7 +6,7 @@
  * API worker —
  *   - dev: a Vite `ws: true` proxy to `:8787` (see `vite.config.ts`)
  *   - prod: the console worker's service binding to the API (`src/worker.ts`)
- * so the Better Auth session cookie (`.skillist.io`) rides the handshake as a
+ * so the Better Auth session cookie (`.skillist.dev`) rides the handshake as a
  * first-party cookie. No cross-origin host, no token exchange.
  *
  * If `VITE_API_URL` is ever set (a direct cross-origin build), we fall back to

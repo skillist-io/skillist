@@ -55,7 +55,7 @@ const MAX_PERSISTED_MESSAGES = 200;
 const MAX_VARIANTS_PER_MESSAGE = 5;
 
 const SYSTEM_PROMPT = [
-  "You are the Skillist platform agent. Skillist (skillist.io) is a realtime Agent Skills",
+  "You are the Skillist platform agent. Skillist (skillist.dev) is a realtime Agent Skills",
   "registry — teams publish, version, improve, and deliver skills that comply with the",
   "agentskills.io spec. You are a knowledgeable assistant for the WHOLE platform AND the",
   "spec: help users both USE Skillist and AUTHOR compliant skills.",

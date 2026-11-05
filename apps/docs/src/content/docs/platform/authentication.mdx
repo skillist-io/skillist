@@ -9,15 +9,15 @@ Skillist supports passwordless authentication — no passwords stored.
 
 | Method | Where |
 |--------|-------|
-| GitHub OAuth | [console.skillist.io/login](https://console.skillist.io/login) |
-| Google OAuth | [console.skillist.io/login](https://console.skillist.io/login) |
-| Passkey | Login page or [Account](https://console.skillist.io/account) |
+| GitHub OAuth | [console.skillist.dev/login](https://console.skillist.dev/login) |
+| Google OAuth | [console.skillist.dev/login](https://console.skillist.dev/login) |
+| Passkey | Login page or [Account](https://console.skillist.dev/account) |
 | Magic link | Email link via API |
 | Enterprise SSO | Login page (when configured) |
 
 ## Account
 
-Signed-in users manage personal auth at [console.skillist.io/account](https://console.skillist.io/account):
+Signed-in users manage personal auth at [console.skillist.dev/account](https://console.skillist.dev/account):
 
 - Display name
 - Linked GitHub / Google providers
@@ -28,7 +28,7 @@ Org API keys and OAuth app redirect docs stay under **Settings**.
 
 ## API auth
 
-Session cookies are used by the web app. Sign-in happens on `console.skillist.io`, and production sessions use cross-subdomain cookies on `.skillist.io` so `console.skillist.io`, `skillist.io`, and `api.skillist.io` all share the same session — signing in on the console is reflected on the marketing site too.
+Session cookies are used by the web app. Sign-in happens on `console.skillist.dev`, and production sessions use cross-subdomain cookies on `.skillist.dev` so `console.skillist.dev`, `skillist.dev`, and `api.skillist.dev` all share the same session — signing in on the console is reflected on the marketing site too.
 
 Protected API routes live under `/v1/*` and require a valid session or org API key.
 
@@ -58,7 +58,7 @@ Every key carries an explicit set of scopes, and is refused on any operation out
 
 ## MCP OAuth
 
-MCP clients use a separate OAuth flow — see [OAuth authentication](/mcp/oauth/). Sign-in still happens at `console.skillist.io/login`.
+MCP clients use a separate OAuth flow — see [OAuth authentication](/mcp/oauth/). Sign-in still happens at `console.skillist.dev/login`.
 
 ## Sandbox policy
 
@@ -81,6 +81,6 @@ The web login page exposes **Enterprise SSO**, which calls `/api/auth/sign-in/oa
 | GitHub | `http://localhost:8787/api/auth/callback/github` |
 | Google | `http://localhost:8787/api/auth/callback/google` |
 
-Production uses `https://api.skillist.io/api/auth/callback/{provider}`.
+Production uses `https://api.skillist.dev/api/auth/callback/{provider}`.
 
 See `apps/api/.dev.vars.example` for local client IDs.

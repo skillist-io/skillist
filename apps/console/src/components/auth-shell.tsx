@@ -47,7 +47,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           </ul>
         </div>
 
-        <p className="relative z-10 font-mono text-xs text-muted-foreground">skillist.io</p>
+        <p className="relative z-10 font-mono text-xs text-muted-foreground">skillist.dev</p>
       </aside>
 
       {/* Form pane */}

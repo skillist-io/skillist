@@ -1,6 +1,6 @@
 import { Button } from "@skillist/ui";
 
-const CONSOLE_URL = import.meta.env.VITE_CONSOLE_URL ?? "https://console.skillist.io";
+const CONSOLE_URL = import.meta.env.VITE_CONSOLE_URL ?? "https://console.skillist.dev";
 
 /**
  * Public-site stand-in for authenticated actions (e.g. "add to a project").

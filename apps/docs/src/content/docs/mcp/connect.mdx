@@ -9,7 +9,7 @@ import { McpConnectCard } from "@/components/docs/McpConnectCard";
 import { SectionHeading } from "@/components/docs/SectionHeading";
 
 <DocAlert title="MCP endpoint" client:load>
-  All clients connect to `https://api.skillist.io/mcp` using streamable HTTP.
+  All clients connect to `https://api.skillist.dev/mcp` using streamable HTTP.
 </DocAlert>
 
 <SectionHeading title="Cursor" client:load />
@@ -28,7 +28,7 @@ Use the remote HTTP transport with the same URL in your MCP config. Consult Anth
 
 ## VS Code
 
-If your VS Code MCP extension supports streamable HTTP, point it at `https://api.skillist.io/mcp` via the extension's server registration UI or `settings.json`.
+If your VS Code MCP extension supports streamable HTTP, point it at `https://api.skillist.dev/mcp` via the extension's server registration UI or `settings.json`.
 
 ## Generic HTTP client
 
@@ -38,7 +38,7 @@ and client info in `params._meta`, mirrored into the `MCP-Protocol-Version` and
 `Mcp-Method` headers (plus `Mcp-Name` on `tools/call`):
 
 ```bash
-curl -s https://api.skillist.io/mcp \
+curl -s https://api.skillist.dev/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -H "MCP-Protocol-Version: 2026-07-28" \
@@ -62,7 +62,7 @@ handshake is answered from the same tools, per request, with no session minted.
 
 ## Demo skill
 
-The [`skillist/registry-mcp`](https://skillist.io/skillist/registry-mcp) skill documents registry MCP usage for agents. Install it with:
+The [`skillist/registry-mcp`](https://skillist.dev/skillist/registry-mcp) skill documents registry MCP usage for agents. Install it with:
 
 ```bash
 skillist install skillist/registry-mcp
@@ -74,7 +74,7 @@ skillist install skillist/registry-mcp
   client:load
   columns={["Issue", "Fix"]}
   rows={[
-    ["401 from MCP client", "Complete OAuth sign-in at console.skillist.io/login if your client requires tokens"],
+    ["401 from MCP client", "Complete OAuth sign-in at console.skillist.dev/login if your client requires tokens"],
     ["405 on GET or DELETE", "Sessions were removed (MCP 2026-07-28) — send each message as its own POST"],
     ["400 HeaderMismatch (-32020)", "MCP-Protocol-Version / Mcp-Method / Mcp-Name headers must match the request body"],
     ["CORS errors", "Ensure your client sends Content-Type: application/json"],

@@ -185,7 +185,7 @@ describe("registry MCP server (2026-07-28)", () => {
 
 describe("mcpServerInfo", () => {
   it("advertises the modern protocol version and no session transport", async () => {
-    const info = mcpServerInfo("https://api.skillist.io");
+    const info = mcpServerInfo("https://api.skillist.dev");
     expect(info.protocolVersion).toBe(MCP_PROTOCOL_VERSION);
     expect(info.legacyProtocolVersions).toContain("2025-06-18");
     expect(info).not.toHaveProperty("session");

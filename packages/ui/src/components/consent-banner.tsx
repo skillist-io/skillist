@@ -8,7 +8,7 @@ import { type ConsentChoice, readConsent, setConsent } from "../lib/analytics";
  * Hand-built rather than pulling in a CMP SDK: the behaviour is a stored choice
  * plus a dataLayer push, and a third-party CMP would be both heavier and
  * off-brand. Shared across web, console, and docs so the decision is made once
- * and the cookie is scoped to .skillist.io.
+ * and the cookie is scoped to .skillist.dev.
  *
  * Consent defaults to denied in the GTM bootstrap (see gtm-plugin), so no
  * analytics storage is used before an explicit grant — this component only ever
@@ -46,7 +46,7 @@ export function ConsentBanner() {
         <p className="text-sm text-muted-foreground">
           We use Google Analytics to understand how Skillist is used. No advertising cookies, ever.{" "}
           <a
-            href="https://skillist.io/privacy"
+            href="https://skillist.dev/privacy"
             className="text-foreground underline underline-offset-4 hover:text-signal"
           >
             Privacy

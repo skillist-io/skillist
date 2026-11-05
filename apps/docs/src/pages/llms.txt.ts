@@ -18,7 +18,7 @@ export const GET: APIRoute = async () => {
   for (const entry of entries) {
     // id looks like "getting-started/quick-start"; the index page has no slash.
     const [section = "overview"] = entry.id.split("/");
-    const url = `https://docs.skillist.io/${entry.id.replace(/(^|\/)index$/, "")}`;
+    const url = `https://docs.skillist.dev/${entry.id.replace(/(^|\/)index$/, "")}`;
     const list = bySection.get(section) ?? [];
     list.push({
       title: entry.data.title,
@@ -51,8 +51,8 @@ export const GET: APIRoute = async () => {
   lines.push(
     "## Related",
     "",
-    "- [Registry catalogue (every public skill, as markdown)](https://skillist.io/llms.txt)",
-    "- [API reference](https://api.skillist.io/docs)",
+    "- [Registry catalogue (every public skill, as markdown)](https://skillist.dev/llms.txt)",
+    "- [API reference](https://api.skillist.dev/docs)",
     "",
   );
 

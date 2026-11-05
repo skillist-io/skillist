@@ -11,7 +11,7 @@
  * Pure functions, no Worker globals, so they are unit-testable.
  */
 
-export const SITE_ORIGIN = "https://skillist.io";
+export const SITE_ORIGIN = "https://skillist.dev";
 
 /** Default social card. Committed at apps/web/public/og-default.png (1200×630). */
 export const OG_IMAGE = `${SITE_ORIGIN}/og-default.png`;
@@ -298,8 +298,8 @@ export function llmsTxt(entries: RegistryEntry[]): string {
     "",
     "## Docs",
     "",
-    "- [Documentation](https://docs.skillist.io)",
-    "- [API reference](https://api.skillist.io/docs)",
+    "- [Documentation](https://docs.skillist.dev)",
+    "- [API reference](https://api.skillist.dev/docs)",
     "",
   ];
   return lines.join("\n");

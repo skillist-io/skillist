@@ -7,7 +7,7 @@ const FEATURED = [
   {
     org: "skillist",
     slug: "registry-mcp",
-    pitch: "Search and install skills via MCP: connect to api.skillist.io/mcp.",
+    pitch: "Search and install skills via MCP: connect to api.skillist.dev/mcp.",
   },
   {
     org: "skillist",

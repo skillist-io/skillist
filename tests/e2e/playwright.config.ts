@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
-const WEB_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.io";
+const WEB_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.dev";
 // Authenticated flows live on the console app now.
-const CONSOLE_URL = process.env.SMOKE_CONSOLE_URL ?? "https://console.skillist.io";
+const CONSOLE_URL = process.env.SMOKE_CONSOLE_URL ?? "https://console.skillist.dev";
 const AUTH_STATE = "tests/e2e/.auth/user.json";
 
 const hasAuthState = Boolean(process.env.E2E_AUTH_STATE_B64) || fs.existsSync(AUTH_STATE);

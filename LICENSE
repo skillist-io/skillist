@@ -15,4 +15,4 @@ They are MIT because they are client-side tools: you install the CLI to talk to
 the registry, and the format validator implements the public agentskills.io
 spec. Both are meant to be read, forked, and vendored.
 
-Questions about licensing: privacy@skillist.io
+Questions about licensing: privacy@skillist.dev

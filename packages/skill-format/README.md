@@ -2,7 +2,7 @@
 
 Parse, validate, and review [agentskills.io](https://agentskills.io) skill bundles.
 
-This is the same validator [Skillist](https://skillist.io) runs at publish time, so a bundle that
+This is the same validator [Skillist](https://skillist.dev) runs at publish time, so a bundle that
 passes here is one the registry will accept. Use it in CI to catch a malformed `SKILL.md` before it
 reaches review, or to build your own tooling around the format.
 
@@ -109,7 +109,7 @@ review signal.
 
 ## Documentation
 
-Format reference and platform docs: [docs.skillist.io](https://docs.skillist.io)
+Format reference and platform docs: [docs.skillist.dev](https://docs.skillist.dev)
 
 ## License
 

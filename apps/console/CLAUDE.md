@@ -1,6 +1,6 @@
 # apps/console — authenticated product SPA (@skillist/console)
 
-The authenticated **product** → `console.skillist.io`: dashboard, inventory, observability, governance, settings, account, admin, projects, skill editor, and `/login`. (The public marketing site is a separate app, `apps/web` → skillist.io.) React 19, Vite 8, TanStack Router (file-based) + Query, Tailwind v4. Better Auth client + passkeys.
+The authenticated **product** → `console.skillist.dev`: dashboard, inventory, observability, governance, settings, account, admin, projects, skill editor, and `/login`. (The public marketing site is a separate app, `apps/web` → skillist.dev.) React 19, Vite 8, TanStack Router (file-based) + Query, Tailwind v4. Better Auth client + passkeys.
 
 ## Conventions
 
@@ -16,5 +16,5 @@ The authenticated **product** → `console.skillist.io`: dashboard, inventory, o
 
 ## Dev / test
 
-- `pnpm dev:console` (:5174). The Vite dev server proxies `/api`, `/v1`, `/docs`, `/openapi.json`, and the apex `/{org}/{repo}/...` paths to `:8787` — that proxy's path regex mirrors the API's apex auth regex; keep them in sync. In production the app is a Cloudflare Worker (`src/worker.ts`) with a **service binding** to the API worker, proxying the same paths same-origin (session cookie scoped to `.skillist.io`, so no CORS/cross-subdomain complexity).
+- `pnpm dev:console` (:5174). The Vite dev server proxies `/api`, `/v1`, `/docs`, `/openapi.json`, and the apex `/{org}/{repo}/...` paths to `:8787` — that proxy's path regex mirrors the API's apex auth regex; keep them in sync. In production the app is a Cloudflare Worker (`src/worker.ts`) with a **service binding** to the API worker, proxying the same paths same-origin (session cookie scoped to `.skillist.dev`, so no CORS/cross-subdomain complexity).
 - Tests: Vitest + jsdom + Testing Library. One file: `pnpm --filter @skillist/console exec vitest run <path>`.
