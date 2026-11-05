@@ -10,8 +10,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc",
-    "generate": "drizzle-kit generate",
-    "test": "vitest run"
+    "generate": "drizzle-kit generate"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2"
@@ -20,7 +19,6 @@
     "@cloudflare/workers-types": "^5.20260721.1",
     "@skillist/tsconfig": "workspace:*",
     "drizzle-kit": "^0.31.10",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "typescript": "^7.0.2"
   }
 }
