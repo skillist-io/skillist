@@ -28,7 +28,7 @@ Then a **smoke** job runs `pnpm smoke` against production. So: land it on `main`
 
 ## npm packages (`@skillist/skill-format`, `@skillist/cli`)
 
-Published via the **manual** `workflow_dispatch` workflow `.github/workflows/publish-packages.yml` (builds skill-format then cli, skips versions already published, uses `NPM_TOKEN`). Locally: `pnpm publish:packages`. Bump the package `version` first; the workflow no-ops if the version already exists.
+Published via the **manual** `workflow_dispatch` workflow `.github/workflows/publish-packages.yml` (builds skill-format then cli, skips versions already published, uses npm trusted publishing, no token). Locally: `pnpm publish:packages`. Bump the package `version` first; the workflow no-ops if the version already exists.
 
 ## Before any deploy
 

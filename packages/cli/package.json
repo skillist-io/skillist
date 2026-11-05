@@ -1,6 +1,6 @@
 {
   "name": "@skillist/cli",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "CLI for the Skillist Agent Skills platform",
   "license": "MIT",
   "type": "module",
@@ -28,12 +28,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/blakebauman/skillist.git",
+    "url": "https://github.com/skillist-io/skillist.git",
     "directory": "packages/cli"
   },
   "homepage": "https://skillist.dev",
   "bugs": {
-    "url": "https://github.com/blakebauman/skillist/issues"
+    "url": "https://github.com/skillist-io/skillist/issues"
   },
   "engines": {
     "node": ">=20"
