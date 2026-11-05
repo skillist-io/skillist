@@ -33,9 +33,6 @@
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "@types/pg": "^8.20.0",
-    "pg": "^8.22.0",
-    "wrangler": "^4.112.0",
     "@biomejs/biome": "2.5.4",
     "@playwright/test": "^1.55.0",
     "@skillist/db": "workspace:*",
@@ -46,7 +43,8 @@
     "tsx": "^4.20.3",
     "turbo": "^2.10.5",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.112.0"
   },
   "packageManager": "pnpm@11.20.0",
   "engines": {
