@@ -1,6 +1,6 @@
 {
   "name": "@skillist/cli",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "CLI for the Skillist Agent Skills platform",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "dev": "tsx src/index.ts",

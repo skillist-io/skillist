@@ -1,0 +1,7 @@
+{
+  // Published output only. tsconfig.json still includes the tests so that
+  // `pnpm typecheck` covers them; this file keeps them out of dist/, and so
+  // out of the npm tarball, which ships all of dist/.
+  "extends": "./tsconfig.json",
+  "exclude": ["src/**/*.test.ts"]
+}
