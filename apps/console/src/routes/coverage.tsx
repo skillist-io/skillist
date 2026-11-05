@@ -92,7 +92,7 @@ function SummaryRow({ summary }: { summary: Coverage["summary"] }) {
       <CardHeader className="pb-4">
         <CardDescription>Required-skill coverage</CardDescription>
         <div className="flex items-end justify-between gap-4">
-          <CardTitle className="text-4xl tabular-nums">{pct}%</CardTitle>
+          <p className="font-heading text-4xl font-semibold tabular-nums">{pct}%</p>
           <span className="pb-1 font-mono text-xs text-muted-foreground tabular-nums">
             {summary.covered} / {summary.required} covered
           </span>

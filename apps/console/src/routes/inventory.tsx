@@ -48,6 +48,7 @@ function InventoryPage() {
   const { activeOrg } = useActiveOrg();
   const activeOrgId = activeOrg?.id ?? "";
   const [scanJson, setScanJson] = useState("");
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const [sourceFilter, setSourceFilter] = useState("all");
   const [securityFilter, setSecurityFilter] = useState("all");
@@ -63,6 +64,7 @@ function InventoryPage() {
   });
 
   const scan = useMutation({
+    meta: { success: "Scan submitted", failure: "Could not submit the scan" },
     mutationFn: (payload: { items: SkillInventoryItem[] }) =>
       api<{ upserted: number }>(`/v1/orgs/${activeOrgId}/inventory/scan`, {
         method: "POST",
@@ -96,25 +98,25 @@ function InventoryPage() {
         <Card size="sm">
           <CardHeader className="pb-2">
             <CardDescription>Total discovered</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">{items.length}</CardTitle>
+            <p className="font-heading text-3xl font-semibold tabular-nums">{items.length}</p>
           </CardHeader>
         </Card>
         <Card size="sm">
           <CardHeader className="pb-2">
             <CardDescription>Registry-managed</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">{managed}</CardTitle>
+            <p className="font-heading text-3xl font-semibold tabular-nums">{managed}</p>
           </CardHeader>
         </Card>
         <Card size="sm">
           <CardHeader className="pb-2">
             <CardDescription>Local only</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">{unmanaged}</CardTitle>
+            <p className="font-heading text-3xl font-semibold tabular-nums">{unmanaged}</p>
           </CardHeader>
         </Card>
         <Card size="sm">
           <CardHeader className="pb-2">
             <CardDescription>Security fail</CardDescription>
-            <CardTitle className="text-3xl tabular-nums">{failing}</CardTitle>
+            <p className="font-heading text-3xl font-semibold tabular-nums">{failing}</p>
           </CardHeader>
         </Card>
       </div>
@@ -160,44 +162,6 @@ function InventoryPage() {
           </NativeSelect>
         </div>
       </div>
-
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>Scan results</CardTitle>
-          <CardDescription>
-            Run <code className="bg-muted px-1">skillist inventory scan</code> or{" "}
-            <code className="bg-muted px-1">skillist inventory import --github-org …</code> for{" "}
-            {activeOrg?.slug ?? "your org"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea
-            className="min-h-[140px] font-mono text-xs"
-            placeholder='{ "items": [{ "repoFullName": "org/repo", "filePath": ".cursor/skills/foo/SKILL.md" }] }'
-            value={scanJson}
-            onChange={(e) => setScanJson(e.target.value)}
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              disabled={!scanJson.trim() || !activeOrgId || scan.isPending}
-              onClick={() => {
-                try {
-                  const parsed = JSON.parse(scanJson) as { items: SkillInventoryItem[] };
-                  scan.mutate(parsed);
-                } catch {
-                  alert("Invalid JSON — check the scan payload format.");
-                }
-              }}
-            >
-              {scan.isPending ? "Scanning…" : "Submit scan"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setScanJson(EXAMPLE_SCAN)}>
-              Load example
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card size="sm">
         <CardHeader>
@@ -285,6 +249,50 @@ function InventoryPage() {
               <code className="bg-muted px-1">skillist inventory scan</code> from CI.
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Submit a scan</CardTitle>
+          <CardDescription>
+            Run <code className="bg-muted px-1">skillist inventory scan</code> or{" "}
+            <code className="bg-muted px-1">skillist inventory import --github-org …</code> for{" "}
+            {activeOrg?.slug ?? "your org"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            className="min-h-[140px] font-mono text-xs"
+            placeholder='{ "items": [{ "repoFullName": "org/repo", "filePath": ".cursor/skills/foo/SKILL.md" }] }'
+            value={scanJson}
+            onChange={(e) => setScanJson(e.target.value)}
+            aria-label="Scan payload JSON"
+            aria-invalid={scanError ? true : undefined}
+          />
+          {scanError ? <p className="text-sm text-destructive">{scanError}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              disabled={!scanJson.trim() || !activeOrgId || scan.isPending}
+              onClick={() => {
+                setScanError(null);
+                try {
+                  const parsed = JSON.parse(scanJson) as { items: SkillInventoryItem[] };
+                  scan.mutate(parsed);
+                } catch {
+                  setScanError(
+                    'That isn\'t valid JSON. Expected { "items": [...] }, or use Load example.',
+                  );
+                }
+              }}
+            >
+              {scan.isPending ? "Scanning…" : "Submit scan"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setScanJson(EXAMPLE_SCAN)}>
+              Load example
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -46,7 +46,7 @@ function ProjectsIndexPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
           <PageTitle>Projects</PageTitle>

@@ -1,4 +1,4 @@
-import { api, type ProjectDetail } from "@skillist/ui";
+import { api, type Org, type ProjectDetail } from "@skillist/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 
@@ -24,6 +24,13 @@ export function useBreadcrumbs(): Crumb[] {
     queryFn: () => api<ProjectDetail>(`/v1/orgs/${orgId}/projects/${projectId}`),
     enabled: onProjectDetail,
   });
+
+  // Same key as the rest of the shell, so this is a cache read.
+  const { data: orgs } = useQuery({
+    queryKey: ["orgs"],
+    queryFn: () => api<Org[]>("/v1/orgs"),
+  });
+  const orgName = orgs?.find((org) => org.id === orgId)?.name ?? "Dashboard";
 
   if (segments[0] === "dashboard") {
     return [{ label: "Dashboard", href: "/dashboard", current: true }];
@@ -64,7 +71,7 @@ export function useBreadcrumbs(): Crumb[] {
   if (segments[0] === "orgs") {
     if (segments[2] === "skills" && segments.length >= 4) {
       return [
-        { label: "Dashboard", href: "/dashboard" },
+        { label: orgName, href: "/dashboard" },
         { label: segments[3] ?? "Skill", current: true },
       ];
     }

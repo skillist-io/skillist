@@ -46,8 +46,11 @@ export function useAgentContext(): AgentContext {
 
 /** Short label for the context chip in the composer. */
 export function describeContext(context: AgentContext): string {
-  if (context.skillRef) return `${context.page} · ${context.skillRef}`;
-  return context.page;
+  if (!context.skillRef) return context.page;
+  // On a skill page the ref starts with the org's UUID, which means nothing to
+  // the reader, and what's left repeats the page name.
+  const label = context.skillRef.replace(/^[0-9a-f]{8}-[0-9a-f-]{27}\//i, "");
+  return label === context.page ? context.page : `${context.page} · ${label}`;
 }
 
 /**

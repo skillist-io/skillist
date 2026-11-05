@@ -53,4 +53,10 @@ describe("agent context", () => {
       "Coverage · acme/pdf-tools",
     );
   });
+
+  it("keeps the org UUID out of the chip", () => {
+    const skillRef = "fc02aaed-7728-44ce-b30a-80a690240e60/sql-review";
+    expect(describeContext({ ...base, page: "sql-review", skillRef })).toBe("sql-review");
+    expect(describeContext({ ...base, skillRef })).toBe("Coverage · sql-review");
+  });
 });

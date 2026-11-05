@@ -276,6 +276,10 @@ export type Skill = {
   repo: string;
   visibility: string;
   description: string | null;
+  /** Highest published version. Optional because persisted caches predate it. */
+  publishedSemver?: string | null;
+  /** Highest draft newer than the published version: work waiting to go live. */
+  draftSemver?: string | null;
 };
 
 export type SkillVersion = {

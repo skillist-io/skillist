@@ -1,7 +1,6 @@
 import type { SkillPublishedEvent } from "@skillist/contracts";
 import { useEffect, useRef, useState } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+import { clientFetchBase } from "../lib/client-api-base";
 
 export function useSkillRealtime(org: string, repo: string) {
   const [connected, setConnected] = useState(false);
@@ -11,7 +10,11 @@ export function useSkillRealtime(org: string, repo: string) {
   useEffect(() => {
     if (!org || !repo) return;
 
-    const wsUrl = `${API_URL.replace("http", "ws")}/v1/realtime/skills/${org}/${repo}`;
+    // Same origin as every other API call. The CSP allows this host's sockets
+    // but not the API host's, so a cross-origin URL here is refused in the
+    // browser and the page sits on "disconnected" with no server error.
+    const base = clientFetchBase().replace(/^http/, "ws");
+    const wsUrl = `${base}/v1/realtime/skills/${org}/${repo}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

@@ -12,6 +12,7 @@ import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
+  StatusRegion,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -110,6 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Mounted once at the shell so the agent is reachable from every route
             and keeps its connection across navigation. */}
           <AgentDrawer open={agentDrawer.open} onOpenChange={agentDrawer.setOpen} />
+          <StatusRegion />
         </SidebarProvider>
       </ActiveOrgProvider>
     </TooltipProvider>

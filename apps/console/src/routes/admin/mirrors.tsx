@@ -7,6 +7,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ConfirmDialog,
   PageTitle,
   type SkillSource,
   type SkillSourceSuggestion,
@@ -14,6 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { GitBranch, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/admin/mirrors")({
@@ -30,6 +32,7 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
 
 function AdminMirrorsPage() {
   const queryClient = useQueryClient();
+  const [approving, setApproving] = useState<SkillSourceSuggestion | null>(null);
 
   const sources = useQuery({
     queryKey: ["admin", "sources"],
@@ -57,6 +60,7 @@ function AdminMirrorsPage() {
   });
 
   const approve = useMutation({
+    meta: { success: "Source approved", failure: "Could not approve the source" },
     mutationFn: (id: string) =>
       api<{ sourceId: string; status: string }>(`/v1/admin/source-suggestions/${id}/approve`, {
         method: "POST",
@@ -66,9 +70,11 @@ function AdminMirrorsPage() {
       queryClient.invalidateQueries({ queryKey: ["admin", "sources"] });
       queryClient.invalidateQueries({ queryKey: ["admin", "source-suggestions"] });
     },
+    onSettled: () => setApproving(null),
   });
 
   const reject = useMutation({
+    meta: { failure: "Could not reject the source" },
     mutationFn: (id: string) =>
       api<{ status: string }>(`/v1/admin/source-suggestions/${id}/reject`, { method: "POST" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "source-suggestions"] }),
@@ -76,7 +82,7 @@ function AdminMirrorsPage() {
 
   if (sources.isError) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto w-full max-w-6xl space-y-4">
         <PageTitle>Official mirrors</PageTitle>
         <p className="text-sm text-muted-foreground">
           Admin access required. Set <code className="bg-muted px-1">SKILLIST_ADMIN_USER_IDS</code>{" "}
@@ -87,10 +93,20 @@ function AdminMirrorsPage() {
   }
 
   const items = sources.data?.items ?? [];
-  const pending = suggestions.data?.items ?? [];
+  // Most suggestions share a search query, so it reads once per group rather
+  // than repeating on every row.
+  const pendingGroups = useMemo(() => {
+    const groups = new Map<string, SkillSourceSuggestion[]>();
+    for (const suggestion of suggestions.data?.items ?? []) {
+      const group = groups.get(suggestion.discoveredVia) ?? [];
+      group.push(suggestion);
+      groups.set(suggestion.discoveredVia, group);
+    }
+    return [...groups];
+  }, [suggestions.data]);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <PageTitle>Official mirrors</PageTitle>
@@ -168,45 +184,63 @@ function AdminMirrorsPage() {
         <CardContent className="space-y-3">
           {suggestions.isLoading ? (
             <p className="text-sm text-muted-foreground">Loading suggestions…</p>
-          ) : pending.length ? (
-            pending.map((suggestion) => (
-              <div
-                key={suggestion.id}
-                className="flex flex-col gap-3 border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium">
-                    {suggestion.githubOwner}/{suggestion.githubRepo}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    score {suggestion.matchScore} · {suggestion.stars} stars · via{" "}
-                    {suggestion.discoveredVia}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    disabled={approve.isPending || reject.isPending}
-                    onClick={() => approve.mutate(suggestion.id)}
+          ) : pendingGroups.length ? (
+            pendingGroups.map(([via, group]) => (
+              <section key={via} className="space-y-2">
+                <h3 className="font-mono text-xs break-all text-muted-foreground">{via}</h3>
+                {group.map((suggestion) => (
+                  <div
+                    key={suggestion.id}
+                    className="flex flex-col gap-3 border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={approve.isPending || reject.isPending}
-                    onClick={() => reject.mutate(suggestion.id)}
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </div>
+                    <div>
+                      <p className="font-medium">
+                        {suggestion.githubOwner}/{suggestion.githubRepo}
+                      </p>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        score {suggestion.matchScore} · {suggestion.stars} stars
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={approve.isPending || reject.isPending}
+                        onClick={() => setApproving(suggestion)}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={approve.isPending || reject.isPending}
+                        onClick={() => reject.mutate(suggestion.id)}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </section>
             ))
           ) : (
             <p className="text-sm text-muted-foreground">No pending suggestions.</p>
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={approving !== null}
+        onOpenChange={(open) => {
+          if (!open) setApproving(null);
+        }}
+        title={`Mirror ${approving?.githubOwner ?? ""}/${approving?.githubRepo ?? ""}?`}
+        description="Its skills start syncing into the public registry as an official source."
+        confirmLabel="Approve source"
+        isPending={approve.isPending}
+        onConfirm={() => {
+          if (approving) approve.mutate(approving.id);
+        }}
+      />
     </div>
   );
 }

@@ -2344,13 +2344,23 @@
                       "description": {
                         "type": "string",
                         "nullable": true
+                      },
+                      "publishedSemver": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "draftSemver": {
+                        "type": "string",
+                        "nullable": true
                       }
                     },
                     "required": [
                       "id",
                       "repo",
                       "visibility",
-                      "description"
+                      "description",
+                      "publishedSemver",
+                      "draftSemver"
                     ]
                   }
                 }

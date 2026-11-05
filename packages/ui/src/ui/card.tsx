@@ -33,11 +33,13 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+// A real heading so screen reader users can move between sections. Set to
+// DESIGN.md's Headline step: sentence case, with uppercase kept for small labels.
+function CardTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
-    <div
+    <h2
       data-slot="card-title"
-      className={cn("font-heading text-lg font-semibold tracking-wider uppercase", className)}
+      className={cn("font-heading text-lg leading-snug font-semibold", className)}
       {...props}
     />
   );
