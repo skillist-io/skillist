@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../env";
-import { AI_GATEWAY_ID, MODEL, runModel } from "./model";
+import { AI_GATEWAY_ID, MODEL, NO_PAYLOAD_LOGGING, runModel } from "./model";
 
 const envWith = (run: unknown) => ({ AI: { run } }) as unknown as Env;
 
@@ -14,7 +14,10 @@ describe("runModel", () => {
     await expect(runModel(envWith(run), "hi")).resolves.toBe("hello");
     expect(run).toHaveBeenCalledTimes(1);
     expect(run.mock.calls[0]?.[0]).toBe(MODEL);
-    expect(run.mock.calls[0]?.[2]).toMatchObject({ gateway: { id: AI_GATEWAY_ID } });
+    expect(run.mock.calls[0]?.[2]).toMatchObject({
+      gateway: { id: AI_GATEWAY_ID },
+      extraHeaders: NO_PAYLOAD_LOGGING,
+    });
   });
 
   it("retries on the binding directly when the gateway fails", async () => {

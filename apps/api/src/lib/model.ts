@@ -6,6 +6,14 @@ export const MODEL = "@cf/meta/llama-3.1-8b-instruct";
 /** The AI Gateway all model traffic is logged through. */
 export const AI_GATEWAY_ID = "skillist";
 
+/**
+ * Keeps prompts and responses out of AI Gateway logs, which hold agent chats and
+ * private skill content. Metadata such as model, status, tokens and timing is
+ * still logged. AI Gateway only offers this per request, so every gateway call
+ * has to send it.
+ */
+export const NO_PAYLOAD_LOGGING = { "cf-aig-collect-log-payload": "false" };
+
 /** Bounds a gateway call so a hung gateway can't stall the queue consumer. */
 const GATEWAY_TIMEOUT_MS = 30_000;
 
@@ -27,6 +35,7 @@ export async function runModel(env: Env, prompt: string): Promise<string> {
     return text(
       await env.AI.run(MODEL, input, {
         gateway: { id: AI_GATEWAY_ID, requestTimeoutMs: GATEWAY_TIMEOUT_MS },
+        extraHeaders: NO_PAYLOAD_LOGGING,
       }),
     );
   } catch (err) {
