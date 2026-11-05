@@ -28,12 +28,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/blakebauman/skillist.git",
+    "url": "https://github.com/skillist-io/skillist.git",
     "directory": "packages/cli"
   },
   "homepage": "https://skillist.dev",
   "bugs": {
-    "url": "https://github.com/blakebauman/skillist/issues"
+    "url": "https://github.com/skillist-io/skillist/issues"
   },
   "engines": {
     "node": ">=20"

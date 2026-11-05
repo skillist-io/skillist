@@ -102,12 +102,12 @@ Set `SKILLIST_API_URL` (default `http://localhost:8787`) and `SKILLIST_API_KEY` 
 ### Publish to npm
 
 ```bash
-# Requires NPM_TOKEN secret in GitHub, or local npm login
+# Requires a local npm login
 pnpm cli:build
 pnpm publish:packages
 ```
 
-Or trigger **Publish npm packages** in GitHub Actions after adding the `NPM_TOKEN` repository secret.
+Or trigger **Publish npm packages** in GitHub Actions. It uses npm trusted publishing, so it needs no token.
 
 ## Project structure
 
@@ -163,7 +163,6 @@ GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, tests, and build on 
 |--------|---------|---------|
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | all deploy jobs | Cloudflare deploys |
 | `SKILLIST_E2E_API_KEY` | `smoke` | authenticated post-deploy checks; missing → those tests skip silently |
-| `NPM_TOKEN` | release | package publishing |
 
 **Provisioned resources** (General Account `2d19b3b18648f0776ff1435cba466210`):
 
