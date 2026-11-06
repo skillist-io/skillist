@@ -1,5 +1,6 @@
 import { env } from "cloudflare:test";
-import { organizations, users } from "@skillist/db/schema";
+import { agentApprovals, organizations, orgMembers, users } from "@skillist/db/schema";
+import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createWorkerDb } from "../db";
 import { callSignature, decideApproval, getApproval, requireApproval } from "./approvals";
@@ -71,6 +72,49 @@ describe("requireApproval", () => {
     await db
       .insert(organizations)
       .values({ id: orgId, name: `Org ${suffix}`, slug: `org-${suffix}` });
+    await db.insert(orgMembers).values([
+      { orgId, userId, role: "editor" },
+      { orgId, userId: otherUserId, role: "editor" },
+    ]);
+  });
+
+  it.each(["viewer", "publisher"] as const)(
+    "refuses a %s without staging a request nobody could decide",
+    async (role) => {
+      const id = `${role}_${suffix}`;
+      await db.insert(users).values({ id, name: role, email: `${id}@ex.com` });
+      await db.insert(orgMembers).values({ orgId, userId: id, role });
+      let ran = false;
+
+      const result = await requireApproval(db, { ...call(), userId: id }, async () => {
+        ran = true;
+        return { ok: true as const };
+      });
+
+      expect(result).toEqual({ ok: false, reason: "needs_editor" });
+      expect(ran).toBe(false);
+      const rows = await db.select().from(agentApprovals).where(eq(agentApprovals.userId, id));
+      expect(rows).toHaveLength(0);
+    },
+  );
+
+  it("won't run an approval once its requester has lost the role", async () => {
+    const id = `demoted_${suffix}`;
+    await db.insert(users).values({ id, name: "D", email: `${id}@ex.com` });
+    await db.insert(orgMembers).values({ orgId, userId: id, role: "editor" });
+    const input = { ...call(), userId: id };
+    const approvalId = await stage(input);
+    await decideApproval(db, { orgId, userId: id, id: approvalId, status: "approved" });
+    await db.update(orgMembers).set({ role: "viewer" }).where(eq(orgMembers.userId, id));
+    let ran = false;
+
+    const result = await requireApproval(db, input, async () => {
+      ran = true;
+      return { ok: true as const };
+    });
+
+    expect(result).toEqual({ ok: false, reason: "needs_editor" });
+    expect(ran).toBe(false);
   });
 
   it("stages the call without running it, and records its conversation", async () => {

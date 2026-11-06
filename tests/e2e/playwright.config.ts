@@ -6,7 +6,9 @@ const WEB_URL = process.env.SMOKE_WEB_URL ?? "https://skillist.dev";
 const CONSOLE_URL = process.env.SMOKE_CONSOLE_URL ?? "https://console.skillist.dev";
 const AUTH_STATE = "tests/e2e/.auth/user.json";
 
-const hasAuthState = Boolean(process.env.E2E_AUTH_STATE_B64) || fs.existsSync(AUTH_STATE);
+const hasAuthState =
+  Boolean(process.env.E2E_USER_EMAIL || process.env.E2E_AUTH_STATE_B64) ||
+  fs.existsSync(AUTH_STATE);
 
 // Without auth state the `authenticated` project below is simply not registered,
 // so those flows don't run. global-setup.ts raises a CI warning when that happens,

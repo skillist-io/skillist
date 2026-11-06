@@ -5,7 +5,7 @@ async function skipIfSignedOut(page: Page, testInfo: TestInfo, path = "/dashboar
   await page.goto(path, { waitUntil: "networkidle" });
   const onLogin =
     new URL(page.url()).pathname === "/login" ||
-    (await page.getByRole("heading", { name: "Sign in to Skillist" }).isVisible());
+    (await page.getByRole("heading", { name: "Welcome to Skillist" }).isVisible());
   if (onLogin) {
     testInfo.skip(
       true,
@@ -39,8 +39,7 @@ test.describe("signed-in flows", () => {
   });
 
   test("dashboard loads for authenticated user", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-    await expect(page.getByText("Manage organizations and skills")).toBeVisible();
+    await expect(page.getByText("What needs you, and the state of every skill")).toBeVisible();
   });
 
   test("inventory page loads for authenticated user", async ({ page }, testInfo) => {
@@ -51,8 +50,9 @@ test.describe("signed-in flows", () => {
 
   test("inventory example scan resolves skillist registry link", async ({ page }, testInfo) => {
     await skipIfSignedOut(page, testInfo, "/inventory");
-    await page.getByRole("button", { name: "Load example" }).click();
-    await expect(page.getByText("skillist/cloudflare-deploy")).toBeVisible();
+    await page.getByRole("button", { name: "Load example" }).click({ timeout: 10_000 });
+    // The example lands in the textarea's value, which getByText can't see.
+    await expect(page.getByLabel("Scan payload JSON")).toHaveValue(/skillist\/cloudflare-deploy/);
   });
 
   test("signed-in session authorizes apex /run via skillist.dev proxy", async ({ page }) => {
@@ -164,13 +164,13 @@ test.describe("signed-in flows", () => {
   });
 
   test("logout from sidebar redirects to login and clears session", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByText("What needs you, and the state of every skill")).toBeVisible();
 
     await page.locator('[data-slot="sidebar-footer"] [data-sidebar="menu-button"]').click();
     await page.getByRole("menuitem", { name: "Log out" }).click();
 
     await expect(page).toHaveURL(/\/login(\?.*)?$/);
-    await expect(page.getByRole("heading", { name: "Sign in to Skillist" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome to Skillist" })).toBeVisible();
 
     await page.goto("/dashboard", { waitUntil: "networkidle" });
     await expect(page).toHaveURL(/\/login(\?.*)?$/);
