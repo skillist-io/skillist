@@ -151,7 +151,7 @@ export function SkillRunCard({
           <Label htmlFor="run-script-select">Script</Label>
           <select
             id="run-script-select"
-            className="h-10 w-full border border-transparent border-b-input bg-transparent px-1 text-sm outline-none transition-[border-color] pointer-coarse:h-11 focus-visible:border-b-ring"
+            className="h-10 w-full border border-transparent border-b-input-line bg-transparent px-1 text-sm outline-none transition-[border-color] pointer-coarse:h-11 focus-visible:border-b-ring"
             value={activeScript}
             onChange={(e) => setSelectedScript(e.target.value)}
           >
