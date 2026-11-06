@@ -213,8 +213,17 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* The consent banner is fixed over the viewport and sets this to its own height.
+     The padding lets the end of the page scroll clear of it, and scroll-padding
+     keeps a keyboard-focused control from landing underneath (WCAG 2.2, 2.4.11).
+     Anything sized to the viewport has to subtract it too, or the page gains a
+     scroll it does not need. */
+  html {
+    scroll-padding-bottom: var(--consent-inset, 0px);
+  }
   body {
     @apply bg-background text-foreground;
+    padding-bottom: var(--consent-inset, 0px);
   }
   /* A keyboard user must never find an unfocusable-looking control. Components
      define their own richer focus rings; this is the floor, so anything that
