@@ -25,9 +25,11 @@ const TITLE_LENGTH = 60;
  * couldn't tell them apart. Skips the context line the console prepends.
  */
 export function titleFromMessage(text: string): string | null {
+  // Older chats have approval messages, and the "Run it" under one isn't a topic.
+  if (text.startsWith("[approval]")) return null;
   const body = text
     .split("\n")
-    .filter((line) => !line.startsWith("[context]") && !line.startsWith("[approval]"))
+    .filter((line) => !line.startsWith("[context]"))
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();

@@ -30,6 +30,7 @@ describe("titleFromMessage", () => {
 
   it("has nothing to say about a message that is only an approval", () => {
     expect(titleFromMessage("[approval] id: abc")).toBeNull();
+    expect(titleFromMessage("[approval] id: abc\nApproved. Run it.")).toBeNull();
   });
 
   it("cuts a long message and says so", () => {

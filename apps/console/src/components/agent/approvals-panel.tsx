@@ -13,25 +13,27 @@ import {
 } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useActiveOrg } from "@/lib/active-org";
 import { relativeTime } from "@/lib/relative-time";
 import { type AgentApproval, useAgentApprovals } from "@/lib/use-agent-approvals";
+import { type AgentMemory, useAgentMemory } from "@/lib/use-agent-memory";
 import { ApprovalTitle } from "./approval-card";
 import {
   canDecideApprovals,
+  currentOrgFact,
   decisionError,
   describeApproval,
   NEEDS_EDITOR,
+  outcomeLine,
   STATUS_LABEL,
 } from "./approval-copy";
 
 /**
  * The queue and record of the agent's gated actions. Decisions normally happen on
  * the card in the conversation; this is where anything still waiting can be found,
- * and where what ran or was denied stays on record. Approving here runs the action
- * too, in its own conversation, or a fresh one if that's gone, so the verb means the
- * same thing as on the card. Scoped to the caller server-side.
+ * and where what ran or was denied stays on record. Approving runs the action, here
+ * as on the card. Scoped to the caller server-side.
  *
  * Self-contained trigger + dialog. The count sits on the trigger so a waiting
  * action is visible without opening the panel.
@@ -40,7 +42,6 @@ export function ApprovalsPanel({
   orgId,
   compact = false,
   onOpenChat,
-  onRun,
   chatIds,
 }: {
   orgId: string;
@@ -48,18 +49,41 @@ export function ApprovalsPanel({
   compact?: boolean;
   /** Show a conversation. The dialog closes so the chat is what's left on screen. */
   onOpenChat?: (chatId: string) => void;
-  /** Run an approved action. The dialog closes so its conversation is what's left. */
-  onRun: (approval: Pick<AgentApproval, "id" | "chatId">) => void;
   /** Conversations that still exist. A request can outlive the chat that asked. */
   chatIds: Set<string>;
 }) {
   const [open, setOpen] = useState(false);
   const { approvals, pendingCount, isPending, isError, refetch, decide } = useAgentApprovals(orgId);
+  const { memories } = useAgentMemory(orgId);
+  // Held here, not in the row: a decided row moves to History, which remounts it.
+  const focusAfterDecision = useRef<string | null>(null);
 
-  const run = (approval: AgentApproval) => {
-    onRun(approval);
-    setOpen(false);
-  };
+  // Decisions first. Finished rows are history, and shouldn't sit between someone and
+  // the thing that's waiting on them.
+  const waiting = approvals.filter((a) => a.status === "pending" || a.status === "approved");
+  const history = approvals.filter((a) => a.status !== "pending" && a.status !== "approved");
+
+  const row = (a: AgentApproval) => (
+    <ApprovalRow
+      key={a.id}
+      approval={a}
+      orgId={orgId}
+      memories={memories}
+      focusAfterDecision={focusAfterDecision}
+      onDecide={(status) => decide.mutate({ id: a.id, status })}
+      isDeciding={decide.isPending && decide.variables?.id === a.id}
+      deciding={decide.variables?.id === a.id ? decide.variables.status : undefined}
+      error={decide.variables?.id === a.id ? decide.error : null}
+      onOpenChat={
+        onOpenChat && a.chatId && chatIds.has(a.chatId)
+          ? (chatId) => {
+              onOpenChat(chatId);
+              setOpen(false);
+            }
+          : undefined
+      }
+    />
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -86,8 +110,8 @@ export function ApprovalsPanel({
         <DialogHeader>
           <DialogTitle>Agent approvals</DialogTitle>
           <DialogDescription>
-            Actions the agent asked to take. Nothing runs without your approval, and an approval is
-            good for one run, within 24 hours. Org owners can read these requests in Governance.
+            Actions the agent asked to take. Nothing runs until you approve it, and approving runs
+            it once. Org owners can read these requests in Governance.
           </DialogDescription>
         </DialogHeader>
 
@@ -106,36 +130,17 @@ export function ApprovalsPanel({
             conversation and here.
           </p>
         ) : (
-          <ul className="flex max-h-[26rem] flex-col gap-3 overflow-y-auto">
-            {approvals.map((a) => (
-              <ApprovalRow
-                key={a.id}
-                approval={a}
-                orgId={orgId}
-                onDecide={(status) =>
-                  decide.mutate(
-                    { id: a.id, status },
-                    {
-                      onSuccess: () => {
-                        if (status === "approved") run(a);
-                      },
-                    },
-                  )
-                }
-                onRun={() => run(a)}
-                isDeciding={decide.isPending && decide.variables?.id === a.id}
-                error={decide.variables?.id === a.id ? decide.error : null}
-                onOpenChat={
-                  onOpenChat && a.chatId && chatIds.has(a.chatId)
-                    ? (chatId) => {
-                        onOpenChat(chatId);
-                        setOpen(false);
-                      }
-                    : undefined
-                }
-              />
-            ))}
-          </ul>
+          <div className="flex max-h-[min(60svh,34rem)] flex-col gap-4 overflow-y-auto">
+            {waiting.length > 0 && <ul className="flex flex-col gap-3">{waiting.map(row)}</ul>}
+            {history.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {waiting.length > 0 && (
+                  <h3 className="text-xs font-medium text-muted-foreground">History</h3>
+                )}
+                <ul className="flex flex-col gap-3">{history.map(row)}</ul>
+              </div>
+            )}
+          </div>
         )}
       </DialogContent>
     </Dialog>
@@ -152,28 +157,62 @@ const STATUS_VARIANT: Record<AgentApproval["status"], "default" | "secondary" | 
   refused: "destructive",
 };
 
+/** When the last thing happened, named, because "Decided" hid what was decided. */
+function lastEvent(a: AgentApproval): string {
+  if (a.status === "revoked" && a.revokedAt) return `Revoked ${relativeTime(a.revokedAt)}`;
+  if (a.status === "executed" && a.executedAt) return `Ran ${relativeTime(a.executedAt)}`;
+  if (!a.decidedAt) return "";
+  const verb = a.status === "denied" ? "Denied" : "Approved";
+  return `${verb} ${relativeTime(a.decidedAt)}`;
+}
+
 function ApprovalRow({
   approval,
   orgId,
+  memories,
+  focusAfterDecision,
   onDecide,
-  onRun,
   isDeciding,
+  deciding,
   error,
   onOpenChat,
 }: {
   approval: AgentApproval;
   orgId: string;
+  memories: AgentMemory[];
+  focusAfterDecision: { current: string | null };
   onDecide: (status: "approved" | "denied" | "revoked") => void;
-  onRun: () => void;
   isDeciding: boolean;
+  deciding?: "approved" | "denied" | "revoked";
   error: unknown;
   onOpenChat?: (chatId: string) => void;
 }) {
-  const isPending = approval.status === "pending";
+  const { status } = approval;
+  const isPending = status === "pending";
   const canDecide = canDecideApprovals(useActiveOrg().activeOrg?.role);
-  const copy = describeApproval(approval.toolName, approval.args);
+  const copy = describeApproval(
+    approval.toolName,
+    approval.args,
+    isPending ? currentOrgFact(memories, approval.args) : undefined,
+  );
   const { chatId } = approval;
   const titleId = useId();
+  const approving = isDeciding && deciding === "approved";
+
+  // The pressed button goes away with the decision, so hand focus to what replaced it.
+  const eventRef = useRef<HTMLSpanElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs because the status changed
+  useEffect(() => {
+    if (focusAfterDecision.current !== approval.id || status === "pending") return;
+    focusAfterDecision.current = null;
+    eventRef.current?.focus();
+  }, [status]);
+  const act = (next: "approved" | "denied" | "revoked") => {
+    focusAfterDecision.current = approval.id;
+    onDecide(next);
+  };
+
+  const button = "pointer-coarse:h-11";
 
   return (
     <li
@@ -183,72 +222,95 @@ function ApprovalRow({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span id={titleId} className="text-sm font-medium wrap-break-word text-foreground">
+        {/* min-w-0 first: a flex child won't shrink below its longest word without it,
+            and a long key pushed the status clean out of the row. */}
+        <span id={titleId} className="min-w-0 text-sm font-medium wrap-anywhere text-foreground">
           <ApprovalTitle copy={copy} />
         </span>
-        <Badge variant={STATUS_VARIANT[approval.status]} className="shrink-0">
-          {STATUS_LABEL[approval.status]}
+        <Badge variant={STATUS_VARIANT[status]} className="shrink-0">
+          {STATUS_LABEL[status]}
         </Badge>
       </div>
-      {(isPending || approval.status === "approved") && (
+      {(isPending || status === "approved") && (
         <p className="text-sm text-muted-foreground">{copy.effect}</p>
       )}
       {copy.detail && (
         <p
           className={cn(
-            "text-sm wrap-break-word whitespace-pre-wrap",
+            "text-sm wrap-anywhere whitespace-pre-wrap",
             copy.detailIsData && "font-mono text-xs",
           )}
         >
           {copy.detail}
         </p>
       )}
+      {copy.replaces && (
+        <p className="text-xs wrap-anywhere whitespace-pre-wrap text-muted-foreground">
+          Replaces: {copy.replaces}
+        </p>
+      )}
+      {status === "refused" && (
+        <p className="text-xs text-muted-foreground">
+          {outcomeLine(status, approval.outcomeReason)}
+        </p>
+      )}
       {copy.skillRepo && (
         <Link
           to="/orgs/$orgId/skills/$repo"
           params={{ orgId, repo: copy.skillRepo }}
-          className="w-fit text-xs underline underline-offset-4"
+          className="w-fit py-1 text-xs underline underline-offset-4"
         >
           Open {copy.skillRepo}
         </Link>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">
+        <span
+          ref={eventRef}
+          tabIndex={-1}
+          className="text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           {isPending
             ? canDecide
               ? `Requested ${relativeTime(approval.createdAt)}`
               : NEEDS_EDITOR
-            : approval.decidedAt
-              ? `Decided ${relativeTime(approval.decidedAt)}`
-              : ""}
+            : lastEvent(approval)}
         </span>
         <div className="flex items-center gap-2">
           {chatId && onOpenChat && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChat(chatId)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={button}
+              onClick={() => onOpenChat(chatId)}
+            >
               Open chat
             </Button>
           )}
-          {approval.status === "approved" && canDecide && (
+          {/* Only reachable if the run threw: approving normally runs it in one step. */}
+          {status === "approved" && canDecide && (
             <>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className={button}
                 disabled={isDeciding}
                 aria-describedby={titleId}
-                onClick={() => onDecide("revoked")}
+                onClick={() => act("revoked")}
               >
                 Revoke
               </Button>
               <Button
                 type="button"
                 size="sm"
+                className={button}
                 disabled={isDeciding}
                 aria-describedby={titleId}
-                onClick={onRun}
+                onClick={() => act("approved")}
               >
-                Run now
+                {approving ? "Running…" : "Run again"}
               </Button>
             </>
           )}
@@ -258,20 +320,22 @@ function ApprovalRow({
                 type="button"
                 variant="outline"
                 size="sm"
+                className={button}
                 disabled={isDeciding}
                 aria-describedby={titleId}
-                onClick={() => onDecide("denied")}
+                onClick={() => act("denied")}
               >
                 Deny
               </Button>
               <Button
                 type="button"
                 size="sm"
+                className={button}
                 disabled={isDeciding}
                 aria-describedby={titleId}
-                onClick={() => onDecide("approved")}
+                onClick={() => act("approved")}
               >
-                {isDeciding ? "Saving…" : copy.approveLabel}
+                {approving ? "Running…" : copy.approveLabel}
               </Button>
             </>
           )}

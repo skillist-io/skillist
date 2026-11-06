@@ -19,6 +19,10 @@ export type AgentApproval = {
   decidedBy: string | null;
   /** Null on rows that ran before this was recorded. */
   executedAt: string | null;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  /** Why a refused action didn't run. */
+  outcomeReason: string | null;
 };
 
 /**
@@ -26,8 +30,7 @@ export type AgentApproval = {
  * `draft_improvement`) the agent gated behind a human decision. Scoped to the
  * caller server-side, so one user never sees another's requests. `decide`
  * approves or denies a pending row, or revokes an approval that hasn't run.
- * Approving doesn't run anything by itself: the agent runs it through
- * `run_approved_action`, and the row becomes `executed`.
+ * Approving runs the action on the server, so the row comes back `executed`.
  *
  * `orgId` may be null so the app shell can call this before an org is resolved.
  *
@@ -55,11 +58,22 @@ export function useAgentApprovals(orgId: string | null) {
 
   const decide = useMutation({
     mutationFn: ({ id, status }: { id: string; status: "approved" | "denied" | "revoked" }) =>
-      api<{ ok: boolean; status: AgentApprovalStatus }>(`/v1/orgs/${orgId}/agent/approvals/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      }),
-    onSuccess: invalidate,
+      api<{ ok: boolean; status: AgentApprovalStatus; reason: string | null }>(
+        `/v1/orgs/${orgId}/agent/approvals/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ status }),
+        },
+      ),
+    // Refresh either way: a 404 means the row moved on, and its buttons shouldn't stay.
+    onSettled: () => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["agent-memory", orgId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-approvals-record", orgId] });
+    },
+    // The card and panel show this inline. Having a handler also keeps the shared
+    // toast out of it, which said the same thing over the Send button.
+    onError: () => {},
   });
 
   const approvals = data ?? [];

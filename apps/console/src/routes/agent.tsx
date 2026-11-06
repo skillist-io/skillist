@@ -102,9 +102,6 @@ function AgentWorkspace({
     deleteChat,
     deleteFailed,
     invalidate,
-    runApproval,
-    pendingRunId,
-    clearRunRequest,
   } = useAgentChats(activeOrg.id);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -141,12 +138,7 @@ function AgentWorkspace({
           {/* Memory + approvals govern the agent itself. Org selection now lives
               in the global top-bar switcher, not here. */}
           <MemoryPanel orgId={activeOrg.id} />
-          <ApprovalsPanel
-            orgId={activeOrg.id}
-            onOpenChat={selectChat}
-            onRun={runApproval}
-            chatIds={chatIds}
-          />
+          <ApprovalsPanel orgId={activeOrg.id} onOpenChat={selectChat} chatIds={chatIds} />
         </div>
       </Header>
 
@@ -165,8 +157,6 @@ function AgentWorkspace({
           context={context.pathname === "/agent" ? undefined : context}
           focusOnReady
           onListRefresh={invalidate}
-          pendingRunId={pendingRunId}
-          onRunStarted={clearRunRequest}
         />
       </div>
     </>

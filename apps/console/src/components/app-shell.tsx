@@ -60,7 +60,7 @@ function AgentTrigger({ onOpen }: { onOpen: () => void }) {
           {pendingCount > 0 && (
             <span
               aria-hidden
-              className="absolute top-0.5 right-0.5 min-w-3.5 bg-signal px-0.5 text-center font-mono text-xs leading-3.5 text-background tabular-nums"
+              className="absolute top-0.5 right-0.5 font-mono text-xs leading-3.5 text-signal tabular-nums"
             >
               {pendingCount}
             </span>

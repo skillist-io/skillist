@@ -115,6 +115,16 @@ export function AgentMessage({
   const isUser = message.role === "user";
   const parts = message.parts ?? [];
 
+  // The server's line about a decision. It states the record, so it reads as the
+  // record: no label, no actions, and nothing for regenerate to re-run.
+  if (field(message.metadata, "decision") === true) {
+    return (
+      <p className="font-mono text-xs text-muted-foreground" data-role="decision">
+        {parts.map((p) => ("text" in p ? p.text : "")).join("")}
+      </p>
+    );
+  }
+
   if (isUser) {
     const text = parts
       .filter((p) => p.type === "text")

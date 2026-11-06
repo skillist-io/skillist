@@ -40,7 +40,7 @@ These are the agent's main governance tools. Most are read-only. Anything that r
 
 The agent asks before it takes an action that affects your whole org: `draft_improvement`, saving an org-wide fact to memory, and forgetting one. Org-wide memory needs this because every member's agent reads it. Facts scoped to you run without asking.
 
-When the agent asks, a card appears in the conversation showing exactly what it wants to do. Nothing has happened at that point. Approve it and the agent runs that action once, with the arguments you saw. Deny it and nothing runs. An approval is good for one run within 24 hours, and you can revoke it until it runs.
+When the agent asks, a card appears in the conversation showing exactly what it wants to do. Nothing has happened at that point. Approve it and Skillist runs that action once, right then, with the arguments you saw. Deny it and nothing runs. Either way a line in the conversation records what happened. If a run fails partway, the request stays approved for 24 hours, and you can run it again or revoke it.
 
 Asking for and deciding these actions needs the editor role; the agent refuses them for viewers and publishers. Requests stay on record in **Approvals**, including what ran and what was denied, and each one links back to its conversation. Asking again for something that already ran is a new request, so the record of the first stays as it was.
 

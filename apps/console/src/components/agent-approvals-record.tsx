@@ -19,11 +19,12 @@ import { useMemo, useState } from "react";
 import { type AgentApproval, useApprovalsRecord } from "@/lib/use-agent-approvals";
 import { ApprovalTitle } from "./agent/approval-card";
 import { describeApproval, STATUS_LABEL } from "./agent/approval-copy";
+import { reasonWords } from "./agent/tool-outcome";
 import { csvCell } from "./audit-log";
 
 const timeFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
-  timeStyle: "short",
+  timeStyle: "long",
 });
 
 function when(iso: string): string {
@@ -59,10 +60,17 @@ export function AgentApprovalsRecord({ org }: { org: Pick<Org, "id" | "slug"> })
     const lines: string[] = [];
     if (a.decidedAt) {
       const who = a.decidedBy ? nameOf(a.decidedBy) : "decider not recorded";
-      lines.push(`Decided ${when(a.decidedAt)}, ${who}`);
+      const verb = a.status === "denied" ? "Denied" : "Approved";
+      lines.push(`${verb} ${when(a.decidedAt)}, ${who}`);
+    }
+    if (a.status === "revoked" && a.revokedAt) {
+      lines.push(`Revoked ${when(a.revokedAt)}, ${a.revokedBy ? nameOf(a.revokedBy) : ""}`);
     }
     if (a.status === "executed") {
       lines.push(a.executedAt ? `Ran ${when(a.executedAt)}` : "Run time not recorded");
+    }
+    if (a.status === "refused" && a.outcomeReason) {
+      lines.push(`Refused: ${reasonWords(a.outcomeReason)}`);
     }
     return lines;
   };
@@ -82,13 +90,16 @@ export function AgentApprovalsRecord({ org }: { org: Pick<Org, "id" | "slug"> })
         a.decidedAt ?? "",
         a.decidedBy ? nameOf(a.decidedBy) : "",
         a.executedAt ?? "",
+        a.revokedAt ?? "",
+        a.outcomeReason ?? "",
       ]
         .map(csvCell)
         .join(",");
     });
-    const csv = ["requested,requester,action,text,status,decided,decided_by,ran", ...lines].join(
-      "\n",
-    );
+    const csv = [
+      "requested,requester,action,text,status,decided,decided_by,ran,revoked,reason",
+      ...lines,
+    ].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const link = document.createElement("a");
     link.href = url;
@@ -162,9 +173,11 @@ export function AgentApprovalsRecord({ org }: { org: Pick<Org, "id" | "slug"> })
           </p>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[52rem]">
-                <thead>
+            {/* Below md each request stacks, Status first, because a table scrolled sideways
+                hid the one column people open this to read. */}
+            <div className="md:overflow-x-auto">
+              <table className="block w-full md:table md:min-w-[52rem]">
+                <thead className="sr-only md:not-sr-only md:table-header-group">
                   <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th scope="col" className="py-2 pr-4 font-medium">
                       Requested
@@ -180,16 +193,19 @@ export function AgentApprovalsRecord({ org }: { org: Pick<Org, "id" | "slug"> })
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="block md:table-row-group">
                   {rows.map((a) => {
                     const copy = describeApproval(a.toolName, a.args);
                     return (
-                      <tr key={a.id} className="border-b border-border align-top last:border-0">
-                        <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap text-muted-foreground">
+                      <tr
+                        key={a.id}
+                        className="flex flex-col gap-1 border-b border-border py-2 align-top last:border-0 md:table-row md:py-0"
+                      >
+                        <td className="font-mono text-xs text-muted-foreground md:py-2 md:pr-4 md:whitespace-nowrap">
                           {when(a.createdAt)}
                         </td>
-                        <td className="py-2 pr-4 whitespace-nowrap">{nameOf(a.userId)}</td>
-                        <td className="py-2 pr-4">
+                        <td className="md:py-2 md:pr-4 md:whitespace-nowrap">{nameOf(a.userId)}</td>
+                        <td className="md:py-2 md:pr-4">
                           <span className="wrap-anywhere">
                             <ApprovalTitle copy={copy} />
                           </span>
@@ -199,8 +215,16 @@ export function AgentApprovalsRecord({ org }: { org: Pick<Org, "id" | "slug"> })
                             </p>
                           )}
                         </td>
-                        <td className="py-2">
-                          <span>{STATUS_LABEL[a.status]}</span>
+                        <td className="order-first md:order-none md:py-2">
+                          <span
+                            className={
+                              a.status === "refused"
+                                ? "font-medium text-destructive"
+                                : "font-medium"
+                            }
+                          >
+                            {STATUS_LABEL[a.status]}
+                          </span>
                           {outcomeLines(a).map((line) => (
                             <span key={line} className="block text-xs text-muted-foreground">
                               {line}

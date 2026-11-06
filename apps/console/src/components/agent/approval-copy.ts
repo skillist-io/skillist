@@ -1,5 +1,6 @@
 import type { AgentApprovalStatus } from "@skillist/contracts";
 import { ApiError } from "@skillist/ui";
+import { reasonWords } from "./tool-outcome";
 
 export type ApprovalCopy = {
   /** The action, as a question-free statement of what would happen. */
@@ -13,6 +14,8 @@ export type ApprovalCopy = {
   effect: string;
   /** The exact text being approved. Never truncated. */
   detail?: string;
+  /** The value this would overwrite, when it isn't the same one. */
+  replaces?: string;
   /** The detail is data rather than prose. */
   detailIsData?: boolean;
   /** Set when the action targets a skill, so the card can link to it. */
@@ -28,6 +31,8 @@ function text(args: Record<string, unknown> | null | undefined, key: string): st
 export function describeApproval(
   toolName: string,
   args: Record<string, unknown> | null | undefined,
+  /** What's stored under this key now. */
+  current?: string,
 ): ApprovalCopy {
   switch (toolName) {
     case "draft_improvement":
@@ -49,6 +54,7 @@ export function describeApproval(
         approveLabel: "Approve and save",
         effect: "Every member's agent will read this fact, from their next message onward.",
         detail: text(args, "value"),
+        replaces: current !== text(args, "value") ? current : undefined,
       };
     case "forget":
       return {
@@ -57,6 +63,7 @@ export function describeApproval(
         subject: text(args, "key"),
         approveLabel: "Approve and forget",
         effect: "Removes this fact from every member's agent.",
+        detail: current,
       };
     default:
       return {
@@ -81,17 +88,37 @@ export function canDecideApprovals(role: string | undefined): boolean {
 }
 
 /** What became of a request that is no longer waiting on anyone. */
-export const OUTCOME: Partial<Record<AgentApprovalStatus, string>> = {
-  executed: "Approved and run.",
-  denied: "Denied. Nothing ran.",
-  revoked: "Approval revoked. Nothing ran.",
-  expired: "Approval expired before it ran. Nothing ran.",
-  refused: "Approved, but the action was refused. Nothing changed.",
-};
+export function outcomeLine(status: AgentApprovalStatus, reason?: string | null): string {
+  switch (status) {
+    case "executed":
+      return "Approved and run.";
+    case "denied":
+      return "Denied. Nothing ran.";
+    case "revoked":
+      return "Approval revoked. Nothing ran.";
+    case "expired":
+      return "Approval expired before it ran. Nothing ran.";
+    case "refused":
+      return reason
+        ? `Approved, but it couldn't run: ${reasonWords(reason)}. Nothing changed.`
+        : "Approved, but the action was refused. Nothing changed.";
+    default:
+      return "";
+  }
+}
+
+/** The org fact a request would replace or remove, so nobody decides on a bare key. */
+export function currentOrgFact(
+  memories: { key: string; value: string; userId?: string | null }[],
+  args: Record<string, unknown> | null | undefined,
+): string | undefined {
+  const key = text(args, "key");
+  return key ? memories.find((m) => m.key === key && !m.userId)?.value : undefined;
+}
 
 /** Short status words, shared by the panel and the org record. Never colour alone. */
 export const STATUS_LABEL: Record<AgentApprovalStatus, string> = {
-  pending: "Awaiting review",
+  pending: "Awaiting approval",
   approved: "Approved, not run",
   executed: "Ran",
   denied: "Denied",
@@ -109,6 +136,9 @@ export function decisionError(error: unknown): string {
   }
   if (error instanceof ApiError && error.status === 404) {
     return "This request has already been decided, or has already run.";
+  }
+  if (error instanceof ApiError && error.status === 500) {
+    return "The action failed before it finished. Nothing is recorded as run, so you can try again.";
   }
   return "Couldn't record your decision. Try again.";
 }
