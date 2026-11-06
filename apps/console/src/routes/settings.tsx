@@ -33,6 +33,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AuditLog } from "@/components/audit-log";
 import { useActiveOrg } from "@/lib/active-org";
+import { parseOptionalNumber } from "@/lib/optional-number";
 import { requireAuth } from "@/lib/require-auth";
 
 const API_SCOPES = [
@@ -504,7 +505,9 @@ export function GovernancePanel({ org }: { org: Org }) {
   const [requirePass, setRequirePass] = useState(false);
   const [blockAdvisory, setBlockAdvisory] = useState(true);
   const [requireEval, setRequireEval] = useState(false);
-  const [minEvalUplift, setMinEvalUplift] = useState(0);
+  // Blank means off. Defaulting to 0 turned the rule on for anyone who saved this
+  // form, because any value at all makes a completed eval mandatory for publishing.
+  const [minEvalUplift, setMinEvalUplift] = useState("");
   const [warnSeverity, setWarnSeverity] = useState<"low" | "medium" | "high" | "critical">(
     "medium",
   );
@@ -572,7 +575,7 @@ export function GovernancePanel({ org }: { org: Org }) {
       if (p.requireSecurityPass != null) setRequirePass(p.requireSecurityPass);
       if (p.blockOnAdvisory != null) setBlockAdvisory(p.blockOnAdvisory);
       if (p.requireEval != null) setRequireEval(p.requireEval);
-      if (p.minEvalUplift != null) setMinEvalUplift(p.minEvalUplift);
+      setMinEvalUplift(p.minEvalUplift != null ? String(p.minEvalUplift) : "");
     }
   }, [policyData]);
 
@@ -608,7 +611,7 @@ export function GovernancePanel({ org }: { org: Org }) {
           requireSecurityPass: requirePass,
           blockOnAdvisory: blockAdvisory,
           requireEval,
-          minEvalUplift: minEvalUplift,
+          minEvalUplift: parseOptionalNumber(minEvalUplift),
         }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["publish-policy", orgId] }),
@@ -742,12 +745,14 @@ export function GovernancePanel({ org }: { org: Org }) {
               type="number"
               min={-100}
               max={100}
+              placeholder="Off"
               value={minEvalUplift}
-              onChange={(e) => setMinEvalUplift(Number(e.target.value))}
+              onChange={(e) => setMinEvalUplift(e.target.value)}
             />
             <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-              Eval scores are repeatable but don&apos;t yet measure real quality. Treat this as a
-              rough check, not proof a skill works.
+              Leave blank to turn this off. Any value, including 0, requires a completed eval before
+              publishing. Eval scores are repeatable but don&apos;t yet measure real quality, so
+              treat this as a rough check.
             </p>
           </div>
           <SaveButton label="Save policy" mutation={savePolicy} />
