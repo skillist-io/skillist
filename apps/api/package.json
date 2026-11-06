@@ -11,30 +11,32 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@cloudflare/ai-chat": "^0.9.3",
-    "@cloudflare/sandbox": "^0.12.3",
-    "@hono/zod-openapi": "^1.5.1",
+    "@better-auth/oauth-provider": "catalog:",
+    "@cloudflare/ai-chat": "catalog:",
+    "@cloudflare/sandbox": "^0.12.14",
+    "@hono/zod-openapi": "^1.6.3",
     "@modelcontextprotocol/server": "2.4.0",
-    "@scalar/hono-api-reference": "^0.11.11",
+    "@scalar/hono-api-reference": "^0.12.18",
     "@skillist/auth": "workspace:*",
     "@skillist/contracts": "workspace:*",
     "@skillist/db": "workspace:*",
     "@skillist/harness": "workspace:*",
     "@skillist/skill-format": "workspace:*",
-    "agents": "^0.17.4",
-    "ai": "^7.0.32",
-    "better-auth": "^1.6.23",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.31",
-    "workers-ai-provider": "^3.3.1",
-    "zod": "^4.4.3"
+    "agents": "catalog:",
+    "ai": "catalog:",
+    "better-auth": "catalog:",
+    "drizzle-orm": "catalog:",
+    "hono": "^4.13.16",
+    "workers-ai-provider": "^4.0.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.18.6",
-    "@cloudflare/workers-types": "^5.20260721.1",
+    "@cloudflare/vitest-plugin": "^1.6.0",
+    "@cloudflare/workers-types": "catalog:",
     "@skillist/tsconfig": "workspace:*",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.10",
-    "wrangler": "^4.112.0"
+    "jose": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
   }
 }

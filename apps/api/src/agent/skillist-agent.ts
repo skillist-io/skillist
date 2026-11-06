@@ -22,8 +22,14 @@ import {
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Env } from "../env";
-import { requireApproval } from "../lib/agent/approvals";
-import { buildMemoryBlock, forgetFact, rememberFact, searchMemory } from "../lib/agent/memory";
+import { getApproval, requireApproval } from "../lib/agent/approvals";
+import {
+  buildMemoryBlock,
+  forgetFact,
+  hasOrgFact,
+  rememberFact,
+  searchMemory,
+} from "../lib/agent/memory";
 import { logAudit } from "../lib/audit";
 import { computeCoverage } from "../lib/coverage";
 import { createWorkerDb, inList, type WorkerDb } from "../lib/db";
@@ -124,6 +130,21 @@ const MEMORY_PROTOCOL = [
   "inventing near-duplicates; use `search_memory` first when unsure. Do NOT remember ephemeral",
   "context (the current question, one-off values, anything you just fetched from a tool). PII in",
   "a value is auto-redacted before it is stored — if the tool reports redactions, tell the user.",
+].join("\n");
+
+/**
+ * Without this the model reads `{ ok:false, status:"awaiting_approval" }` however
+ * it likes, and has been free to imply the action happened. The transcript shows
+ * the real state, so the prose must not contradict it.
+ */
+const APPROVAL_PROTOCOL = [
+  "== Approval protocol ==",
+  "draft_improvement, org-wide remember, and forgetting an org-wide fact need a person's approval.",
+  'When a tool returns status "awaiting_approval", nothing has happened. Say the action is',
+  "waiting for approval in the card above, and stop. Do not call the tool again or claim it ran.",
+  'When it returns status "denied", say it was denied and do not try another way to do the same thing.',
+  'A user message beginning "[approval] id: <id>" means that person approved that request: call',
+  "run_approved_action with that id, then report what its result actually says.",
 ].join("\n");
 
 /** One regenerated assistant reply snapshot, keyed under its user message. */
@@ -253,7 +274,9 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
     // agent carries known facts across conversations. Empty string when there
     // are none, so `.filter(Boolean)` drops it.
     const memoryBlock = await buildMemoryBlock(db, orgId, userId);
-    const system = [memoryBlock, MEMORY_PROTOCOL, SYSTEM_PROMPT].filter(Boolean).join("\n\n");
+    const system = [memoryBlock, MEMORY_PROTOCOL, APPROVAL_PROTOCOL, SYSTEM_PROMPT]
+      .filter(Boolean)
+      .join("\n\n");
 
     const result = streamText({
       model: this.buildModel(),
@@ -396,10 +419,12 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
   }
 
   /**
-   * Governance toolset, all scoped to the DO's orgId. Every tool is read-only
-   * except `draft_improvement`, which opens an agent-sourced feedback row for a
-   * human to approve. When the instance has no orgId (should not happen behind
-   * the Worker gate) tools fail closed rather than reading across orgs.
+   * Governance toolset, all scoped to the DO's orgId. Writes are `remember`,
+   * `forget`, and `draft_improvement`. Anything that reaches the whole org waits
+   * for a person: `draft_improvement`, and org-wide `remember` and `forget`,
+   * because memory is injected into every member's prompt. Facts scoped to the
+   * current user stay ungated. When the instance has no orgId (should not happen
+   * behind the Worker gate) tools fail closed rather than reading across orgs.
    */
   private buildTools(db: WorkerDb, orgId: string | null, initiatedBy: string | null): ToolSet {
     // Single-Promise return (not a union of Promises) so the AI SDK can infer
@@ -410,6 +435,79 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
       if (!orgId) return { ok: false as const, reason: "no_org_scope" as const };
       return fn(orgId);
     };
+
+    const chatId = this.chatId();
+
+    // The gated actions, named so a tool's first call and `run_approved_action`
+    // run the same code. Approval is decided by the REST route, which enforces the
+    // editor role; that is why this doesn't use the SDK's native `needsApproval`,
+    // whose answer arrives over the chat socket with no role check.
+    const draftImprovement = (oid: string, userId: string, skillRepo: string, note: string) =>
+      requireApproval(
+        db,
+        {
+          orgId: oid,
+          userId,
+          chatId,
+          toolName: "draft_improvement",
+          args: { skillRepo, note },
+        },
+        async () => {
+          const [skill] = await db
+            .select()
+            .from(skills)
+            .where(and(eq(skills.orgId, oid), eq(skills.repo, skillRepo)))
+            .limit(1);
+          if (!skill) return { ok: false as const, reason: "skill_not_found" as const };
+          if (!skill.latestPublishedVersionId) {
+            return { ok: false as const, reason: "no_published_version" as const };
+          }
+
+          const [row] = await db
+            .insert(feedback)
+            .values({
+              skillId: skill.id,
+              targetVersionId: skill.latestPublishedVersionId,
+              source: "agent",
+              status: "pending",
+              body: note,
+              submittedBy: null,
+            })
+            .returning({ id: feedback.id });
+          if (!row) return { ok: false as const, reason: "insert_failed" as const };
+          // The feedback row is agent-sourced (submittedBy stays null, like
+          // failure-mining), but we surface the verified user who drove this
+          // chat so the review inbox / audit can see who prompted it.
+          return { ok: true as const, feedbackId: row.id, initiatedBy: userId };
+        },
+      );
+
+    const rememberOrgFact = (oid: string, userId: string, key: string, value: string) =>
+      requireApproval(
+        db,
+        { orgId: oid, userId, chatId, toolName: "remember", args: { key, value, scope: "org" } },
+        async () => {
+          const { redaction } = await rememberFact(db, {
+            orgId: oid,
+            userId: null,
+            key,
+            value,
+            source: "agent",
+            updatedBy: userId,
+          });
+          return { ok: true as const, key, scope: "org" as const, redacted: redaction.matches };
+        },
+      );
+
+    const forgetOrgFact = (oid: string, userId: string, key: string) =>
+      requireApproval(
+        db,
+        { orgId: oid, userId, chatId, toolName: "forget", args: { key } },
+        async () => {
+          await forgetFact(db, oid, userId, key);
+          return { ok: true as const, key };
+        },
+      );
 
     const tools: ToolSet = {
       // ── Platform-wide tools (not org-scoped) ────────────────────────────────
@@ -700,50 +798,12 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
             .min(10)
             .describe("Specific problem + suggested change. This becomes the feedback body."),
         }),
-        // The one WRITE tool → gated behind human approval. The first call
-        // records a PENDING approval and returns `awaiting_approval` without
-        // writing; once a human approves in the console, a re-run executes the
-        // draft and consumes the approval (a fresh identical call re-gates).
+        // Gated: the first call stages an approval and returns `awaiting_approval`
+        // without writing. See `draftImprovement` above and `run_approved_action`.
         execute: ({ skillRepo, note }) =>
           requireOrg(async (oid) => {
             if (!initiatedBy) return { ok: false as const, reason: "no_user_scope" as const };
-            return requireApproval(
-              db,
-              {
-                orgId: oid,
-                userId: initiatedBy,
-                toolName: "draft_improvement",
-                args: { skillRepo, note },
-              },
-              async () => {
-                const [skill] = await db
-                  .select()
-                  .from(skills)
-                  .where(and(eq(skills.orgId, oid), eq(skills.repo, skillRepo)))
-                  .limit(1);
-                if (!skill) return { ok: false as const, reason: "skill_not_found" as const };
-                if (!skill.latestPublishedVersionId) {
-                  return { ok: false as const, reason: "no_published_version" as const };
-                }
-
-                const [row] = await db
-                  .insert(feedback)
-                  .values({
-                    skillId: skill.id,
-                    targetVersionId: skill.latestPublishedVersionId,
-                    source: "agent",
-                    status: "pending",
-                    body: note,
-                    submittedBy: null,
-                  })
-                  .returning({ id: feedback.id });
-                if (!row) return { ok: false as const, reason: "insert_failed" as const };
-                // The feedback row is agent-sourced (submittedBy stays null, like
-                // failure-mining), but we surface the verified user who drove this
-                // chat so the review inbox / audit can see who prompted it.
-                return { ok: true as const, feedbackId: row.id, initiatedBy };
-              },
-            );
+            return draftImprovement(oid, initiatedBy, skillRepo, note);
           }),
       }),
 
@@ -761,16 +821,17 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
         }),
         execute: ({ key, value, scope }) =>
           requireOrg(async (oid) => {
-            if (scope === "user" && !initiatedBy) {
-              return { ok: false as const, reason: "no_user_scope" as const };
-            }
+            if (!initiatedBy) return { ok: false as const, reason: "no_user_scope" as const };
+            if (scope !== "user") return rememberOrgFact(oid, initiatedBy, key, value);
             const { redaction } = await rememberFact(db, {
               orgId: oid,
-              userId: scope === "user" ? initiatedBy : null,
+              userId: initiatedBy,
               key,
               value,
+              source: "agent",
+              updatedBy: initiatedBy,
             });
-            return { ok: true as const, key, scope: scope ?? "org", redacted: redaction.matches };
+            return { ok: true as const, key, scope: "user" as const, redacted: redaction.matches };
           }),
       }),
 
@@ -802,8 +863,45 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
         }),
         execute: ({ key }) =>
           requireOrg(async (oid) => {
+            if (!initiatedBy) return { ok: false as const, reason: "no_user_scope" as const };
+            if (await hasOrgFact(db, oid, key)) return forgetOrgFact(oid, initiatedBy, key);
             await forgetFact(db, oid, initiatedBy, key);
             return { ok: true as const, key };
+          }),
+      }),
+
+      run_approved_action: tool({
+        description:
+          'Run an action a person has approved, using the exact arguments they saw. Call this when a user message begins "[approval] id: <id>". It cannot run anything that is not approved.',
+        inputSchema: z.object({
+          approvalId: z.string().describe("The id from the [approval] line."),
+        }),
+        // Runs from the stored args, not ones the model restates. Rewording a note
+        // would otherwise change the signature and stage a second request.
+        execute: ({ approvalId }) =>
+          requireOrg(async (oid) => {
+            if (!initiatedBy) return { ok: false as const, reason: "no_user_scope" as const };
+            const row = await getApproval(db, oid, initiatedBy, approvalId);
+            if (!row) return { ok: false as const, reason: "approval_not_found" as const };
+            if (row.status === "executed") {
+              return { ok: false as const, reason: "already_ran" as const };
+            }
+            if (row.status === "denied") return { ok: false as const, status: "denied" as const };
+            if (row.status === "pending") {
+              return { ok: false as const, status: "awaiting_approval" as const, approvalId };
+            }
+            const args = row.args ?? {};
+            const text = (name: string) => String(args[name] ?? "");
+            switch (row.toolName) {
+              case "draft_improvement":
+                return draftImprovement(oid, initiatedBy, text("skillRepo"), text("note"));
+              case "remember":
+                return rememberOrgFact(oid, initiatedBy, text("key"), text("value"));
+              case "forget":
+                return forgetOrgFact(oid, initiatedBy, text("key"));
+              default:
+                return { ok: false as const, reason: "unknown_action" as const };
+            }
           }),
       }),
     };

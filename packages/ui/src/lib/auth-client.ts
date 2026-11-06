@@ -1,3 +1,4 @@
+import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { magicLinkClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
@@ -8,7 +9,7 @@ export const DEFAULT_SIGN_OUT_REDIRECT = "/login";
 
 export const authClient = createAuthClient({
   baseURL: clientFetchBase(),
-  plugins: [magicLinkClient(), passkeyClient()],
+  plugins: [magicLinkClient(), passkeyClient(), oauthProviderClient()],
   fetchOptions: {
     credentials: "include",
   },
@@ -189,6 +190,40 @@ export async function signInWithPasskey(callbackURL = "/dashboard") {
     throw new Error(result.error.message ?? "Passkey sign-in failed");
   }
   return result;
+}
+
+/**
+ * True when this page was opened by the MCP OAuth flow. Better Auth signs the
+ * authorization request into the query string, and `oauthProviderClient` sends
+ * that query with every POST from the page, so the URL must be left intact.
+ */
+export function hasSignedOAuthQuery(search = window.location.search): boolean {
+  return new URLSearchParams(search).has("sig");
+}
+
+function followOAuthRedirect(data: { url?: string } | null, error: { message?: string } | null) {
+  if (error || !data?.url) {
+    throw new Error(error?.message ?? "Could not continue authorization");
+  }
+  window.location.assign(data.url);
+}
+
+/** Resume an MCP authorization after sign-in, from any sign-in method. */
+export async function continueOAuthAuthorization() {
+  const { data, error } = await authClient.oauth2.continue({ postLogin: true });
+  followOAuthRedirect(data, error);
+}
+
+/** Record the user's decision. Both outcomes redirect back to the client. */
+export async function submitOAuthConsent(accept: boolean) {
+  const { data, error } = await authClient.oauth2.consent({ accept });
+  followOAuthRedirect(data, error);
+}
+
+export async function getOAuthClientInfo(clientId: string) {
+  const { data, error } = await authClient.oauth2.publicClient({ query: { client_id: clientId } });
+  if (error) throw new Error(error.message ?? "Could not load this application");
+  return data;
 }
 
 export async function linkSocialProvider(provider: "github" | "google", callbackURL = "/account") {

@@ -27,7 +27,7 @@ packages/
   tsconfig/      Shared tsconfig bases
 ```
 
-`packages/db`, `contracts`, `auth`, `ui`, `harness` are consumed as source (`workspace:*`, no build step); `skill-format` and `cli` are built with `tsc` and published to npm. Shared dependency versions are pinned via **pnpm catalogs** (`pnpm-workspace.yaml` `catalog:`) so React-context singletons (router, query, auth) resolve to one instance — package.jsons reference `"catalog:"`.
+`packages/db`, `contracts`, `auth`, `ui`, `harness` are consumed as source (`workspace:*`, no build step); `skill-format` and `cli` are built with `tsc` and published to npm. Shared dependency versions are pinned via **pnpm catalogs** (`pnpm-workspace.yaml` `catalog:`) so React-context singletons (router, query, auth) resolve to one instance — package.jsons reference `"catalog:"`. Any dependency used by two or more manifests must live in the catalog; `pnpm check:catalog` enforces this in CI. Bump versions in `pnpm-workspace.yaml`, not in a manifest.
 
 ## Commands
 
@@ -51,7 +51,7 @@ pnpm build                # turbo build (api build = wrangler dry-run into dist/
 ```
 
 Testing specifics:
-- **Unit tests** live next to source (`*.test.ts`). API tests run under `@cloudflare/vitest-pool-workers` (real Workers runtime), config in `apps/api/vitest.config.ts`.
+- **Unit tests** live next to source (`*.test.ts`). API tests run under `@cloudflare/vitest-plugin` (real Workers runtime), config in `apps/api/vitest.config.ts`.
 - Run one workspace: `pnpm --filter @skillist/api test`. Run one file: `pnpm --filter @skillist/api exec vitest run src/publish-latency.test.ts`.
 - `pnpm smoke` — HTTP checks against **production** (`tests/vitest.config.ts`); builds the CLI first.
 - `pnpm test:e2e` — Playwright against skillist.dev (`tests/e2e/`).

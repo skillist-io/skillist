@@ -12,14 +12,16 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@better-auth/passkey": "1.6.23",
+    "@better-auth/mcp": "catalog:",
+    "@better-auth/passkey": "catalog:",
     "@skillist/db": "workspace:*",
-    "better-auth": "^1.6.23",
-    "drizzle-orm": "^0.45.2"
+    "better-auth": "catalog:",
+    "drizzle-orm": "catalog:",
+    "jose": "catalog:"
   },
   "devDependencies": {
     "@skillist/tsconfig": "workspace:*",
-    "@types/node": "^26.1.1",
-    "typescript": "^7.0.2"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }

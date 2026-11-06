@@ -1,10 +1,15 @@
 import { useAgentChat } from "@cloudflare/ai-chat/react";
-import { Button, cn, SkillistMark, Textarea } from "@skillist/ui";
+import { Button, cn, SkillistMark } from "@skillist/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAgent } from "agents/react";
-import { ArrowUp, Square, X } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { type AgentContext, describeContext, formatContext } from "@/lib/agent-context";
+import { type AgentContext, formatApproval, formatContext } from "@/lib/agent-context";
+import { useAgentDraft } from "@/lib/use-agent-draft";
 import { AgentMessage } from "./agent-message";
+import type { ApprovalHandlers } from "./approval-card";
+import { Composer } from "./composer";
+import type { ConnState } from "./composer-readout";
 
 const SUGGESTIONS = [
   "What required skills are drifting?",
@@ -13,7 +18,11 @@ const SUGGESTIONS = [
   "Recommend skills we should require.",
 ];
 
-type ConnState = "connecting" | "connected" | "disconnected";
+/**
+ * How long after a turn ends a send is refused. Stop and Send occupy the same spot,
+ * so a keypress meant for Stop can arrive just after the turn ends.
+ */
+const SWAP_GUARD_MS = 400;
 
 /** One regenerated reply, keyed under the preceding user message id. The parts
  *  shape is owned by the agent runtime; we splice it back onto the live message
@@ -32,6 +41,7 @@ export function AgentChat({
   chatId,
   context,
   compact = false,
+  focusOnReady = false,
   onListRefresh,
 }: {
   orgId: string;
@@ -42,18 +52,27 @@ export function AgentChat({
   context?: AgentContext;
   /** Narrow layout for the drawer — drops the reading-width cap and padding. */
   compact?: boolean;
+  /** Move focus to the composer on mount, for the ⌘K drawer. */
+  focusOnReady?: boolean;
   /** Ask the owner to refetch the conversation index (new chat + auto-title). */
   onListRefresh?: () => void;
 }) {
   const [connState, setConnState] = useState<ConnState>("connecting");
   const [connError, setConnError] = useState<string | null>(null);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useAgentDraft(orgId);
   const [chatState, setChatState] = useState<AgentState>({});
   // Per-user-message variant index; unset means "show the latest".
   const [variantIndex, setVariantIndex] = useState<Record<string, number>>({});
   // Attached by default when we have context, but detachable — a question about
   // something else shouldn't drag the current page along with it.
   const [attachContext, setAttachContext] = useState(true);
+  const [regenerateFailed, setRegenerateFailed] = useState(false);
+  const [showJump, setShowJump] = useState(false);
+  // Enter during a reply: the text waits, and the readout says so.
+  const [held, setHeld] = useState(false);
+  const settledAt = useRef(0);
+  const queryClient = useQueryClient();
+  const composerRef = useRef<HTMLTextAreaElement>(null);
 
   const agent = useAgent({
     agent: "skillist-agent",
@@ -82,23 +101,44 @@ export function AgentChat({
 
   const isBusy = status === "submitted" || status === "streaming";
   const canSend = connState === "connected" && !isBusy;
+  // Declared ahead of `submit`, which re-pins the view on send.
+  const atBottomRef = useRef(true);
 
+  /** A suggestion passes `fromComposer: false`, so one click can't wipe a written draft. */
   const submit = useCallback(
-    (text: string) => {
+    (text: string, fromComposer = true) => {
       const trimmed = text.trim();
-      if (!trimmed || connState !== "connected" || isBusy) return;
+      if (!trimmed || connState !== "connected") return;
+      if (isBusy) {
+        if (fromComposer) setHeld(true);
+        return;
+      }
+      if (Date.now() - settledAt.current < SWAP_GUARD_MS) return;
       const isFirst = messages.length === 0;
       // The context line goes into the message body rather than a side channel,
       // and the transcript renders it back as a chip — so the agent receives
       // exactly what the sender can see.
       const payload = context && attachContext ? `${formatContext(context)}\n${trimmed}` : trimmed;
-      sendMessage({ text: payload });
-      setInput("");
+      void Promise.resolve(sendMessage({ text: payload })).catch(() => {
+        if (fromComposer) setInput(trimmed);
+      });
+      if (fromComposer) setInput("");
+      // Sending is a request to see the answer, wherever the reader had scrolled.
+      atBottomRef.current = true;
       // First turn creates the server-side chat row (and, shortly after, its
       // auto-title) — surface it in the index right away.
       if (isFirst) onListRefresh?.();
     },
-    [attachContext, connState, context, isBusy, messages.length, sendMessage, onListRefresh],
+    [
+      attachContext,
+      connState,
+      context,
+      isBusy,
+      messages.length,
+      sendMessage,
+      setInput,
+      onListRefresh,
+    ],
   );
 
   // Regenerate the assistant reply to a given user message. Clearing the
@@ -110,9 +150,10 @@ export function AgentChat({
         const { [userMessageId]: _drop, ...rest } = prev;
         return rest;
       });
-      void (agent as unknown as AgentStub).call("regenerateMessage", [userMessageId]).catch(() => {
-        /* transient — the connection banner covers a dropped socket */
-      });
+      setRegenerateFailed(false);
+      void (agent as unknown as AgentStub)
+        .call("regenerateMessage", [userMessageId])
+        .catch(() => setRegenerateFailed(true));
     },
     [agent],
   );
@@ -145,11 +186,18 @@ export function AgentChat({
 
   // Refresh the index when a turn settles (picks up the row + auto-title) and
   // whenever the server pushes a new title.
+  // A turn can also stage or run an approval and write memory, so those refresh too.
   const wasBusy = useRef(false);
   useEffect(() => {
-    if (wasBusy.current && !isBusy) onListRefresh?.();
+    if (wasBusy.current && !isBusy) {
+      settledAt.current = Date.now();
+      setHeld(false);
+      onListRefresh?.();
+      void queryClient.invalidateQueries({ queryKey: ["agent-approvals", orgId] });
+      void queryClient.invalidateQueries({ queryKey: ["agent-memory", orgId] });
+    }
     wasBusy.current = isBusy;
-  }, [isBusy, onListRefresh]);
+  }, [isBusy, onListRefresh, queryClient, orgId]);
   const lastTitle = useRef<string | null>(null);
   useEffect(() => {
     const title = chatState.title ?? null;
@@ -159,41 +207,123 @@ export function AgentChat({
     }
   }, [chatState.title, onListRefresh]);
 
-  // Auto-scroll: pin to bottom as messages stream in. Respects reduced motion
-  // via the container's scroll-behavior utility.
+  // Auto-scroll: pin to bottom as messages stream in, and leave the reader alone
+  // once they scroll up. No smooth scrolling: each token would start a new
+  // animation, and a burst leaves the position behind the pin threshold.
   const scrollRef = useRef<HTMLDivElement>(null);
-  const atBottomRef = useRef(true);
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64;
+    setShowJump(!atBottomRef.current);
   }, []);
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
   }, [messages, status]);
+  const jumpToLatest = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    atBottomRef.current = true;
+    setShowJump(false);
+  }, []);
+
+  // Focus doesn't wait for the socket, because the field stays editable throughout.
+  // Skipped on touch, where focusing would throw up the keyboard over the transcript.
+  useEffect(() => {
+    if (focusOnReady && window.matchMedia("(pointer: fine)").matches) {
+      composerRef.current?.focus();
+    }
+  }, [focusOnReady]);
+
+  // Send and Stop swap as a turn starts and ends, and the focused one is removed.
+  // If the person was working in the composer, keep them there; if they had moved
+  // on to the page, leave them alone.
+  const composerRegionRef = useRef<HTMLDivElement>(null);
+  const ownsFocus = useRef(false);
+  useEffect(() => {
+    const track = (e: Event) => {
+      ownsFocus.current = Boolean(composerRegionRef.current?.contains(e.target as Node));
+    };
+    document.addEventListener("focusin", track);
+    document.addEventListener("pointerdown", track);
+    return () => {
+      document.removeEventListener("focusin", track);
+      document.removeEventListener("pointerdown", track);
+    };
+  }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs because the turn changed
+  useEffect(() => {
+    if (ownsFocus.current) composerRef.current?.focus();
+  }, [isBusy]);
+
+  // A growing composer shrinks the transcript from below, hiding the last lines.
+  useEffect(() => {
+    const region = composerRegionRef.current;
+    if (!region) return;
+    const observer = new ResizeObserver(() => {
+      const el = scrollRef.current;
+      if (el && atBottomRef.current) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(region);
+    return () => observer.disconnect();
+  }, []);
+
+  // Detaching was a choice about one page, so it shouldn't follow the person around.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs because the page changed
+  useEffect(() => {
+    setAttachContext(true);
+  }, [context?.pathname]);
+
+  const approvals = useMemo<ApprovalHandlers>(
+    () => ({
+      orgId,
+      canRun: canSend,
+      onRun: (approvalId) => {
+        if (!canSend) return;
+        atBottomRef.current = true;
+        sendMessage({ text: formatApproval(approvalId) });
+      },
+    }),
+    [orgId, canSend, sendMessage],
+  );
+
+  const lastUserId = [...messages].reverse().find((m) => m.role === "user")?.id;
 
   const isEmpty = messages.length === 0;
-  const showThinking = status === "submitted" && messages.at(-1)?.role !== "assistant";
+  // An assistant message exists from the first event, before it has anything to
+  // show, so "is there a reply" has to mean "is there content".
+  const last = messages.at(-1);
+  const replyStarted =
+    last?.role === "assistant" &&
+    (last.parts ?? []).some((p) => p.type !== "step-start" && !("text" in p && !p.text.trim()));
+  const showThinking = isBusy && !replyStarted;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        ref={scrollRef}
-        onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-y-auto scroll-smooth motion-reduce:scroll-auto"
-      >
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
+        {/* aria-busy holds announcements until a turn settles, so a screen reader
+            reads the finished reply rather than every streamed token. */}
         <div
+          role="log"
+          aria-label="Conversation"
+          aria-busy={isBusy}
           className={cn(
             "mx-auto flex w-full flex-col gap-6 px-4 py-6",
             compact ? "max-w-none" : "max-w-3xl",
           )}
         >
           {isEmpty ? (
-            <EmptyState orgName={orgName} disabled={!canSend} onPick={submit} />
+            <EmptyState
+              orgName={orgName}
+              disabled={!canSend}
+              onPick={(text) => submit(text, false)}
+            />
           ) : (
             messages.map((m, i) => {
               if (m.role !== "assistant") return <AgentMessage key={m.id} message={m} />;
+              const streaming = isBusy && i === messages.length - 1;
               const userId = precedingUserIdByIndex.get(i);
               const list = userId ? chatState.variants?.[userId] : undefined;
               const total = list?.length ?? 0;
@@ -219,6 +349,8 @@ export function AgentChat({
                   branchTotal={total}
                   onPrevVariant={userId ? () => cycleVariant(userId, "prev") : undefined}
                   onNextVariant={userId ? () => cycleVariant(userId, "next") : undefined}
+                  approvals={approvals}
+                  streaming={streaming}
                 />
               );
             })
@@ -236,101 +368,63 @@ export function AgentChat({
               Thinking…
             </div>
           )}
-          {error && (
-            <div
-              role="alert"
-              className="border-l-2 border-l-destructive py-1 pl-2.5 text-sm text-destructive"
-            >
-              The agent hit an error. Try again in a moment.
+          {(error || regenerateFailed) && !isBusy && (
+            <div role="alert" className="flex flex-col items-start gap-2 text-sm text-destructive">
+              <p>
+                {regenerateFailed
+                  ? "The agent couldn't start that reply."
+                  : "The agent's reply failed before it finished."}
+                {error?.message ? ` ${error.message}` : ""}
+              </p>
+              {lastUserId && connState === "connected" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRegenerate(lastUserId)}
+                >
+                  Retry
+                </Button>
+              )}
             </div>
           )}
         </div>
       </div>
 
+      {showJump && (
+        <div className="pointer-events-none flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={jumpToLatest}
+            className="pointer-events-auto absolute z-10 -translate-y-11 gap-2 bg-background"
+          >
+            <ArrowDown className="size-3.5" aria-hidden />
+            Latest
+          </Button>
+        </div>
+      )}
+
       <ConnectionBanner state={connState} reason={connError} />
 
-      <div className="border-t border-border bg-background/80 backdrop-blur">
-        {context && (
-          <div
-            className={cn(
-              "mx-auto flex w-full items-center gap-2 px-4 pt-2",
-              compact ? "max-w-none" : "max-w-3xl",
-            )}
-          >
-            <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-              Context
-            </span>
-            {attachContext ? (
-              <span className="flex items-center gap-1.5 border border-border px-2 py-0.5 font-mono text-xs text-foreground">
-                {describeContext(context)}
-                <button
-                  type="button"
-                  onClick={() => setAttachContext(false)}
-                  aria-label="Don't send the current page as context"
-                  className="text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  <X className="size-3" aria-hidden />
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAttachContext(true)}
-                className="font-mono text-xs text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:decoration-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                attach {describeContext(context)}
-              </button>
-            )}
-          </div>
-        )}
-        <form
-          className={cn(
-            "mx-auto flex w-full items-end gap-2 px-4 py-3",
-            compact ? "max-w-none" : "max-w-3xl",
-          )}
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(input);
-          }}
-        >
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                submit(input);
-              }
-            }}
-            rows={1}
-            placeholder={
-              connState === "connected" ? `Ask the ${orgName} agent…` : "Connecting to the agent…"
-            }
-            aria-label="Message the Skillist agent"
-            disabled={connState !== "connected"}
-            className="max-h-40 min-h-10 flex-1 border border-b-input px-3 py-2"
-          />
-          {isBusy ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => stop()}
-              aria-label="Stop generating"
-            >
-              <Square className="size-4" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!canSend || !input.trim()}
-              aria-label="Send message"
-            >
-              <ArrowUp className="size-4" />
-            </Button>
-          )}
-        </form>
+      <div ref={composerRegionRef} className="border-t border-border">
+        <Composer
+          ref={composerRef}
+          orgName={orgName}
+          value={input}
+          onChange={setInput}
+          onSubmit={() => submit(input)}
+          onStop={stop}
+          connState={connState}
+          terminal={connState === "disconnected" && Boolean(connError)}
+          busy={isBusy}
+          held={held}
+          context={context}
+          contextAttached={attachContext}
+          onToggleContext={() => setAttachContext((v) => !v)}
+          className={compact ? "max-w-none" : "max-w-3xl"}
+        />
       </div>
     </div>
   );
@@ -364,9 +458,7 @@ function EmptyState({
         </p>
       </div>
       <div className="flex flex-col gap-2">
-        <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-          Try asking
-        </span>
+        <span className="text-xs text-muted-foreground">Try asking</span>
         <div className="flex flex-wrap gap-2">
           {SUGGESTIONS.map((s) => (
             <button
@@ -421,7 +513,16 @@ function ConnectionBanner({ state, reason }: { state: ConnState; reason: string 
             : "animate-pulse bg-muted-foreground motion-reduce:animate-none",
         )}
       />
-      {terminal ? `Disconnected — ${reason}` : "Reconnecting to the agent…"}
+      {terminal ? `Disconnected: ${reason}` : "Reconnecting to the agent…"}
+      {terminal && (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          Reload
+        </button>
+      )}
     </div>
   );
 }

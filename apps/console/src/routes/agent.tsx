@@ -36,8 +36,7 @@ function AgentPage() {
 
   // Fill the viewport below the sticky app header; the transcript scrolls
   // internally rather than the page.
-  const shell =
-    "flex flex-col h-[calc(100svh-3.5rem-2rem)] md:h-[calc(100svh-3.5rem-3rem)] -m-4 md:-m-6";
+  const shell = "flex flex-col h-[calc(100svh-3.5rem)] -m-4 md:-m-6";
 
   if (isError) {
     return (
@@ -63,7 +62,6 @@ function AgentPage() {
   if (!activeOrg) {
     return (
       <div className={shell}>
-        <Header />
         <div className="flex flex-1 items-center justify-center p-6">
           <p className="max-w-prose text-center text-sm text-muted-foreground">
             You're not a member of any organization yet. Create one on the{" "}
@@ -129,7 +127,7 @@ function AgentWorkspace({
           {/* Memory + approvals govern the agent itself. Org selection now lives
               in the global top-bar switcher, not here. */}
           <MemoryPanel orgId={activeOrg.id} />
-          <ApprovalsPanel orgId={activeOrg.id} />
+          <ApprovalsPanel orgId={activeOrg.id} onOpenChat={selectChat} />
         </div>
       </Header>
 
@@ -144,7 +142,9 @@ function AgentWorkspace({
           orgId={activeOrg.id}
           orgName={activeOrg.name}
           chatId={chatId}
-          context={context}
+          // This page is the agent, so "the page you're on" tells it nothing.
+          context={context.pathname === "/agent" ? undefined : context}
+          focusOnReady
           onListRefresh={invalidate}
         />
       </div>
@@ -152,15 +152,11 @@ function AgentWorkspace({
   );
 }
 
+/** The breadcrumb already names this page, so the bar holds only its controls. */
 function Header({ children }: { children?: React.ReactNode }) {
   return (
-    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-      <div className="flex flex-col">
-        <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-          Skillist Agent
-        </span>
-        <span className="text-sm font-medium">Org intelligence</span>
-      </div>
+    <div className="flex shrink-0 items-center justify-end gap-3 border-b border-border px-4 py-2">
+      <h1 className="sr-only">Agent</h1>
       {children}
     </div>
   );

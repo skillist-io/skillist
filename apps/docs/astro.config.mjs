@@ -15,7 +15,6 @@ export default defineConfig({
     react(),
     starlight({
       title: "Skillist",
-      tagline: "Agent skills platform documentation",
       favicon: "/favicon.svg",
       // No `logo` on purpose: the identity is the SKILLIST wordmark, and the
       // apps render it as live text (SkillistLogo in @skillist/ui). Starlight

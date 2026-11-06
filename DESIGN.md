@@ -9,7 +9,9 @@ colors:
   hairline: "oklch(0.922 0 0)"
   primary: "oklch(0.205 0 0)"
   primary-ink: "oklch(0.985 0 0)"
-  ring: "oklch(0.708 0 0)"
+  ring: "oklch(0.556 0 0)"
+  input-line: "oklch(0.62 0 0)"
+  input-line-dark: "oklch(0.52 0 0)"
   destructive: "oklch(0.577 0.245 27.325)"
   signal: "oklch(0.52 0.21 293)"
   signal-dark: "oklch(0.72 0.19 293)"
@@ -200,6 +202,7 @@ This system is flat by conviction. It uses tonal layering and a single hairline 
 ### Badges
 - **Style:** Text-only. No fill, no border, no pill (`rounded-none border-0 bg-transparent px-0`). Set in the smallest label (0.625rem, uppercase, tracking-widest, weight 600).
 - **State:** Meaning comes from the word plus an optional inline SVG icon, and from ink-vs-muted color, never from a colored background chip. Status (running / failed / stale) pairs a word with a shape or icon, never color alone.
+- **Scope of the 0.625rem size:** Badges only. It is not a ramp step, so captions, section labels, and timestamps use the 0.75rem `label` or `mono` steps.
 
 ### Cards / Containers
 - **Corner Style:** Squared (`rounded-none`, 0px), including images inside them.
@@ -209,8 +212,9 @@ This system is flat by conviction. It uses tonal layering and a single hairline 
 - **Internal Padding:** Generous and consistent, `2rem` (`--card-spacing`), tightening to `1.25rem` at `data-size=sm`. The roominess is what keeps density calm.
 
 ### Inputs / Fields
-- **Style:** Underline only. Transparent background, no side or top border, bottom border in `hairline` (`border-b-input`), `px-0`, `height: 2.5rem`. Fields read as ruled lines on paper, not boxes.
-- **Focus:** The bottom border shifts to `ring`; no glow, no box-shadow. Motion is a color transition on the border only.
+- **Style:** Underline only. Transparent background, no side or top border, bottom border in `input-line` (`border-b-input-line`), `px-0`, `height: 2.5rem`. Fields read as ruled lines on paper, not boxes.
+- **Edge contrast:** The underline is a field's only visible edge, so `input-line` holds 3:1 against its surface in both themes (WCAG 1.4.11). It is its own token because `input` also tints buttons and switches, which don't need that weight.
+- **Focus:** The bottom border shifts to `ring` and doubles to 2px, so focus reads as a change of weight as well as of color. The second pixel is a hard 1px offset line, the one sanctioned box-shadow on a field; no glow. Motion is a transition on the line only.
 - **Error / Disabled:** Invalid shifts the bottom border to `destructive`; disabled drops to 50% opacity with `cursor-not-allowed`.
 
 ### Navigation
@@ -229,6 +233,11 @@ The identity pairs a **wordmark and one mark**. The wordmark is SKILLIST set in 
 - **Clear space.** Half the cap height on every side of the wordmark; half the tile side around the stamp. The rule scales with the type instead of being a pixel value that goes stale.
 - **Small sizes.** Below roughly 80px of width the wordmark's tracking channels close up; use the socket stamp instead. The socket has its own floor: below ~28px the seams smear to grey mush, so favicons and small `.ico` layers ship a deliberately simplified variant — the socket with its seams removed, a plain square aperture (same outer bounds, same socket). The generator switches to it automatically (`SOCKET_MIN_PX`, `socketAperture`); the full seamed mark is for 32px and up. The wordmark never renders below 12px cap height.
 - **Never** recolour the wordmark, track it tighter or looser, set it in another weight or case, add any symbol other than the socket beside it (the socket lockup is the one sanctioned pairing), or put the violet in the logo — in the brand, colour is spent nowhere so it means everything in the product. Distributed assets ship the letterforms as **outlines**, because a logo that depends on the viewer having Inter installed is not a logo.
+
+### Agent Trace & Confirmation
+Adapted from the shadcn/ui AI Elements source (`trace`, `item`) and restyled to this system; they live in `packages/ui`.
+- **Trace:** Every agent step is one mono line that opens onto its detail: input, result, and the full error. The line states the outcome in words ("Awaiting approval:", "Denied:", "Refused:", "Failed:"), so a past-tense label only ever describes something that happened.
+- **Confirmation:** A pending action is a prompt rather than activity, so it is an `Item` outside the Trace, bordered in signal while it waits. The text being approved is never truncated, and the stated effect disappears once the action is decided, because by then it is no longer a promise.
 
 ### Signature Component — Status & Eval Readouts
 The product's distinctive surfaces are its live readouts: eval panels, run history, analytics bars, and score badges. These are the "instruments." Set values in mono, label them in uppercase micro-labels, keep charts grayscale (`chart-1…5` are all chroma 0), let the single destructive red mark failure, and let the signal violet mark live/active state. A readout should look like a gauge, not a marketing stat.

@@ -1,8 +1,9 @@
+import { oauthProviderAuthServerMetadata } from "@better-auth/oauth-provider";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { apiReference } from "@scalar/hono-api-reference";
 import type { SyncQueueMessage } from "@skillist/contracts";
 import { routeAgentRequest } from "agents";
-import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
+import type { Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
@@ -28,6 +29,7 @@ import { rateLimit } from "./lib/rate-limit";
 import { resolveSessionUserId } from "./lib/session";
 import { handleMcpRequest } from "./mcp/handler";
 import { mcpServerInfo } from "./mcp/registry-server";
+import { mcpProtectedResourceMetadata } from "./mcp/transport";
 import { accountRoutes } from "./routes/account";
 import { adminDocsRoutes } from "./routes/admin-docs";
 import { agentApprovalsRoutes } from "./routes/agent-approvals";
@@ -171,17 +173,22 @@ app.use("/mcp", rateLimit(60, 60_000, "AUTH_RATE_LIMITER"));
 app.all("/mcp", handleMcpRequest);
 app.options("/mcp", (c) => c.body(null, 204));
 
-app.get("/.well-known/oauth-authorization-server", async (c) => {
+// RFC 8414 puts metadata for the `/api/auth` issuer at the path-suffixed URL. The
+// bare path stays because older MCP clients only look there.
+const authServerMetadata = async (c: Context<{ Bindings: Env }>) => {
   const { auth } = createApiAuth(c.env, createApiEmailSender(c.env));
+  return await oauthProviderAuthServerMetadata(auth)(c.req.raw);
+};
+app.get("/.well-known/oauth-authorization-server", authServerMetadata);
+app.get("/.well-known/oauth-authorization-server/api/auth", authServerMetadata);
 
-  return await oAuthDiscoveryMetadata(auth)(c.req.raw);
-});
-
-app.get("/.well-known/oauth-protected-resource", async (c) => {
-  const { auth } = createApiAuth(c.env, createApiEmailSender(c.env));
-
-  return await oAuthProtectedResourceMetadata(auth)(c.req.raw);
-});
+// RFC 9728 inserts the resource path (`/mcp`) after the well-known prefix.
+const protectedResourceMetadata = (c: Context<{ Bindings: Env }>) =>
+  c.json(mcpProtectedResourceMetadata(c.env.BETTER_AUTH_URL), 200, {
+    "Cache-Control": "public, max-age=15, stale-while-revalidate=15",
+  });
+app.get("/.well-known/oauth-protected-resource", protectedResourceMetadata);
+app.get("/.well-known/oauth-protected-resource/mcp", protectedResourceMetadata);
 
 // Production origins are always allowed. Console opens the platform agent
 // WebSocket/RPC cross-subdomain; cookies are scoped to .skillist.dev so the

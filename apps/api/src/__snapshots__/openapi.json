@@ -16033,6 +16033,19 @@
                           "value": {
                             "type": "string"
                           },
+                          "source": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "agent",
+                              "console",
+                              null
+                            ]
+                          },
+                          "updatedByName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "createdAt": {
                             "type": "string"
                           },
@@ -16046,6 +16059,8 @@
                           "userId",
                           "key",
                           "value",
+                          "source",
+                          "updatedByName",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -16502,7 +16517,8 @@
               "enum": [
                 "pending",
                 "approved",
-                "denied"
+                "denied",
+                "executed"
               ]
             },
             "required": false,
@@ -16545,12 +16561,17 @@
                               "nullable": true
                             }
                           },
+                          "chatId": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "status": {
                             "type": "string",
                             "enum": [
                               "pending",
                               "approved",
-                              "denied"
+                              "denied",
+                              "executed"
                             ]
                           },
                           "createdAt": {
@@ -16568,6 +16589,7 @@
                           "toolName",
                           "callSignature",
                           "args",
+                          "chatId",
                           "status",
                           "createdAt",
                           "decidedAt"
@@ -16742,7 +16764,8 @@
                       "enum": [
                         "pending",
                         "approved",
-                        "denied"
+                        "denied",
+                        "executed"
                       ]
                     }
                   },

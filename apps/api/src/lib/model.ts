@@ -20,7 +20,7 @@ export const AI_GATEWAY_ID = "skillist";
 export const DETERMINISTIC = {
   temperature: 0,
   max_tokens: 64,
-  chat_template_kwargs: { thinking: false },
+  chat_template_kwargs: { enable_thinking: false },
 };
 
 /**

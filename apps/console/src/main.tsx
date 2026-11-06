@@ -17,6 +17,8 @@ import "./index.css";
 
 const queryClient = createAppQueryClient();
 
+// Don't set `search.strict`: it strips params a route doesn't declare, and /login
+// and /oauth/consent need the signed OAuth query left intact in the URL.
 const router = createRouter({
   routeTree,
   context: { queryClient },

@@ -19,7 +19,7 @@ Single Worker entry: `src/index.ts` exports the Hono `fetch` handler **plus** a 
 ## Commands
 
 - Dev: `pnpm dev:api` (:8787, merges `wrangler.jsonc` + gitignored `wrangler.local.jsonc`). Build: `wrangler deploy --dry-run` (via `pnpm build`).
-- Tests run under `@cloudflare/vitest-pool-workers`. One file: `pnpm --filter @skillist/api exec vitest run <path>`.
+- Tests run under `@cloudflare/vitest-plugin`. One file: `pnpm --filter @skillist/api exec vitest run <path>`.
 - **DB tests** run against Miniflare's local D1 with the real migrations (`src/test-support/apply-migrations.ts`). No setup needed.
 - CI deploys with `wrangler deploy --config wrangler.production.jsonc`.
 

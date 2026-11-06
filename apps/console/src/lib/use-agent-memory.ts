@@ -11,6 +11,10 @@ export type AgentMemory = {
   userId: string | null;
   key: string;
   value: string;
+  /** How it was last written; null on rows from before this was recorded. */
+  source: "agent" | "console" | null;
+  /** Who last wrote it; null when unrecorded, or the user has since left. */
+  updatedByName: string | null;
   createdAt: string;
   updatedAt: string;
 };

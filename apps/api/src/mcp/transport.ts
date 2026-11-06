@@ -1,5 +1,4 @@
-import type { McpSession } from "better-auth/plugins/mcp/client";
-import { createMcpAuthClient } from "better-auth/plugins/mcp/client";
+import { type McpSession, mcpResourceUrl } from "@skillist/auth";
 
 export type { McpSession };
 
@@ -7,22 +6,25 @@ export function mcpAuthUrl(apiBaseUrl: string) {
   return `${apiBaseUrl.replace(/\/$/, "")}/api/auth`;
 }
 
-export function createRegistryMcpAuth(apiBaseUrl: string) {
-  return createMcpAuthClient({
-    authURL: mcpAuthUrl(apiBaseUrl),
-    resource: apiBaseUrl.replace(/\/$/, ""),
-  });
+/** RFC 9728 metadata. Scopes are omitted: all of ours are identity scopes. */
+export function mcpProtectedResourceMetadata(apiBaseUrl: string) {
+  return {
+    resource: mcpResourceUrl(apiBaseUrl),
+    authorization_servers: [mcpAuthUrl(apiBaseUrl)],
+    bearer_methods_supported: ["header"],
+  };
 }
 
-export function mcpWwwAuthenticate(apiBaseUrl: string) {
-  const resource = apiBaseUrl.replace(/\/$/, "");
-  return `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource"`;
+export function mcpWwwAuthenticate(apiBaseUrl: string, error?: "invalid_token") {
+  const base = apiBaseUrl.replace(/\/$/, "");
+  const metadata = `resource_metadata="${base}/.well-known/oauth-protected-resource/mcp"`;
+  return error ? `Bearer error="${error}", ${metadata}` : `Bearer ${metadata}`;
 }
 
 export async function verifyOptionalMcpSession(
-  authClient: ReturnType<typeof createRegistryMcpAuth>,
+  verify: (token: string) => Promise<McpSession>,
   authorizationHeader: string | undefined,
 ): Promise<McpSession | null> {
   if (!authorizationHeader?.startsWith("Bearer ")) return null;
-  return authClient.verifyToken(authorizationHeader.slice(7));
+  return verify(authorizationHeader.slice(7));
 }
