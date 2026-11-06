@@ -139,3 +139,10 @@ export function validateTargetUrl(url: string | undefined): string | null {
 export const EXEC_TIMEOUT_MS = 120_000;
 export const CONTAINER_TIMEOUT_MS = 180_000;
 export const MAX_OUTPUT_CHARS = 256_000;
+
+/** Cut to `length` without leaving half of a surrogate pair, such as an emoji. */
+export function sliceText(text: string, length: number): string {
+  const last = text.charCodeAt(length - 1);
+  const splitsPair = text.length > length && last >= 0xd800 && last <= 0xdbff;
+  return text.slice(0, splitsPair ? length - 1 : length);
+}
