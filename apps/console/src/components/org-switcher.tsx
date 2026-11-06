@@ -34,7 +34,8 @@ const FILTER_THRESHOLD = 7;
  * signal accent (`border-l-signal bg-muted`), inactive rows highlight on hover.
  */
 export function OrgSwitcher() {
-  const { orgs, activeOrg, setActiveOrgId, isPending } = useActiveOrg();
+  const { orgs, activeOrg, setActiveOrgId, switchNotice, isPending, isError, refetch } =
+    useActiveOrg();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
@@ -66,11 +67,26 @@ export function OrgSwitcher() {
     return <Skeleton className="h-8 w-32" aria-label="Loading organizations" />;
   }
 
+  // A failed load isn't "no orgs": say so instead of quietly losing the control.
+  if (isError && orgs.length === 0) {
+    return (
+      <Button variant="ghost" size="sm" onClick={refetch}>
+        Retry organizations
+      </Button>
+    );
+  }
+
   // Nothing to switch to — render nothing rather than an empty control.
   if (orgs.length === 0) return null;
 
   return (
     <>
+      {/* Stays mounted so the live region announces the change. A link can move
+          the active org, and rail pages act on it, so this isn't left to the
+          name in the button changing. */}
+      <span role="status" className="text-xs text-muted-foreground max-md:sr-only">
+        {switchNotice ? `Switched to ${switchNotice}` : ""}
+      </span>
       <Popover
         open={open}
         onOpenChange={(next) => {
