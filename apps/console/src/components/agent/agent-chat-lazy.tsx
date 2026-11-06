@@ -34,6 +34,8 @@ export function LazyAgentChat(props: {
   compact?: boolean;
   focusOnReady?: boolean;
   onListRefresh?: () => void;
+  pendingRunId?: string;
+  onRunStarted?: () => void;
 }) {
   return (
     <Suspense fallback={<AgentChatSkeleton compact={props.compact} />}>

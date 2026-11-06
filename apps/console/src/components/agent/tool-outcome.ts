@@ -20,6 +20,9 @@ const REASONS: Record<string, string> = {
   needs_editor: "this needs an editor or owner",
   approval_not_found: "that approval no longer exists",
   already_ran: "that approval has already run",
+  approval_revoked: "that approval was revoked",
+  approval_expired: "that approval expired",
+  approval_refused: "that action was already refused",
   unknown_action: "this action can no longer be run",
 };
 

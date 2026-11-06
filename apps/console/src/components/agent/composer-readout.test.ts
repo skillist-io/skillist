@@ -20,7 +20,7 @@ describe("composerReadout", () => {
 
   it("says when Enter was held rather than ignoring it", () => {
     expect(composerReadout({ ...idle, busy: true, held: true })).toBe(
-      "Held until the reply ends · Esc to stop",
+      "Not sent · send again when the reply ends · Esc to stop",
     );
   });
 
@@ -46,5 +46,9 @@ describe("composerReadout", () => {
     expect(composerReadout({ ...idle, text: "x".repeat(37_000) })).toBe(
       "1 line · 37k chars · Enter send · Shift+Enter new line",
     );
+  });
+
+  it("doesn't offer a Shift key to a touch keyboard", () => {
+    expect(composerReadout({ ...idle, touch: true })).toBe("Return sends");
   });
 });

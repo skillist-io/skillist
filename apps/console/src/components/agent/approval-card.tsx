@@ -1,5 +1,6 @@
 import {
   Button,
+  cn,
   Item,
   ItemContent,
   ItemDescription,
@@ -9,10 +10,17 @@ import {
 } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useActiveOrg } from "@/lib/active-org";
-import { useAgentApprovals } from "@/lib/use-agent-approvals";
-import { canDecideApprovals, decisionError, describeApproval, NEEDS_EDITOR } from "./approval-copy";
+import { useAgentApproval, useAgentApprovals } from "@/lib/use-agent-approvals";
+import {
+  type ApprovalCopy,
+  canDecideApprovals,
+  decisionError,
+  describeApproval,
+  NEEDS_EDITOR,
+  OUTCOME,
+} from "./approval-copy";
 
 export type ApprovalHandlers = {
   orgId: string;
@@ -21,6 +29,16 @@ export type ApprovalHandlers = {
   /** Ask the agent to run an approved action. */
   onRun: (approvalId: string) => void;
 };
+
+/** The action in words, with the fact key or skill repo set as the data it is. */
+export function ApprovalTitle({ copy }: { copy: ApprovalCopy }) {
+  return (
+    <>
+      {copy.action}
+      {copy.subject && <span className="font-mono"> {copy.subject}</span>}
+    </>
+  );
+}
 
 /**
  * The AI Elements Confirmation pattern, at the point in the conversation where
@@ -43,7 +61,10 @@ export function ApprovalCard({
 }) {
   const { orgId, canRun, onRun } = handlers;
   const { approvals, isPending, refetch, decide } = useAgentApprovals(orgId);
-  const row = approvals.find((a) => a.id === approvalId);
+  const listed = approvals.find((a) => a.id === approvalId);
+  // The list stops at 100, so an older card looks itself up rather than giving up.
+  const single = useAgentApproval(orgId, approvalId, !isPending && !listed);
+  const row = listed ?? single.data;
   const canDecide = canDecideApprovals(useActiveOrg().activeOrg?.role);
 
   // The row was staged moments ago, so the 20s poll usually hasn't seen it.
@@ -55,20 +76,34 @@ export function ApprovalCard({
   const copy = describeApproval(row?.toolName ?? toolName, args);
   const status = row?.status;
   const deciding = decide.isPending;
+  const titleId = useId();
 
   return (
-    <Item className={status === "pending" ? "border-signal" : undefined}>
+    <Item
+      className={status === "pending" ? "border-signal" : undefined}
+      // The transcript watches for this, to keep a waiting decision reachable.
+      data-approval-pending={status === "pending" ? approvalId : undefined}
+    >
       <ItemMedia className={status === "pending" ? "text-signal" : "text-muted-foreground"}>
         <ShieldCheck aria-hidden />
       </ItemMedia>
       <ItemContent>
-        <ItemTitle>{copy.title}</ItemTitle>
+        <ItemTitle id={titleId}>
+          <ApprovalTitle copy={copy} />
+        </ItemTitle>
         {/* The effect is a promise, so it only shows while it can still come true. */}
         {(status === "pending" || status === "approved") && (
           <ItemDescription>{copy.effect}</ItemDescription>
         )}
         {copy.detail && (
-          <p className="mt-1 text-sm wrap-break-word whitespace-pre-wrap">{copy.detail}</p>
+          <p
+            className={cn(
+              "mt-1 text-sm wrap-break-word whitespace-pre-wrap",
+              copy.detailIsData && "font-mono text-xs",
+            )}
+          >
+            {copy.detail}
+          </p>
         )}
         {copy.skillRepo && (
           <Link
@@ -85,9 +120,11 @@ export function ApprovalCard({
           {status === "pending" &&
             (canDecide ? "Nothing has run. Waiting for your decision." : NEEDS_EDITOR)}
           {status === "approved" && "Approved. It hasn't run yet."}
-          {status === "executed" && "Approved and run."}
-          {status === "denied" && "Denied. Nothing ran."}
-          {!status && (isPending ? "Checking this request…" : "This request is no longer open.")}
+          {status && OUTCOME[status]}
+          {!status &&
+            (isPending || single.isPending
+              ? "Checking this request…"
+              : "This request is no longer open.")}
         </span>
         {status === "pending" && canDecide && (
           <div className="flex gap-2">
@@ -96,6 +133,7 @@ export function ApprovalCard({
               variant="outline"
               size="sm"
               disabled={deciding}
+              aria-describedby={titleId}
               onClick={() => decide.mutate({ id: approvalId, status: "denied" })}
             >
               Deny
@@ -104,6 +142,7 @@ export function ApprovalCard({
               type="button"
               size="sm"
               disabled={deciding}
+              aria-describedby={titleId}
               onClick={() =>
                 decide.mutate(
                   { id: approvalId, status: "approved" },
@@ -111,21 +150,34 @@ export function ApprovalCard({
                 )
               }
             >
-              {deciding ? "Saving…" : "Approve"}
+              {deciding ? "Saving…" : copy.approveLabel}
             </Button>
           </div>
         )}
         {/* Covers the run being lost: the socket dropped, or a reply was mid-stream. */}
-        {status === "approved" && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!canRun}
-            onClick={() => onRun(approvalId)}
-          >
-            Run now
-          </Button>
+        {status === "approved" && canDecide && (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={deciding}
+              aria-describedby={titleId}
+              onClick={() => decide.mutate({ id: approvalId, status: "revoked" })}
+            >
+              Revoke
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!canRun}
+              aria-describedby={titleId}
+              onClick={() => onRun(approvalId)}
+            >
+              Run now
+            </Button>
+          </div>
         )}
         {decide.isError && (
           <p role="alert" className="basis-full text-xs text-destructive">

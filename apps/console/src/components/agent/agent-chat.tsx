@@ -2,11 +2,11 @@ import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { Button, cn, SkillistMark } from "@skillist/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAgent } from "agents/react";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type AgentContext, formatApproval, formatContext } from "@/lib/agent-context";
 import { useAgentDraft } from "@/lib/use-agent-draft";
-import { AgentMessage } from "./agent-message";
+import { AgentMessage, touchesState } from "./agent-message";
 import type { ApprovalHandlers } from "./approval-card";
 import { Composer } from "./composer";
 import type { ConnState } from "./composer-readout";
@@ -23,6 +23,12 @@ const SUGGESTIONS = [
  * so a keypress meant for Stop can arrive just after the turn ends.
  */
 const SWAP_GUARD_MS = 400;
+
+/**
+ * How long a turn has to stay empty before saying so. Another tab may be the one
+ * streaming, and this one can't tell until the reply starts to arrive.
+ */
+const NO_REPLY_MS = 3000;
 
 /** One regenerated reply, keyed under the preceding user message id. The parts
  *  shape is owned by the agent runtime; we splice it back onto the live message
@@ -43,6 +49,8 @@ export function AgentChat({
   compact = false,
   focusOnReady = false,
   onListRefresh,
+  pendingRunId,
+  onRunStarted,
 }: {
   orgId: string;
   orgName: string;
@@ -56,6 +64,9 @@ export function AgentChat({
   focusOnReady?: boolean;
   /** Ask the owner to refetch the conversation index (new chat + auto-title). */
   onListRefresh?: () => void;
+  /** An approval to run as soon as this conversation can take a message. */
+  pendingRunId?: string;
+  onRunStarted?: () => void;
 }) {
   const [connState, setConnState] = useState<ConnState>("connecting");
   const [connError, setConnError] = useState<string | null>(null);
@@ -71,6 +82,10 @@ export function AgentChat({
   // Enter during a reply: the text waits, and the readout says so.
   const [held, setHeld] = useState(false);
   const settledAt = useRef(0);
+  const stopped = useRef(false);
+  const [showNoReply, setShowNoReply] = useState(false);
+  // Waiting decisions scrolled out of view, so they can't be missed or read halfway.
+  const [waitingOffscreen, setWaitingOffscreen] = useState(0);
   const queryClient = useQueryClient();
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
@@ -115,6 +130,7 @@ export function AgentChat({
       }
       if (Date.now() - settledAt.current < SWAP_GUARD_MS) return;
       const isFirst = messages.length === 0;
+      stopped.current = false;
       // The context line goes into the message body rather than a side channel,
       // and the transcript renders it back as a chip — so the agent receives
       // exactly what the sender can see.
@@ -151,6 +167,8 @@ export function AgentChat({
         return rest;
       });
       setRegenerateFailed(false);
+      setShowNoReply(false);
+      stopped.current = false;
       void (agent as unknown as AgentStub)
         .call("regenerateMessage", [userMessageId])
         .catch(() => setRegenerateFailed(true));
@@ -211,11 +229,58 @@ export function AgentChat({
   // once they scroll up. No smooth scrolling: each token would start a new
   // animation, and a burst leaves the position behind the pin threshold.
   const scrollRef = useRef<HTMLDivElement>(null);
+  const pinnedCards = useRef(new Set<string>());
+  const measureWaiting = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    const cards = [...el.querySelectorAll<HTMLElement>("[data-approval-pending]")];
+    const newest = cards.at(-1);
+    const id = newest?.dataset.approvalPending;
+    // Pinning to the bottom can leave only a card's buttons on screen, without the
+    // words they decide. The first time a card appears, its top wins.
+    if (newest && id && !pinnedCards.current.has(id)) {
+      pinnedCards.current.add(id);
+      const top = newest.getBoundingClientRect().top;
+      if (top < box.top) {
+        el.scrollTop += top - box.top - 16;
+        atBottomRef.current = false;
+        setShowJump(true);
+      }
+    }
+    setWaitingOffscreen(
+      cards.filter((card) => {
+        const top = card.getBoundingClientRect().top;
+        return top < box.top - 1 || top > box.bottom - 40;
+      }).length,
+    );
+  }, []);
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64;
     setShowJump(!atBottomRef.current);
+    measureWaiting();
+  }, [measureWaiting]);
+  // A card learns its status after it mounts, once its row loads.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new MutationObserver(measureWaiting);
+    observer.observe(el, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-approval-pending"],
+    });
+    return () => observer.disconnect();
+  }, [measureWaiting]);
+  const jumpToWaiting = useCallback(() => {
+    const el = scrollRef.current;
+    const card = el?.querySelector<HTMLElement>("[data-approval-pending]");
+    if (!el || !card) return;
+    el.scrollTop += card.getBoundingClientRect().top - el.getBoundingClientRect().top - 16;
+    atBottomRef.current = false;
   }, []);
   useLayoutEffect(() => {
     const el = scrollRef.current;
@@ -289,6 +354,15 @@ export function AgentChat({
     [orgId, canSend, sendMessage],
   );
 
+  // From the panel, which can't reach the socket. Waits out a reply in progress.
+  useEffect(() => {
+    if (!pendingRunId || !canSend) return;
+    onRunStarted?.();
+    atBottomRef.current = true;
+    sendMessage({ text: formatApproval(pendingRunId) });
+    onListRefresh?.();
+  }, [pendingRunId, canSend, onRunStarted, sendMessage, onListRefresh]);
+
   const lastUserId = [...messages].reverse().find((m) => m.role === "user")?.id;
 
   const isEmpty = messages.length === 0;
@@ -299,6 +373,22 @@ export function AgentChat({
     last?.role === "assistant" &&
     (last.parts ?? []).some((p) => p.type !== "step-start" && !("text" in p && !p.text.trim()));
   const showThinking = isBusy && !replyStarted;
+  const replyMissing =
+    !isEmpty &&
+    !isBusy &&
+    !error &&
+    !regenerateFailed &&
+    connState === "connected" &&
+    (last?.role === "user" || !replyStarted);
+
+  useEffect(() => {
+    if (!replyMissing) {
+      setShowNoReply(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowNoReply(true), stopped.current ? 0 : NO_REPLY_MS);
+    return () => clearTimeout(timer);
+  }, [replyMissing]);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -344,7 +434,15 @@ export function AgentChat({
                 <AgentMessage
                   key={m.id}
                   message={display}
-                  onRegenerate={userId && !isBusy ? () => handleRegenerate(userId) : undefined}
+                  // Latest only: regenerating drops everything after the reply, and
+                  // the transcript may be the only record of why something was
+                  // approved. A turn that wrote or asked for a decision would re-fire
+                  // its tools, so it keeps the reply it has.
+                  onRegenerate={
+                    userId && !isBusy && i === messages.length - 1 && !touchesState(m)
+                      ? () => handleRegenerate(userId)
+                      : undefined
+                  }
                   branchIndex={selectedIndex}
                   branchTotal={total}
                   onPrevVariant={userId ? () => cycleVariant(userId, "prev") : undefined}
@@ -368,13 +466,30 @@ export function AgentChat({
               Thinking…
             </div>
           )}
+          {showNoReply && (
+            <div
+              role="status"
+              className="flex items-center gap-3 font-mono text-xs text-muted-foreground"
+            >
+              {stopped.current ? "Stopped before a reply." : "No reply came back."}
+              {lastUserId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRegenerate(lastUserId)}
+                >
+                  Retry
+                </Button>
+              )}
+            </div>
+          )}
           {(error || regenerateFailed) && !isBusy && (
             <div role="alert" className="flex flex-col items-start gap-2 text-sm text-destructive">
               <p>
                 {regenerateFailed
                   ? "The agent couldn't start that reply."
                   : "The agent's reply failed before it finished."}
-                {error?.message ? ` ${error.message}` : ""}
               </p>
               {lastUserId && connState === "connected" && (
                 <Button
@@ -391,18 +506,36 @@ export function AgentChat({
         </div>
       </div>
 
-      {showJump && (
+      {(showJump || waitingOffscreen > 0) && (
         <div className="pointer-events-none flex justify-center">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={jumpToLatest}
-            className="pointer-events-auto absolute z-10 -translate-y-11 gap-2 bg-background"
-          >
-            <ArrowDown className="size-3.5" aria-hidden />
-            Latest
-          </Button>
+          <div className="pointer-events-auto absolute z-10 flex -translate-y-11 gap-2">
+            {waitingOffscreen > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={jumpToWaiting}
+                className="gap-2 border-signal bg-background"
+              >
+                <ShieldCheck className="size-3.5 text-signal" aria-hidden />
+                {waitingOffscreen === 1
+                  ? "1 action waiting"
+                  : `${waitingOffscreen} actions waiting`}
+              </Button>
+            )}
+            {showJump && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={jumpToLatest}
+                className="gap-2 bg-background"
+              >
+                <ArrowDown className="size-3.5" aria-hidden />
+                Latest
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -415,7 +548,10 @@ export function AgentChat({
           value={input}
           onChange={setInput}
           onSubmit={() => submit(input)}
-          onStop={stop}
+          onStop={() => {
+            stopped.current = true;
+            void stop();
+          }}
           connState={connState}
           terminal={connState === "disconnected" && Boolean(connError)}
           busy={isBusy}

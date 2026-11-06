@@ -50,7 +50,8 @@ const LINE_STATUS = {
   running: "running",
   done: undefined,
   awaiting: "attention",
-  denied: "error",
+  // A person's "no" is a decision, and red is for things that broke.
+  denied: undefined,
   refused: "error",
   failed: "error",
 } as const;

@@ -74,7 +74,7 @@ export function AgentDrawer({
           {/* Read-only indicator of the active org — switching is done from the
               global top-bar switcher. */}
           {activeOrg && (
-            <span className="max-w-[10rem] shrink-0 truncate border border-border px-2 py-0.5 font-mono text-xs text-muted-foreground">
+            <span className="max-w-[10rem] shrink-0 truncate border border-border px-2 py-0.5 text-xs text-muted-foreground">
               {activeOrg.name}
             </span>
           )}
@@ -115,8 +115,20 @@ function DrawerBody({
   activeOrg: Org;
   context: ReturnType<typeof useAgentContext>;
 }) {
-  const { chatId, chats, isPending, isError, selectChat, newChat, deleteChat, invalidate } =
-    useAgentChats(activeOrg.id);
+  const {
+    chatId,
+    chats,
+    isPending,
+    isError,
+    selectChat,
+    newChat,
+    deleteChat,
+    deleteFailed,
+    invalidate,
+    runApproval,
+    pendingRunId,
+    clearRunRequest,
+  } = useAgentChats(activeOrg.id);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
@@ -143,6 +155,7 @@ function DrawerBody({
                   activeChatId={chatId}
                   isPending={isPending}
                   isError={isError}
+                  deleteFailed={deleteFailed}
                   onSelect={selectChat}
                   onNew={newChat}
                   onDelete={deleteChat}
@@ -156,7 +169,12 @@ function DrawerBody({
             the ambient drawer. */}
         <div className="flex items-center gap-1">
           <MemoryPanel orgId={activeOrg.id} compact />
-          <ApprovalsPanel orgId={activeOrg.id} compact onOpenChat={selectChat} />
+          <ApprovalsPanel
+            orgId={activeOrg.id}
+            compact
+            onOpenChat={selectChat}
+            onRun={runApproval}
+          />
         </div>
       </div>
 
@@ -167,10 +185,13 @@ function DrawerBody({
         orgId={activeOrg.id}
         orgName={activeOrg.name}
         chatId={chatId}
-        context={context}
+        // On /agent the page is the agent, so "the page you're on" tells it nothing.
+        context={context.pathname === "/agent" ? undefined : context}
         compact
         focusOnReady
         onListRefresh={invalidate}
+        pendingRunId={pendingRunId}
+        onRunStarted={clearRunRequest}
       />
     </>
   );

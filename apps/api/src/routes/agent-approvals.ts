@@ -1,7 +1,15 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { agentApprovalStatusSchema } from "@skillist/contracts";
 import type { Env } from "../env";
-import { decideApproval, listApprovals } from "../lib/agent/approvals";
+import {
+  decideApproval,
+  effectiveStatus,
+  getApproval,
+  listApprovals,
+  listOrgApprovals,
+  type RecordCursor,
+  revokeApproval,
+} from "../lib/agent/approvals";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { errorResponses } from "../lib/openapi";
@@ -25,7 +33,28 @@ const approvalSchema = z.object({
   status: agentApprovalStatusSchema,
   createdAt: z.string(),
   decidedAt: z.string().nullable(),
+  decidedBy: z.string().nullable(),
+  executedAt: z.string().nullable(),
 });
+
+type ApprovalRow = Awaited<ReturnType<typeof listApprovals>>[number];
+
+function serializeApproval(r: ApprovalRow) {
+  return {
+    id: r.id,
+    orgId: r.orgId,
+    userId: r.userId,
+    toolName: r.toolName,
+    callSignature: r.callSignature,
+    args: r.args ?? null,
+    chatId: r.chatId ?? null,
+    status: effectiveStatus(r),
+    createdAt: r.createdAt.toISOString(),
+    decidedAt: r.decidedAt ? r.decidedAt.toISOString() : null,
+    decidedBy: r.decidedBy ?? null,
+    executedAt: r.executedAt ? r.executedAt.toISOString() : null,
+  };
+}
 
 const listRoute = createRoute({
   method: "get",
@@ -60,23 +89,101 @@ agentApprovalsRoutes.openapi(listRoute, async (c) => {
   if (!userId) return c.json({ approvals: [] }, 200);
 
   const rows = await listApprovals(c.var.db, orgId, userId, status);
+  return c.json({ approvals: rows.map(serializeApproval) }, 200);
+});
+
+function encodeCursor(cursor: RecordCursor): string {
+  return `${cursor.createdAt.getTime()}_${cursor.id}`;
+}
+
+function decodeCursor(value: string | undefined): RecordCursor | undefined {
+  const match = value?.match(/^(\d+)_([0-9a-f-]{36})$/);
+  if (!match?.[1] || !match[2]) return undefined;
+  return { createdAt: new Date(Number(match[1])), id: match[2] };
+}
+
+const recordRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/agent/approvals-record",
+  tags: ["Agent"],
+  operationId: "listOrgAgentApprovals",
+  summary: "List every member's platform-agent approval requests, for org owners",
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    query: z.object({
+      limit: z.coerce.number().int().min(1).max(100).default(50),
+      status: agentApprovalStatusSchema.optional(),
+      userId: z.string().optional(),
+      before: z.string().optional(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "One page of the org's approval requests, newest first",
+      content: {
+        "application/json": {
+          schema: z.object({
+            approvals: z.array(approvalSchema),
+            nextBefore: z.string().nullable(),
+          }),
+        },
+      },
+    },
+    ...errorResponses({ notFound: false }),
+  },
+});
+
+agentApprovalsRoutes.openapi(recordRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const { limit, status, userId, before } = c.req.valid("query");
+  // No apiKeyScope, on purpose: this holds text from members' private chats, so it
+  // takes a signed-in owner and no API key reaches it.
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const { rows, next } = await listOrgApprovals(c.var.db, orgId, {
+    limit,
+    status,
+    userId,
+    before: decodeCursor(before),
+  });
   return c.json(
     {
-      approvals: rows.map((r) => ({
-        id: r.id,
-        orgId: r.orgId,
-        userId: r.userId,
-        toolName: r.toolName,
-        callSignature: r.callSignature,
-        args: r.args ?? null,
-        chatId: r.chatId ?? null,
-        status: r.status,
-        createdAt: r.createdAt.toISOString(),
-        decidedAt: r.decidedAt ? r.decidedAt.toISOString() : null,
-      })),
+      approvals: rows.map(serializeApproval),
+      nextBefore: next ? encodeCursor(next) : null,
     },
     200,
   );
+});
+
+const getRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/agent/approvals/{id}",
+  tags: ["Agent"],
+  operationId: "getAgentApproval",
+  summary: "Get one of the caller's platform-agent approval requests",
+  request: { params: z.object({ orgId: z.string().uuid(), id: z.string().uuid() }) },
+  responses: {
+    200: {
+      description: "The request, for a card older than the list reaches",
+      content: { "application/json": { schema: z.object({ approval: approvalSchema }) } },
+    },
+    ...errorResponses(),
+  },
+});
+
+agentApprovalsRoutes.openapi(getRoute, async (c) => {
+  const { orgId, id } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer", {
+    apiKeyScope: "skills:read",
+  });
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+  const userId = access.actorId;
+  if (!userId) return c.json({ error: "Not found" }, 404);
+
+  const row = await getApproval(c.var.db, orgId, userId, id);
+  if (!row) return c.json({ error: "Not found" }, 404);
+  return c.json({ approval: serializeApproval(row) }, 200);
 });
 
 const decideRoute = createRoute({
@@ -84,13 +191,13 @@ const decideRoute = createRoute({
   path: "/orgs/{orgId}/agent/approvals/{id}",
   tags: ["Agent"],
   operationId: "decideAgentApproval",
-  summary: "Approve or deny a pending platform-agent approval request",
+  summary: "Approve or deny a pending request, or revoke an approval that hasn't run",
   request: {
     params: z.object({ orgId: z.string().uuid(), id: z.string().uuid() }),
     body: {
       content: {
         "application/json": {
-          schema: z.object({ status: z.enum(["approved", "denied"]) }),
+          schema: z.object({ status: z.enum(["approved", "denied", "revoked"]) }),
         },
       },
     },
@@ -118,7 +225,10 @@ agentApprovalsRoutes.openapi(decideRoute, async (c) => {
   const userId = access.actorId;
   if (!userId) return c.json({ error: "Not found" }, 404);
 
-  const row = await decideApproval(c.var.db, { orgId, userId, id, status });
+  const row =
+    status === "revoked"
+      ? await revokeApproval(c.var.db, { orgId, userId, id })
+      : await decideApproval(c.var.db, { orgId, userId, id, status });
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json({ ok: true, status: row.status }, 200);
 });
