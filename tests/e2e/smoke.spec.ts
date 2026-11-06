@@ -7,15 +7,15 @@ const CONSOLE_URL = process.env.SMOKE_CONSOLE_URL ?? "https://console.skillist.d
 test("homepage shows hero and connect section", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "The realtime registry for Agent Skills" }),
+    page.getByRole("heading", { name: "Skills that run and improve themselves" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Connect your agent" })).toBeVisible();
-  await expect(page.getByText("Available for these agents")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Skills running in production" })).toBeVisible();
 });
 
 test("registry lists skills", async ({ page }) => {
   await page.goto("/registry");
-  await expect(page.getByRole("heading", { name: "Public Registry" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Skill registry" })).toBeVisible();
   await expect(page.locator("a[href*='/skillist/']").first()).toBeVisible();
 });
 

@@ -85,10 +85,15 @@ jobs:
 
       - run: pnpm test:e2e
         env:
-          # Without this the `authenticated` Playwright project is not
-          # registered at all (see tests/e2e/playwright.config.ts), so the run
-          # goes green having exercised zero authenticated flows.
+          # With neither of these the `authenticated` Playwright project is not
+          # registered (see tests/e2e/playwright.config.ts). The job can then go
+          # green with no signed-in flow tested; global-setup.ts adds a warning
+          # to the run so that stays visible.
+          E2E_USER_EMAIL: ${{ vars.E2E_USER_EMAIL }}
           E2E_AUTH_STATE_B64: ${{ secrets.E2E_AUTH_STATE_B64 }}
+          # tests/e2e/mint-session.ts uses these to sign the e2e user in.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # wrangler uploads and ACTIVATES a Worker before it attaches routes, so a token
   # missing a permission fails after the new code is already live. That half-deploy

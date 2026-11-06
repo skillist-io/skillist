@@ -11,7 +11,7 @@ import { Link } from "@tanstack/react-router";
  */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
+    <div className="grid min-h-[calc(100svh-var(--consent-inset,0px))] lg:grid-cols-2">
       {/* Brand column — the fixed hero panel. Decorative grid + real proof. */}
       <aside className="panel-noise relative hidden flex-col justify-between overflow-hidden border-r border-border bg-background p-10 lg:flex">
         {/* The same live grid as the marketing hero — sign-in is the first

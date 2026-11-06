@@ -2,7 +2,7 @@ import { skillEvals, skills, skillVersions } from "@skillist/db/schema";
 import { eq } from "drizzle-orm";
 import type { Env } from "../env";
 import type { WorkerDb } from "./db";
-import { DETERMINISTIC, runModel } from "./model";
+import { DETERMINISTIC, ModelRateLimitError, runModel } from "./model";
 import { downloadBundleFromR2, listBundlePaths } from "./r2";
 
 export type EvalScenario = {
@@ -46,10 +46,17 @@ const JUDGE_INSTRUCTION =
   "You are scoring, not doing the task. Rate 0-100 how well an agent with only the information above could complete the task. Reply with only a number.";
 
 /**
+ * Keeps an eval to 15 requests a minute, under the model's limit of 20 and with
+ * room left for agent chat, which would otherwise be throttled by a run of evals.
+ */
+const MODEL_CALL_GAP_MS = 4000;
+
+/**
  * Failures propagate so the eval is marked failed. These scores can gate
  * publishing, so a made-up default is worse than no score.
  */
 async function scorePrompt(env: Env, prompt: string): Promise<number> {
+  await scheduler.wait(MODEL_CALL_GAP_MS);
   return parseScore(await runModel(env, `${prompt}\n\n${JUDGE_INSTRUCTION}`, DETERMINISTIC));
 }
 
@@ -75,7 +82,10 @@ ${skillMd.slice(0, 6000)}
       .filter((s) => s.name && s.prompt)
       .slice(0, count)
       .map((s) => ({ name: String(s.name), prompt: String(s.prompt) }));
-  } catch {
+  } catch (err) {
+    // Generic scenarios would still produce a score, so a job that should have
+    // waited for the limit would report a result for the wrong test.
+    if (err instanceof ModelRateLimitError) throw err;
     return DEFAULT_SCENARIOS.slice(0, count);
   }
 }
@@ -143,7 +153,11 @@ export async function runSkillEval(env: Env, db: WorkerDb, evalId: string): Prom
   const [row] = await db.select().from(skillEvals).where(eq(skillEvals.id, evalId)).limit(1);
   if (!row) return;
 
-  await db.update(skillEvals).set({ status: "running" }).where(eq(skillEvals.id, evalId));
+  // A retry must not carry the last attempt's error into a completed eval.
+  await db
+    .update(skillEvals)
+    .set({ status: "running", error: null })
+    .where(eq(skillEvals.id, evalId));
 
   const [skill] = await db.select().from(skills).where(eq(skills.id, row.skillId)).limit(1);
   const [version] = await db

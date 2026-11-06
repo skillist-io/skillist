@@ -17,6 +17,7 @@ const REASONS: Record<string, string> = {
   no_user_scope: "no signed-in user on this conversation",
   no_org_scope: "no organization on this conversation",
   insert_failed: "the write did not complete",
+  needs_editor: "this needs an editor or owner",
   approval_not_found: "that approval no longer exists",
   already_ran: "that approval has already run",
   unknown_action: "this action can no longer be run",
