@@ -103,8 +103,12 @@ export async function mintSession(email: string, apiUrl: string, query: Query) {
     redirect: "manual",
   });
   const cookies = parseSetCookies(res.headers.getSetCookie(), new URL(apiUrl).hostname);
-  if (res.status !== 200 || !cookies.some((c) => c.name.includes("session_token"))) {
+  const session = cookies.find((c) => c.name.includes("session_token"));
+  if (res.status !== 200 || !session) {
     throw new Error(`Magic-link verify returned ${res.status} without a session cookie.`);
   }
-  return { cookies, origins: [] };
+  // A new browser gets the consent banner, which is fixed to the bottom of the
+  // screen and covers buttons. Declining also keeps CI out of the analytics.
+  const consent = { ...session, name: "skillist-consent", value: "denied", httpOnly: false };
+  return { cookies: [...cookies, consent], origins: [] };
 }

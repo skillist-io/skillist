@@ -58,6 +58,7 @@ describe("mintSession", () => {
     });
     const session = (await res.json()) as { user?: { email: string } } | null;
     expect(session?.user?.email).toBe(member);
+    expect(cookies.find((c) => c.name === "skillist-consent")?.value).toBe("denied");
   });
 
   it("refuses an org owner without writing a token", async () => {
