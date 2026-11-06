@@ -23,7 +23,7 @@ Change requested: `$ARGUMENTS`
 
 - 🚫 **Never hand-edit `packages/db/migrations/`** — it's generated and Biome-ignored. Wrong SQL? Fix `schema.ts` and regenerate.
 - Prefer additive, backward-compatible changes. For any drop/rename/type-narrow, state the data-loss risk before running `db:migrate`.
-- After changing a table, grep `apps/api/src` for readers/writers and update contracts + route handlers to match. The Worker reads the schema via `createWorkerDb(env)` over the `HYPERDRIVE` binding.
+- After changing a table, grep `apps/api/src` for readers/writers and update contracts + route handlers to match. The Worker reads the schema via `createWorkerDb(env)` over the `DB` (D1) binding.
 
 ## Verify
 
