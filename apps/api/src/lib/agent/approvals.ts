@@ -14,8 +14,11 @@ import { sha256 } from "../r2";
  *   3. status = "pending"  → return `{ ok:false, status:"awaiting_approval" }`
  *      WITHOUT running — the agent tells the user to approve in the console.
  *   4. status = "denied"   → return `{ ok:false, status:"denied" }`.
- *   5. status = "approved" → run the wrapped action, then DELETE the row so a
- *      fresh identical call needs a new approval (approval is consumed).
+ *   5. status = "approved" → run the wrapped action, then mark the row
+ *      `executed` so the decision stays on record. A refused action (`ok:false`)
+ *      changed nothing, so its row is deleted instead of claiming it ran.
+ *   6. status = "executed" → a fresh identical call reopens the row as pending;
+ *      an approval is only ever good for one run.
  *
  * The UNIQUE (org_id, user_id, tool_name, call_signature) constraint makes a
  * retry of the same logical call idempotent — the model can re-fire while
@@ -55,7 +58,13 @@ export async function callSignature(
  */
 export async function requireApproval<T>(
   db: WorkerDb,
-  input: { orgId: string; userId: string; toolName: string; args: Record<string, unknown> },
+  input: {
+    orgId: string;
+    userId: string;
+    chatId?: string | null;
+    toolName: string;
+    args: Record<string, unknown>;
+  },
   run: () => Promise<T>,
 ): Promise<T | AwaitingApproval | DeniedApproval> {
   const signature = await callSignature(input.toolName, input.args);
@@ -83,6 +92,7 @@ export async function requireApproval<T>(
         toolName: input.toolName,
         callSignature: signature,
         args: input.args,
+        chatId: input.chatId ?? null,
         status: "pending",
       })
       .onConflictDoNothing()
@@ -104,12 +114,52 @@ export async function requireApproval<T>(
   if (row.status === "denied") {
     return { ok: false, status: "denied" };
   }
+  if (row.status === "executed") {
+    await db
+      .update(agentApprovals)
+      .set({
+        status: "pending",
+        decidedAt: null,
+        createdAt: new Date(),
+        chatId: input.chatId ?? null,
+      })
+      .where(eq(agentApprovals.id, row.id));
+    return { ok: false, status: "awaiting_approval", approvalId: row.id };
+  }
 
   // Approved — run the action, then consume the approval so a re-run needs a
-  // fresh decision. The delete is best-effort; the action already succeeded.
+  // fresh decision.
   const result = await run();
-  await db.delete(agentApprovals).where(eq(agentApprovals.id, row.id));
+  if (isRefused(result)) {
+    await db.delete(agentApprovals).where(eq(agentApprovals.id, row.id));
+  } else {
+    await db
+      .update(agentApprovals)
+      .set({ status: "executed" })
+      .where(eq(agentApprovals.id, row.id));
+  }
   return result;
+}
+
+/** Tools report a refusal as `{ ok: false }` in a normal result, not by throwing. */
+function isRefused(result: unknown): boolean {
+  return typeof result === "object" && result !== null && "ok" in result && result.ok === false;
+}
+
+/** One of the caller's approvals. Scoped so an id can never reach another user's row. */
+export async function getApproval(db: WorkerDb, orgId: string, userId: string, id: string) {
+  const [row] = await db
+    .select()
+    .from(agentApprovals)
+    .where(
+      and(
+        eq(agentApprovals.id, id),
+        eq(agentApprovals.orgId, orgId),
+        eq(agentApprovals.userId, userId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }
 
 /** The caller's approval requests in this org, newest-first, optional status filter. */

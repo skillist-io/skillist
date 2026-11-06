@@ -24,8 +24,56 @@ import { prefetchAgentChat } from "@/components/agent/agent-chat-lazy";
 import { AgentDrawer, useAgentDrawer } from "@/components/agent/agent-drawer";
 import { AppSidebar } from "@/components/app-sidebar";
 import { OrgSwitcher } from "@/components/org-switcher";
-import { ActiveOrgProvider } from "@/lib/active-org";
+import { ActiveOrgProvider, useActiveOrg } from "@/lib/active-org";
 import { useBreadcrumbs } from "@/lib/breadcrumbs";
+import { useAgentApprovals } from "@/lib/use-agent-approvals";
+
+/**
+ * Opens the agent, and is where a waiting approval shows on every route. It lives
+ * inside ActiveOrgProvider, which is why it isn't inline in the shell.
+ */
+function AgentTrigger({ onOpen }: { onOpen: () => void }) {
+  const { activeOrg } = useActiveOrg();
+  const { pendingCount } = useAgentApprovals(activeOrg?.id ?? null);
+  const waiting =
+    pendingCount === 1
+      ? "1 action awaiting your approval"
+      : `${pendingCount} actions awaiting your approval`;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          onClick={onOpen}
+          // Warm the agent chunk on intent, so the drawer usually has it in cache
+          // by the time it opens.
+          onPointerEnter={prefetchAgentChat}
+          onFocus={prefetchAgentChat}
+          aria-label={
+            pendingCount > 0 ? `Ask the Skillist agent, ${waiting}` : "Ask the Skillist agent"
+          }
+          aria-keyshortcuts="Meta+K Control+K"
+        >
+          <Bot className="size-4" aria-hidden />
+          {pendingCount > 0 && (
+            <span
+              aria-hidden
+              className="absolute top-0.5 right-0.5 min-w-3.5 bg-signal px-0.5 text-center font-mono text-xs leading-3.5 text-background tabular-nums"
+            >
+              {pendingCount}
+            </span>
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        {pendingCount > 0 ? waiting : "Ask the agent"}{" "}
+        <kbd className="ml-1 font-mono text-xs">⌘K</kbd>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const crumbs = useBreadcrumbs();
@@ -99,26 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   orientation="vertical"
                   className="mx-1 data-vertical:self-center data-[orientation=vertical]:h-4"
                 />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => agentDrawer.setOpen(true)}
-                      // Warm the agent chunk on intent, so the drawer usually has
-                      // it in cache by the time it opens.
-                      onPointerEnter={prefetchAgentChat}
-                      onFocus={prefetchAgentChat}
-                      aria-label="Ask the Skillist agent"
-                      aria-keyshortcuts="Meta+K Control+K"
-                    >
-                      <Bot className="size-4" aria-hidden />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Ask the agent <kbd className="ml-1 font-mono text-[0.6875rem]">⌘K</kbd>
-                  </TooltipContent>
-                </Tooltip>
+                <AgentTrigger onOpen={() => agentDrawer.setOpen(true)} />
               </div>
             </header>
             <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">{children}</div>

@@ -11,6 +11,8 @@ export type AgentApproval = {
   toolName: string;
   callSignature: string;
   args: Record<string, unknown> | null;
+  /** The conversation that asked; null on rows from before this was recorded. */
+  chatId: string | null;
   status: AgentApprovalStatus;
   createdAt: string;
   decidedAt: string | null;
@@ -20,13 +22,15 @@ export type AgentApproval = {
  * The caller's platform-agent approval queue — the write actions (starting with
  * `draft_improvement`) the agent gated behind a human decision. Scoped to the
  * caller server-side, so one user never sees another's requests. `decide`
- * approves or denies a pending row; on next invocation the agent runs (approved)
- * or refuses (denied).
+ * approves or denies a pending row. Approving doesn't run anything by itself:
+ * the agent runs it through `run_approved_action`, and the row becomes `executed`.
+ *
+ * `orgId` may be null so the app shell can call this before an org is resolved.
  *
  * The route wraps its payload as `{ approvals }`; `api` doesn't unwrap, so the
  * query maps to the array.
  */
-export function useAgentApprovals(orgId: string) {
+export function useAgentApprovals(orgId: string | null) {
   const queryClient = useQueryClient();
 
   const { data, isPending, isError, refetch } = useQuery({
@@ -35,6 +39,7 @@ export function useAgentApprovals(orgId: string) {
       api<{ approvals: AgentApproval[] }>(`/v1/orgs/${orgId}/agent/approvals`).then(
         (r) => r.approvals,
       ),
+    enabled: Boolean(orgId),
     // The agent stages approvals mid-conversation; poll so a freshly gated
     // action shows up without the user reopening the panel.
     refetchInterval: 20_000,

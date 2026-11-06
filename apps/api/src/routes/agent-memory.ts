@@ -20,6 +20,8 @@ const memorySchema = z.object({
   userId: z.string().nullable(),
   key: z.string(),
   value: z.string(),
+  source: z.enum(["agent", "console"]).nullable(),
+  updatedByName: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -64,6 +66,8 @@ agentMemoryRoutes.openapi(listRoute, async (c) => {
         userId: r.userId,
         key: r.key,
         value: r.value,
+        source: r.source,
+        updatedByName: r.updatedByName,
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
       })),
@@ -105,7 +109,14 @@ agentMemoryRoutes.openapi(upsertRoute, async (c) => {
 
   // "user" scope pins the memory to the caller; "org" (default) is org-wide.
   const userId = scope === "user" ? access.actorId : null;
-  const { redaction } = await rememberFact(c.var.db, { orgId, userId, key, value });
+  const { redaction } = await rememberFact(c.var.db, {
+    orgId,
+    userId,
+    key,
+    value,
+    source: "console",
+    updatedBy: access.actorId,
+  });
   return c.json({ ok: true, redacted: redaction.matches }, 200);
 });
 

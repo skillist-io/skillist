@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toolLabel } from "./tool-label";
+import { toolAttempt, toolLabel } from "./tool-label";
 
 describe("toolLabel", () => {
   it("uses present tense while running and past tense when done", () => {
@@ -24,6 +24,23 @@ describe("toolLabel", () => {
       "Drafting improvement for acme/deploy…",
     );
     expect(toolLabel("draft_improvement", {}, true)).toBe("Drafted improvement");
+  });
+
+  it("reads the target from the server's real input names", () => {
+    expect(toolLabel("draft_improvement", { skillRepo: "pdf-tools" }, true)).toBe(
+      "Drafted improvement for pdf-tools",
+    );
+    expect(toolLabel("remember", { key: "policy:security" }, true)).toBe(
+      "Saved fact policy:security",
+    );
+  });
+
+  it("names an attempt without claiming it happened", () => {
+    expect(toolAttempt("draft_improvement", { skillRepo: "pdf-tools" })).toBe(
+      "Draft improvement for pdf-tools",
+    );
+    expect(toolAttempt("get_coverage", undefined)).toBe("Check required-skill coverage");
+    expect(toolAttempt("some_new_tool", undefined)).toBe("some new tool");
   });
 
   it("humanizes unknown tools", () => {
