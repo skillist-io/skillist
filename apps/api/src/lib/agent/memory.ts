@@ -1,5 +1,5 @@
-import { agentMemory } from "@skillist/db/schema";
-import { and, desc, eq, isNull, or, type SQL, sql } from "drizzle-orm";
+import { agentMemory, users } from "@skillist/db/schema";
+import { and, desc, eq, getTableColumns, isNull, or, type SQL, sql } from "drizzle-orm";
 import type { WorkerDb } from "../db";
 import { type RedactionResult, redactPII } from "../pii";
 
@@ -27,6 +27,10 @@ export type MemoryRow = {
   userId: string | null;
   key: string;
   value: string;
+  source: "agent" | "console" | null;
+  updatedBy: string | null;
+  /** Display name of `updatedBy`; null once that user is gone. */
+  updatedByName: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -50,7 +54,14 @@ function visibleTo(userId: string | null): SQL | undefined {
  */
 export async function rememberFact(
   db: WorkerDb,
-  input: { orgId: string; userId: string | null; key: string; value: string },
+  input: {
+    orgId: string;
+    userId: string | null;
+    key: string;
+    value: string;
+    source: "agent" | "console";
+    updatedBy: string | null;
+  },
 ): Promise<{ redaction: RedactionResult }> {
   const redaction = redactPII(input.value);
   await db
@@ -60,12 +71,19 @@ export async function rememberFact(
       userId: input.userId ?? null,
       key: input.key,
       value: redaction.text,
+      source: input.source,
+      updatedBy: input.updatedBy,
     })
     .onConflictDoUpdate({
       // user_scope, not user_id: SQLite treats NULLs as distinct, so this generated
       // column is what makes a null userId dedupe org-wide facts.
       target: [agentMemory.orgId, agentMemory.userScope, agentMemory.key],
-      set: { value: redaction.text, updatedAt: new Date() },
+      set: {
+        value: redaction.text,
+        source: input.source,
+        updatedBy: input.updatedBy,
+        updatedAt: new Date(),
+      },
     });
   return { redaction };
 }
@@ -93,11 +111,22 @@ export async function searchMemory(
     );
   }
   return db
-    .select()
+    .select({ ...getTableColumns(agentMemory), updatedByName: users.name })
     .from(agentMemory)
+    .leftJoin(users, eq(users.id, agentMemory.updatedBy))
     .where(and(...conditions))
     .orderBy(desc(agentMemory.updatedAt))
     .limit(MEMORY_LIST_LIMIT);
+}
+
+/** Whether `key` names an org-wide fact, which is what makes forgetting it a gated act. */
+export async function hasOrgFact(db: WorkerDb, orgId: string, key: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: agentMemory.id })
+    .from(agentMemory)
+    .where(and(eq(agentMemory.orgId, orgId), eq(agentMemory.key, key), isNull(agentMemory.userId)))
+    .limit(1);
+  return Boolean(row);
 }
 
 /**

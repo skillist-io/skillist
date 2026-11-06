@@ -19,7 +19,7 @@ The agent is a stateful chat agent (Cloudflare Agents SDK) rather than a REST en
 
 ## Tools
 
-The agent has six governance tools. Five are read-only; only `draft_improvement` writes, and even then only as pending feedback a human must approve.
+These are the agent's main governance tools. Most are read-only. Anything that reaches your whole org waits for a person first: see [Approvals](#approvals).
 
 <DocTable
   client:load
@@ -35,6 +35,14 @@ The agent has six governance tools. Five are read-only; only `draft_improvement`
 />
 
 `draft_improvement` never edits a skill directly. It lands in the review inbox as pending feedback — approving it triggers the same AI-draft improvement flow described in [Self-improving skills](/platform/self-improving/). The verified user who prompted the chat is attributed on the drafted item.
+
+## Approvals
+
+The agent asks before it takes an action that affects your whole org: `draft_improvement`, saving an org-wide fact to memory, and forgetting one. Org-wide memory needs this because every member's agent reads it. Facts scoped to you run without asking.
+
+When the agent asks, a card appears in the conversation showing exactly what it wants to do. Nothing has happened at that point. Approve it and the agent runs that action once, with the arguments you saw. Deny it and nothing runs.
+
+Deciding needs the editor role. Requests stay on record in **Approvals**, including what ran and what was denied, and each one links back to its conversation.
 
 ## Typical questions
 

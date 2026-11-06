@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  cn,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,52 +11,55 @@ import {
   QueryError,
   Skeleton,
 } from "@skillist/ui";
+import { Link } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { relativeTime } from "@/lib/relative-time";
 import { type AgentApproval, useAgentApprovals } from "@/lib/use-agent-approvals";
-
-/** "2h ago" formatter, matching chat-history's — prose-adjacent, no mono. */
-function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "";
-  const s = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (s < 60) return "just now";
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.round(h / 24)}d ago`;
-}
-
-/** Turn a tool name like `draft_improvement` into "Draft improvement". */
-function humanizeTool(name: string): string {
-  const spaced = name.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
+import { decisionError, describeApproval } from "./approval-copy";
 
 /**
- * The human-in-the-loop approval queue for the agent's write actions. The agent
- * stages a gated call (starting with `draft_improvement`) as a pending row; the
- * user approves or denies here, and the action runs (or is refused) the next
- * time the agent reaches for it. Scoped to the caller server-side.
+ * The queue and record of the agent's gated actions. Decisions normally happen on
+ * the card in the conversation; this is where anything still waiting can be found,
+ * and where what ran or was denied stays on record. Approving here doesn't run the
+ * action: that happens from its conversation, so "Open chat" goes there.
+ * Scoped to the caller server-side.
  *
- * Self-contained trigger + dialog; the trigger badges the pending count so a
- * waiting action is visible without opening the panel.
+ * Self-contained trigger + dialog. The count sits on the trigger so a waiting
+ * action is visible without opening the panel.
  */
-export function ApprovalsPanel({ orgId }: { orgId: string }) {
+export function ApprovalsPanel({
+  orgId,
+  compact = false,
+  onOpenChat,
+}: {
+  orgId: string;
+  /** Icon and count only, for the drawer's narrow toolbar. */
+  compact?: boolean;
+  /** Show a conversation. The dialog closes so the chat is what's left on screen. */
+  onOpenChat?: (chatId: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const { approvals, pendingCount, isPending, isError, refetch, decide } = useAgentApprovals(orgId);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="relative gap-2"
+          title={compact ? "Approvals" : undefined}
+        >
           <ShieldCheck className="size-3.5" aria-hidden />
-          Approvals
+          <span className={compact ? "sr-only" : undefined}>Approvals</span>
           {pendingCount > 0 && (
-            <Badge variant="destructive" aria-label={`${pendingCount} awaiting approval`}>
-              {pendingCount}
-            </Badge>
+            <>
+              <span aria-hidden className="font-mono text-xs text-signal tabular-nums">
+                {pendingCount}
+              </span>
+              <span className="sr-only">, {pendingCount} awaiting approval</span>
+            </>
           )}
         </Button>
       </DialogTrigger>
@@ -63,8 +67,8 @@ export function ApprovalsPanel({ orgId }: { orgId: string }) {
         <DialogHeader>
           <DialogTitle>Agent approvals</DialogTitle>
           <DialogDescription>
-            Write actions the agent staged for your review. Approve to let it proceed; deny to
-            refuse.
+            Actions the agent asked to take. Nothing runs without your approval, and an approval is
+            good for one run.
           </DialogDescription>
         </DialogHeader>
 
@@ -79,7 +83,8 @@ export function ApprovalsPanel({ orgId }: { orgId: string }) {
           </div>
         ) : approvals.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground">
-            Nothing awaiting review. When the agent tries a gated action, it'll wait for you here.
+            Nothing to review. When the agent asks to take a gated action, it waits for you in the
+            conversation and here.
           </p>
         ) : (
           <ul className="flex max-h-[26rem] flex-col gap-3 overflow-y-auto">
@@ -87,8 +92,18 @@ export function ApprovalsPanel({ orgId }: { orgId: string }) {
               <ApprovalRow
                 key={a.id}
                 approval={a}
+                orgId={orgId}
                 onDecide={(status) => decide.mutate({ id: a.id, status })}
                 isDeciding={decide.isPending && decide.variables?.id === a.id}
+                error={decide.variables?.id === a.id ? decide.error : null}
+                onOpenChat={
+                  onOpenChat
+                    ? (chatId) => {
+                        onOpenChat(chatId);
+                        setOpen(false);
+                      }
+                    : undefined
+                }
               />
             ))}
           </ul>
@@ -103,49 +118,59 @@ const STATUS_BADGE: Record<
   { label: string; variant: "default" | "secondary" | "destructive" }
 > = {
   pending: { label: "Awaiting review", variant: "default" },
-  approved: { label: "Approved", variant: "secondary" },
+  approved: { label: "Approved, not run", variant: "default" },
+  executed: { label: "Ran", variant: "secondary" },
   denied: { label: "Denied", variant: "destructive" },
 };
 
 function ApprovalRow({
   approval,
+  orgId,
   onDecide,
   isDeciding,
+  error,
+  onOpenChat,
 }: {
   approval: AgentApproval;
+  orgId: string;
   onDecide: (status: "approved" | "denied") => void;
   isDeciding: boolean;
+  error: unknown;
+  onOpenChat?: (chatId: string) => void;
 }) {
   const badge = STATUS_BADGE[approval.status];
   const isPending = approval.status === "pending";
-  // Border keys off the signal accent while waiting; a decided row is quiet.
+  const copy = describeApproval(approval.toolName, approval.args);
+  const { chatId } = approval;
+
   return (
     <li
-      className={`flex flex-col gap-2.5 border p-3 ${
-        isPending ? "border-l-2 border-l-signal border-border" : "border-border"
-      }`}
+      className={cn(
+        "flex flex-col gap-2 border p-3",
+        isPending ? "border-signal" : "border-border",
+      )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-foreground">
-          {humanizeTool(approval.toolName)}
-        </span>
-        <Badge variant={badge.variant}>{badge.label}</Badge>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-sm font-medium wrap-break-word text-foreground">{copy.title}</span>
+        <Badge variant={badge.variant} className="shrink-0">
+          {badge.label}
+        </Badge>
       </div>
-
-      {approval.args && Object.keys(approval.args).length > 0 && (
-        <dl className="flex flex-col gap-1 border-y border-border py-2">
-          {Object.entries(approval.args).map(([k, v]) => (
-            <div key={k} className="grid grid-cols-[auto_1fr] gap-x-3">
-              <dt className="font-mono text-[0.625rem] text-muted-foreground uppercase">{k}</dt>
-              <dd className="truncate font-mono text-xs text-foreground" title={stringifyArg(v)}>
-                {stringifyArg(v)}
-              </dd>
-            </div>
-          ))}
-        </dl>
+      {(isPending || approval.status === "approved") && (
+        <p className="text-sm text-muted-foreground">{copy.effect}</p>
+      )}
+      {copy.detail && <p className="text-sm wrap-break-word whitespace-pre-wrap">{copy.detail}</p>}
+      {copy.skillRepo && (
+        <Link
+          to="/orgs/$orgId/skills/$repo"
+          params={{ orgId, repo: copy.skillRepo }}
+          className="w-fit text-xs underline underline-offset-4"
+        >
+          Open {copy.skillRepo}
+        </Link>
       )}
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">
           {isPending
             ? `Requested ${relativeTime(approval.createdAt)}`
@@ -153,36 +178,40 @@ function ApprovalRow({
               ? `Decided ${relativeTime(approval.decidedAt)}`
               : ""}
         </span>
-        {isPending && (
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isDeciding}
-              onClick={() => onDecide("denied")}
-            >
-              Deny
+        <div className="flex items-center gap-2">
+          {chatId && onOpenChat && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChat(chatId)}>
+              Open chat
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={isDeciding}
-              onClick={() => onDecide("approved")}
-            >
-              {isDeciding ? "…" : "Approve"}
-            </Button>
-          </div>
-        )}
+          )}
+          {isPending && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isDeciding}
+                onClick={() => onDecide("denied")}
+              >
+                Deny
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isDeciding}
+                onClick={() => onDecide("approved")}
+              >
+                {isDeciding ? "Saving…" : "Approve"}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+      {error ? (
+        <p role="alert" className="text-xs text-destructive">
+          {decisionError(error)}
+        </p>
+      ) : null}
     </li>
   );
-}
-
-/** Render a single arg value compactly for the summary list. */
-function stringifyArg(v: unknown): string {
-  if (v === null || v === undefined) return "—";
-  if (typeof v === "string") return v;
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
-  return JSON.stringify(v);
 }

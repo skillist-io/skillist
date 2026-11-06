@@ -27,7 +27,10 @@ export const projectItemKindEnum = ["skill", "external"] as const;
 export const projectVisibilityEnum = ["private", "shared"] as const;
 export const projectRoleEnum = ["viewer", "editor", "admin"] as const;
 export const failurePatternStatusEnum = ["open", "drafted", "dismissed"] as const;
-export const agentApprovalStatusEnum = ["pending", "approved", "denied"] as const;
+// `executed` keeps the record of a gated action that ran. Rows used to be deleted
+// on success, which erased the evidence of what a person had allowed.
+export const agentApprovalStatusEnum = ["pending", "approved", "denied", "executed"] as const;
+export const agentMemorySourceEnum = ["agent", "console"] as const;
 
 // Better Auth tables
 export const users = sqliteTable("users", {
@@ -1153,6 +1156,13 @@ export const agentMemory = sqliteTable(
     }),
     key: text("key").notNull(),
     value: text("value").notNull(),
+    // Who last wrote this fact, and through what. Null on rows from before these
+    // columns existed, so the console says "unknown" rather than guessing.
+    // `updated_by` is deliberately not a foreign key: SQLite's ADD COLUMN can't
+    // carry the ON DELETE SET NULL this needs, and a bare reference would block
+    // deleting a user. Reads left-join, so a departed user just loses the name.
+    source: text("source", { enum: agentMemorySourceEnum }),
+    updatedBy: text("updated_by"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
@@ -1180,6 +1190,8 @@ export const agentApprovals = sqliteTable(
     // sha256 of the sorted tool-call args — dedupes identical pending requests.
     callSignature: text("call_signature").notNull(),
     args: text("args", { mode: "json" }).$type<Record<string, unknown>>(),
+    // The conversation that asked, so the queue can link back to it.
+    chatId: text("chat_id"),
     status: text("status", { enum: agentApprovalStatusEnum }).notNull().default("pending"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
     decidedAt: integer("decided_at", { mode: "timestamp_ms" }),

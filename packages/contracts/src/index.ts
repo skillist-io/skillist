@@ -104,7 +104,7 @@ export const updateProjectItemSchema = z.object({
 });
 export type UpdateProjectItemInput = z.infer<typeof updateProjectItemSchema>;
 
-export const agentApprovalStatusSchema = z.enum(["pending", "approved", "denied"]);
+export const agentApprovalStatusSchema = z.enum(["pending", "approved", "denied", "executed"]);
 export type AgentApprovalStatus = z.infer<typeof agentApprovalStatusSchema>;
 
 export const rememberInputSchema = z.object({
