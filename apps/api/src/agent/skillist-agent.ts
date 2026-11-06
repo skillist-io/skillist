@@ -71,7 +71,8 @@ const SYSTEM_PROMPT = [
   "  layers — published (in registry) → covered (in scanned inventory or curated) → activated",
   "  (agents turned it on) — plus drift (required but not covered). Use get_coverage, which",
   "  counts required skills only. For the skills an org actually has, use list_org_skills.",
-  "• Evals: skills are scored for uplift; stale/failed evals are flagged for re-run.",
+  "• Evals: experimental scores, not proof of quality, so never recommend a skill because of them;",
+  "  stale/failed evals are flagged for re-run.",
   "• Hosted execution: skill scripts run in Cloudflare Sandbox containers (local/sandbox/",
   "  container runtimes; heavy skills get a heavier sandbox), gated by quotas and access.",
   "• Delivery: published SKILL.md + meta are served from a KV edge hot path (<10ms); full",
@@ -453,7 +454,7 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
 
       get_skill: tool({
         description:
-          "Full registry detail for one public skill by org + repo: description, latest version, quality/impact/security, eval uplift, plugin manifest, and install/run commands. Use after search_registry, or when the user names a specific skill.",
+          "Full registry detail for one public skill by org + repo: description, latest version, quality/impact/security, experimental eval scores, plugin manifest, and install/run commands. Use after search_registry, or when the user names a specific skill.",
         inputSchema: z.object({
           org: z.string().describe("Organization slug, e.g. 'skillist'."),
           repo: z.string().describe("Skill repo slug, e.g. 'pdf-tools'."),

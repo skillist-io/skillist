@@ -737,7 +737,7 @@ export function GovernancePanel({ org }: { org: Org }) {
             </label>
           </div>
           <div>
-            <Label>Minimum eval uplift (-100 to 100)</Label>
+            <Label>Minimum eval uplift (-100 to 100, experimental)</Label>
             <Input
               type="number"
               min={-100}
@@ -745,6 +745,10 @@ export function GovernancePanel({ org }: { org: Org }) {
               value={minEvalUplift}
               onChange={(e) => setMinEvalUplift(Number(e.target.value))}
             />
+            <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+              Eval scores are repeatable but don&apos;t yet measure real quality. Treat this as a
+              rough check, not proof a skill works.
+            </p>
           </div>
           <SaveButton label="Save policy" mutation={savePolicy} />
         </CardContent>
