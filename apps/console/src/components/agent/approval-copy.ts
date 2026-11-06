@@ -50,6 +50,18 @@ export function describeApproval(
   }
 }
 
+/**
+ * Whether a role can decide, mirroring the REST route's editor minimum (owner and
+ * editor rank at or above it; publisher and viewer don't). This only decides what
+ * to show: the route is what enforces it. An unknown role keeps the buttons, so
+ * the org list loading never hides a decision from someone who can make it.
+ */
+export function canDecideApprovals(role: string | undefined): boolean {
+  return role === undefined || role === "owner" || role === "editor";
+}
+
+export const NEEDS_EDITOR = "Nothing has run. Approving this needs editor access.";
+
 /** Deciding needs the editor role, which a chat participant may not have. */
 export function decisionError(error: unknown): string {
   if (error instanceof ApiError && error.status === 403) {
