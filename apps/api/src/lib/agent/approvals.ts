@@ -2,12 +2,15 @@ import type { AgentApprovalStatus } from "@skillist/contracts";
 import { agentApprovals } from "@skillist/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import type { WorkerDb } from "../db";
+import { requireOrgRole } from "../org-access";
 import { sha256 } from "../r2";
 
 /**
  * Human-in-the-loop approvals for the platform agent's write actions.
  *
  * Flow (see `requireApproval`):
+ *   0. Someone below editor is refused with `needs_editor`. Approvals are per-user
+ *      and deciding needs the editor role, so their request could never be decided.
  *   1. The model calls a wrapped tool with some args.
  *   2. We compute a deterministic `callSignature` (sha-256 of the tool name +
  *      sorted args) and SELECT-or-INSERT an `agent_approvals` row.
@@ -27,6 +30,7 @@ import { sha256 } from "../r2";
 
 export type AwaitingApproval = { ok: false; status: "awaiting_approval"; approvalId: string };
 export type DeniedApproval = { ok: false; status: "denied" };
+export type NeedsEditor = { ok: false; reason: "needs_editor" };
 
 /** Recursively sort object keys so the JSON encoding is order-independent. */
 function sortKeys(value: unknown): unknown {
@@ -66,7 +70,12 @@ export async function requireApproval<T>(
     args: Record<string, unknown>;
   },
   run: () => Promise<T>,
-): Promise<T | AwaitingApproval | DeniedApproval> {
+): Promise<T | AwaitingApproval | DeniedApproval | NeedsEditor> {
+  // Checked on every call, so an approval also stops working if its requester loses
+  // the role before it runs.
+  const access = await requireOrgRole(db, input.orgId, input.userId, "editor");
+  if (!access.ok) return { ok: false, reason: "needs_editor" };
+
   const signature = await callSignature(input.toolName, input.args);
   const match = and(
     eq(agentApprovals.orgId, input.orgId),

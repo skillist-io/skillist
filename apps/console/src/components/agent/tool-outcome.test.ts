@@ -27,6 +27,10 @@ describe("toolOutcome", () => {
       kind: "refused",
       reason: "skill not found",
     });
+    expect(toolOutcome("complete", { ok: false, reason: "needs_editor" })).toEqual({
+      kind: "refused",
+      reason: "this needs an editor or owner",
+    });
     expect(toolOutcome("complete", { ok: false, reason: "new_reason" })).toEqual({
       kind: "refused",
       reason: "new reason",
