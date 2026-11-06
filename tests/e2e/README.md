@@ -8,7 +8,9 @@ Always run in CI: homepage, registry, login guards, registry retry UI.
 
 ## Signed-in tests (`authenticated.spec.ts`)
 
-Require a Playwright storage state file. Generate locally:
+In CI, set the repository variable `E2E_USER_EMAIL` to a dedicated test user. Each run then signs that user in with a single-use token (`mint-session.ts`), so nothing expires. The user must already exist and must not own an org; the run fails if either is untrue.
+
+Locally, or without that variable, they require a Playwright storage state file. Generate locally:
 
 ```bash
 pnpm exec playwright open --save-storage=tests/e2e/.auth/user.json https://skillist.dev/login
