@@ -23,6 +23,7 @@ import {
 } from "./lib/db";
 import { describeError, persistableErrorMessage } from "./lib/error-detail";
 import { handleSyncQueueMessage } from "./lib/github-sync/queue-handler";
+import { rateLimitRetryDelay } from "./lib/model";
 import { getOrgMembership } from "./lib/org-access";
 import { rateLimit } from "./lib/rate-limit";
 import { resolveSessionUserId } from "./lib/session";
@@ -645,6 +646,9 @@ async function handleDeadLetterBatch(
   for (const message of batch.messages) message.ack();
 }
 
+/** Matches `max_retries` on `skillist-ai-jobs` in wrangler.production.jsonc. */
+const AI_JOB_MAX_RETRIES = 3;
+
 async function handleAiJobBatch(
   env: Env,
   db: ReturnType<typeof createWorkerDb>,
@@ -661,6 +665,17 @@ async function handleAiJobBatch(
         await runSkillEval(env, db, body.evalId);
         message.ack();
       } catch (err) {
+        const delaySeconds = rateLimitRetryDelay(err, message.attempts, AI_JOB_MAX_RETRIES);
+        if (delaySeconds !== null) {
+          // Back to queued, not failed: it will run again, and it keeps a second
+          // eval of this version from being started in the meantime.
+          await db
+            .update(skillEvals)
+            .set({ status: "queued" })
+            .where(eq(skillEvals.id, body.evalId));
+          message.retry({ delaySeconds });
+          continue;
+        }
         const { correlationId, alerting } = alertBackgroundError(env, err, "queue:eval");
         await alerting;
         console.error(
@@ -688,6 +703,12 @@ async function handleAiJobBatch(
       await runAiJob(env, db, jobId, feedbackId);
       message.ack();
     } catch (err) {
+      const delaySeconds = rateLimitRetryDelay(err, message.attempts, AI_JOB_MAX_RETRIES);
+      if (delaySeconds !== null) {
+        await db.update(aiJobs).set({ status: "queued" }).where(eq(aiJobs.id, jobId));
+        message.retry({ delaySeconds });
+        continue;
+      }
       const { correlationId, alerting } = alertBackgroundError(env, err, "queue:ai-job");
       await alerting;
       console.error(
