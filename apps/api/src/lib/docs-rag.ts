@@ -135,7 +135,7 @@ export async function embedText(env: Env, text: string): Promise<number[]> {
  * RAG over Skillist's own docs: embeds the query and returns the top-K doc
  * chunks from Vectorize (filtered to doc vectors), each with its source page and
  * heading so the agent can cite where an answer came from. Requires `env.AI` +
- * `env.VECTORIZE`, so it cannot run in the vitest-pool-workers harness.
+ * `env.VECTORIZE`, so it cannot run in the vitest-plugin harness.
  */
 export async function searchDocs(env: Env, query: string, limit = 5): Promise<DocSearchHit[]> {
   const values = await embedText(env, query);
