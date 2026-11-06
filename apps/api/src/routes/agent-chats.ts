@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { agentChats } from "@skillist/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { composeAgentName } from "../agent/agent-name";
+import { wipeChat } from "../agent/chat-delete";
 import type { SkillistAgent } from "../agent/skillist-agent";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
@@ -99,9 +100,9 @@ const deleteRoute = createRoute({
 });
 
 /**
- * Delete a conversation: verify the caller owns the row, remove it, AND wipe
- * the underlying Durable Object so no persisted messages linger. Both cleanups
- * are funneled here so the client only makes one round-trip.
+ * Delete a conversation: verify the caller owns the row, wipe the underlying
+ * Durable Object, then remove the row. Both are funneled here so the client only
+ * makes one round-trip.
  */
 agentChatsRoutes.openapi(deleteRoute, async (c) => {
   const { orgId, chatId } = c.req.valid("param");
@@ -123,23 +124,25 @@ agentChatsRoutes.openapi(deleteRoute, async (c) => {
     return c.json({ error: "Not found" }, 404);
   }
 
+  // Wipe the DO first. Its instance name is the un-spoofable `orgId::userId::chatId`
+  // (the same value the /agents gate composes). The row is the only way back to this
+  // transcript, so if the wipe fails it stays, and the person can try again rather
+  // than being told it's gone while it isn't.
+  try {
+    const name = composeAgentName(orgId, userId, chatId);
+    const ns = c.env.SKILLIST_AGENT;
+    const stub = ns.get(ns.idFromName(name)) as unknown as SkillistAgent;
+    await wipeChat(stub);
+  } catch (err) {
+    console.error("SkillistAgent.cleanup failed during DELETE /agent/chats", err);
+    return c.json({ error: "Could not delete this conversation" }, 500);
+  }
+
   await c.var.db
     .delete(agentChats)
     .where(
       and(eq(agentChats.id, chatId), eq(agentChats.orgId, orgId), eq(agentChats.userId, userId)),
     );
-
-  // Wipe the DO. Its instance name is the un-spoofable `orgId::userId::chatId`
-  // (the same value the /agents gate composes). Best-effort — a cleanup failure
-  // must not fail the delete, since the row is already gone.
-  try {
-    const name = composeAgentName(orgId, userId, chatId);
-    const ns = c.env.SKILLIST_AGENT;
-    const stub = ns.get(ns.idFromName(name)) as unknown as SkillistAgent;
-    await stub.cleanup();
-  } catch (err) {
-    console.warn("SkillistAgent.cleanup failed during DELETE /agent/chats", err);
-  }
 
   return c.json({ ok: true }, 200);
 });

@@ -94,6 +94,7 @@ function AgentWorkspace({
   const {
     chatId,
     chats,
+    chatIds,
     isPending,
     isError,
     selectChat,
@@ -140,7 +141,12 @@ function AgentWorkspace({
           {/* Memory + approvals govern the agent itself. Org selection now lives
               in the global top-bar switcher, not here. */}
           <MemoryPanel orgId={activeOrg.id} />
-          <ApprovalsPanel orgId={activeOrg.id} onOpenChat={selectChat} onRun={runApproval} />
+          <ApprovalsPanel
+            orgId={activeOrg.id}
+            onOpenChat={selectChat}
+            onRun={runApproval}
+            chatIds={chatIds}
+          />
         </div>
       </Header>
 

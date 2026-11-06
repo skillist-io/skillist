@@ -1,6 +1,6 @@
 import { api } from "@skillist/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** One row in the caller's conversation index for an org agent. */
 export type AgentChat = {
@@ -130,9 +130,12 @@ export function useAgentChats(orgId: string) {
     [orgId, queryClient, invalidate],
   );
 
+  const chatIds = useMemo(() => new Set(chats?.map((c) => c.id)), [chats]);
+
   return {
     chatId,
     chats: chats ?? [],
+    chatIds,
     isPending,
     isError,
     refetch,
