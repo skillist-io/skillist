@@ -25,6 +25,8 @@ const OWNER_KEY = "skillist.query-cache.owner";
 /** Bump to invalidate every persisted cache after a breaking response-shape change. */
 const CACHE_BUSTER = "v2";
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** Unsent agent drafts, in sessionStorage. They can hold pasted secrets, so they go when the user does. */
+export const AGENT_DRAFT_PREFIX = "skillist:agent:draft:";
 
 // Never persisted: credential/session material stays in-memory only.
 const SENSITIVE_KEY_PREFIXES = ["auth-accounts", "auth-sessions", "auth-passkeys", "api-keys"];
@@ -86,10 +88,24 @@ export function buildPersistOptions(): Omit<PersistQueryClientOptions, "queryCli
   };
 }
 
+function purgeAgentDrafts(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const store = window.sessionStorage;
+    const keys = Array.from({ length: store.length }, (_, i) => store.key(i));
+    for (const key of keys) {
+      if (key?.startsWith(AGENT_DRAFT_PREFIX)) store.removeItem(key);
+    }
+  } catch {
+    /* sessionStorage may be unavailable, in which case nothing was stored */
+  }
+}
+
 export function clearPersistedQueryCache(): void {
   const store = storage();
   store?.removeItem(CACHE_KEY);
   store?.removeItem(OWNER_KEY);
+  purgeAgentDrafts();
 }
 
 /**
@@ -104,6 +120,7 @@ export function ensureCacheOwner(userId: string, queryClient: QueryClient): void
   if (previous !== null && previous !== userId) {
     store.removeItem(CACHE_KEY);
     queryClient.clear();
+    purgeAgentDrafts();
   }
   store.setItem(OWNER_KEY, userId);
 }

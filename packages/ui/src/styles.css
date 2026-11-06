@@ -70,6 +70,7 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
+  --color-input-line: var(--input-line);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-signal: var(--signal);
@@ -120,6 +121,9 @@
   --signal: oklch(0.52 0.21 293);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
+  /* A field's only visible edge, so it has to reach 3:1 (WCAG 1.4.11) where --input,
+     which also tints buttons and switches, doesn't. */
+  --input-line: oklch(0.62 0 0);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -161,6 +165,7 @@
   --signal: oklch(0.72 0.19 293);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
+  --input-line: oklch(0.52 0 0);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);

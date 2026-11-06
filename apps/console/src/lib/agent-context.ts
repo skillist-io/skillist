@@ -20,11 +20,14 @@ export type AgentContext = {
   orgId?: string;
   /** `{org}/{repo}` when on a skill route. */
   skillRef?: string;
+  /** The open tab on a skill route, from the URL. "Why did this regress?" needs it. */
+  tab?: string;
   projectId?: string;
 };
 
 export function useAgentContext(): AgentContext {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const search = useRouterState({ select: (s) => s.location.search as { tab?: unknown } });
   const crumbs = useBreadcrumbs();
   const segments = pathname.split("/").filter(Boolean);
 
@@ -35,6 +38,7 @@ export function useAgentContext(): AgentContext {
     context.orgId = segments[1];
     if (segments[2] === "skills" && segments[3]) {
       context.skillRef = `${segments[1]}/${segments[3]}`;
+      if (typeof search.tab === "string") context.tab = search.tab;
     }
     if (segments[2] === "projects" && segments[3]) {
       context.projectId = segments[3];
@@ -47,10 +51,15 @@ export function useAgentContext(): AgentContext {
 /** Short label for the context chip in the composer. */
 export function describeContext(context: AgentContext): string {
   if (!context.skillRef) return context.page;
+  const tab = context.tab ? ` · ${capitalize(context.tab)}` : "";
   // On a skill page the ref starts with the org's UUID, which means nothing to
   // the reader, and what's left repeats the page name.
   const label = context.skillRef.replace(/^[0-9a-f]{8}-[0-9a-f-]{27}\//i, "");
-  return label === context.page ? context.page : `${context.page} · ${label}`;
+  return `${label === context.page ? context.page : `${context.page} · ${label}`}${tab}`;
+}
+
+function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 /**
@@ -76,6 +85,7 @@ export function formatContext(context: AgentContext): string {
   const parts = [`page: ${context.page}`, `path: ${context.pathname}`];
   if (context.orgId) parts.push(`org: ${context.orgId}`);
   if (context.skillRef) parts.push(`skill: ${context.skillRef}`);
+  if (context.tab) parts.push(`tab: ${context.tab}`);
   if (context.projectId) parts.push(`project: ${context.projectId}`);
   return `${CONTEXT_PREFIX} ${parts.join(", ")}`;
 }
@@ -102,5 +112,7 @@ export function contextChip(context: string): string {
   const page = context.match(/^page: ([^,]+)/)?.[1]?.trim();
   const skill = context.match(/skill: [^/,]+\/([^,]+)/)?.[1]?.trim();
   if (!page) return context;
-  return skill && skill !== page ? `${page} · ${skill}` : page;
+  const tab = context.match(/tab: ([^,]+)/)?.[1]?.trim();
+  const label = skill && skill !== page ? `${page} · ${skill}` : page;
+  return tab ? `${label} · ${capitalize(tab)}` : label;
 }

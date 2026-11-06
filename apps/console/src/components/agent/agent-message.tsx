@@ -131,7 +131,7 @@ export function AgentMessage({
               <Streamdown
                 key={block.key}
                 className={cn(
-                  "prose prose-neutral prose-sm dark:prose-invert max-w-none",
+                  "prose prose-neutral prose-sm dark:prose-invert max-w-[75ch]",
                   "prose-pre:rounded-none prose-pre:border prose-pre:border-border",
                   "prose-code:before:content-none prose-code:after:content-none",
                 )}

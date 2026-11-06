@@ -56,6 +56,12 @@ export function AgentDrawer({
         aria-describedby={undefined}
         onInteractOutside={(e) => e.preventDefault()}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        // While a reply streams in the composer, Esc means "stop", which the composer
+        // handles. Closing the drawer on the same keypress would hide what stopped.
+        onEscapeKeyDown={(e) => {
+          const el = document.activeElement;
+          if (el instanceof HTMLElement && el.dataset.agentBusy) e.preventDefault();
+        }}
       >
         {/* pr-14 clears SheetContent's absolutely-positioned close button (top-4
             right-4). `items-start` top-aligns the org chip with that close X so
