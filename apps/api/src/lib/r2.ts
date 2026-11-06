@@ -105,7 +105,7 @@ export async function deleteBundleFromR2(bucket: R2Bucket, prefix: string): Prom
   await bucket.delete(bundleObjectKey(prefix));
 }
 
-function contentTypeForPath(path: string): string {
+export function contentTypeForPath(path: string): string {
   if (isBinaryAssetPath(path)) return binaryAssetMimeType(path);
   if (path.endsWith(".md")) return "text/markdown";
   if (path.endsWith(".json")) return "application/json";

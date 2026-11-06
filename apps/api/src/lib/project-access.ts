@@ -1,13 +1,49 @@
 import type { OrgRole, ProjectRole } from "@skillist/contracts";
-import { projectMembers, projects } from "@skillist/db/schema";
-import { and, eq } from "drizzle-orm";
+import { orgMembers, projectMembers, projects } from "@skillist/db/schema";
+import { and, eq, inArray, or, type SQL } from "drizzle-orm";
 import type { AuthContext } from "./auth-middleware";
-import type { WorkerDb } from "./db";
+import { inList, type WorkerDb } from "./db";
 import { hasMinRole, requireOrgAccess } from "./org-access";
 
 type ProjectRow = typeof projects.$inferSelect;
 
 export type ProjectCapability = "read" | "write" | "manage";
+
+/**
+ * The projects a user may read, as a filter over `projects`; null when they
+ * belong to no org. Mirrors the REST list route: org owners see every project
+ * in their org, everyone else only shared projects or ones they are a member of.
+ */
+export async function readableProjectsFilter(db: WorkerDb, userId: string): Promise<SQL | null> {
+  const memberships = await db
+    .select({ orgId: orgMembers.orgId, role: orgMembers.role })
+    .from(orgMembers)
+    .where(eq(orgMembers.userId, userId));
+  if (memberships.length === 0) return null;
+
+  const ownerOrgIds = memberships.filter((m) => m.role === "owner").map((m) => m.orgId);
+  const nonOwnerOrgIds = memberships.filter((m) => m.role !== "owner").map((m) => m.orgId);
+
+  const memberProjectIds = db
+    .select({ projectId: projectMembers.projectId })
+    .from(projectMembers)
+    .where(eq(projectMembers.userId, userId));
+
+  const conditions = [];
+  if (ownerOrgIds.length > 0) {
+    conditions.push(inList(projects.orgId, ownerOrgIds));
+  }
+  if (nonOwnerOrgIds.length > 0) {
+    conditions.push(
+      and(
+        inList(projects.orgId, nonOwnerOrgIds),
+        or(eq(projects.visibility, "shared"), inArray(projects.id, memberProjectIds)),
+      ),
+    );
+  }
+  // Never undefined: `.where(undefined)` would drop the filter and expose every project.
+  return or(...conditions) ?? null;
+}
 
 export type ProjectAccessResult =
   | {
