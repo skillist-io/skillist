@@ -26,6 +26,11 @@ const REASONS: Record<string, string> = {
   unknown_action: "this action can no longer be run",
 };
 
+/** A server reason code in words. */
+export function reasonWords(reason: string): string {
+  return REASONS[reason] ?? reason.replace(/_/g, " ");
+}
+
 function field(value: unknown, key: string): unknown {
   return value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
 }
@@ -62,5 +67,5 @@ export function toolOutcome(
 
   const reason = field(output, "reason");
   if (typeof reason !== "string") return { kind: "refused", reason: "the tool declined" };
-  return { kind: "refused", reason: REASONS[reason] ?? reason.replace(/_/g, " ") };
+  return { kind: "refused", reason: reasonWords(reason) };
 }

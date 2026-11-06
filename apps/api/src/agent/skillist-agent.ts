@@ -2,7 +2,6 @@ import { AIChatAgent } from "@cloudflare/ai-chat";
 import { registryQuerySchema } from "@skillist/contracts";
 import {
   agentChats,
-  feedback,
   orgRequiredSkills,
   registryEntries,
   skillEvals,
@@ -22,7 +21,7 @@ import {
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Env } from "../env";
-import { effectiveStatus, getApproval, requireApproval } from "../lib/agent/approvals";
+import { requireApproval } from "../lib/agent/approvals";
 import {
   buildMemoryBlock,
   forgetFact,
@@ -146,8 +145,8 @@ const APPROVAL_PROTOCOL = [
   'When it returns status "denied", say it was denied and do not try another way to do the same thing.',
   'When it returns reason "needs_editor", nothing happened and no request was made: say this needs',
   "an editor or owner, who can ask for it themselves. Do not offer to submit it for approval.",
-  'A user message beginning "[approval] id: <id>" means that person approved that request: call',
-  "run_approved_action with that id, then report what its result actually says.",
+  'A line beginning "Approved by you" or "Denied by you" is the record of a decision, and that',
+  "action is already finished. Do not call the tool again or restate the line.",
   "Describe what you did in plain words. Never name a tool or print an id in your reply.",
 ].join("\n");
 
@@ -420,6 +419,23 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
   }
 
   /**
+   * Add the server's line about a decision. Over DO RPC from the decide route only: it
+   * is not in CALLABLE_METHODS, so a client can't write the record of its own decision.
+   * `metadata.decision` is what the transcript renders it by.
+   */
+  async noteDecision(text: string): Promise<void> {
+    await this.persistMessages([
+      ...(this.messages as UIMessage[]),
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        metadata: { decision: true },
+        parts: [{ type: "text", text }],
+      },
+    ]);
+  }
+
+  /**
    * Wipe everything this chat holds. Invoked over DO RPC from the
    * DELETE /agent/chats/{chatId} route, which tells the person it's gone for good.
    *
@@ -451,76 +467,30 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
 
     const chatId = this.chatId();
 
-    // The gated actions, named so a tool's first call and `run_approved_action`
-    // run the same code. Approval is decided by the REST route, which enforces the
-    // editor role; that is why this doesn't use the SDK's native `needsApproval`,
-    // whose answer arrives over the chat socket with no role check.
+    // The gated actions. These only ask: running happens when a person approves, in
+    // the REST route, which enforces the editor role. That's also why this doesn't use
+    // the SDK's native `needsApproval`, whose answer arrives over the chat socket with
+    // no role check.
     const draftImprovement = (oid: string, userId: string, skillRepo: string, note: string) =>
-      requireApproval(
-        db,
-        {
-          orgId: oid,
-          userId,
-          chatId,
-          toolName: "draft_improvement",
-          args: { skillRepo, note },
-        },
-        async () => {
-          const [skill] = await db
-            .select()
-            .from(skills)
-            .where(and(eq(skills.orgId, oid), eq(skills.repo, skillRepo)))
-            .limit(1);
-          if (!skill) return { ok: false as const, reason: "skill_not_found" as const };
-          if (!skill.latestPublishedVersionId) {
-            return { ok: false as const, reason: "no_published_version" as const };
-          }
-
-          const [row] = await db
-            .insert(feedback)
-            .values({
-              skillId: skill.id,
-              targetVersionId: skill.latestPublishedVersionId,
-              source: "agent",
-              status: "pending",
-              body: note,
-              submittedBy: null,
-            })
-            .returning({ id: feedback.id });
-          if (!row) return { ok: false as const, reason: "insert_failed" as const };
-          // The feedback row is agent-sourced (submittedBy stays null, like
-          // failure-mining), but we surface the verified user who drove this
-          // chat so the review inbox / audit can see who prompted it.
-          return { ok: true as const, feedbackId: row.id, initiatedBy: userId };
-        },
-      );
+      requireApproval(db, {
+        orgId: oid,
+        userId,
+        chatId,
+        toolName: "draft_improvement",
+        args: { skillRepo, note },
+      });
 
     const rememberOrgFact = (oid: string, userId: string, key: string, value: string) =>
-      requireApproval(
-        db,
-        { orgId: oid, userId, chatId, toolName: "remember", args: { key, value, scope: "org" } },
-        async () => {
-          const { redaction } = await rememberFact(db, {
-            orgId: oid,
-            userId: null,
-            key,
-            value,
-            source: "agent",
-            updatedBy: userId,
-          });
-          return { ok: true as const, key, scope: "org" as const, redacted: redaction.matches };
-        },
-      );
+      requireApproval(db, {
+        orgId: oid,
+        userId,
+        chatId,
+        toolName: "remember",
+        args: { key, value, scope: "org" },
+      });
 
     const forgetOrgFact = (oid: string, userId: string, key: string) =>
-      requireApproval(
-        db,
-        { orgId: oid, userId, chatId, toolName: "forget", args: { key } },
-        async () => {
-          await forgetFact(db, oid, userId, key);
-          return { ok: true as const, key };
-        },
-      );
+      requireApproval(db, { orgId: oid, userId, chatId, toolName: "forget", args: { key } });
 
     const tools: ToolSet = {
       // ── Platform-wide tools (not org-scoped) ────────────────────────────────
@@ -812,7 +782,7 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
             .describe("Specific problem + suggested change. This becomes the feedback body."),
         }),
         // Gated: the first call stages an approval and returns `awaiting_approval`
-        // without writing. See `draftImprovement` above and `run_approved_action`.
+        // without writing. See `draftImprovement` above.
         execute: ({ skillRepo, note }) =>
           requireOrg(async (oid) => {
             if (!initiatedBy) return { ok: false as const, reason: "no_user_scope" as const };
@@ -880,52 +850,6 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
             if (await hasOrgFact(db, oid, key)) return forgetOrgFact(oid, initiatedBy, key);
             await forgetFact(db, oid, initiatedBy, key);
             return { ok: true as const, key };
-          }),
-      }),
-
-      run_approved_action: tool({
-        description:
-          'Run an action a person has approved, using the exact arguments they saw. Call this when a user message begins "[approval] id: <id>". It cannot run anything that is not approved.',
-        inputSchema: z.object({
-          approvalId: z.string().describe("The id from the [approval] line."),
-        }),
-        // Runs from the stored args, not ones the model restates. Rewording a note
-        // would otherwise change the signature and stage a second request.
-        execute: ({ approvalId }) =>
-          requireOrg(async (oid) => {
-            if (!initiatedBy) return { ok: false as const, reason: "no_user_scope" as const };
-            const row = await getApproval(db, oid, initiatedBy, approvalId);
-            if (!row) return { ok: false as const, reason: "approval_not_found" as const };
-            const status = effectiveStatus(row);
-            if (status === "executed") {
-              return { ok: false as const, reason: "already_ran" as const };
-            }
-            if (status === "denied") return { ok: false as const, status: "denied" as const };
-            if (status === "pending") {
-              return { ok: false as const, status: "awaiting_approval" as const, approvalId };
-            }
-            // Taken back or out of date. Falling through would stage a fresh request,
-            // and this tool only ever runs the one a person approved.
-            if (status === "revoked" || status === "expired" || status === "refused") {
-              return { ok: false as const, reason: `approval_${status}` as const };
-            }
-            const args = row.args ?? {};
-            const text = (name: string) => String(args[name] ?? "");
-            const run = () => {
-              switch (row.toolName) {
-                case "draft_improvement":
-                  return draftImprovement(oid, initiatedBy, text("skillRepo"), text("note"));
-                case "remember":
-                  return rememberOrgFact(oid, initiatedBy, text("key"), text("value"));
-                case "forget":
-                  return forgetOrgFact(oid, initiatedBy, text("key"));
-                default:
-                  return Promise.resolve({ ok: false as const, reason: "unknown_action" as const });
-              }
-            };
-            // `ran` names the action, because this tool's own input is only an id and
-            // the transcript should say what happened, not that "an action" did.
-            return { ...(await run()), ran: { toolName: row.toolName, args } };
           }),
       }),
     };

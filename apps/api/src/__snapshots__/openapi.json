@@ -16594,6 +16594,18 @@
                           "executedAt": {
                             "type": "string",
                             "nullable": true
+                          },
+                          "revokedAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "revokedBy": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "outcomeReason": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -16608,7 +16620,10 @@
                           "createdAt",
                           "decidedAt",
                           "decidedBy",
-                          "executedAt"
+                          "executedAt",
+                          "revokedAt",
+                          "revokedBy",
+                          "outcomeReason"
                         ]
                       }
                     }
@@ -16843,6 +16858,18 @@
                           "executedAt": {
                             "type": "string",
                             "nullable": true
+                          },
+                          "revokedAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "revokedBy": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "outcomeReason": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -16857,7 +16884,10 @@
                           "createdAt",
                           "decidedAt",
                           "decidedBy",
-                          "executedAt"
+                          "executedAt",
+                          "revokedAt",
+                          "revokedBy",
+                          "outcomeReason"
                         ]
                       }
                     },
@@ -17060,6 +17090,18 @@
                         "executedAt": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "revokedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "revokedBy": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "outcomeReason": {
+                          "type": "string",
+                          "nullable": true
                         }
                       },
                       "required": [
@@ -17074,7 +17116,10 @@
                         "createdAt",
                         "decidedAt",
                         "decidedBy",
-                        "executedAt"
+                        "executedAt",
+                        "revokedAt",
+                        "revokedBy",
+                        "outcomeReason"
                       ]
                     }
                   },
@@ -17203,7 +17248,7 @@
           "Agent"
         ],
         "operationId": "decideAgentApproval",
-        "summary": "Approve or deny a pending request, or revoke an approval that hasn't run",
+        "summary": "Approve and run, or deny, a pending request, or revoke an approval that hasn't run",
         "parameters": [
           {
             "schema": {
@@ -17268,11 +17313,16 @@
                         "expired",
                         "refused"
                       ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
                     "ok",
-                    "status"
+                    "status",
+                    "reason"
                   ]
                 }
               }

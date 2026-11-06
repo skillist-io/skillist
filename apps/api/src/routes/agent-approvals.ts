@@ -1,15 +1,21 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { agentApprovalStatusSchema } from "@skillist/contracts";
+import { agentChats } from "@skillist/db/schema";
+import { and, eq } from "drizzle-orm";
+import { composeAgentName } from "../agent/agent-name";
+import type { SkillistAgent } from "../agent/skillist-agent";
 import type { Env } from "../env";
 import {
   decideApproval,
   effectiveStatus,
+  executeApproval,
   getApproval,
   listApprovals,
   listOrgApprovals,
   type RecordCursor,
   revokeApproval,
 } from "../lib/agent/approvals";
+import { decisionLine, runApprovedAction } from "../lib/agent/approved-actions";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { errorResponses } from "../lib/openapi";
@@ -35,6 +41,9 @@ const approvalSchema = z.object({
   decidedAt: z.string().nullable(),
   decidedBy: z.string().nullable(),
   executedAt: z.string().nullable(),
+  revokedAt: z.string().nullable(),
+  revokedBy: z.string().nullable(),
+  outcomeReason: z.string().nullable(),
 });
 
 type ApprovalRow = Awaited<ReturnType<typeof listApprovals>>[number];
@@ -53,7 +62,34 @@ function serializeApproval(r: ApprovalRow) {
     decidedAt: r.decidedAt ? r.decidedAt.toISOString() : null,
     decidedBy: r.decidedBy ?? null,
     executedAt: r.executedAt ? r.executedAt.toISOString() : null,
+    revokedAt: r.revokedAt ? r.revokedAt.toISOString() : null,
+    revokedBy: r.revokedBy ?? null,
+    outcomeReason: r.outcomeReason ?? null,
   };
+}
+
+/**
+ * Add the decision to the conversation that asked. Best-effort: the row is the record,
+ * and a failure here must not read as the decision failing. Checks the chat first,
+ * because reaching a deleted chat's Durable Object would bring it back.
+ */
+async function noteInChat(c: { env: Env; var: AppEnv["Variables"] }, row: ApprovalRow) {
+  if (!row.chatId) return;
+  try {
+    const [chat] = await c.var.db
+      .select({ id: agentChats.id })
+      .from(agentChats)
+      .where(and(eq(agentChats.id, row.chatId), eq(agentChats.userId, row.userId)))
+      .limit(1);
+    if (!chat) return;
+    const ns = c.env.SKILLIST_AGENT;
+    const stub = ns.get(
+      ns.idFromName(composeAgentName(row.orgId, row.userId, row.chatId)),
+    ) as unknown as SkillistAgent;
+    await stub.noteDecision(decisionLine(row, { status: row.status, reason: row.outcomeReason }));
+  } catch (err) {
+    console.warn("noteDecision failed", err);
+  }
 }
 
 const listRoute = createRoute({
@@ -191,7 +227,7 @@ const decideRoute = createRoute({
   path: "/orgs/{orgId}/agent/approvals/{id}",
   tags: ["Agent"],
   operationId: "decideAgentApproval",
-  summary: "Approve or deny a pending request, or revoke an approval that hasn't run",
+  summary: "Approve and run, or deny, a pending request, or revoke an approval that hasn't run",
   request: {
     params: z.object({ orgId: z.string().uuid(), id: z.string().uuid() }),
     body: {
@@ -207,7 +243,11 @@ const decideRoute = createRoute({
       description: "Decided",
       content: {
         "application/json": {
-          schema: z.object({ ok: z.boolean(), status: agentApprovalStatusSchema }),
+          schema: z.object({
+            ok: z.boolean(),
+            status: agentApprovalStatusSchema,
+            reason: z.string().nullable(),
+          }),
         },
       },
     },
@@ -225,10 +265,35 @@ agentApprovalsRoutes.openapi(decideRoute, async (c) => {
   const userId = access.actorId;
   if (!userId) return c.json({ error: "Not found" }, 404);
 
+  if (status === "approved") {
+    // Approving runs it. A row already approved got here because its run failed, so
+    // this is the retry. The action happens under the editor check above.
+    const decided = await decideApproval(c.var.db, { orgId, userId, id, status });
+    const row = decided ?? (await getApproval(c.var.db, orgId, userId, id));
+    if (!row || effectiveStatus(row) !== "approved") return c.json({ error: "Not found" }, 404);
+
+    let finished: Awaited<ReturnType<typeof executeApproval>>;
+    try {
+      finished = await executeApproval(c.var.db, { orgId, userId, id }, (r) =>
+        runApprovedAction(c.var.db, r),
+      );
+    } catch (err) {
+      console.error("approved action failed", err);
+      return c.json(
+        { error: "The action failed before it finished. Nothing was recorded as run." },
+        500,
+      );
+    }
+    if (!finished) return c.json({ error: "Not found" }, 404);
+    await noteInChat(c, finished);
+    return c.json({ ok: true, status: finished.status, reason: finished.outcomeReason }, 200);
+  }
+
   const row =
     status === "revoked"
       ? await revokeApproval(c.var.db, { orgId, userId, id })
       : await decideApproval(c.var.db, { orgId, userId, id, status });
   if (!row) return c.json({ error: "Not found" }, 404);
-  return c.json({ ok: true, status: row.status }, 200);
+  await noteInChat(c, row);
+  return c.json({ ok: true, status: row.status, reason: null }, 200);
 });

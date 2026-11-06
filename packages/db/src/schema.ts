@@ -1210,6 +1210,11 @@ export const agentApprovals = sqliteTable(
     decidedBy: text("decided_by"),
     // When the action ran. Null on rows that ran before this column existed.
     executedAt: integer("executed_at", { mode: "timestamp_ms" }),
+    // Taking an approval back is its own event, so it doesn't overwrite who approved.
+    revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+    revokedBy: text("revoked_by"),
+    // Why a refused run didn't happen, so the record can say without the transcript.
+    outcomeReason: text("outcome_reason"),
   },
   (t) => [
     // One OPEN request per logical call, so a model retrying while it waits lands on

@@ -23,6 +23,7 @@ export function composerReadout({
   held,
   text,
   touch = false,
+  waiting = 0,
 }: {
   connState: ConnState;
   /** The connection was refused and won't come back on its own. */
@@ -33,6 +34,8 @@ export function composerReadout({
   text: string;
   /** No Shift key to speak of, so the keyboard hint has to say something else. */
   touch?: boolean;
+  /** Decisions waiting in this conversation. */
+  waiting?: number;
 }): string {
   const measured = size(text);
   const withSize = (line: string) => (measured ? `${measured} · ${line}` : line);
@@ -41,5 +44,6 @@ export function composerReadout({
   if (connState !== "connected") return withSize("Reconnecting · keep typing");
   if (held) return withSize("Not sent · send again when the reply ends · Esc to stop");
   if (busy) return withSize("Replying · Esc to stop");
+  if (waiting > 0 && !touch) return withSize(`${waiting} waiting · ⌥A to review · Enter send`);
   return withSize(touch ? "Return sends" : "Enter send · Shift+Enter new line");
 }
