@@ -43,7 +43,7 @@ export async function handleMcpRequest(c: Context<{ Bindings: Env }>) {
   }
 
   const db = createWorkerDb(c.env);
-  const handler = createMcpHandler(() => buildRegistryMcpServer(db, mcpSession), {
+  const handler = createMcpHandler(() => buildRegistryMcpServer(db, mcpSession, c.env.SKILLS_R2), {
     // Our tools never emit mid-call notifications, so pin plain JSON
     // responses instead of letting the transport pick JSON-vs-SSE per
     // request. Applies to the modern leg only; the legacy leg answers

@@ -1,3 +1,4 @@
+import { env } from "cloudflare:test";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { describe, expect, it } from "vitest";
 import {
@@ -21,7 +22,7 @@ const session: McpSession = {
 };
 
 function handlerFor(activeSession: McpSession | null = null) {
-  return createMcpHandler(() => buildRegistryMcpServer(mockDb, activeSession), {
+  return createMcpHandler(() => buildRegistryMcpServer(mockDb, activeSession, env.SKILLS_R2), {
     responseMode: "json",
   });
 }
