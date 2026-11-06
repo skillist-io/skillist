@@ -47,12 +47,12 @@
     }
   },
   "dependencies": {
-    "yaml": "^2.9.0",
-    "zod": "^4.4.3"
+    "yaml": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@skillist/tsconfig": "workspace:*",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

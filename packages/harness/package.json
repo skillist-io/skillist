@@ -12,12 +12,12 @@
   },
   "dependencies": {
     "@skillist/skill-format": "workspace:*",
-    "ai": "^7.0.32",
-    "zod": "^4.4.3"
+    "ai": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@skillist/tsconfig": "workspace:*",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

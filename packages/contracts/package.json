@@ -11,10 +11,10 @@
     "build": "tsc"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@skillist/tsconfig": "workspace:*",
-    "typescript": "^7.0.2"
+    "typescript": "catalog:"
   }
 }
