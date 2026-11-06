@@ -560,9 +560,8 @@ export const apiKeys = sqliteTable(
   (t) => [
     index("api_keys_org_idx").on(t.orgId),
     // THE hot-path index: authMiddleware looks a key up by hash on every
-    // request carrying `Bearer sk_...`, and that query runs through the
-    // cache-disabled Hyperdrive, so it never benefits from caching. Unique
-    // because two keys must never share a hash.
+    // request carrying `Bearer sk_...`. Unique because two keys must never
+    // share a hash.
     uniqueIndex("api_keys_key_hash_idx").on(t.keyHash),
     // Covers the cascade when a creator's user row is deleted.
     index("api_keys_created_by_idx").on(t.createdBy),

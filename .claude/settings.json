@@ -5,8 +5,7 @@
       "Read(./**/dist/**)",
       "Read(./**/.wrangler/**)",
       "Read(./**/.turbo/**)",
-      "Read(./apps/web/src/routeTree.gen.ts)",
-      "Read(./packages/db/drizzle/**)"
+      "Read(./apps/web/src/routeTree.gen.ts)"
     ]
   },
   "worktree": {

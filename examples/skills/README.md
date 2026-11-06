@@ -22,13 +22,12 @@ my-skill/
 ## Seed to registry
 
 ```bash
-# Production (Neon + R2 + KV)
+# Production (D1 + R2 + KV). Needs wrangler login or CLOUDFLARE_API_TOKEN.
 pnpm install
-export $(grep -E '^DATABASE_URL=' .env | xargs)
 pnpm seed:registry
 
 # Local wrangler dev
-pnpm seed:registry -- --local
+pnpm seed:registry --local
 ```
 
 ## Install via CLI

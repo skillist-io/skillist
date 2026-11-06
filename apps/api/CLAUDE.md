@@ -5,7 +5,7 @@ Single Worker entry: `src/index.ts` exports the Hono `fetch` handler **plus** a 
 ## Two URL surfaces
 
 - **`/v1/*`** — versioned OpenAPI API, wrapped with `rateLimit()` + `authMiddleware`. Route modules in `src/routes/` are mounted via `v1.route("/", ...)`.
-- **Apex GitHub-style paths** — `/{org}/{repo}/SKILL.md|meta|bundle|scripts|run|runs`, mounted at root. Delivery reads (`SKILL.md`/`meta`/`bundle`) are **public**; execution (`scripts`/`run`/`runs`) is authed by an **inline path-regex** in `index.ts`. That regex is mirrored in `apps/web/vite.config.ts`. **When you add/rename an apex path, update both regexes.**
+- **Apex GitHub-style paths** — `/{org}/{repo}/SKILL.md|meta|bundle|scripts|run|runs`, mounted at root. Delivery reads (`SKILL.md`/`meta`/`bundle`) are **public**; execution (`scripts`/`run`/`runs`) is authed by an **inline path-regex** in `index.ts`. That regex is mirrored in `apps/web/vite.config.ts` and `apps/console/vite.config.ts`. **When you add/rename an apex path, update all three.**
 
 ## Rules
 

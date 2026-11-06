@@ -18,7 +18,7 @@ How Skillist serves published skills at the edge. Keep these invariants when edi
 
 ## Storage tiers
 
-- **KV (`SKILLS_KV`)** — published `SKILL.md` and meta, for <10ms edge reads. Written by `lib/publish.ts`, read by `lib/delivery.ts` / `lib/kv.ts`. The delivery path must read KV, **never Postgres**.
+- **KV (`SKILLS_KV`)** — published `SKILL.md` and meta, for <10ms edge reads. Written by `lib/publish.ts`, read by `lib/delivery.ts` / `lib/kv.ts`. The delivery path must read KV, **never D1**.
 - **R2 (`SKILLS_R2`)** — full bundles (all files). `lib/r2.ts` handles `r2Prefix`, `sha256`, upload/download.
 - **D1 (`DB`)** — source of truth for versions/metadata; used on writes and non-hot reads, not on the delivery hot path.
 

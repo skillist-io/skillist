@@ -6,7 +6,7 @@
  * case is not an edge case for this audience: expect a large share of a
  * developer-tool funnel to block googletagmanager.com entirely. Treat GA4 as
  * the acquisition instrument and the server-side telemetry tables as product
- * truth — they will not agree, and the Postgres numbers are the accurate ones.
+ * truth — they will not agree, and the server-side numbers are the accurate ones.
  */
 
 declare global {

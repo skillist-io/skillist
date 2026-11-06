@@ -2,8 +2,8 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 // Regression tests for the Phase 1 access-control hardening. These cover the
-// fixes whose gate runs BEFORE any database access, so they run in the standard
-// vitest-pool-workers harness (which has no Postgres). The IDOR fixes on
+// fixes whose gate runs BEFORE any database access, so they need no seeded
+// data. The IDOR fixes on
 // feedback/version/ai-jobs routes are exercised by the DB-backed suite.
 
 const pushBody = JSON.stringify({
