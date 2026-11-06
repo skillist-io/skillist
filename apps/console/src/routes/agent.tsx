@@ -144,6 +144,7 @@ function AgentWorkspace({
           chatId={chatId}
           // This page is the agent, so "the page you're on" tells it nothing.
           context={context.pathname === "/agent" ? undefined : context}
+          focusOnReady
           onListRefresh={invalidate}
         />
       </div>

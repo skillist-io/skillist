@@ -34,7 +34,7 @@ const SAMPLE_ITEM = "33333333-3333-4333-8333-333333333333";
 // ---------------------------------------------------------------------------
 // Always-on tests: these exercise routing, auth gating, and contract
 // validation WITHOUT touching D1, so they run in the standard
-// vitest-pool-workers harness (which has no database — the DB binding
+// vitest-plugin harness (which has no database — the DB binding
 // is a placeholder host).
 // ---------------------------------------------------------------------------
 describe("projects routes — wiring & validation (no DB)", () => {
@@ -214,13 +214,13 @@ describe("projects routes — wiring & validation (no DB)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// DB-backed integration suite. The default vitest-pool-workers harness has no
+// DB-backed integration suite. The default vitest-plugin harness has no
 // D1 (DB is a placeholder host that resolves to ENOTFOUND, and a
 // failed connection crashes the pool), so this suite is skipped unless a real
 // D1 binding is wired. It runs unchanged in an environment
 // where DB points at a live database.
 // ---------------------------------------------------------------------------
-// Opt-in gate. Every D1 connection in the default vitest-pool-workers
+// Opt-in gate. Every D1 connection in the default vitest-plugin
 // harness resolves the placeholder host and CRASHES the pool (uncatchable
 // `ENOTFOUND host`), so we cannot probe connectivity at runtime. This suite
 // therefore runs only when an local D1 binding/var is explicitly

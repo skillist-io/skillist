@@ -36,7 +36,7 @@ describe("formatMemoryBlock", () => {
 });
 
 // ---------------------------------------------------------------------------
-// DB-backed suite. The default vitest-pool-workers harness has no D1
+// DB-backed suite. The default vitest-plugin harness has no D1
 // (DB is a placeholder host), so this runs only when an explicit
 // local D1 var flags a live D1 — same gate as
 // routes/projects.test.ts.

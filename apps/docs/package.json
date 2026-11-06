@@ -11,8 +11,8 @@
     "typecheck": "astro sync && tsc --noEmit"
   },
   "dependencies": {
-    "@astrojs/react": "^4.2.1",
-    "@astrojs/starlight": "^0.41.3",
+    "@astrojs/react": "^7.1.4",
+    "@astrojs/starlight": "^0.42.9",
     "@fontsource-variable/inter": "catalog:",
     "@radix-ui/react-slot": "catalog:",
     "@skillist/ui": "workspace:*",
