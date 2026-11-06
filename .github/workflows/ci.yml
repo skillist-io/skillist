@@ -86,8 +86,9 @@ jobs:
       - run: pnpm test:e2e
         env:
           # Without this the `authenticated` Playwright project is not
-          # registered at all (see tests/e2e/playwright.config.ts), so the run
-          # goes green having exercised zero authenticated flows.
+          # registered (see tests/e2e/playwright.config.ts). The job can then go
+          # green with no signed-in flow tested; global-setup.ts adds a warning
+          # to the run so that stays visible.
           E2E_AUTH_STATE_B64: ${{ secrets.E2E_AUTH_STATE_B64 }}
 
   # wrangler uploads and ACTIVATES a Worker before it attaches routes, so a token
