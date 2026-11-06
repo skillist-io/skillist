@@ -8,9 +8,15 @@ FROM node:24-trixie-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    file \
     git \
+    jq \
+    procps \
     python3 \
     python3-pip \
+    unzip \
+    wget \
+    zip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g wrangler@4 typescript tsx

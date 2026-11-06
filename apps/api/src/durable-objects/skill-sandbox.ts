@@ -1,11 +1,14 @@
 import { DurableObject } from "cloudflare:workers";
 import { Files } from "@cloudflare/sandbox";
 import type { Env } from "../env";
-import { MAX_OUTPUT_CHARS } from "../lib/skill-runtime";
+import { MAX_OUTPUT_CHARS, sliceText } from "../lib/skill-runtime";
 import type { OutboundProps } from "./sandbox-outbound";
 
 /** A leaked container stops on its own. Longer than the slowest allowed run. */
 const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** Past `timeout`'s own 5s kill grace, for a run it somehow failed to end. */
+const WATCHDOG_GRACE_MS = 15_000;
 
 // The HTTPS intercept re-signs traffic with a per-container certificate. curl and
 // Git read the system bundle; Node.js and Python `requests` need pointing at it.
@@ -23,6 +26,9 @@ const BASE_ENV = {
   HOME: "/root",
   NODE_EXTRA_CA_CERTS: CA,
   REQUESTS_CA_BUNDLE: BUNDLE,
+  // Debian refuses `pip install` system-wide. These containers are single-use, so
+  // there's nothing for a skill's packages to break.
+  PIP_BREAK_SYSTEM_PACKAGES: "1",
 };
 
 export type SandboxOutputStream = "stdout" | "stderr";
@@ -106,7 +112,8 @@ export abstract class SkillSandbox extends DurableObject<Env> {
       }
       await this.container.setInactivityTimeout(INACTIVITY_TIMEOUT_MS);
     } catch (error) {
-      await this.container.destroy();
+      // A failed cleanup must not replace the error that says what went wrong.
+      await this.container.destroy().catch(() => {});
       throw error;
     }
   }
@@ -138,30 +145,50 @@ export abstract class SkillSandbox extends DurableObject<Env> {
     // a script blocked on a full pipe would otherwise sit there until the deadline.
     let captured = 0;
     let truncated = false;
+    let forward = input.onOutput;
+
+    // Forwarding is best-effort. A reader that goes away must not fail the run:
+    // cancelling is the abort signal's job, and it reports the reason accurately.
+    const send = async (stream: SandboxOutputStream, chunk: string) => {
+      try {
+        await forward?.(stream, chunk);
+      } catch {
+        forward = undefined;
+      }
+    };
+
     const read = async (stream: SandboxOutputStream, body: ReadableStream | null) => {
       if (!body) return "";
       const decoder = new TextDecoder();
       const kept: string[] = [];
-      for await (const bytes of body) {
-        if (captured >= MAX_OUTPUT_CHARS) continue;
-        const text = decoder.decode(bytes as Uint8Array, { stream: true });
-        const slice = text.slice(0, MAX_OUTPUT_CHARS - captured);
+      const keep = async (text: string) => {
+        const slice = sliceText(text, MAX_OUTPUT_CHARS - captured);
         captured += slice.length;
         kept.push(slice);
-        await input.onOutput?.(stream, slice);
-        if (captured >= MAX_OUTPUT_CHARS && !truncated) {
+        if (slice) await send(stream, slice);
+        if (slice.length < text.length && !truncated) {
           truncated = true;
-          await input.onOutput?.(stream, "\n…[output truncated — limit reached]");
+          await send(stream, "\n…[output truncated — limit reached]");
         }
+      };
+      for await (const bytes of body) {
+        if (!truncated) await keep(decoder.decode(bytes as Uint8Array, { stream: true }));
       }
+      if (!truncated) await keep(decoder.decode());
       return kept.join("");
     };
+
+    // Everything above relies on `timeout` and the streams ending. This is untrusted
+    // code, so the wait gets a hard limit of its own.
+    const watchdog = setTimeout(() => {
+      this.container.destroy().catch(() => {});
+    }, input.timeoutMs + WATCHDOG_GRACE_MS);
 
     const [stdout, stderr, exitCode] = await Promise.all([
       read("stdout", process.stdout),
       read("stderr", process.stderr),
       process.exitCode,
-    ]);
+    ]).finally(() => clearTimeout(watchdog));
     const durationMs = Date.now() - started;
 
     // 124 is timeout's own code. 137 is SIGKILL, which can also be the kernel's
