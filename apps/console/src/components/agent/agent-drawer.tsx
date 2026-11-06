@@ -25,9 +25,9 @@ import { useAgentChats } from "@/lib/use-agent-chats";
 /**
  * The platform agent, reachable from every authenticated route.
  *
- * It is a side drawer rather than a modal so the page stays readable while you
- * ask about it — the whole point of the context attachment is that you are
- * looking at the thing you are asking about.
+ * It is a non-modal side drawer, with no overlay, so the page stays readable and
+ * usable while you ask about it: the whole point of the context attachment is
+ * that you are looking at the thing you are asking about.
  *
  * Conversations live in the agent's Durable Object, keyed by `${orgId}::${chatId}`
  * and indexed per user; this drawer and the full /agent page read the same
@@ -44,24 +44,27 @@ export function AgentDrawer({
   const context = useAgentContext();
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+      {/* Width utilities carry the `data-[side=right]:` prefix because that is what
+          the primitive sets, and plain ones lose to it (the drawer stuck at 384px).
+          Outside interaction is ignored so working on the page, or in a dialog
+          opened from here, doesn't close it. Esc and ⌘K still do. */}
       <SheetContent
         side="right"
-        className="w-full gap-0 p-0 sm:max-w-md lg:max-w-lg"
+        showOverlay={false}
+        className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md data-[side=right]:lg:max-w-lg"
         aria-describedby={undefined}
+        onInteractOutside={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* pr-14 clears SheetContent's absolutely-positioned close button (top-4
             right-4). `items-start` top-aligns the org chip with that close X so
             the two read as one row; the title stack sits on the left. */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border py-3 pr-14 pl-4">
-          <div className="flex flex-col gap-0.5">
-            <SheetTitle className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-              Skillist Agent
-            </SheetTitle>
-            <SheetDescription className="text-sm font-medium text-foreground">
-              Org intelligence
-            </SheetDescription>
-          </div>
+          <SheetTitle className="text-sm font-medium text-foreground">Agent</SheetTitle>
+          <SheetDescription className="sr-only">
+            Ask about the page you're on. The page stays usable behind this panel.
+          </SheetDescription>
           {/* Read-only indicator of the active org — switching is done from the
               global top-bar switcher. */}
           {activeOrg && (
@@ -112,6 +115,8 @@ function DrawerBody({
 
   return (
     <>
+      {/* The governance controls collapse to icons here: all four labels need more
+          width than the drawer has, which is how Approvals came to be clipped. */}
       <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border px-2 py-2">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="sm" className="gap-2" onClick={() => newChat()}>
@@ -144,8 +149,8 @@ function DrawerBody({
         {/* Same agent-governance controls as the full page, kept reachable from
             the ambient drawer. */}
         <div className="flex items-center gap-1">
-          <MemoryPanel orgId={activeOrg.id} />
-          <ApprovalsPanel orgId={activeOrg.id} />
+          <MemoryPanel orgId={activeOrg.id} compact />
+          <ApprovalsPanel orgId={activeOrg.id} compact onOpenChat={selectChat} />
         </div>
       </div>
 
@@ -158,6 +163,7 @@ function DrawerBody({
         chatId={chatId}
         context={context}
         compact
+        focusOnReady
         onListRefresh={invalidate}
       />
     </>
@@ -196,8 +202,9 @@ export function useAgentDrawer() {
           el.tagName === "INPUT" ||
           el.tagName === "TEXTAREA" ||
           el.tagName === "SELECT");
-      // Still allow closing from inside the drawer's own composer.
-      if (typing && !open) return;
+      // Still allow closing from inside the drawer's own composer, and opening
+      // from the /agent page's, where ⌘K can't be swallowing a keystroke.
+      if (typing && !open && !el.hasAttribute("data-agent-composer")) return;
       e.preventDefault();
       setOpen((v) => !v);
     };

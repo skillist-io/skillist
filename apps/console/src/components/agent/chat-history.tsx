@@ -1,31 +1,15 @@
-import { Button, cn, Skeleton } from "@skillist/ui";
+import { Button, ConfirmDialog, cn, Skeleton } from "@skillist/ui";
 import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { relativeTime } from "@/lib/relative-time";
 import type { AgentChat } from "@/lib/use-agent-chats";
-
-/** Compact, dependency-free "2h ago" formatter — prose-adjacent, so no mono. */
-function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "";
-  const s = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (s < 60) return "just now";
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.round(h / 24);
-  if (d < 7) return `${d}d ago`;
-  const w = Math.round(d / 7);
-  if (w < 5) return `${w}w ago`;
-  const mo = Math.round(d / 30);
-  if (mo < 12) return `${mo}mo ago`;
-  return `${Math.round(d / 365)}y ago`;
-}
 
 /**
  * The conversations list, shared by the /agent page left rail, its mobile
  * popover, and the ⌘K drawer's history popover. Newest-first; the active row
- * carries the signal accent (the one conversation that's "live"). Delete is
- * immediate — a chat is a client-minted id, cheap to recreate.
+ * carries the signal accent (the one conversation that's "live"). Delete asks
+ * first: the transcript is gone for good, and it may be the only record of why
+ * something was approved.
  */
 export function ChatHistoryList({
   chats,
@@ -49,6 +33,8 @@ export function ChatHistoryList({
   onAfterAction?: () => void;
   className?: string;
 }) {
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+
   const handleSelect = (id: string) => {
     onSelect(id);
     onAfterAction?.();
@@ -74,9 +60,7 @@ export function ChatHistoryList({
       </div>
 
       <div className="px-3 pb-1">
-        <span className="text-[0.625rem] font-semibold tracking-widest text-muted-foreground uppercase">
-          Conversations
-        </span>
+        <span className="text-xs text-muted-foreground">Conversations</span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
@@ -111,13 +95,13 @@ export function ChatHistoryList({
                     )}
                   >
                     <span className="w-full truncate text-sm text-foreground">{title}</span>
-                    <span className="font-mono text-[0.625rem] text-muted-foreground">
+                    <span className="font-mono text-xs text-muted-foreground">
                       {relativeTime(chat.updatedAt)}
                     </span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => void onDelete(chat.id)}
+                    onClick={() => setPendingDelete({ id: chat.id, title })}
                     aria-label={`Delete conversation: ${title}`}
                     className={cn(
                       "absolute top-1.5 right-1 flex size-6 items-center justify-center text-muted-foreground transition-colors",
@@ -133,6 +117,19 @@ export function ChatHistoryList({
           </ul>
         )}
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title="Delete this conversation?"
+        description={`"${pendingDelete?.title ?? ""}" and its full transcript will be permanently removed.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (pendingDelete) void onDelete(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+      />
     </div>
   );
 }

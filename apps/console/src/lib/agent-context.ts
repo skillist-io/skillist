@@ -62,6 +62,16 @@ export function describeContext(context: AgentContext): string {
  */
 export const CONTEXT_PREFIX = "[context]";
 
+/**
+ * Marks a message that tells the agent a person approved a request. Same stance
+ * as the context line: it travels in the message and is shown back to the sender.
+ */
+export const APPROVAL_PREFIX = "[approval]";
+
+export function formatApproval(approvalId: string): string {
+  return `${APPROVAL_PREFIX} id: ${approvalId}\nApproved. Run it.`;
+}
+
 export function formatContext(context: AgentContext): string {
   const parts = [`page: ${context.page}`, `path: ${context.pathname}`];
   if (context.orgId) parts.push(`org: ${context.orgId}`);
@@ -75,11 +85,22 @@ export function formatContext(context: AgentContext): string {
  * actually typed, so the transcript can render them differently.
  */
 export function splitContext(text: string): { context: string | null; body: string } {
-  if (!text.startsWith(CONTEXT_PREFIX)) return { context: null, body: text };
+  const prefix = [CONTEXT_PREFIX, APPROVAL_PREFIX].find((p) => text.startsWith(p));
+  if (!prefix) return { context: null, body: text };
   const newline = text.indexOf("\n");
-  if (newline === -1) return { context: text.slice(CONTEXT_PREFIX.length).trim(), body: "" };
+  if (newline === -1) return { context: text.slice(prefix.length).trim(), body: "" };
   return {
-    context: text.slice(CONTEXT_PREFIX.length, newline).trim(),
+    context: text.slice(prefix.length, newline).trim(),
     body: text.slice(newline + 1).trimStart(),
   };
+}
+
+/** The readable part of a stored context line: "page: Coverage, path: /x" → "Coverage". */
+export function contextChip(context: string): string {
+  const approval = context.match(/^id: (\S{1,8})/);
+  if (approval) return `Approval ${approval[1]}`;
+  const page = context.match(/^page: ([^,]+)/)?.[1]?.trim();
+  const skill = context.match(/skill: [^/,]+\/([^,]+)/)?.[1]?.trim();
+  if (!page) return context;
+  return skill && skill !== page ? `${page} · ${skill}` : page;
 }

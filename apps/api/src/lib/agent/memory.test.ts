@@ -7,6 +7,7 @@ import {
   buildMemoryBlock,
   forgetFact,
   formatMemoryBlock,
+  hasOrgFact,
   rememberFact,
   searchMemory,
 } from "./memory";
@@ -42,6 +43,9 @@ describe("formatMemoryBlock", () => {
 // ---------------------------------------------------------------------------
 const REAL_DB = true;
 
+/** The provenance every write must now state. */
+const PROV = { source: "console", updatedBy: null } as const;
+
 describe.skipIf(!REAL_DB)("memory lib — integration (requires DB)", () => {
   let db: ReturnType<typeof createWorkerDb>;
   const suffix = crypto.randomUUID().slice(0, 8);
@@ -67,6 +71,7 @@ describe.skipIf(!REAL_DB)("memory lib — integration (requires DB)", () => {
       userId: null,
       key: "contact",
       value: "reach ops at ops@ex.com or 555-123-4567",
+      ...PROV,
     });
     expect(redaction.matches.map((m) => m.name)).toEqual(
       expect.arrayContaining(["email", "phone"]),
@@ -88,8 +93,8 @@ describe.skipIf(!REAL_DB)("memory lib — integration (requires DB)", () => {
   });
 
   it("upserts the same key in place rather than duplicating", async () => {
-    await rememberFact(db, { orgId, userId: null, key: "policy", value: "v1" });
-    await rememberFact(db, { orgId, userId: null, key: "policy", value: "v2" });
+    await rememberFact(db, { orgId, userId: null, key: "policy", value: "v1", ...PROV });
+    await rememberFact(db, { orgId, userId: null, key: "policy", value: "v2", ...PROV });
     const rows = await db
       .select({ value: agentMemory.value })
       .from(agentMemory)
@@ -105,8 +110,14 @@ describe.skipIf(!REAL_DB)("memory lib — integration (requires DB)", () => {
   });
 
   it("search respects visibility: org-wide + own rows, not other users'", async () => {
-    await rememberFact(db, { orgId, userId, key: "mine", value: "user fact" });
-    await rememberFact(db, { orgId, userId: otherUserId, key: "theirs", value: "other fact" });
+    await rememberFact(db, { orgId, userId, key: "mine", value: "user fact", ...PROV });
+    await rememberFact(db, {
+      orgId,
+      userId: otherUserId,
+      key: "theirs",
+      value: "other fact",
+      ...PROV,
+    });
 
     const visible = await searchMemory(db, orgId, userId);
     const keys = visible.map((r) => r.key);
@@ -128,8 +139,28 @@ describe.skipIf(!REAL_DB)("memory lib — integration (requires DB)", () => {
     expect(block).toContain("- mine: user fact");
   });
 
+  it("records who wrote a fact and how, and reports the writer's name", async () => {
+    await rememberFact(db, {
+      orgId,
+      userId: null,
+      key: "provenance",
+      value: "written by the agent",
+      source: "agent",
+      updatedBy: userId,
+    });
+    const [row] = await searchMemory(db, orgId, null, "provenance");
+    expect(row).toMatchObject({ source: "agent", updatedBy: userId, updatedByName: "U" });
+  });
+
+  it("hasOrgFact sees org-wide facts only, which is what gates forgetting", async () => {
+    await rememberFact(db, { orgId, userId, key: "personal-only", value: "mine", ...PROV });
+    await rememberFact(db, { orgId, userId: null, key: "shared", value: "ours", ...PROV });
+    expect(await hasOrgFact(db, orgId, "personal-only")).toBe(false);
+    expect(await hasOrgFact(db, orgId, "shared")).toBe(true);
+  });
+
   it("forget deletes an org-wide fact by key", async () => {
-    await rememberFact(db, { orgId, userId: null, key: "temp", value: "delete me" });
+    await rememberFact(db, { orgId, userId: null, key: "temp", value: "delete me", ...PROV });
     await forgetFact(db, orgId, userId, "temp");
     const rows = await db
       .select()
