@@ -1,4 +1,4 @@
-import { createLocalJWKSet, jwtVerify } from "jose";
+import { createLocalJWKSet, errors, jwtVerify } from "jose";
 
 /** Requested by every MCP client. Skillist has no finer-grained MCP scopes yet. */
 export const MCP_SCOPES = ["openid", "profile", "email", "offline_access"] as const;
@@ -14,6 +14,11 @@ export function mcpResourceUrl(apiBaseUrl: string) {
   return `${apiBaseUrl.replace(/\/$/, "")}/mcp`;
 }
 
+/** True when the token itself is bad, as opposed to verification failing to run. */
+export function isRejectedMcpToken(err: unknown) {
+  return err instanceof errors.JOSEError;
+}
+
 interface JwksSource {
   api: { getJwks: () => Promise<{ keys: Parameters<typeof createLocalJWKSet>[0]["keys"] }> };
 }
@@ -26,7 +31,8 @@ interface JwksSource {
  * would be this Worker calling its own hostname. Reading the keys through
  * `auth.api` needs no network.
  *
- * Throws on any invalid token. The caller decides what that means.
+ * Throws on any invalid token. `isRejectedMcpToken` tells that apart from a failure
+ * to read the keys, and the caller decides what each one means.
  */
 export async function verifyMcpAccessToken(
   auth: JwksSource,
@@ -45,7 +51,7 @@ export async function verifyMcpAccessToken(
 
   // A DPoP-bound token is only valid alongside a proof, and nothing here checks
   // proofs, so accepting one would strip its sender binding.
-  if (payload.cnf) throw new Error("DPoP-bound tokens are not supported");
+  if (payload.cnf) throw new errors.JOSEError("DPoP-bound tokens are not supported");
 
   return {
     userId: payload.sub as string,

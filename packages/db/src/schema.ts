@@ -1005,6 +1005,7 @@ export const oauthClientResources = sqliteTable(
   (t) => [
     index("oauth_client_resource_client_idx").on(t.clientId),
     index("oauth_client_resource_resource_idx").on(t.resourceId),
+    uniqueIndex("oauth_client_resource_unique_idx").on(t.clientId, t.resourceId),
   ],
 );
 

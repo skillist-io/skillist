@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { mcpResourceUrl, verifyMcpAccessToken } from "@skillist/auth";
 import { users } from "@skillist/db/schema";
 import { eq } from "drizzle-orm";
@@ -141,5 +141,34 @@ describe("MCP OAuth flow", () => {
 
     // Account deletion must not be blocked by the rows this flow created.
     await db.delete(users).where(eq(users.id, user.id));
+  });
+});
+
+describe("/mcp bearer handling", () => {
+  const listTools = (authorization?: string) =>
+    SELF.fetch(`${base}/mcp`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        ...(authorization ? { authorization } : {}),
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
+    });
+
+  it("keeps public access for anonymous callers", async () => {
+    expect((await listTools()).status).not.toBe(401);
+  });
+
+  it("answers a bad token with a 401 that tells the client to re-authorize", async () => {
+    const response = await listTools("Bearer not-a-real-token");
+    expect(response.status).toBe(401);
+    const challenge = response.headers.get("WWW-Authenticate");
+    expect(challenge).toContain('error="invalid_token"');
+    expect(challenge).toContain("/.well-known/oauth-protected-resource/mcp");
+  });
+
+  it("leaves sk_ API keys anonymous rather than rejecting them", async () => {
+    expect((await listTools("Bearer sk_test_key")).status).not.toBe(401);
   });
 });

@@ -15,9 +15,10 @@ export function mcpProtectedResourceMetadata(apiBaseUrl: string) {
   };
 }
 
-export function mcpWwwAuthenticate(apiBaseUrl: string) {
+export function mcpWwwAuthenticate(apiBaseUrl: string, error?: "invalid_token") {
   const base = apiBaseUrl.replace(/\/$/, "");
-  return `Bearer resource_metadata="${base}/.well-known/oauth-protected-resource/mcp"`;
+  const metadata = `resource_metadata="${base}/.well-known/oauth-protected-resource/mcp"`;
+  return error ? `Bearer error="${error}", ${metadata}` : `Bearer ${metadata}`;
 }
 
 export async function verifyOptionalMcpSession(

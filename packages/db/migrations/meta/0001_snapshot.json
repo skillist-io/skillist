@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3ce4f25d-e4ce-466c-bd64-7660a654a7cb",
+  "id": "979da8dc-d9e9-49c9-b284-cf4cbe5d712b",
   "prevId": "a136dccc-91e8-4615-9e2c-f14126d068ab",
   "tables": {
     "accounts": {
@@ -1111,217 +1111,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "oauth_access_token": {
-      "name": "oauth_access_token",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "token": {
-          "name": "token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "client_id": {
-          "name": "client_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "session_id": {
-          "name": "session_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "reference_id": {
-          "name": "reference_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "authorization_code_id": {
-          "name": "authorization_code_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "resources": {
-          "name": "resources",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "requested_user_info_claims": {
-          "name": "requested_user_info_claims",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "refresh_id": {
-          "name": "refresh_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "revoked": {
-          "name": "revoked",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "confirmation": {
-          "name": "confirmation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "scopes": {
-          "name": "scopes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "oauth_access_token_token_unique": {
-          "name": "oauth_access_token_token_unique",
-          "columns": [
-            "token"
-          ],
-          "isUnique": true
-        },
-        "oauth_access_token_client_idx": {
-          "name": "oauth_access_token_client_idx",
-          "columns": [
-            "client_id"
-          ],
-          "isUnique": false
-        },
-        "oauth_access_token_session_idx": {
-          "name": "oauth_access_token_session_idx",
-          "columns": [
-            "session_id"
-          ],
-          "isUnique": false
-        },
-        "oauth_access_token_user_idx": {
-          "name": "oauth_access_token_user_idx",
-          "columns": [
-            "user_id"
-          ],
-          "isUnique": false
-        },
-        "oauth_access_token_code_idx": {
-          "name": "oauth_access_token_code_idx",
-          "columns": [
-            "authorization_code_id"
-          ],
-          "isUnique": false
-        },
-        "oauth_access_token_refresh_idx": {
-          "name": "oauth_access_token_refresh_idx",
-          "columns": [
-            "refresh_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "oauth_access_token_client_id_oauth_client_client_id_fk": {
-          "name": "oauth_access_token_client_id_oauth_client_client_id_fk",
-          "tableFrom": "oauth_access_token",
-          "tableTo": "oauth_client",
-          "columnsFrom": [
-            "client_id"
-          ],
-          "columnsTo": [
-            "client_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "oauth_access_token_session_id_sessions_id_fk": {
-          "name": "oauth_access_token_session_id_sessions_id_fk",
-          "tableFrom": "oauth_access_token",
-          "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "oauth_access_token_user_id_users_id_fk": {
-          "name": "oauth_access_token_user_id_users_id_fk",
-          "tableFrom": "oauth_access_token",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "oauth_access_token_refresh_id_oauth_refresh_token_id_fk": {
-          "name": "oauth_access_token_refresh_id_oauth_refresh_token_id_fk",
-          "tableFrom": "oauth_access_token",
-          "tableTo": "oauth_refresh_token",
-          "columnsFrom": [
-            "refresh_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "oauth_client_assertion": {
       "name": "oauth_client_assertion",
       "columns": {
@@ -1399,6 +1188,14 @@
             "resource_id"
           ],
           "isUnique": false
+        },
+        "oauth_client_resource_unique_idx": {
+          "name": "oauth_client_resource_unique_idx",
+          "columns": [
+            "client_id",
+            "resource_id"
+          ],
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -1709,121 +1506,6 @@
         "oauth_client_user_id_users_id_fk": {
           "name": "oauth_client_user_id_users_id_fk",
           "tableFrom": "oauth_client",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "oauth_consent": {
-      "name": "oauth_consent",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "client_id": {
-          "name": "client_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "reference_id": {
-          "name": "reference_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "resources": {
-          "name": "resources",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "requested_user_info_claims": {
-          "name": "requested_user_info_claims",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "scopes": {
-          "name": "scopes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "oauth_consent_client_idx": {
-          "name": "oauth_consent_client_idx",
-          "columns": [
-            "client_id"
-          ],
-          "isUnique": false
-        },
-        "oauth_consent_user_idx": {
-          "name": "oauth_consent_user_idx",
-          "columns": [
-            "user_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "oauth_consent_client_id_oauth_client_client_id_fk": {
-          "name": "oauth_consent_client_id_oauth_client_client_id_fk",
-          "tableFrom": "oauth_consent",
-          "tableTo": "oauth_client",
-          "columnsFrom": [
-            "client_id"
-          ],
-          "columnsTo": [
-            "client_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "oauth_consent_user_id_users_id_fk": {
-          "name": "oauth_consent_user_id_users_id_fk",
-          "tableFrom": "oauth_consent",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"

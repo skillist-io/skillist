@@ -247,7 +247,13 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
           ? ["http://localhost:5173", "http://localhost:5174", "http://localhost:8787"]
           : ["https://skillist.dev", "https://console.skillist.dev", "https://api.skillist.dev"],
       }),
-      jwt({ disableSettingJwtHeader: true }),
+      jwt({
+        disableSettingJwtHeader: true,
+        // Auth is reachable from several hosts, and the default issuer follows the
+        // request. /mcp pins one issuer, so a token minted via another host would
+        // otherwise fail verification.
+        jwt: { issuer: `${env.BETTER_AUTH_URL.replace(/\/$/, "")}/api/auth` },
+      }),
       mcp({
         // /login lives on the console app now.
         loginPage: `${consoleUrl}/login`,
@@ -271,4 +277,4 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
 export type Auth = ReturnType<typeof createAuth>;
 
 export type { McpSession } from "./mcp-token";
-export { mcpResourceUrl, verifyMcpAccessToken } from "./mcp-token";
+export { isRejectedMcpToken, mcpResourceUrl, verifyMcpAccessToken } from "./mcp-token";
