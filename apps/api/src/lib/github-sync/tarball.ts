@@ -1,4 +1,4 @@
-import type { SkillBundle } from "@skillist/skill-format";
+import { encodeBase64, isBinaryAssetPath, type SkillBundle } from "@skillist/skill-format";
 import { tarballCacheKey } from "./cache";
 
 const TAR_BLOCK = 512;
@@ -45,6 +45,26 @@ export function parseTarEntries(data: Uint8Array): TarEntry[] {
   return entries;
 }
 
+/**
+ * Turns a mirrored file's bytes into its bundle string: base64 for binary
+ * assets, text for everything else. Returns undefined for bytes that are neither.
+ *
+ * Those are dropped because a bundle string can't carry them. A lossy decode
+ * looks fine and is worse: it swaps invalid bytes for U+FFFD, the file passes
+ * validation, and the manifest then hashes the damaged copy, so hosts verify a
+ * digest and accept a broken file. Allowing arbitrary binaries isn't the fix
+ * either, since the security scan can't read them and mirrors are untrusted.
+ */
+export function mirrorFileContent(path: string, bytes: Uint8Array): string | undefined {
+  if (isBinaryAssetPath(path)) return encodeBase64(bytes);
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes);
+  } catch {
+    console.warn(`Dropping mirrored file ${path}: not UTF-8 and not a supported binary type`);
+    return undefined;
+  }
+}
+
 /** Extract a skill folder from parsed tarball paths (GitHub root prefix stripped). */
 export function extractSkillBundleFromTarEntries(
   entries: TarEntry[],
@@ -62,7 +82,8 @@ export function extractSkillBundleFromTarEntries(
     if (!entry.path.startsWith(skillPrefix)) continue;
     const relative = entry.path.slice(skillPrefix.length);
     if (!relative || relative.startsWith(".")) continue;
-    bundle.set(relative, new TextDecoder().decode(entry.content));
+    const content = mirrorFileContent(relative, entry.content);
+    if (content !== undefined) bundle.set(relative, content);
   }
 
   return bundle;

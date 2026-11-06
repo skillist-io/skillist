@@ -1,8 +1,8 @@
-import type { SkillBundle } from "@skillist/skill-format";
+import { isBinaryAssetPath, type SkillBundle } from "@skillist/skill-format";
 import { sha256 } from "../r2";
 import { listSkillFileEntries } from "./discover";
-import { fetchBlobText, type GithubTreeEntry } from "./fetch";
-import { loadSkillBundleFromTarball } from "./tarball";
+import { fetchBlobBytes, type GithubTreeEntry } from "./fetch";
+import { loadSkillBundleFromTarball, mirrorFileContent } from "./tarball";
 
 export async function hashSkillTreeSnapshot(
   tree: GithubTreeEntry[],
@@ -28,8 +28,9 @@ export async function loadSkillBundleFromTree(
   const limited = entries.slice(0, 200);
   await Promise.all(
     limited.map(async ({ relativePath, sha }) => {
-      const content = await fetchBlobText(owner, repo, sha, token);
-      bundle.set(relativePath, content);
+      const bytes = await fetchBlobBytes(owner, repo, sha, token);
+      const content = mirrorFileContent(relativePath, bytes);
+      if (content !== undefined) bundle.set(relativePath, content);
     }),
   );
 
@@ -73,6 +74,9 @@ export function sanitizeMirrorBundle(bundle: SkillBundle): SkillBundle {
       continue;
     }
     const top = path.split("/")[0];
+    // The validator allows binaries only under assets/, and one elsewhere would
+    // fail the whole skill over a file like references/diagram.png.
+    if (isBinaryAssetPath(path) && top !== "assets") continue;
     if (top && (MIRROR_OPTIONAL_DIRS as readonly string[]).includes(top)) {
       out.set(path, content);
     }
