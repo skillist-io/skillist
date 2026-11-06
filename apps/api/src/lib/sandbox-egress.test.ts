@@ -6,6 +6,7 @@ import {
   isOutboundAllowed,
   resolveRunAllowedHosts,
 } from "./sandbox-egress";
+import { sliceText } from "./skill-runtime";
 
 // H3: the untrusted-skill sandboxes must run deny-by-default egress. These cover
 // the policy itself. Enforcement needs real containers, which this harness doesn't
@@ -97,5 +98,17 @@ describe("resolveRunAllowedHosts (per-skill manifest egress)", () => {
   it("dedupes a declared host that is already in the baseline", () => {
     const merged = resolveRunAllowedHosts(false, ["github.com"]);
     expect(merged.filter((h) => h === "github.com")).toHaveLength(1);
+  });
+});
+
+describe("sliceText", () => {
+  it("keeps short text and cuts long text", () => {
+    expect(sliceText("abc", 5)).toBe("abc");
+    expect(sliceText("abcdef", 3)).toBe("abc");
+  });
+
+  it("never leaves half of a surrogate pair", () => {
+    expect(sliceText("ab😀cd", 3)).toBe("ab");
+    expect(sliceText("ab😀cd", 4)).toBe("ab😀");
   });
 });

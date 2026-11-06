@@ -17,6 +17,7 @@ import {
   listRunnableScripts,
   MAX_OUTPUT_CHARS,
   type SkillRuntime,
+  sliceText,
   validateScriptPath,
   validateTargetUrl,
 } from "./skill-runtime";
@@ -62,7 +63,7 @@ export class SkillExecutionBlockedError extends Error {
 
 function truncateOutput(text: string): string {
   if (text.length <= MAX_OUTPUT_CHARS) return text;
-  return `${text.slice(0, MAX_OUTPUT_CHARS)}\n…[truncated]`;
+  return `${sliceText(text, MAX_OUTPUT_CHARS)}\n…[truncated]`;
 }
 
 type SandboxHandle = Pick<
@@ -214,18 +215,27 @@ export async function runSkillScript(
   const declaredHosts =
     parsePluginManifest(bundle.get("plugin.json") ?? "")?.network?.allowedHosts ?? [];
 
+  const destroySandbox = () => sandbox.destroy().catch(() => {});
+
   // Destroying the container is the only way to stop a run from out here. The
   // in-flight `run` then resolves with exit code 137, so it's recorded as failed.
-  const cancel = () => {
-    sandbox.destroy().catch(() => {});
-  };
+  const cancel = () => void destroySandbox();
   input.signal?.addEventListener("abort", cancel, { once: true });
+
+  // The listener can't help before the container exists: destroying nothing does
+  // nothing, and a signal that already fired never fires again. So setup checks too.
+  const stopIfCancelled = () => {
+    if (input.signal?.aborted) throw new Error("Run cancelled");
+  };
 
   try {
     // Inside the try so a failed start is recorded as a failed run. The hosts are
     // fixed here, before any skill code exists in the container.
+    stopIfCancelled();
     await sandbox.start(resolveRunAllowedHosts(isHeavy, declaredHosts));
+    stopIfCancelled();
     await materializeBundle(sandbox, bundle);
+    stopIfCancelled();
 
     const execArgs = [...args];
     if (validatedUrl && execArgs.length === 0) {
@@ -241,6 +251,7 @@ export async function runSkillScript(
       env: validatedUrl ? { SKILLIST_TARGET_URL: validatedUrl } : undefined,
       onOutput: forward,
     });
+    await destroySandbox();
 
     const stdout = truncateOutput(result.stdout);
     const stderr = truncateOutput(
@@ -262,26 +273,32 @@ export async function runSkillScript(
       })
       .where(eq(skillRuns.id, runId));
 
-    await logAudit(db, {
-      orgId: skill.orgId,
-      actorId: input.actorId,
-      actorType: input.actorType ?? "system",
-      action: "skill.script.executed",
-      resourceType: "skill_run",
-      resourceId: runId,
-      metadata: {
-        orgSlug,
-        skillRepo,
-        scriptPath,
-        exitCode: result.exitCode,
-        runtime,
-      },
-    });
-
+    // The run already finished and is recorded. A failed audit write must not
+    // flip it to failed in the catch below.
     try {
-      await sandbox.destroy();
-    } catch {
-      // best-effort cleanup
+      await logAudit(db, {
+        orgId: skill.orgId,
+        actorId: input.actorId,
+        actorType: input.actorType ?? "system",
+        action: "skill.script.executed",
+        resourceType: "skill_run",
+        resourceId: runId,
+        metadata: {
+          orgSlug,
+          skillRepo,
+          scriptPath,
+          exitCode: result.exitCode,
+          runtime,
+        },
+      });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          msg: "skill_run_audit_failed",
+          runId,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
     }
 
     return {
@@ -294,6 +311,9 @@ export async function runSkillScript(
       runtime,
     };
   } catch (err) {
+    // First, so a failing database can't leave the container running.
+    await destroySandbox();
+
     // `skill_runs.error` is rendered in the console run history, so a database
     // failure here would durably park raw SQL in a user-visible column.
     const message = persistableErrorMessage(err, "Execution failed");
@@ -306,13 +326,9 @@ export async function runSkillScript(
       })
       .where(eq(skillRuns.id, runId));
 
-    try {
-      await sandbox.destroy();
-    } catch {
-      // ignore
-    }
-
     throw new Error(message);
+  } finally {
+    input.signal?.removeEventListener("abort", cancel);
   }
 }
 
