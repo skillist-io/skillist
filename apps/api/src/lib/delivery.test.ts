@@ -131,8 +131,14 @@ describe("delivery conditional requests", () => {
   });
 
   it("returns 304 on meta for a matching If-None-Match", async () => {
-    const res = await serveSkillMeta(kv(), "acme", "widget", '"etag123"');
+    const res = await serveSkillMeta(kv(), "acme", "widget", '"v1"');
     expect(res.status).toBe(304);
+    expect(res.headers.get("ETag")).toBe('"v1"');
+  });
+
+  it("does not answer 304 on meta for the SKILL.md validator", async () => {
+    const res = await serveSkillMeta(kv(), "acme", "widget", '"etag123"');
+    expect(res.status).toBe(200);
   });
 
   it("caches 404s briefly", async () => {
@@ -218,6 +224,25 @@ describe("versioned delivery", () => {
     expect(res.headers.get("Cache-Control")).toBe(
       "public, max-age=31536000, immutable, s-maxage=300",
     );
+  });
+
+  // Production case: a re-publish kept SKILL.md, so `etag` stayed the same while
+  // the rest of the record changed. A 304 here left a cached copy of the old
+  // record alive, because each revalidation told the cache it was still current.
+  it("replaces a cached pinned meta when a re-publish keeps the same SKILL.md", async () => {
+    const republished = { ...JSON.parse(metaJson("public")), versionId: "v2" };
+    const kv = stubKv({ [V_META_KEY]: JSON.stringify(republished) });
+    const res = await serveSkillMetaAtVersion(
+      env(kv),
+      dbNotNeeded,
+      "acme",
+      "widget",
+      "1.0.0",
+      '"v1"',
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("ETag")).toBe('"v2"');
+    expect((await res.json()).versionId).toBe("v2");
   });
 });
 

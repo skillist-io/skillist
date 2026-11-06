@@ -109,8 +109,13 @@ function metaResponse(
   cacheControl: string,
   ifNoneMatch: string | null,
 ): Response {
-  const headers = conditionalHeaders(meta.etag, meta.version, cacheControl);
-  if (etagMatches(ifNoneMatch, meta.etag)) {
+  // `meta.etag` only covers SKILL.md, and this body also carries versionId,
+  // publishedAt and contentSha256. A re-publish that keeps SKILL.md would match
+  // on it, and each 304 would tell a shared cache its old record is still
+  // current, so that record would never expire. The version id changes with the
+  // record, as it does for the bundle.
+  const headers = conditionalHeaders(meta.versionId, meta.version, cacheControl);
+  if (etagMatches(ifNoneMatch, meta.versionId)) {
     return new Response(null, { status: 304, headers });
   }
   // bundleKey is an internal storage pointer, not part of the public contract.
