@@ -1,8 +1,8 @@
-import { getSandbox } from "@cloudflare/sandbox";
 import type { ExecutionPolicy } from "@skillist/contracts";
 import { organizations, skillRuns, skills, skillVersions } from "@skillist/db/schema";
 import { parsePluginManifest } from "@skillist/skill-format";
 import { and, eq } from "drizzle-orm";
+import type { SkillSandbox } from "../durable-objects/skill-sandbox";
 import type { Env } from "../env";
 import { logAudit } from "./audit";
 import type { WorkerDb } from "./db";
@@ -60,54 +60,30 @@ export class SkillExecutionBlockedError extends Error {
   }
 }
 
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
 function truncateOutput(text: string): string {
   if (text.length <= MAX_OUTPUT_CHARS) return text;
   return `${text.slice(0, MAX_OUTPUT_CHARS)}\n…[truncated]`;
 }
 
-type SandboxHandle = {
-  mkdir(path: string, options?: { recursive?: boolean }): Promise<unknown>;
-  writeFile(path: string, content: string): Promise<unknown>;
-  /** Runtime egress mutator — widens this instance's allowlist for one run. */
-  setAllowedHosts(hosts: string[]): Promise<unknown>;
-  exec(
-    command: string,
-    options?: {
-      cwd?: string;
-      timeout?: number;
-      env?: Record<string, string | undefined>;
-      stream?: boolean;
-      onOutput?: (stream: "stdout" | "stderr", data: string) => void;
-      signal?: AbortSignal;
-    },
-  ): Promise<{
-    stdout: string;
-    stderr: string;
-    exitCode: number;
-    success: boolean;
-    duration?: number;
-  }>;
-  destroy(): Promise<unknown>;
-};
+type SandboxHandle = Pick<
+  SkillSandbox,
+  "start" | "mkdir" | "writeFile" | "makeExecutable" | "run" | "destroy"
+>;
 
 async function materializeBundle(
   sandbox: SandboxHandle,
   bundle: Map<string, string>,
 ): Promise<void> {
-  await sandbox.mkdir("/workspace", { recursive: true });
+  await sandbox.mkdir("/workspace");
   for (const [path, content] of bundle.entries()) {
     const fullPath = `/workspace/${path}`;
     const slash = fullPath.lastIndexOf("/");
     if (slash > "/workspace".length) {
-      await sandbox.mkdir(fullPath.slice(0, slash), { recursive: true });
+      await sandbox.mkdir(fullPath.slice(0, slash));
     }
     await sandbox.writeFile(fullPath, content);
     if (path.endsWith(".sh")) {
-      await sandbox.exec(`chmod +x ${shellQuote(fullPath)}`);
+      await sandbox.makeExecutable(fullPath);
     }
   }
 }
@@ -227,32 +203,28 @@ export async function runSkillScript(
 
   const runId = runRow.id;
   const sandboxId = `run-${runId}`;
-  const sandboxBinding = runtime === "container" ? env.SANDBOX_HEAVY : env.SANDBOX;
-  const sandbox = getSandbox(sandboxBinding as never, sandboxId) as unknown as SandboxHandle;
+  const isHeavy = runtime === "container";
+  const sandbox: SandboxHandle = (isHeavy ? env.SANDBOX_HEAVY : env.SANDBOX).getByName(
+    sandboxId,
+  ) as unknown as SandboxHandle;
 
-  const timeout = runtime === "container" ? CONTAINER_TIMEOUT_MS : EXEC_TIMEOUT_MS;
+  const timeout = isHeavy ? CONTAINER_TIMEOUT_MS : EXEC_TIMEOUT_MS;
 
-  // Per-skill least-privilege egress: if the manifest declares network hosts,
-  // widen this fresh instance's allowlist to baseline + declared for this run
-  // only. Fresh sandbox per run, so nothing leaks to the next tenant. Fail
-  // closed — if the mutator errors, the run proceeds on the baseline allowlist
-  // (more restrictive), never wide open.
-  const declaredHosts = parsePluginManifest(bundle.get("plugin.json") ?? "")?.network?.allowedHosts;
-  if (declaredHosts?.length) {
-    try {
-      await sandbox.setAllowedHosts(resolveRunAllowedHosts(runtime === "container", declaredHosts));
-    } catch (err) {
-      console.error(
-        JSON.stringify({
-          msg: "sandbox_set_allowed_hosts_failed",
-          runId,
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    }
-  }
+  // Per-skill least-privilege egress: baseline plus whatever the manifest declares.
+  const declaredHosts =
+    parsePluginManifest(bundle.get("plugin.json") ?? "")?.network?.allowedHosts ?? [];
+
+  // Destroying the container is the only way to stop a run from out here. The
+  // in-flight `run` then resolves with exit code 137, so it's recorded as failed.
+  const cancel = () => {
+    sandbox.destroy().catch(() => {});
+  };
+  input.signal?.addEventListener("abort", cancel, { once: true });
 
   try {
+    // Inside the try so a failed start is recorded as a failed run. The hosts are
+    // fixed here, before any skill code exists in the container.
+    await sandbox.start(resolveRunAllowedHosts(isHeavy, declaredHosts));
     await materializeBundle(sandbox, bundle);
 
     const execArgs = [...args];
@@ -261,43 +233,22 @@ export async function runSkillScript(
     }
 
     const command = buildExecCommand(scriptPath, execArgs);
-    const started = Date.now();
-    const streamChunks: { stdout: string[]; stderr: string[] } = {
-      stdout: [],
-      stderr: [],
-    };
-    // Cap what we retain (and forward) live. Without this, a script that emits
-    // hundreds of MB (`cat /dev/urandom | base64`) balloons the isolate and
-    // floods the SSE stream before the post-run truncateOutput ever applies.
-    // The budget spans both streams, matching truncateOutput's per-field cap.
     const forward = input.onOutput;
-    let capturedLen = 0;
-    let liveTruncated = false;
-    const result = await sandbox.exec(command, {
+    const result = await sandbox.run({
+      command,
       cwd: "/workspace",
-      timeout,
+      timeoutMs: timeout,
       env: validatedUrl ? { SKILLIST_TARGET_URL: validatedUrl } : undefined,
-      stream: !!forward,
-      signal: input.signal,
-      onOutput: forward
-        ? (stream, data) => {
-            if (capturedLen >= MAX_OUTPUT_CHARS) return;
-            const remaining = MAX_OUTPUT_CHARS - capturedLen;
-            const slice = data.length > remaining ? data.slice(0, remaining) : data;
-            streamChunks[stream].push(slice);
-            capturedLen += slice.length;
-            forward(stream, slice);
-            if (capturedLen >= MAX_OUTPUT_CHARS && !liveTruncated) {
-              liveTruncated = true;
-              forward(stream, "\n…[output truncated — limit reached]");
-            }
-          }
-        : undefined,
+      onOutput: forward,
     });
 
-    const stdout = truncateOutput(result.stdout ?? streamChunks.stdout.join(""));
-    const stderr = truncateOutput(result.stderr ?? streamChunks.stderr.join(""));
-    const status = result.success ? "completed" : "failed";
+    const stdout = truncateOutput(result.stdout);
+    const stderr = truncateOutput(
+      result.timedOut
+        ? `${result.stderr}\n…[stopped after reaching the ${timeout / 1000}s time limit]`
+        : result.stderr,
+    );
+    const status = result.exitCode === 0 ? "completed" : "failed";
 
     await db
       .update(skillRuns)
@@ -306,7 +257,7 @@ export async function runSkillScript(
         stdout,
         stderr,
         exitCode: result.exitCode,
-        durationMs: result.duration ?? Date.now() - started,
+        durationMs: result.durationMs,
         completedAt: new Date(),
       })
       .where(eq(skillRuns.id, runId));
@@ -339,7 +290,7 @@ export async function runSkillScript(
       stdout,
       stderr,
       exitCode: result.exitCode,
-      durationMs: result.duration ?? Date.now() - started,
+      durationMs: result.durationMs,
       runtime,
     };
   } catch (err) {

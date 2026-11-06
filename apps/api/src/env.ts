@@ -1,5 +1,7 @@
 import type { Ai, DurableObjectNamespace, RateLimit, SendEmail } from "@cloudflare/workers-types";
 import type { SyncQueueMessage } from "@skillist/contracts";
+import type { Sandbox } from "./durable-objects/sandbox";
+import type { SandboxHeavy } from "./durable-objects/sandbox-heavy";
 import type { SkillHarnessSession } from "./durable-objects/skill-harness-session";
 
 export type Env = {
@@ -7,8 +9,8 @@ export type Env = {
   SKILLS_KV: KVNamespace;
   SKILLS_R2: R2Bucket;
   SKILL_HUB: DurableObjectNamespace;
-  SANDBOX: DurableObjectNamespace;
-  SANDBOX_HEAVY: DurableObjectNamespace;
+  SANDBOX: DurableObjectNamespace<Sandbox>;
+  SANDBOX_HEAVY: DurableObjectNamespace<SandboxHeavy>;
   /** Per-org platform agent (AIChatAgent DO). Instance name = orgId. */
   SKILLIST_AGENT: DurableObjectNamespace;
   SKILL_HARNESS: DurableObjectNamespace<SkillHarnessSession>;

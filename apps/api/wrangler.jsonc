@@ -100,15 +100,15 @@
   "containers": [
     {
       "class_name": "Sandbox",
-      "image": "./Dockerfile",
-      "instance_type": "lite",
-      "max_instances": 10
+      "name": "skillist-api-dev-sandbox-v2",
+      "scheduling_policy": "durable_object",
+      "images": { "sandbox": { "dockerfile": "./Dockerfile" } }
     },
     {
       "class_name": "SandboxHeavy",
-      "image": "./Dockerfile.heavy",
-      "instance_type": "basic",
-      "max_instances": 5
+      "name": "skillist-api-dev-sandboxheavy-v2",
+      "scheduling_policy": "durable_object",
+      "images": { "sandbox": { "dockerfile": "./Dockerfile.heavy" } }
     }
   ],
   "migrations": [
