@@ -26,7 +26,7 @@ import { chunkRows, inList, SKILL_FILE_COLUMNS, type WorkerDb } from "../db";
 import { persistableErrorMessage } from "../error-detail";
 import { broadcastPublish, cachePublishedSkill } from "../publish";
 import { queueSkillEval } from "../queue-eval";
-import { putBundleObject, r2Prefix, sha256, uploadBundleToR2 } from "../r2";
+import { bundleFileManifest, putBundleObject, r2Prefix, sha256, uploadBundleToR2 } from "../r2";
 import { detectSkillRuntime } from "../skill-runtime";
 import { hashSkillTreeSnapshot, loadMirrorSkillBundle, sanitizeMirrorBundle } from "./bundle";
 import { getCachedTree, putCachedTree } from "./cache";
@@ -474,9 +474,7 @@ export async function mirrorPublishSkill(
   const fileRows = await Promise.all(
     [...bundle.entries()].map(async ([path, content]) => ({
       versionId,
-      path,
-      sha256: await sha256(content),
-      size: new TextEncoder().encode(content).byteLength,
+      ...(await bundleFileManifest(path, content)),
     })),
   );
 

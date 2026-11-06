@@ -17,13 +17,22 @@ export function r2Prefix(orgId: string, skillRepo: string, versionId: string): s
 // the object is genuinely the image/PDF/whatever — correct Content-Type,
 // servable directly if anything ever reads R2 without going through this
 // encode/decode boundary.
+//
+// This is the one definition of "the bytes we store". Upload and the file
+// manifest both go through it, because MCP hosts reject a skill file whose
+// size or digest differs from its manifest entry: hashing the base64 text, or
+// counting UTF-16 code units with `.length`, describes something we never serve.
+function storedFileBytes(path: string, content: string): Uint8Array {
+  return isBinaryAssetPath(path) ? decodeBase64(content) : new TextEncoder().encode(content);
+}
+
 export async function uploadBundleToR2(
   bucket: R2Bucket,
   prefix: string,
   files: SkillBundle,
 ): Promise<void> {
   const uploads = [...files.entries()].map(([path, content]) =>
-    bucket.put(`${prefix}/${path}`, isBinaryAssetPath(path) ? decodeBase64(content) : content, {
+    bucket.put(`${prefix}/${path}`, storedFileBytes(path, content), {
       httpMetadata: { contentType: contentTypeForPath(path) },
     }),
   );
@@ -106,10 +115,22 @@ function contentTypeForPath(path: string): string {
   return "text/plain";
 }
 
-export async function sha256(content: string): Promise<string> {
-  const data = new TextEncoder().encode(content);
+async function sha256Bytes(data: Uint8Array): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function sha256(content: string): Promise<string> {
+  return sha256Bytes(new TextEncoder().encode(content));
+}
+
+/** The `skill_files` digest and byte size of a bundle file, measured on the bytes R2 holds. */
+export async function bundleFileManifest(
+  path: string,
+  content: string,
+): Promise<{ path: string; sha256: string; size: number }> {
+  const bytes = storedFileBytes(path, content);
+  return { path, sha256: await sha256Bytes(bytes), size: bytes.byteLength };
 }
 
 export { bundleToObject, objectToBundle };

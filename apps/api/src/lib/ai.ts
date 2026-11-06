@@ -33,6 +33,7 @@ import { broadcastPublish, cachePublishedSkill, purgePublishedSkill } from "./pu
 import { evaluatePublishPolicy } from "./publish-policy";
 import { getVersionEvalStatus, queueSkillEval } from "./queue-eval";
 import {
+  bundleFileManifest,
   downloadBundleFromR2,
   listBundlePaths,
   putBundleObject,
@@ -113,9 +114,7 @@ Return ONLY the complete improved SKILL.md file with valid YAML frontmatter.`;
   const fileRows = await Promise.all(
     fileEntries.map(async ([path, content]) => ({
       versionId,
-      path,
-      sha256: await sha256(content),
-      size: content.length,
+      ...(await bundleFileManifest(path, content)),
     })),
   );
 
