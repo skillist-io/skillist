@@ -15,7 +15,7 @@
     "@cloudflare/sandbox": "^0.12.3",
     "@hono/zod-openapi": "^1.6.3",
     "@modelcontextprotocol/server": "2.4.0",
-    "@scalar/hono-api-reference": "^0.11.11",
+    "@scalar/hono-api-reference": "^0.12.18",
     "@skillist/auth": "workspace:*",
     "@skillist/contracts": "workspace:*",
     "@skillist/db": "workspace:*",
