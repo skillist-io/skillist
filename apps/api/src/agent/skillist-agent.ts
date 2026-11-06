@@ -143,6 +143,8 @@ const APPROVAL_PROTOCOL = [
   'When a tool returns status "awaiting_approval", nothing has happened. Say the action is',
   "waiting for approval in the card above, and stop. Do not call the tool again or claim it ran.",
   'When it returns status "denied", say it was denied and do not try another way to do the same thing.',
+  'When it returns reason "needs_editor", nothing happened and no request was made: say this needs',
+  "an editor or owner, who can ask for it themselves. Do not offer to submit it for approval.",
   'A user message beginning "[approval] id: <id>" means that person approved that request: call',
   "run_approved_action with that id, then report what its result actually says.",
 ].join("\n");
