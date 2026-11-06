@@ -32,6 +32,7 @@ export function LazyAgentChat(props: {
   chatId: string;
   context?: AgentContext;
   compact?: boolean;
+  focusOnReady?: boolean;
   onListRefresh?: () => void;
 }) {
   return (
