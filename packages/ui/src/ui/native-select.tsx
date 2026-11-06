@@ -9,7 +9,7 @@ export function NativeSelect({ className, ...props }: React.ComponentProps<"sele
   return (
     <select
       className={cn(
-        "h-10 border border-transparent border-b-input bg-transparent px-1 text-sm outline-none transition-[border-color] pointer-coarse:h-11 focus-visible:border-b-ring disabled:cursor-not-allowed disabled:opacity-50",
+        "h-10 border border-transparent border-b-input-line bg-transparent px-1 text-sm outline-none transition-[border-color,box-shadow] pointer-coarse:h-11 focus-visible:border-b-ring focus-visible:shadow-[0_1px_0_0_var(--ring)] disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}

@@ -14,9 +14,10 @@ import {
 import { Link } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { useActiveOrg } from "@/lib/active-org";
 import { relativeTime } from "@/lib/relative-time";
 import { type AgentApproval, useAgentApprovals } from "@/lib/use-agent-approvals";
-import { decisionError, describeApproval } from "./approval-copy";
+import { canDecideApprovals, decisionError, describeApproval, NEEDS_EDITOR } from "./approval-copy";
 
 /**
  * The queue and record of the agent's gated actions. Decisions normally happen on
@@ -140,6 +141,7 @@ function ApprovalRow({
 }) {
   const badge = STATUS_BADGE[approval.status];
   const isPending = approval.status === "pending";
+  const canDecide = canDecideApprovals(useActiveOrg().activeOrg?.role);
   const copy = describeApproval(approval.toolName, approval.args);
   const { chatId } = approval;
 
@@ -173,7 +175,9 @@ function ApprovalRow({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">
           {isPending
-            ? `Requested ${relativeTime(approval.createdAt)}`
+            ? canDecide
+              ? `Requested ${relativeTime(approval.createdAt)}`
+              : NEEDS_EDITOR
             : approval.decidedAt
               ? `Decided ${relativeTime(approval.decidedAt)}`
               : ""}
@@ -184,7 +188,7 @@ function ApprovalRow({
               Open chat
             </Button>
           )}
-          {isPending && (
+          {isPending && canDecide && (
             <>
               <Button
                 type="button"

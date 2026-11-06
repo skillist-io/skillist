@@ -4,6 +4,17 @@ import { type AgentContext, describeContext, formatContext, splitContext } from 
 const base: AgentContext = { page: "Coverage", pathname: "/coverage" };
 
 describe("agent context", () => {
+  it("carries the open tab, so a question about a view reaches the agent with it", () => {
+    const onEvals: AgentContext = {
+      page: "deploy",
+      pathname: "/orgs/acme/skills/deploy",
+      skillRef: "acme/deploy",
+      tab: "evals",
+    };
+    expect(describeContext(onEvals)).toBe("deploy · acme/deploy · Evals");
+    expect(formatContext(onEvals)).toContain("tab: evals");
+  });
+
   it("round-trips a message with context attached", () => {
     const sent = `${formatContext(base)}\nWhat is drifting?`;
     expect(splitContext(sent)).toEqual({
