@@ -35,7 +35,7 @@ export function BranchSelector({
       >
         <ChevronLeft className="size-3.5" aria-hidden />
       </Button>
-      <span className="font-mono text-[0.6875rem] tabular-nums">
+      <span className="font-mono text-xs tabular-nums">
         {index + 1} / {total}
       </span>
       <Button
