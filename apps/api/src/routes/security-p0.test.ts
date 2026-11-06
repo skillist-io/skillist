@@ -374,8 +374,8 @@ describe.skipIf(!REAL_DB)("P0 security hardening — integration (requires DB)",
 
     const LIMIT = 3;
     const CONCURRENCY = 8;
-    // Each contender needs its OWN connection (postgres-js is max:1 per client),
-    // otherwise they'd serialize in the driver and never truly race the DB.
+    // One client per contender, so no two share a session. D1 runs queries one
+    // at a time, so the contenders interleave rather than run in parallel.
     const clients = Array.from({ length: CONCURRENCY }, () =>
       createWorkerDb(env as unknown as Env),
     );

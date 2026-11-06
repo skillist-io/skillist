@@ -5,7 +5,7 @@ colors:
   ink: "oklch(0.145 0 0)"
   surface: "oklch(1 0 0)"
   raised: "oklch(0.97 0 0)"
-  muted-ink: "oklch(0.556 0 0)"
+  muted-ink: "oklch(0.54 0 0)"
   hairline: "oklch(0.922 0 0)"
   primary: "oklch(0.205 0 0)"
   primary-ink: "oklch(0.985 0 0)"
@@ -133,7 +133,7 @@ A pure grayscale ink ramp from paper-white to near-black, plus exactly two commi
 ### Neutral
 - **Surface** (`oklch(1 0 0)` light / `oklch(0.145 0 0)` dark): The base canvas and card background. In light mode it is literal white, not a warm-tinted near-white; the calm comes from restraint, not from cream.
 - **Raised** (`oklch(0.97 0 0)` light / `oklch(0.205 0 0)` dark): Secondary and muted fills, hover washes, and inset panels. The only step between surface and hairline.
-- **Muted Ink** (`oklch(0.556 0 0)` light / `oklch(0.708 0 0)` dark): Secondary text, captions, and inactive labels. Held light enough to recede but dark enough to clear 4.5:1 on surface; never lighter than this for body-length text.
+- **Muted Ink** (`oklch(0.54 0 0)` light / `oklch(0.708 0 0)` dark): Secondary text, captions, and inactive labels. Held light enough to recede but dark enough to clear 4.5:1 on both surface and raised, since hover and active rows put it on raised; never lighter than this for body-length text.
 - **Hairline** (`oklch(0.922 0 0)` light / `oklch(1 0 0 / 10%)` dark): Borders, dividers, and the 1px card ring. The primary structural device in a system with almost no shadow.
 - **Ring** (`oklch(0.708 0 0)`): Focus indication, distinct from hairline so keyboard focus is unmistakable.
 

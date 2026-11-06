@@ -7,6 +7,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   SidebarMenu,
@@ -91,21 +93,20 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setTheme("light")}>
+            <DropdownMenuRadioGroup value={theme}>
+              <DropdownMenuRadioItem value="light" onSelect={() => setTheme("light")}>
                 <Sun />
                 Light theme
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark" onSelect={() => setTheme("dark")}>
                 <Moon />
                 Dark theme
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="system" onSelect={() => setTheme("system")}>
                 <Monitor />
                 System theme
-                {theme === "system" ? " ✓" : ""}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void signOutAndRedirect()}>
               <LogOut />

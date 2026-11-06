@@ -56,7 +56,7 @@ Invoke by asking ("use the worker-reviewer agent…") or `@`-mention. `db-migrat
 
 ## Hooks (deterministic, in `settings.json`)
 
-- **PreToolUse / Edit·Write·MultiEdit** → `protect-paths.sh`: blocks writes to `routeTree.gen.ts`, `packages/db/drizzle/**`, and secrets (`.dev.vars`, `.env`, `wrangler.local.jsonc`); allows `*.example`.
+- **PreToolUse / Edit·Write·MultiEdit** → `protect-paths.sh`: blocks writes to `routeTree.gen.ts`, `packages/db/migrations/**`, and secrets (`.dev.vars`, `.env`, `wrangler.local.jsonc`); allows `*.example`.
 - **PreToolUse / Bash** → `bash-guard.sh`: blocks shell redirects/`sed -i`/`cp`/`mv` into those files and `git add`/`commit` of secrets; nudges `pnpm lint` → `pnpm check`.
 - **PostToolUse / Edit·Write·MultiEdit** → `biome-check.sh` (formats edited file) + `schema-reminder.sh` (prompts the migration flow after schema edits) + `docs-drift.sh` (when a doc source-of-truth file changes — routes, CLI, MCP tools, skill-format schema, contracts, setup — names the hand-authored docs that may now be stale).
 - **SessionStart** → `session-context.sh`: injects the repo's gates and gotchas.
@@ -65,7 +65,7 @@ Hooks require `jq` and `pnpm` on PATH.
 
 ## Rules (`.claude/rules/`, path-scoped)
 
-- `generated-files.md` — never hand-edit `routeTree.gen.ts` / `packages/db/drizzle/**`.
+- `generated-files.md` — never hand-edit `routeTree.gen.ts` / `packages/db/migrations/**`.
 - `secrets.md` — never read/edit/commit `.dev.vars` / `.env` / `wrangler.local.jsonc`.
 
 ## Worktree config
