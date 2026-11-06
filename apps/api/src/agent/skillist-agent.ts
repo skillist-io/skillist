@@ -22,7 +22,7 @@ import {
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Env } from "../env";
-import { getApproval, requireApproval } from "../lib/agent/approvals";
+import { effectiveStatus, getApproval, requireApproval } from "../lib/agent/approvals";
 import {
   buildMemoryBlock,
   forgetFact,
@@ -39,6 +39,7 @@ import { validateSkillMd } from "../lib/skill-validation";
 import { loadOrgVersions, summarizeVersions } from "../lib/skill-version-summary";
 import { parseAgentName, shouldGenerateTitle } from "./agent-name";
 import { buildAgentModel } from "./model";
+import { titleFromMessage, waitingOnPerson } from "./turn";
 
 /**
  * The agent runs on Workers AI. Keep it on a model built for tool calling: small
@@ -140,13 +141,14 @@ const MEMORY_PROTOCOL = [
 const APPROVAL_PROTOCOL = [
   "== Approval protocol ==",
   "draft_improvement, org-wide remember, and forgetting an org-wide fact need a person's approval.",
-  'When a tool returns status "awaiting_approval", nothing has happened. Say the action is',
-  "waiting for approval in the card above, and stop. Do not call the tool again or claim it ran.",
+  'When a tool returns status "awaiting_approval", nothing has happened and your turn ends there:',
+  "the person decides in the card. Do not call the tool again or claim it ran.",
   'When it returns status "denied", say it was denied and do not try another way to do the same thing.',
   'When it returns reason "needs_editor", nothing happened and no request was made: say this needs',
   "an editor or owner, who can ask for it themselves. Do not offer to submit it for approval.",
   'A user message beginning "[approval] id: <id>" means that person approved that request: call',
   "run_approved_action with that id, then report what its result actually says.",
+  "Describe what you did in plain words. Never name a tool or print an id in your reply.",
 ].join("\n");
 
 /** One regenerated assistant reply snapshot, keyed under its user message. */
@@ -270,7 +272,10 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
 
     // Refresh the chat-index row on every turn so sidebar ordering stays
     // accurate. Title stays as-is here; generateTitle fills it in below.
-    void this.persistChatRow(this.state?.title ?? null);
+    const firstUser = (this.messages as UIMessage[]).find((m) => m.role === "user");
+    void this.persistChatRow(
+      this.state?.title ?? (firstUser ? titleFromMessage(extractText(firstUser)) : null),
+    );
 
     // Pull the org's durable governance memory into the system prompt so the
     // agent carries known facts across conversations. Empty string when there
@@ -285,7 +290,7 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
       system,
       messages: await convertToModelMessages(this.messages),
       tools,
-      stopWhen: stepCountIs(5),
+      stopWhen: [stepCountIs(5), waitingOnPerson],
       // Surface a provider/stream failure server-side. Without this the error is
       // invisible in `wrangler tail` (the client just shows "hit an error"),
       // which is exactly what made the invalid-key outage hard to diagnose.
@@ -367,7 +372,9 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
 
     const assistantIdx = userIdx + 1;
     const currentAssistant = messages[assistantIdx];
-    if (currentAssistant?.role !== "assistant") {
+    // A turn that died before replying has nothing to snapshot, but Retry still
+    // has to work on it. Anything else after the user message is a later turn.
+    if (currentAssistant && currentAssistant.role !== "assistant") {
       return { ok: false as const, reason: "no_assistant_response" as const };
     }
 
@@ -376,15 +383,17 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
     const current = existingVariants[userMessageId] ?? [];
 
     // Snapshot the existing reply BEFORE truncating so it stays cyclable.
-    const snapshot: AssistantVariant = {
-      id: currentAssistant.id,
-      parts: (currentAssistant.parts ?? []) as unknown[],
-      createdAt: Date.now(),
-    };
-    existingVariants[userMessageId] = dedupeVariants([...current, snapshot]).slice(
-      -MAX_VARIANTS_PER_MESSAGE,
-    );
-    this.setState({ ...baseState, variants: existingVariants });
+    if (currentAssistant) {
+      const snapshot: AssistantVariant = {
+        id: currentAssistant.id,
+        parts: (currentAssistant.parts ?? []) as unknown[],
+        createdAt: Date.now(),
+      };
+      existingVariants[userMessageId] = dedupeVariants([...current, snapshot]).slice(
+        -MAX_VARIANTS_PER_MESSAGE,
+      );
+      this.setState({ ...baseState, variants: existingVariants });
+    }
 
     // Drop the assistant reply (and anything after it), then re-run. saveMessages
     // awaits the whole stream, so this.messages holds the new reply on resolve.
@@ -885,25 +894,36 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
             if (!initiatedBy) return { ok: false as const, reason: "no_user_scope" as const };
             const row = await getApproval(db, oid, initiatedBy, approvalId);
             if (!row) return { ok: false as const, reason: "approval_not_found" as const };
-            if (row.status === "executed") {
+            const status = effectiveStatus(row);
+            if (status === "executed") {
               return { ok: false as const, reason: "already_ran" as const };
             }
-            if (row.status === "denied") return { ok: false as const, status: "denied" as const };
-            if (row.status === "pending") {
+            if (status === "denied") return { ok: false as const, status: "denied" as const };
+            if (status === "pending") {
               return { ok: false as const, status: "awaiting_approval" as const, approvalId };
+            }
+            // Taken back or out of date. Falling through would stage a fresh request,
+            // and this tool only ever runs the one a person approved.
+            if (status === "revoked" || status === "expired" || status === "refused") {
+              return { ok: false as const, reason: `approval_${status}` as const };
             }
             const args = row.args ?? {};
             const text = (name: string) => String(args[name] ?? "");
-            switch (row.toolName) {
-              case "draft_improvement":
-                return draftImprovement(oid, initiatedBy, text("skillRepo"), text("note"));
-              case "remember":
-                return rememberOrgFact(oid, initiatedBy, text("key"), text("value"));
-              case "forget":
-                return forgetOrgFact(oid, initiatedBy, text("key"));
-              default:
-                return { ok: false as const, reason: "unknown_action" as const };
-            }
+            const run = () => {
+              switch (row.toolName) {
+                case "draft_improvement":
+                  return draftImprovement(oid, initiatedBy, text("skillRepo"), text("note"));
+                case "remember":
+                  return rememberOrgFact(oid, initiatedBy, text("key"), text("value"));
+                case "forget":
+                  return forgetOrgFact(oid, initiatedBy, text("key"));
+                default:
+                  return Promise.resolve({ ok: false as const, reason: "unknown_action" as const });
+              }
+            };
+            // `ran` names the action, because this tool's own input is only an id and
+            // the transcript should say what happened, not that "an action" did.
+            return { ...(await run()), ran: { toolName: row.toolName, args } };
           }),
       }),
     };

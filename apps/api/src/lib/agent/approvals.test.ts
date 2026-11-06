@@ -3,7 +3,27 @@ import { agentApprovals, organizations, orgMembers, users } from "@skillist/db/s
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createWorkerDb } from "../db";
-import { callSignature, decideApproval, getApproval, requireApproval } from "./approvals";
+import {
+  APPROVAL_TTL_MS,
+  callSignature,
+  decideApproval,
+  effectiveStatus,
+  getApproval,
+  listApprovals,
+  listOrgApprovals,
+  requireApproval,
+  revokeApproval,
+} from "./approvals";
+
+describe("effectiveStatus", () => {
+  it("only ever changes an approval past its TTL", () => {
+    const old = new Date(Date.now() - APPROVAL_TTL_MS - 1000);
+    expect(effectiveStatus({ status: "approved", decidedAt: old })).toBe("expired");
+    expect(effectiveStatus({ status: "approved", decidedAt: new Date() })).toBe("approved");
+    expect(effectiveStatus({ status: "executed", decidedAt: old })).toBe("executed");
+    expect(effectiveStatus({ status: "denied", decidedAt: old })).toBe("denied");
+  });
+});
 
 describe("callSignature", () => {
   it("is stable regardless of argument key order", async () => {
@@ -144,26 +164,41 @@ describe("requireApproval", () => {
     expect(result).toEqual({ ok: false, status: "denied" });
   });
 
-  it("runs an approved call once, keeps the record, and re-gates a repeat", async () => {
+  it("runs an approved call once, and a repeat is a new request beside the record", async () => {
     const input = call();
     const id = await stage(input);
     await approve(id);
 
     const result = await requireApproval(db, input, async () => ({ ok: true as const }));
     expect(result).toEqual({ ok: true });
-    expect((await getApproval(db, orgId, userId, id))?.status).toBe("executed");
+    const ran = await getApproval(db, orgId, userId, id);
+    expect(ran).toMatchObject({ status: "executed", decidedBy: userId });
+    expect(ran?.executedAt).toBeInstanceOf(Date);
 
     let ranAgain = false;
-    const repeat = await requireApproval(db, input, async () => {
+    const repeat = await requireApproval(db, { ...input, chatId: "chat-2" }, async () => {
       ranAgain = true;
       return { ok: true as const };
     });
     expect(ranAgain).toBe(false);
-    expect(repeat).toMatchObject({ status: "awaiting_approval", approvalId: id });
-    expect((await getApproval(db, orgId, userId, id))?.status).toBe("pending");
+    if (!("approvalId" in repeat)) throw new Error("expected the repeat to be gated");
+    expect(repeat.approvalId).not.toBe(id);
+
+    // The card in the first transcript is keyed to this row, so nothing about it moves.
+    expect(await getApproval(db, orgId, userId, id)).toEqual(ran);
+    expect(await getApproval(db, orgId, userId, repeat.approvalId)).toMatchObject({
+      status: "pending",
+      chatId: "chat-2",
+    });
   });
 
-  it("does not record a refused action as having run", async () => {
+  it("lands a retry on the one open request", async () => {
+    const input = call();
+    const id = await stage(input);
+    expect(await stage(input)).toBe(id);
+  });
+
+  it("records a refused action without claiming it ran", async () => {
     const input = call();
     const id = await stage(input);
     await approve(id);
@@ -172,7 +207,89 @@ describe("requireApproval", () => {
       reason: "skill_not_found" as const,
     }));
     expect(result).toEqual({ ok: false, reason: "skill_not_found" });
-    expect(await getApproval(db, orgId, userId, id)).toBeNull();
+    const row = await getApproval(db, orgId, userId, id);
+    expect(row).toMatchObject({ status: "refused", executedAt: null });
+  });
+
+  it("won't run a revoked approval, and a repeat needs a new decision", async () => {
+    const input = call();
+    const id = await stage(input);
+    await approve(id);
+    expect(await revokeApproval(db, { orgId, userId, id })).toMatchObject({ status: "revoked" });
+
+    let ran = false;
+    const result = await requireApproval(db, input, async () => {
+      ran = true;
+      return { ok: true as const };
+    });
+    expect(ran).toBe(false);
+    expect(result).toMatchObject({ status: "awaiting_approval" });
+  });
+
+  it("can't revoke what has already run, or another user's approval", async () => {
+    const input = call();
+    const id = await stage(input);
+    await approve(id);
+    expect(await revokeApproval(db, { orgId, userId: otherUserId, id })).toBeNull();
+
+    await requireApproval(db, input, async () => ({ ok: true as const }));
+    expect(await revokeApproval(db, { orgId, userId, id })).toBeNull();
+    expect((await getApproval(db, orgId, userId, id))?.status).toBe("executed");
+  });
+
+  it("won't run an approval past its TTL, and reports it as expired before then", async () => {
+    const input = call();
+    const id = await stage(input);
+    await approve(id);
+    const stale = new Date(Date.now() - APPROVAL_TTL_MS - 1000);
+    await db.update(agentApprovals).set({ decidedAt: stale }).where(eq(agentApprovals.id, id));
+
+    const listed = await listApprovals(db, orgId, userId, "expired");
+    expect(listed.map((r) => r.id)).toContain(id);
+    expect((await listApprovals(db, orgId, userId, "approved")).map((r) => r.id)).not.toContain(id);
+
+    let ran = false;
+    const result = await requireApproval(db, input, async () => {
+      ran = true;
+      return { ok: true as const };
+    });
+    expect(ran).toBe(false);
+    expect(result).toMatchObject({ status: "awaiting_approval" });
+    expect((await getApproval(db, orgId, userId, id))?.status).toBe("expired");
+  });
+
+  it("pages the org record across members, newest first, without skipping a row", async () => {
+    const pageOrg = crypto.randomUUID();
+    await db
+      .insert(organizations)
+      .values({ id: pageOrg, name: `P ${suffix}`, slug: `p-${suffix}` });
+    const at = new Date();
+    // Same millisecond, so paging has to fall back on the id.
+    await db.insert(agentApprovals).values(
+      [userId, otherUserId, userId].map((owner, i) => ({
+        orgId: pageOrg,
+        userId: owner,
+        toolName: "remember",
+        callSignature: `sig-${i}`,
+        status: "denied" as const,
+        createdAt: at,
+      })),
+    );
+
+    const first = await listOrgApprovals(db, pageOrg, { limit: 2 });
+    expect(first.rows).toHaveLength(2);
+    expect(first.next).not.toBeNull();
+    const second = await listOrgApprovals(db, pageOrg, {
+      limit: 2,
+      before: first.next ?? undefined,
+    });
+    expect(second.rows).toHaveLength(1);
+    expect(second.next).toBeNull();
+    const seen = new Set([...first.rows, ...second.rows].map((r) => r.callSignature));
+    expect(seen.size).toBe(3);
+
+    const mine = await listOrgApprovals(db, pageOrg, { limit: 10, userId: otherUserId });
+    expect(mine.rows.map((r) => r.userId)).toEqual([otherUserId]);
   });
 
   it("keeps an approval unreachable from another user", async () => {

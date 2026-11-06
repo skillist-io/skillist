@@ -31,6 +31,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { AgentApprovalsRecord } from "@/components/agent-approvals-record";
 import { AuditLog } from "@/components/audit-log";
 import { useActiveOrg } from "@/lib/active-org";
 import { parseOptionalNumber } from "@/lib/optional-number";
@@ -469,6 +470,7 @@ const GOVERNANCE_SECTIONS = [
   { id: "install-policy", label: "Install" },
   { id: "execution-quotas", label: "Quotas" },
   { id: "required-skills", label: "Required skills" },
+  { id: "agent-approvals", label: "Agent approvals" },
   { id: "audit-log", label: "Audit log" },
 ] as const;
 
@@ -965,6 +967,7 @@ export function GovernancePanel({ org }: { org: Org }) {
         }}
       />
 
+      <AgentApprovalsRecord org={org} />
       <AuditLog org={org} />
     </div>
   );

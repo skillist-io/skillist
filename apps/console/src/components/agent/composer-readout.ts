@@ -22,6 +22,7 @@ export function composerReadout({
   busy,
   held,
   text,
+  touch = false,
 }: {
   connState: ConnState;
   /** The connection was refused and won't come back on its own. */
@@ -30,13 +31,15 @@ export function composerReadout({
   /** Enter was pressed during a reply, so the text is waiting. */
   held: boolean;
   text: string;
+  /** No Shift key to speak of, so the keyboard hint has to say something else. */
+  touch?: boolean;
 }): string {
   const measured = size(text);
   const withSize = (line: string) => (measured ? `${measured} · ${line}` : line);
 
   if (terminal) return withSize("Disconnected · your draft is kept");
   if (connState !== "connected") return withSize("Reconnecting · keep typing");
-  if (held) return withSize("Held until the reply ends · Esc to stop");
+  if (held) return withSize("Not sent · send again when the reply ends · Esc to stop");
   if (busy) return withSize("Replying · Esc to stop");
-  return withSize("Enter send · Shift+Enter new line");
+  return withSize(touch ? "Return sends" : "Enter send · Shift+Enter new line");
 }

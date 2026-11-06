@@ -31,6 +31,7 @@ export function MessageActions({
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
@@ -41,21 +42,19 @@ export function MessageActions({
     try {
       await navigator.clipboard.writeText(text);
     } catch {
+      setCopyFailed(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopyFailed(false), 3000);
       return;
     }
+    setCopyFailed(false);
     setCopied(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setCopied(false), 1500);
   }, [message]);
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-0.5 text-muted-foreground",
-        "opacity-70 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 motion-reduce:opacity-100",
-        className,
-      )}
-    >
+    <div className={cn("flex items-center gap-0.5 text-muted-foreground", className)}>
       <Button
         type="button"
         variant="ghost"
@@ -83,8 +82,9 @@ export function MessageActions({
         </Button>
       )}
       {children}
+      {copyFailed && <span className="ml-1 text-xs">Couldn't copy</span>}
       <span aria-live="polite" className="sr-only">
-        {copied ? "Copied to clipboard" : ""}
+        {copied ? "Copied to clipboard" : copyFailed ? "Couldn't copy" : ""}
       </span>
     </div>
   );

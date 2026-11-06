@@ -16518,7 +16518,10 @@
                 "pending",
                 "approved",
                 "denied",
-                "executed"
+                "executed",
+                "revoked",
+                "expired",
+                "refused"
               ]
             },
             "required": false,
@@ -16571,13 +16574,24 @@
                               "pending",
                               "approved",
                               "denied",
-                              "executed"
+                              "executed",
+                              "revoked",
+                              "expired",
+                              "refused"
                             ]
                           },
                           "createdAt": {
                             "type": "string"
                           },
                           "decidedAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "decidedBy": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "executedAt": {
                             "type": "string",
                             "nullable": true
                           }
@@ -16592,7 +16606,9 @@
                           "chatId",
                           "status",
                           "createdAt",
-                          "decidedAt"
+                          "decidedAt",
+                          "decidedBy",
+                          "executedAt"
                         ]
                       }
                     }
@@ -16700,13 +16716,494 @@
         }
       }
     },
+    "/v1/orgs/{orgId}/agent/approvals-record": {
+      "get": {
+        "tags": [
+          "Agent"
+        ],
+        "operationId": "listOrgAgentApprovals",
+        "summary": "List every member's platform-agent approval requests, for org owners",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "orgId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "denied",
+                "executed",
+                "revoked",
+                "expired",
+                "refused"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "before",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the org's approval requests, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "approvals": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "orgId": {
+                            "type": "string"
+                          },
+                          "userId": {
+                            "type": "string"
+                          },
+                          "toolName": {
+                            "type": "string"
+                          },
+                          "callSignature": {
+                            "type": "string"
+                          },
+                          "args": {
+                            "type": "object",
+                            "nullable": true,
+                            "additionalProperties": {
+                              "nullable": true
+                            }
+                          },
+                          "chatId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "approved",
+                              "denied",
+                              "executed",
+                              "revoked",
+                              "expired",
+                              "refused"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "decidedAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "decidedBy": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "executedAt": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "orgId",
+                          "userId",
+                          "toolName",
+                          "callSignature",
+                          "args",
+                          "chatId",
+                          "status",
+                          "createdAt",
+                          "decidedAt",
+                          "decidedBy",
+                          "executedAt"
+                        ]
+                      }
+                    },
+                    "nextBefore": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "approvals",
+                    "nextBefore"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not permitted (role or API-key scope).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (120 requests / 60s per IP on /v1).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error. Quote `correlationId` when reporting.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "correlationId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/orgs/{orgId}/agent/approvals/{id}": {
+      "get": {
+        "tags": [
+          "Agent"
+        ],
+        "operationId": "getAgentApproval",
+        "summary": "Get one of the caller's platform-agent approval requests",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "orgId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request, for a card older than the list reaches",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "approval": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "orgId": {
+                          "type": "string"
+                        },
+                        "userId": {
+                          "type": "string"
+                        },
+                        "toolName": {
+                          "type": "string"
+                        },
+                        "callSignature": {
+                          "type": "string"
+                        },
+                        "args": {
+                          "type": "object",
+                          "nullable": true,
+                          "additionalProperties": {
+                            "nullable": true
+                          }
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "approved",
+                            "denied",
+                            "executed",
+                            "revoked",
+                            "expired",
+                            "refused"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "decidedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "decidedBy": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "executedAt": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "orgId",
+                        "userId",
+                        "toolName",
+                        "callSignature",
+                        "args",
+                        "chatId",
+                        "status",
+                        "createdAt",
+                        "decidedAt",
+                        "decidedBy",
+                        "executedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "approval"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not permitted (role or API-key scope).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (120 requests / 60s per IP on /v1).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error. Quote `correlationId` when reporting.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "correlationId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "Agent"
         ],
         "operationId": "decideAgentApproval",
-        "summary": "Approve or deny a pending platform-agent approval request",
+        "summary": "Approve or deny a pending request, or revoke an approval that hasn't run",
         "parameters": [
           {
             "schema": {
@@ -16737,7 +17234,8 @@
                     "type": "string",
                     "enum": [
                       "approved",
-                      "denied"
+                      "denied",
+                      "revoked"
                     ]
                   }
                 },
@@ -16765,7 +17263,10 @@
                         "pending",
                         "approved",
                         "denied",
-                        "executed"
+                        "executed",
+                        "revoked",
+                        "expired",
+                        "refused"
                       ]
                     }
                   },

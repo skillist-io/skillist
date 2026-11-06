@@ -110,7 +110,14 @@ export function Composer({
         />
         <InputGroupAddon align="block-end" className="justify-between">
           <span id={readoutId} className="min-w-0 truncate font-mono">
-            {composerReadout({ connState, terminal, busy, held, text: value })}
+            {composerReadout({
+              touch: window.matchMedia("(pointer: coarse)").matches,
+              connState,
+              terminal,
+              busy,
+              held,
+              text: value,
+            })}
           </span>
           <span className="sr-only" aria-live="polite">
             {held ? "Your message is held until the reply ends." : ""}

@@ -92,8 +92,26 @@ export function useAgentChats(orgId: string) {
     return fresh;
   }, []);
 
+  // An approved action runs through the agent, so it needs a conversation to run in.
+  // Its own if that still exists, otherwise a fresh one: the run is keyed to the
+  // approval, not the chat, so a deleted chat can't strand it.
+  const [runRequest, setRunRequest] = useState<{ chatId: string; approvalId: string } | null>(null);
+  const runApproval = useCallback(
+    (approval: { id: string; chatId: string | null }) => {
+      const known = approval.chatId && chats?.some((c) => c.id === approval.chatId);
+      const target = known && approval.chatId ? approval.chatId : freshId();
+      setChatId(target);
+      setRunRequest({ chatId: target, approvalId: approval.id });
+    },
+    [chats],
+  );
+  const clearRunRequest = useCallback(() => setRunRequest(null), []);
+
+  const [deleteFailed, setDeleteFailed] = useState(false);
+
   const deleteChat = useCallback(
     async (id: string) => {
+      setDeleteFailed(false);
       // Optimistic removal so the row disappears immediately.
       queryClient.setQueryData<AgentChat[]>(["agent-chats", orgId], (prev) =>
         prev ? prev.filter((c) => c.id !== id) : prev,
@@ -103,8 +121,8 @@ export function useAgentChats(orgId: string) {
       try {
         await api<{ ok: true }>(`/v1/orgs/${orgId}/agent/chats/${id}`, { method: "DELETE" });
       } catch {
-        // Swallow — the reconcile below re-syncs from the server, so a row
-        // that survived the delete reappears rather than silently vanishing.
+        // The reconcile below brings the row back, so say why it's still there.
+        setDeleteFailed(true);
       } finally {
         invalidate();
       }
@@ -122,5 +140,10 @@ export function useAgentChats(orgId: string) {
     selectChat,
     newChat,
     deleteChat,
+    deleteFailed,
+    runApproval,
+    /** The approval waiting to run in the open conversation, if any. */
+    pendingRunId: runRequest?.chatId === chatId ? runRequest.approvalId : undefined,
+    clearRunRequest,
   };
 }

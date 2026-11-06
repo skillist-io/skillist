@@ -49,11 +49,16 @@ function toBlocks(message: UIMessage): Block[] {
     } else if (isToolUIPart(part)) {
       const output = "output" in part ? part.output : undefined;
       const errorText = "errorText" in part ? part.errorText : undefined;
-      const toolName = getToolName(part);
+      const called = getToolName(part);
+      // An approved run reports what it ran, so the line can name that action rather
+      // than saying an unnamed one happened.
+      const ran = called === "run_approved_action" ? field(output, "ran") : undefined;
+      const ranName = field(ran, "toolName");
+      const toolName = typeof ranName === "string" ? ranName : called;
       const step: ToolStep = {
         key,
         toolName,
-        input: getToolInput(part),
+        input: ranName ? field(ran, "args") : getToolInput(part),
         output,
         errorText,
         outcome: toolOutcome(getToolPartState(part), output, errorText),
@@ -68,6 +73,17 @@ function toBlocks(message: UIMessage): Block[] {
   });
   flush();
   return blocks;
+}
+
+/** Whether a reply wrote something, or stopped for a decision. Re-running it isn't free. */
+export function touchesState(message: UIMessage): boolean {
+  return (message.parts ?? []).some(
+    (part) => isToolUIPart(part) && WRITE_TOOLS.has(getToolName(part)),
+  );
+}
+
+function field(value: unknown, key: string): unknown {
+  return value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
 }
 
 /** One rendered turn: user prompt (right, squared block) or agent reply (left,
@@ -107,6 +123,18 @@ export function AgentMessage({
     // The page context travels inside the message, so show it as a readout
     // above the prompt rather than as a raw line the user has to parse.
     const { context, body } = splitContext(text);
+    // An approval is the person's own click, and the "Run it" text under it is the
+    // instruction to the agent. The line stays, with the id, but isn't dressed up as
+    // something they typed.
+    if (context?.startsWith("id: ")) {
+      return (
+        <div className="flex justify-end" data-role="user">
+          <span className="font-mono text-xs text-muted-foreground">
+            {contextChip(context)} · approved by you
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-end gap-1" data-role="user">
         {context && (
@@ -121,17 +149,22 @@ export function AgentMessage({
     );
   }
 
+  // The runtime opens a message before it has anything in it. Nothing to show means
+  // no label and no actions either; the transcript speaks for a turn that stays empty.
+  const blocks = toBlocks(message);
+  if (blocks.length === 0) return null;
+
   return (
     <div className="group/msg flex flex-col gap-2" data-role="assistant">
       <div className="text-xs font-semibold text-muted-foreground">Agent</div>
       <div className="flex flex-col gap-2">
-        {toBlocks(message).map((block) => {
+        {blocks.map((block) => {
           if (block.type === "text") {
             return (
               <Streamdown
                 key={block.key}
                 className={cn(
-                  "prose prose-neutral prose-sm dark:prose-invert max-w-[75ch]",
+                  "prose prose-neutral prose-sm dark:prose-invert max-w-[62ch]",
                   "prose-pre:rounded-none prose-pre:border prose-pre:border-border",
                   "prose-code:before:content-none prose-code:after:content-none",
                 )}

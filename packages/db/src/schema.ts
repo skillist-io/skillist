@@ -29,7 +29,15 @@ export const projectRoleEnum = ["viewer", "editor", "admin"] as const;
 export const failurePatternStatusEnum = ["open", "drafted", "dismissed"] as const;
 // `executed` keeps the record of a gated action that ran. Rows used to be deleted
 // on success, which erased the evidence of what a person had allowed.
-export const agentApprovalStatusEnum = ["pending", "approved", "denied", "executed"] as const;
+export const agentApprovalStatusEnum = [
+  "pending",
+  "approved",
+  "denied",
+  "executed",
+  "revoked",
+  "expired",
+  "refused",
+] as const;
 export const agentMemorySourceEnum = ["agent", "console"] as const;
 
 // Better Auth tables
@@ -1195,9 +1203,30 @@ export const agentApprovals = sqliteTable(
     status: text("status", { enum: agentApprovalStatusEnum }).notNull().default("pending"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
     decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+    // Who decided. Deciding is per-user today, so this equals user_id, but the record
+    // shouldn't have to infer it. No FK: the row already cascades with user_id, and a
+    // generated ADD COLUMN would drop the ON DELETE anyway. Null on rows decided before
+    // this column existed.
+    decidedBy: text("decided_by"),
+    // When the action ran. Null on rows that ran before this column existed.
+    executedAt: integer("executed_at", { mode: "timestamp_ms" }),
   },
   (t) => [
-    uniqueIndex("agent_approvals_call_idx").on(t.orgId, t.userId, t.toolName, t.callSignature),
+    // One OPEN request per logical call, so a model retrying while it waits lands on
+    // the same row. Finished rows are the record and are never reopened, so this has
+    // to be partial: a repeat of a finished call is a new row beside the old one.
+    uniqueIndex("agent_approvals_open_call_idx")
+      .on(t.orgId, t.userId, t.toolName, t.callSignature)
+      .where(sql`${t.status} in ('pending', 'approved')`),
+    index("agent_approvals_call_lookup_idx").on(
+      t.orgId,
+      t.userId,
+      t.toolName,
+      t.callSignature,
+      t.createdAt,
+    ),
     index("agent_approvals_org_user_status_idx").on(t.orgId, t.userId, t.status),
+    // The org-wide record, newest first.
+    index("agent_approvals_org_created_idx").on(t.orgId, t.createdAt),
   ],
 );
