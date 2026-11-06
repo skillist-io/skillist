@@ -215,6 +215,7 @@ This system is flat by conviction. It uses tonal layering and a single hairline 
 
 ### Navigation
 - **Style:** A sidebar app-shell for the product surface, a slim sticky top bar (`h-14`, `bg-card/80 backdrop-blur`, hairline bottom border) for public pages. Nav items are ghost buttons; active state is a `raised` wash plus ink text, never an underline or colored bar.
+- **Tree rows:** The one exception. The active row in the sidebar's org and project tree adds a 2px inset rule on its left edge, in the row's own ink (`inset 2px 0 0 0 currentColor`). Nested rows are harder to scan than the flat rail, the wash alone is faint in light mode, and the rule marks the row without shifting its text. It stays ink: never a chromatic colour, and never on rail or top-level nav items.
 - **Mobile:** The sidebar collapses to a sheet; the top bar keeps the wordmark and a compact action set.
 
 ### Wordmark & Brand Stamp
