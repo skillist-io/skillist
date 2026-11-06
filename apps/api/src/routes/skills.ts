@@ -21,11 +21,11 @@ import { errorResponses } from "../lib/openapi";
 import { requireOrgAccess } from "../lib/org-access";
 import { queueSkillEval } from "../lib/queue-eval";
 import {
+  bundleFileManifest,
   deleteBundleFromR2,
   downloadBundleFromR2,
   listBundlePaths,
   r2Prefix,
-  sha256,
   uploadBundleToR2,
 } from "../lib/r2";
 import { loadOrgVersions, summarizeVersions } from "../lib/skill-version-summary";
@@ -144,8 +144,7 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
   const prefix = r2Prefix(orgId, body.repo, versionId);
   await uploadBundleToR2(c.env.SKILLS_R2, prefix, bundle);
 
-  const skillMd = bundle.get("SKILL.md")!;
-  const skillMdSha = await sha256(skillMd);
+  const skillMdManifest = await bundleFileManifest("SKILL.md", bundle.get("SKILL.md")!);
 
   // Skill + initial version + file rows must land together; if the DB writes
   // fail, delete the R2 objects we just wrote so no orphaned bundle is left.
@@ -167,9 +166,7 @@ skillRoutes.openapi(createSkillRoute, async (c) => {
       }),
       c.var.db.insert(skillFiles).values({
         versionId,
-        path: "SKILL.md",
-        sha256: skillMdSha,
-        size: skillMd.length,
+        ...skillMdManifest,
       }),
     ]);
     const skill = insertedSkills[0];
@@ -336,9 +333,7 @@ skillRoutes.openapi(uploadVersionRoute, async (c) => {
   const fileRows = await Promise.all(
     [...bundle.entries()].map(async ([path, content]) => ({
       versionId,
-      path,
-      sha256: await sha256(content),
-      size: content.length,
+      ...(await bundleFileManifest(path, content)),
     })),
   );
 
