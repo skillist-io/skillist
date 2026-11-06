@@ -60,7 +60,7 @@ Search the public registry by name, description, tags, category, or agent compat
 
 ## registry_get_skill
 
-Full metadata for a skill including eval uplift, install command, and manifest.
+Full metadata for a skill including experimental eval scores, install command, and manifest.
 
 <DocTable
   client:load
@@ -183,7 +183,7 @@ Duplicates return the existing item id with `duplicate: true`.
 
 1. `registry_facets` — when the user needs browse filters
 2. `registry_search` — find candidates
-3. `registry_get_skill` — inspect eval scores and metadata
+3. `registry_get_skill` — inspect metadata
 4. `registry_install_help` — return install commands and delivery URLs to the user
 
-Prefer skills with higher eval uplift and quality scores when multiple matches exist.
+When several skills match, compare their descriptions and quality scores. Eval scores are experimental, so don't rank skills by them.

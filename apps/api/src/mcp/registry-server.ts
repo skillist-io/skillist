@@ -441,7 +441,7 @@ export function buildRegistryMcpServer(db: WorkerDb, session: McpSession | null)
     "registry_get_skill",
     {
       description:
-        "Get full registry metadata for a skill including eval uplift, install command, plugin.json, and mirror upstream URL when sourceType is mirror.",
+        "Get full registry metadata for a skill including experimental eval scores (not a quality measure), install command, plugin.json, and mirror upstream URL when sourceType is mirror.",
       inputSchema: z.object({
         org: z.string().describe("Organization slug, e.g. skillist"),
         repo: z.string().optional().describe("Skill repo name"),

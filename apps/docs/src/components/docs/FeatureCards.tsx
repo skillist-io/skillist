@@ -56,7 +56,7 @@ const features: Feature[] = [
     icon: CheckCircle2,
     badge: "Quality",
     href: "/platform/registry/",
-    description: "Measure skill uplift across versions before publishing to the registry.",
+    description: "Run evals on each version and compare results before publishing.",
   },
 ];
 

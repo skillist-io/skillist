@@ -35,16 +35,11 @@ const CAPABILITIES: { title: string; desc: string; preview: ReactNode }[] = [
   },
   {
     title: "Evals & observability",
-    desc: "Measure skill uplift, track regression across versions, and watch every run as it happens.",
+    desc: "Run evals on every version, compare versions, and watch every run as it happens.",
     preview: (
       <>
-        <span className="text-foreground">uplift</span>
-        <span>+11.4%</span>
-        <span aria-hidden className="ml-auto flex items-end gap-0.5">
-          {[4, 7, 5, 9, 6, 11].map((h) => (
-            <span key={h} className="w-1 bg-muted-foreground/45" style={{ height: `${h}px` }} />
-          ))}
-        </span>
+        <span className="text-foreground">evals</span>
+        <span>every version</span>
       </>
     ),
   },
