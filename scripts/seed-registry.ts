@@ -278,7 +278,7 @@ async function seedSkill(
       versionId,
       path,
       sha256: sha256(content),
-      size: content.length,
+      size: Buffer.byteLength(content),
     });
   }
 

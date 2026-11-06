@@ -1,5 +1,5 @@
 {
-  // Database-only config for Node scripts. getPlatformProxy can't load the API's
+  // Storage-only config for Node scripts. getPlatformProxy can't load the API's
   // config (it asserts on `containers`), and scripts need nothing else from it.
   // database_id must match apps/api/wrangler.jsonc, which is how `pnpm db:migrate`
   // and these scripts land in the same local database.
@@ -10,6 +10,13 @@
       "binding": "DB",
       "database_name": "skillist",
       "database_id": "local-skillist-db"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "SKILLS_R2",
+      // The bucket local dev and `pnpm seed:registry --local` use.
+      "bucket_name": "skillist-skills-preview"
     }
   ]
 }
