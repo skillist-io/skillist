@@ -1,6 +1,6 @@
 import {
   auditEvents,
-  oauthAccessTokens,
+  oauthRefreshTokens,
   sessions,
   skillRuns,
   telemetryEvents,
@@ -93,25 +93,22 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
   }
   report.verifications = expiredVerifications.length;
 
+  // Refresh tokens are the long-lived credential now. Deleting one cascades to
+  // any access-token rows issued from it.
   const expiredTokens = await db
-    .select({ id: oauthAccessTokens.id })
-    .from(oauthAccessTokens)
-    .where(
-      lt(
-        oauthAccessTokens.refreshTokenExpiresAt,
-        cutoff(now, RETENTION.oauthTokensAfterExpiryDays),
-      ),
-    )
+    .select({ id: oauthRefreshTokens.id })
+    .from(oauthRefreshTokens)
+    .where(lt(oauthRefreshTokens.expiresAt, cutoff(now, RETENTION.oauthTokensAfterExpiryDays)))
     .limit(RETENTION_BATCH);
   if (expiredTokens.length > 0) {
-    await db.delete(oauthAccessTokens).where(
+    await db.delete(oauthRefreshTokens).where(
       inList(
-        oauthAccessTokens.id,
+        oauthRefreshTokens.id,
         expiredTokens.map((r) => r.id),
       ),
     );
   }
-  report.oauthAccessTokens = expiredTokens.length;
+  report.oauthRefreshTokens = expiredTokens.length;
 
   // Blank the output but keep the row: status, timing, and exit code stay
   // available for observability long after the logs themselves should be gone.

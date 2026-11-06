@@ -4,6 +4,7 @@ import {
   type SkillSource,
   SkillsExtension,
 } from "@modelcontextprotocol/server/ext/skills";
+import type { McpSession } from "@skillist/auth";
 import {
   organizations,
   projectItems,
@@ -13,7 +14,6 @@ import {
   skillVersions,
 } from "@skillist/db/schema";
 import { isBinaryAssetPath, parseSkillMd } from "@skillist/skill-format";
-import type { McpSession } from "better-auth/plugins/mcp/client";
 import { and, asc, eq, type SQL } from "drizzle-orm";
 import { inList, type WorkerDb } from "../lib/db";
 import { readableProjectsFilter } from "../lib/project-access";

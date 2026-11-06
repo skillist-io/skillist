@@ -1,9 +1,11 @@
 import { createMcpHandler } from "@modelcontextprotocol/server";
+import { verifyMcpAccessToken } from "@skillist/auth";
 import type { Context } from "hono";
 import type { Env } from "../env";
+import { createApiAuth } from "../lib/api-auth";
 import { createWorkerDb } from "../lib/db";
 import { buildRegistryMcpServer, mcpServerInfo } from "./registry-server";
-import { createRegistryMcpAuth, mcpWwwAuthenticate, verifyOptionalMcpSession } from "./transport";
+import { mcpWwwAuthenticate, verifyOptionalMcpSession } from "./transport";
 
 /**
  * /mcp endpoint — served by the official MCP TypeScript SDK (v2, protocol
@@ -34,10 +36,12 @@ export async function handleMcpRequest(c: Context<{ Bindings: Env }>) {
   // anonymous callers, and only the session-gated tools check for a session.
   // A *thrown* verification failure (e.g. transient trouble reaching Better
   // Auth) degrades to anonymous too, rather than 500ing public reads.
-  const authClient = createRegistryMcpAuth(apiBaseUrl);
   let mcpSession: Awaited<ReturnType<typeof verifyOptionalMcpSession>> = null;
   try {
-    mcpSession = await verifyOptionalMcpSession(authClient, c.req.header("Authorization"));
+    mcpSession = await verifyOptionalMcpSession(
+      (token) => verifyMcpAccessToken(createApiAuth(c.env).auth, token, apiBaseUrl),
+      c.req.header("Authorization"),
+    );
   } catch {
     mcpSession = null;
   }

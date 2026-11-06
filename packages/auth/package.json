@@ -12,10 +12,12 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@better-auth/mcp": "catalog:",
     "@better-auth/passkey": "catalog:",
     "@skillist/db": "workspace:*",
     "better-auth": "catalog:",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "jose": "catalog:"
   },
   "devDependencies": {
     "@skillist/tsconfig": "workspace:*",

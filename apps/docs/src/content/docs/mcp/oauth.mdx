@@ -11,7 +11,7 @@ MCP clients discover authorization metadata from the API origin:
 
 | Document | URL |
 |----------|-----|
-| Protected resource | `https://api.skillist.dev/.well-known/oauth-protected-resource` |
+| Protected resource | `https://api.skillist.dev/.well-known/oauth-protected-resource/mcp` |
 | Authorization server | `https://api.skillist.dev/.well-known/oauth-authorization-server` |
 
 Skillist also serves metadata under `/api/auth/.well-known/…` for clients that follow the auth server path.
@@ -50,8 +50,8 @@ Run `pnpm dev:api` and `pnpm dev:console` together for end-to-end OAuth testing.
 
 ## Implementation notes
 
-- OAuth tables: `oauth_application`, `oauth_access_token`, `oauth_consent`
-- Token verification: `GET /api/auth/mcp/get-session` with Bearer token
+- OAuth tables: the `@better-auth/mcp` set, such as `oauth_client`, `oauth_refresh_token` and `oauth_consent`, plus `jwks` for signing keys
+- Token verification: access tokens are signed JWTs, checked in the Worker against the local JWKS for signature, issuer, audience and expiry
 - MCP transport: stateless streamable HTTP (protocol 2026-07-28) — no sessions; the Bearer token is verified on every request
 
 For platform developers, see the API source under `apps/api/src/mcp/` and `packages/auth/`.
