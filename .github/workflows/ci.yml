@@ -35,6 +35,8 @@ jobs:
 
       - run: pnpm check
 
+      - run: pnpm check:catalog
+
       - run: pnpm typecheck
 
       - run: pnpm build
