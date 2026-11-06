@@ -25,6 +25,7 @@
     "mirror-sync:post-merge": "bash scripts/mirror-sync-post-merge.sh",
     "brand:assets": "node scripts/generate-brand-assets.mjs",
     "seed:registry": "tsx scripts/seed-registry.ts",
+    "backfill:skill-files": "tsx scripts/backfill-skill-file-manifests.ts",
     "run:public-evals": "tsx scripts/run-public-evals.ts",
     "embed:docs": "tsx apps/api/scripts/embed-docs.ts",
     "cli": "pnpm --filter @skillist/cli dev",

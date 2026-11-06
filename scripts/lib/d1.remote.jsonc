@@ -1,5 +1,5 @@
 {
-  // Database-only config for Node scripts that target production D1.
+  // Storage-only config for Node scripts that target production D1 and R2.
   "name": "skillist-scripts",
   "account_id": "2d19b3b18648f0776ff1435cba466210",
   "compatibility_date": "2026-07-01",
@@ -8,6 +8,13 @@
       "binding": "DB",
       "database_name": "skillist",
       "database_id": "9b901aed-8945-4574-ae3c-65c9430d05c2",
+      "remote": true
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "SKILLS_R2",
+      "bucket_name": "skillist-skills",
       "remote": true
     }
   ]
