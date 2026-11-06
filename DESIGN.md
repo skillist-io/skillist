@@ -9,7 +9,9 @@ colors:
   hairline: "oklch(0.922 0 0)"
   primary: "oklch(0.205 0 0)"
   primary-ink: "oklch(0.985 0 0)"
-  ring: "oklch(0.708 0 0)"
+  ring: "oklch(0.556 0 0)"
+  input-line: "oklch(0.62 0 0)"
+  input-line-dark: "oklch(0.52 0 0)"
   destructive: "oklch(0.577 0.245 27.325)"
   signal: "oklch(0.52 0.21 293)"
   signal-dark: "oklch(0.72 0.19 293)"
@@ -210,8 +212,9 @@ This system is flat by conviction. It uses tonal layering and a single hairline 
 - **Internal Padding:** Generous and consistent, `2rem` (`--card-spacing`), tightening to `1.25rem` at `data-size=sm`. The roominess is what keeps density calm.
 
 ### Inputs / Fields
-- **Style:** Underline only. Transparent background, no side or top border, bottom border in `hairline` (`border-b-input`), `px-0`, `height: 2.5rem`. Fields read as ruled lines on paper, not boxes.
-- **Focus:** The bottom border shifts to `ring`; no glow, no box-shadow. Motion is a color transition on the border only.
+- **Style:** Underline only. Transparent background, no side or top border, bottom border in `input-line` (`border-b-input-line`), `px-0`, `height: 2.5rem`. Fields read as ruled lines on paper, not boxes.
+- **Edge contrast:** The underline is a field's only visible edge, so `input-line` holds 3:1 against its surface in both themes (WCAG 1.4.11). It is its own token because `input` also tints buttons and switches, which don't need that weight.
+- **Focus:** The bottom border shifts to `ring` and doubles to 2px, so focus reads as a change of weight as well as of color. The second pixel is a hard 1px offset line, the one sanctioned box-shadow on a field; no glow. Motion is a transition on the line only.
 - **Error / Disabled:** Invalid shifts the bottom border to `destructive`; disabled drops to 50% opacity with `cursor-not-allowed`.
 
 ### Navigation

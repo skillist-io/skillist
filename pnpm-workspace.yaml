@@ -33,7 +33,7 @@ catalog:
   "@tailwindcss/vite": ^4.3.4
   "@tailwindcss/typography": ^0.5.20
   vite: ^8.3.6
-  vitest: ^4.1.10
+  vitest: ^4.1.12
   "@vitejs/plugin-react": ^6.2.1
   "@cloudflare/ai-chat": 0.12.2
   "@cloudflare/workers-types": ^5.20261106.1
@@ -49,7 +49,7 @@ catalog:
   agents: ^0.33.0
   ai: ^7.0.163
   drizzle-orm: ^0.45.4
-  jsdom: ^29.1.1
+  jsdom: ^31.0.0
   shadcn: ^4.23.0
   sharp: ^0.35.5
   tsx: ^4.23.15
