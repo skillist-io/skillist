@@ -420,13 +420,15 @@ export class SkillistAgent extends AIChatAgent<Env, SkillistAgentState> {
   }
 
   /**
-   * Wipe this chat's messages and reset state. Invoked over DO RPC from the
-   * DELETE /agent/chats/{chatId} route after the row is removed, so a deleted
-   * conversation leaves no persisted history behind.
+   * Wipe everything this chat holds. Invoked over DO RPC from the
+   * DELETE /agent/chats/{chatId} route, which tells the person it's gone for good.
+   *
+   * `persistMessages([])` reads like the same thing and removes nothing: it only
+   * upserts what it's given, so it left every transcript in place. `destroy()` drops
+   * all of this object's storage, then aborts it, so a reconnect starts empty.
    */
   async cleanup(): Promise<void> {
-    await this.persistMessages([]);
-    this.setState({ ...this.initialState });
+    await this.destroy();
   }
 
   /**

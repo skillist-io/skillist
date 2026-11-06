@@ -118,6 +118,7 @@ function DrawerBody({
   const {
     chatId,
     chats,
+    chatIds,
     isPending,
     isError,
     selectChat,
@@ -174,6 +175,7 @@ function DrawerBody({
             compact
             onOpenChat={selectChat}
             onRun={runApproval}
+            chatIds={chatIds}
           />
         </div>
       </div>

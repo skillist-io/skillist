@@ -41,6 +41,7 @@ export function ApprovalsPanel({
   compact = false,
   onOpenChat,
   onRun,
+  chatIds,
 }: {
   orgId: string;
   /** Icon and count only, for the drawer's narrow toolbar. */
@@ -49,6 +50,8 @@ export function ApprovalsPanel({
   onOpenChat?: (chatId: string) => void;
   /** Run an approved action. The dialog closes so its conversation is what's left. */
   onRun: (approval: Pick<AgentApproval, "id" | "chatId">) => void;
+  /** Conversations that still exist. A request can outlive the chat that asked. */
+  chatIds: Set<string>;
 }) {
   const [open, setOpen] = useState(false);
   const { approvals, pendingCount, isPending, isError, refetch, decide } = useAgentApprovals(orgId);
@@ -123,7 +126,7 @@ export function ApprovalsPanel({
                 isDeciding={decide.isPending && decide.variables?.id === a.id}
                 error={decide.variables?.id === a.id ? decide.error : null}
                 onOpenChat={
-                  onOpenChat
+                  onOpenChat && a.chatId && chatIds.has(a.chatId)
                     ? (chatId) => {
                         onOpenChat(chatId);
                         setOpen(false);
