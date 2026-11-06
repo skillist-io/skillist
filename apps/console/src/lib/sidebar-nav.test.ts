@@ -1,6 +1,6 @@
-import type { Org, Project, Skill } from "@skillist/ui";
+import type { Org, Project, ProjectItem, Skill } from "@skillist/ui";
 import { describe, expect, it } from "vitest";
-import { activeSection, filterSummary, orgView } from "./sidebar-nav";
+import { activeSection, filterSummary, orgView, pinActiveOrg, skillStatus } from "./sidebar-nav";
 
 const org = { id: "o1", name: "Acme Platform", slug: "acme" } as Org;
 const skills = [
@@ -65,7 +65,62 @@ describe("orgView", () => {
 
   it("treats data that has not loaded as nothing to match, not as a crash", () => {
     const v = orgView({ org, needle: "deploy", privateOnly: false });
-    expect(v).toEqual({ visible: false, skills: [], projects: [] });
+    expect(v).toEqual({ visible: false, skills: [], projects: [], matchedInside: new Set() });
+  });
+
+  it("finds a project by what's inside it and marks it to open", () => {
+    const items = [{ kind: "skill", repo: "runbook", label: null }] as ProjectItem[];
+    const v = orgView({
+      org,
+      skills,
+      projects,
+      projectItems: new Map([["p1", items]]),
+      needle: "runbook",
+      privateOnly: false,
+    });
+    expect(v.visible).toBe(true);
+    expect(v.projects).toHaveLength(1);
+    expect([...v.matchedInside]).toEqual(["p1"]);
+  });
+});
+
+describe("skillStatus", () => {
+  const skill = (fields: Partial<Skill>) => ({ repo: "s", ...fields }) as Skill;
+
+  it("puts open failures ahead of everything else", () => {
+    expect(skillStatus(skill({ draftSemver: "1.1.0", publishedSemver: "1.0.0" }), 2)).toEqual({
+      kind: "failing",
+      label: "2 failing",
+    });
+  });
+
+  it("shows a waiting draft ahead of the shipped version", () => {
+    const status = skillStatus(skill({ draftSemver: "1.1.0", publishedSemver: "1.0.0" }));
+    expect(status.kind).toBe("draft");
+  });
+
+  it("shows the shipped version without vouching for it", () => {
+    expect(skillStatus(skill({ publishedSemver: "1.0.0", draftSemver: null }))).toEqual({
+      kind: "published",
+      label: "1.0.0",
+    });
+  });
+
+  it("separates never published from not known", () => {
+    expect(skillStatus(skill({ publishedSemver: null })).kind).toBe("unpublished");
+    expect(skillStatus(skill({})).kind).toBe("unknown");
+  });
+});
+
+describe("pinActiveOrg", () => {
+  const list = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it("moves the active org first and keeps the rest in order", () => {
+    expect(pinActiveOrg(list, "c").map((o) => o.id)).toEqual(["c", "a", "b"]);
+  });
+
+  it("leaves the order alone when no org is active", () => {
+    expect(pinActiveOrg(list, null)).toBe(list);
   });
 });
 

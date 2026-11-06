@@ -190,6 +190,17 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          // Radix would focus the first control, the filter, and raise a phone's
+          // keyboard over the nav. The sheet itself takes focus instead.
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            (event.currentTarget as HTMLElement | null)?.focus();
+          }}
+          // There's no Radix trigger here to return to, so focus fell to <body>.
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            document.querySelector<HTMLElement>('[data-sidebar="trigger"]')?.focus();
+          }}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>

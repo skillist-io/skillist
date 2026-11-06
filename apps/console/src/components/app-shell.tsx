@@ -43,12 +43,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             } as React.CSSProperties
           }
         >
+          {/* First in tab order, so a keyboard reader can pass the whole sidebar
+              in one step. Hidden until focused. */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:ring-2 focus:ring-ring"
+          >
+            Skip to main content
+          </a>
           <AppSidebar />
           {/* isolate: own stacking context so the -z-10 CanvasBackdrop paints
             above this pane's bg-background instead of escaping behind it. */}
           {/* panel-noise: dark-mode grain over the whole product surface, in the
             same decorative layer as the grid below. One edit covers every route. */}
-          <SidebarInset className="panel-noise isolate">
+          <SidebarInset
+            id="main-content"
+            tabIndex={-1}
+            className="panel-noise isolate outline-none"
+          >
             {/* Shared canvas — the same hairline grid as the homepage hero, so the
               product surface reads as the same instrument. Behind all content.
               Deliberately the STATIC grid, not <SignalField>: the workspace is
@@ -59,7 +71,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <CanvasBackdrop className={`-z-10 ${canvasBackdropClass}`} />
             <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur">
               <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+              <Separator
+                orientation="vertical"
+                className="mr-2 data-vertical:self-center data-[orientation=vertical]:h-4"
+              />
               <Breadcrumb>
                 <BreadcrumbList>
                   {crumbs.map((crumb, index) => (
@@ -82,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <OrgSwitcher />
                 <Separator
                   orientation="vertical"
-                  className="mx-1 data-[orientation=vertical]:h-4"
+                  className="mx-1 data-vertical:self-center data-[orientation=vertical]:h-4"
                 />
                 <Tooltip>
                   <TooltipTrigger asChild>

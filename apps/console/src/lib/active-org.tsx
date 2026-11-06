@@ -1,6 +1,14 @@
 import { api, type Org } from "@skillist/ui";
 import { useQuery } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 // The one source of truth for "which org am I acting as" across the whole
 // console. Persisted so a reload lands on the same org.
@@ -9,12 +17,18 @@ const STORE_KEY = "skillist:active-org";
 // fallback so an in-flight user who had a chosen agent org keeps it after the
 // consolidation, then everything writes the new key going forward.
 const LEGACY_STORE_KEY = "skillist:agent:org";
+// Long enough to read while the page settles, short enough not to linger.
+const SWITCH_NOTICE_MS = 6000;
 
 type ActiveOrgValue = {
   orgs: Org[];
   activeOrg: Org | null;
   activeOrgId: string | null;
   setActiveOrgId: (id: string) => void;
+  /** Follow a link into an org, telling the reader if that changed their scope. */
+  followOrgFromUrl: (id: string) => void;
+  /** Name of the org a link just moved the reader to. Clears itself. */
+  switchNotice: string | null;
   isPending: boolean;
   isError: boolean;
   refetch: () => void;
@@ -71,6 +85,29 @@ export function ActiveOrgProvider({ children }: { children: React.ReactNode }) {
     [orgs, activeOrgId],
   );
 
+  // Rail pages act on this org, so a link that moves it changes what the next
+  // click does. On a governance tool that can't happen silently. A ref, because
+  // the hook below must stay keyed on the URL alone (see its comment).
+  const [switchNotice, setSwitchNotice] = useState<string | null>(null);
+  const activeRef = useRef(activeOrg);
+  activeRef.current = activeOrg;
+  const followOrgFromUrl = useCallback(
+    (id: string) => {
+      const previous = activeRef.current;
+      if (previous && previous.id !== id) {
+        setSwitchNotice(orgs?.find((o) => o.id === id)?.name ?? null);
+      }
+      setActiveOrgId(id);
+    },
+    [orgs, setActiveOrgId],
+  );
+
+  useEffect(() => {
+    if (!switchNotice) return;
+    const timer = setTimeout(() => setSwitchNotice(null), SWITCH_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [switchNotice]);
+
   const value = useMemo<ActiveOrgValue>(
     () => ({
       orgs: orgs ?? [],
@@ -79,11 +116,13 @@ export function ActiveOrgProvider({ children }: { children: React.ReactNode }) {
       // first resolve) so consumers key their fetches off a stable value.
       activeOrgId: activeOrg?.id ?? null,
       setActiveOrgId,
+      followOrgFromUrl,
+      switchNotice,
       isPending,
       isError,
       refetch: () => void refetch(),
     }),
-    [orgs, activeOrg, setActiveOrgId, isPending, isError, refetch],
+    [orgs, activeOrg, setActiveOrgId, followOrgFromUrl, switchNotice, isPending, isError, refetch],
   );
 
   return <ActiveOrgContext.Provider value={value}>{children}</ActiveOrgContext.Provider>;
@@ -107,9 +146,9 @@ export function useActiveOrg(): ActiveOrgValue {
  * itself gates access).
  */
 export function useSyncActiveOrgFromParam(orgId: string | undefined): void {
-  const { orgs, setActiveOrgId } = useActiveOrg();
+  const { orgs, followOrgFromUrl } = useActiveOrg();
   useEffect(() => {
     if (!orgId || !orgs.some((o) => o.id === orgId)) return;
-    setActiveOrgId(orgId);
-  }, [orgId, orgs, setActiveOrgId]);
+    followOrgFromUrl(orgId);
+  }, [orgId, orgs, followOrgFromUrl]);
 }

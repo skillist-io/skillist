@@ -32,13 +32,36 @@ export const Route = createFileRoute("/dashboard")({
 const MAX_FAILURES_SHOWN = 5;
 
 function DashboardPage() {
-  const { activeOrg, isPending } = useActiveOrg();
+  const { activeOrg, isPending, isError, refetch } = useActiveOrg();
 
   if (isPending) {
     return (
       <div className="mx-auto w-full max-w-6xl space-y-6" aria-hidden>
         <Skeleton className="h-10 w-56" />
         <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  // Before the "no orgs" branch: during an outage, telling someone to create their
+  // first organization is false, and following it would make a duplicate.
+  if (!activeOrg && isError) {
+    return (
+      <div className="mx-auto w-full max-w-6xl space-y-8">
+        <PageTitle>Dashboard</PageTitle>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Couldn't load your organizations</CardTitle>
+            <CardDescription>
+              The request failed, so this doesn't mean you have none.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" onClick={refetch}>
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
