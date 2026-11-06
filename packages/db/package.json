@@ -18,7 +18,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
     "@skillist/tsconfig": "workspace:*",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.31.11",
     "typescript": "catalog:"
   }
 }
