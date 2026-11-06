@@ -156,7 +156,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-[calc(100vh-var(--consent-inset,0px))]">
       <a
         href="#main-content"
         className="sr-only z-[60] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground outline-none focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:ring-2 focus:ring-ring"

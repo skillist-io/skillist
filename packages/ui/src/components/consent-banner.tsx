@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "..";
 import { type ConsentChoice, readConsent, setConsent } from "../lib/analytics";
 
@@ -13,11 +13,17 @@ import { type ConsentChoice, readConsent, setConsent } from "../lib/analytics";
  * Consent defaults to denied in the GTM bootstrap (see gtm-plugin), so no
  * analytics storage is used before an explicit grant — this component only ever
  * sends the update.
+ *
+ * It's fixed to the viewport, so it publishes its height as `--consent-inset` for
+ * the page to make room (see styles.css). Without that, whatever sits at the
+ * bottom of a page can't be reached until the visitor answers, which is what
+ * "ignore it entirely" below has to mean.
  */
 export function ConsentBanner() {
   // null = undecided (or SSR/no-JS). Rendering nothing until mount avoids a
   // flash of the banner for visitors who already chose.
   const [choice, setChoice] = useState<ConsentChoice | null | undefined>(undefined);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = readConsent();
@@ -27,7 +33,25 @@ export function ConsentBanner() {
     if (stored === "granted") setConsent("granted");
   }, []);
 
-  if (choice !== null) return null;
+  const visible = choice === null;
+  useEffect(() => {
+    const banner = bannerRef.current;
+    if (!visible || !banner) return;
+    const root = document.documentElement;
+    const publish = () => {
+      root.style.setProperty("--consent-inset", `${banner.getBoundingClientRect().height}px`);
+    };
+    publish();
+    // The copy wraps at narrow widths, so the height changes with the viewport.
+    const observer = new ResizeObserver(publish);
+    observer.observe(banner);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--consent-inset");
+    };
+  }, [visible]);
+
+  if (!visible) return null;
 
   const decide = (next: ConsentChoice) => {
     setConsent(next);
@@ -36,6 +60,7 @@ export function ConsentBanner() {
 
   return (
     <div
+      ref={bannerRef}
       // Not a modal: it must not trap focus or block the page. A developer
       // landing here to read docs should be able to ignore it entirely.
       role="region"

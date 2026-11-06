@@ -36,7 +36,7 @@ function AgentPage() {
 
   // Fill the viewport below the sticky app header; the transcript scrolls
   // internally rather than the page.
-  const shell = "flex flex-col h-[calc(100svh-3.5rem)] -m-4 md:-m-6";
+  const shell = "flex flex-col h-[calc(100svh-3.5rem-var(--consent-inset,0px))] -m-4 md:-m-6";
 
   if (isError) {
     return (
