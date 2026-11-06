@@ -1,25 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { addProjectItemSchema } from "@skillist/contracts";
-import {
-  organizations,
-  orgMembers,
-  projectItems,
-  projectMembers,
-  projects,
-  skills,
-} from "@skillist/db/schema";
+import { organizations, projectItems, projects, skills } from "@skillist/db/schema";
 import type { McpSession } from "better-auth/plugins/mcp/client";
-import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { AuthContext } from "../lib/auth-middleware";
-import { inList, type WorkerDb } from "../lib/db";
-import { requireProjectAccess } from "../lib/project-access";
+import type { WorkerDb } from "../lib/db";
+import { readableProjectsFilter, requireProjectAccess } from "../lib/project-access";
 import {
   CLI_INSTALL,
   getRegistryFacets,
   getRegistrySkill,
   listRegistry,
 } from "../lib/registry-service";
+import { createSkillsExtension } from "./skills-source";
 
 /** The protocol revision this server speaks natively (per-request `_meta`, stateless). */
 export const MCP_PROTOCOL_VERSION = "2026-07-28";
@@ -76,36 +70,8 @@ function buildSkillCommands(orgSlug: string, repo: string, runtime: string | nul
 }
 
 async function toolMyProjects(db: WorkerDb, userId: string) {
-  const memberships = await db
-    .select({ orgId: orgMembers.orgId, role: orgMembers.role })
-    .from(orgMembers)
-    .where(eq(orgMembers.userId, userId));
-  if (memberships.length === 0) return textResult({ projects: [] });
-
-  // Mirror the REST list route's read-filter: org owners see every project in
-  // their org; everyone else sees only shared projects or ones where they hold a
-  // project-membership row. Split orgs by whether the user owns them.
-  const ownerOrgIds = memberships.filter((m) => m.role === "owner").map((m) => m.orgId);
-  const nonOwnerOrgIds = memberships.filter((m) => m.role !== "owner").map((m) => m.orgId);
-
-  const memberProjectIds = db
-    .select({ projectId: projectMembers.projectId })
-    .from(projectMembers)
-    .where(eq(projectMembers.userId, userId));
-
-  const conditions = [];
-  if (ownerOrgIds.length > 0) {
-    conditions.push(inList(projects.orgId, ownerOrgIds));
-  }
-  if (nonOwnerOrgIds.length > 0) {
-    conditions.push(
-      and(
-        inList(projects.orgId, nonOwnerOrgIds),
-        or(eq(projects.visibility, "shared"), inArray(projects.id, memberProjectIds)),
-      ),
-    );
-  }
-  const readFilter = conditions.length === 1 ? conditions[0] : or(...conditions);
+  const readFilter = await readableProjectsFilter(db, userId);
+  if (!readFilter) return textResult({ projects: [] });
 
   const rows = await db
     .select({
@@ -357,7 +323,11 @@ async function toolAddSkillToProject(
  * unauthenticated call to one returns an `isError` tool result telling the
  * agent how to connect, thrown here and converted by the SDK.
  */
-export function buildRegistryMcpServer(db: WorkerDb, session: McpSession | null): McpServer {
+export function buildRegistryMcpServer(
+  db: WorkerDb,
+  session: McpSession | null,
+  bucket: R2Bucket,
+): McpServer {
   const server = new McpServer(
     { name: "skillist-registry", version: "1.0.0" },
     {
@@ -365,7 +335,8 @@ export function buildRegistryMcpServer(db: WorkerDb, session: McpSession | null)
         "Search and inspect the public Skillist agent-skills registry (registry_search, " +
         "registry_get_skill, registry_facets, registry_install_help). With an authenticated " +
         "Skillist OAuth session, my_projects / project_skills / add_skill_to_project manage " +
-        "the caller's curated skill projects.",
+        "the caller's curated skill projects. Hosts supporting the Skills extension can load " +
+        "public skills from skill://{org}/{repo}/SKILL.md.",
       cacheHints: {
         // The tool list is static and identical for every caller.
         "tools/list": { ttlMs: 300_000, cacheScope: "public" },
@@ -560,6 +531,8 @@ export function buildRegistryMcpServer(db: WorkerDb, session: McpSession | null)
       return toolAddSkillToProject(db, s, args);
     },
   );
+
+  createSkillsExtension(db, bucket, session).attach(server);
 
   return server;
 }

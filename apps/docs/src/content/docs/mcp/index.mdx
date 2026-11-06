@@ -63,6 +63,21 @@ The first four tools are public. `my_projects`, `project_skills`, and
 
 See [Tools reference](/mcp/tools/) for parameters and examples.
 
+## Skills extension
+
+Hosts that support the [Skills extension](https://modelcontextprotocol.io/extensions/skills/overview)
+(`io.modelcontextprotocol/skills`) can load public skills directly, without the CLI:
+
+- `skills/get` and `resources/read` work for any public skill, at
+  `skill://{org}/{repo}/SKILL.md`. No sign-in is needed.
+- `skills/list` returns the public skills in projects you can read. It needs an
+  authenticated MCP session, and is empty otherwise.
+
+Each entry includes a manifest with the SHA-256 digest and byte size of every
+file in the latest published version. Private skills aren't served this way, and
+hosts receive a skill's files without running them: sandbox **run** still uses the
+[CLI](/getting-started/cli/).
+
 ## Public reads, scoped writes
 
 The four `registry_*` tools are public, read-only registry access. The project
