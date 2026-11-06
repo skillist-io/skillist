@@ -24,4 +24,6 @@ tests/e2e/.auth/
 .impeccable/
 !.env.development
 
-# Neon → D1 export: real user data
+
+# TanStack Router build scratch files
+.tanstack/

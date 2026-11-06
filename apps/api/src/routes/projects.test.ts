@@ -233,7 +233,7 @@ async function authHeader(rawKey: string) {
 
 describe.skipIf(!REAL_DB)("projects routes — integration (requires DB)", () => {
   // Constructed in beforeAll (not at collection time) so a skipped suite never
-  // instantiates a postgres client against the placeholder host.
+  // opens a database client.
   let db: ReturnType<typeof createWorkerDb>;
   const suffix = crypto.randomUUID().slice(0, 8);
 

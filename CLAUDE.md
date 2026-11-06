@@ -82,7 +82,7 @@ DB workflow: edit `packages/db/src/schema.ts` → `pnpm db:generate` (writes SQL
 ## Conventions
 
 - **TypeScript 7, Zod 4, Hono 4, ESM everywhere** (`"type": "module"`). Contracts and DB schema are the shared source of truth — prefer importing types from `@skillist/contracts` / `@skillist/db` over redefining.
-- **Biome** is the linter/formatter (not ESLint/Prettier): 2-space indent, 100 col, double quotes, semicolons, trailing commas. `noExplicitAny`/`noNonNullAssertion` are warnings; relaxed in `*.test.ts`. `routeTree.gen.ts` and `packages/db/drizzle/` are generated — don't hand-edit.
+- **Biome** is the linter/formatter (not ESLint/Prettier): 2-space indent, 100 col, double quotes, semicolons, trailing commas. `noExplicitAny`/`noNonNullAssertion` are warnings; relaxed in `*.test.ts`. `routeTree.gen.ts` and `packages/db/migrations/` are generated — don't hand-edit.
 - New OpenAPI routes use `createRoute` + `OpenAPIHono` so they appear in `/openapi.json` and the Scalar `/docs` page.
 - `examples/skills/` holds reference skill bundles used by seeding (`pnpm seed:registry`) and evals (`pnpm run:public-evals`) — they double as validator fixtures.
 

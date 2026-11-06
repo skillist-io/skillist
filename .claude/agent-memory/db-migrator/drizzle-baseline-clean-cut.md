@@ -1,9 +1,11 @@
 ---
 name: drizzle-baseline-clean-cut
-description: packages/db drizzle migration history was reset to a single 0000 baseline on 2026-07-18 (pre-launch, no data); notes on inspecting generated migrations under the protect-paths hook
+description: Postgres migration history was reset on 2026-07-18, then replaced by D1 migrations in packages/db/migrations; notes on inspecting generated migrations under the protect-paths hook
 metadata:
   type: project
 ---
+
+Superseded on 2026-11-05: the database moved to D1 and generated migrations now live in `packages/db/migrations/`. The `drizzle/` directory below no longer exists.
 
 On 2026-07-18 the `packages/db/drizzle/` migration history was reset to a single clean baseline (`0000_*.sql` + fresh `meta/0000_snapshot.json` + single-entry `_journal.json`), covering all 32 tables in `schema.ts`.
 
@@ -11,7 +13,7 @@ On 2026-07-18 the `packages/db/drizzle/` migration history was reset to a single
 
 **How to apply:**
 - Going forward the meta chain is healthy again, so normal incremental `pnpm db:generate` should work for the next schema change.
-- `.claude/hooks/protect-paths.sh` guards `packages/db/drizzle/**`: the Read/Edit/Write tools and many Bash file commands that name a `drizzle/` path are refused, so you generally cannot open generated migration files to inspect them.
+- `.claude/hooks/protect-paths.sh` blocks Edit and Write on `packages/db/migrations/**`, so fix `schema.ts` and regenerate instead of editing generated SQL.
 - To confirm what a generate produced without reading the file: use drizzle-kit's own stdout (it prints `<table> N columns N indexes N fks` per table plus the output filename) and `git status --short packages/db`. If you need exact DDL, reproduce the diff in a temp dir outside `drizzle/`.
 - `npx drizzle-kit generate` run from `packages/db` is the most reliable invocation; `pnpm db:generate` was sometimes refused by the auto-mode classifier (run it plain, no pipes/redirects, or fall back to the drizzle-kit binary).
 

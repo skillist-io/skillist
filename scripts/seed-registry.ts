@@ -54,8 +54,9 @@ const WRANGLER_DIR = join(ROOT, "apps", "api");
 const WRANGLER_CONFIG = IS_LOCAL ? "-c wrangler.jsonc" : "-c wrangler.production.jsonc";
 
 const SKILL_LEVELS: Record<string, string> = {
-  // 1.0.2 was published through the console on 2026-07-18 and survives in
-  // production R2 — seeding must stay above it so "latest" never moves backwards.
+  // 1.0.2 was published through the console on 2026-07-18, before the fresh
+  // start on D1. Seeding stays above it so "latest" never moves backwards for
+  // anyone who installed it.
   "roll-dice": "1.0.3",
   "web-perf-audit": "1.0.0",
   "cloudflare-deploy": "1.0.0",
