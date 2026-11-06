@@ -14,6 +14,17 @@ describe("sanitizeMirrorBundle", () => {
     const cleaned = sanitizeMirrorBundle(bundle);
     expect([...cleaned.keys()].sort()).toEqual(["SKILL.md", "plugin.json", "references/a.md"]);
   });
+
+  it("drops binary files outside assets/, which would fail the whole skill", () => {
+    const bundle = new Map([
+      ["SKILL.md", "---\nname: x\ndescription: y\n---\n"],
+      ["assets/logo.png", "iVBORw=="],
+      ["references/diagram.png", "iVBORw=="],
+      ["scripts/tool.zip", "UEsDBA=="],
+    ]);
+    const cleaned = sanitizeMirrorBundle(bundle);
+    expect([...cleaned.keys()].sort()).toEqual(["SKILL.md", "assets/logo.png"]);
+  });
 });
 
 describe("assertMirrorLicenseAllowed", () => {

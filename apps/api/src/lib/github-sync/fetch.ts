@@ -1,3 +1,5 @@
+import { decodeBase64 } from "@skillist/skill-format";
+
 /** Compatible SPDX-ish license identifiers for official mirrors. */
 export const COMPATIBLE_LICENSES = new Set([
   "mit",
@@ -152,12 +154,12 @@ export async function fetchRepoTree(
     }));
 }
 
-export async function fetchBlobText(
+export async function fetchBlobBytes(
   owner: string,
   repo: string,
   fileSha: string,
   token?: string,
-): Promise<string> {
+): Promise<Uint8Array> {
   const data = await githubJson<{ content: string; encoding: string }>(
     `https://api.github.com/repos/${owner}/${repo}/git/blobs/${fileSha}`,
     token,
@@ -166,12 +168,9 @@ export async function fetchBlobText(
     throw new Error(`Blob ${fileSha} exceeds the ${MAX_BLOB_BASE64_CHARS}-char size cap`);
   }
   if (data.encoding === "base64") {
-    const binary = atob(data.content.replace(/\n/g, ""));
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return new TextDecoder().decode(bytes);
+    return decodeBase64(data.content.replace(/\n/g, ""));
   }
-  return data.content;
+  return new TextEncoder().encode(data.content);
 }
 
 /** Stream GitHub tarball into R2. Returns false if already cached. */
