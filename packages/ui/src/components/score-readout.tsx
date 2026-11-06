@@ -4,7 +4,7 @@ import { cn, Tooltip, TooltipContent, TooltipTrigger } from "..";
 const SCORE_HELP = {
   quality: "Quality (0-100): automated review of SKILL.md structure, clarity, and completeness.",
   impact:
-    "Impact (0-100): measured uplift an agent gains when this skill is active, from eval runs.",
+    "Impact (0-100): an estimate from the skill's structure, such as actionable steps and scripts. It isn't measured from runs.",
   security: "Security: result of the latest static scan of the skill's scripts and manifest.",
 } as const;
 

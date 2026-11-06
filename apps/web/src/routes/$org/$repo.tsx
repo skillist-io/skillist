@@ -25,7 +25,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { WifiOff } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { AgentInstallButtons } from "@/components/agent-install-buttons";
-import { PublicEvalBadge } from "@/components/public-eval-badge";
 import { SignInToAddButton } from "@/components/sign-in-cta";
 import { StarStat } from "@/components/star-stat";
 
@@ -169,7 +168,6 @@ function SkillRepoPage() {
               impact={entry?.impactScore}
               security={entry?.securityStatus}
             />
-            <PublicEvalBadge eval={entry?.eval} />
             {entry?.sourceType === "mirror" && <Badge variant="outline">Mirror</Badge>}
             {hosted && <Badge variant="secondary">Hosted {entry?.runtime}</Badge>}
             {entry?.category && <Badge variant="outline">{entry.category}</Badge>}
