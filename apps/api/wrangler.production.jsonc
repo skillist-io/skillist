@@ -213,8 +213,10 @@
         // Unset, max_concurrency scales to the platform maximum: a backlog then
         // fans out arbitrarily many consumers, each opening a database
         // connection AND calling the AI provider. Bounded so a burst cannot
-        // exhaust the connection pool and the AI budget at the same time.
-        "max_concurrency": 3,
+        // exhaust the connection pool and the AI budget at the same time. One at
+        // a time because evals pace themselves to fit the model's 20 requests a
+        // minute, and that pacing only holds if they don't run side by side.
+        "max_concurrency": 1,
         // Without a delay, message.retry() re-delivers immediately, so a poison
         // AI job burns all 3 retries within seconds.
         "retry_delay": 60,

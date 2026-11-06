@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../env";
-import { AI_GATEWAY_ID, MODEL, NO_PAYLOAD_LOGGING, runModel } from "./model";
+import {
+  AI_GATEWAY_ID,
+  MODEL,
+  ModelRateLimitError,
+  NO_PAYLOAD_LOGGING,
+  rateLimitRetryDelay,
+  runModel,
+} from "./model";
 
 const envWith = (run: unknown) => ({ AI: { run } }) as unknown as Env;
 
@@ -37,6 +44,23 @@ describe("runModel", () => {
     await expect(runModel(envWith(run), "hi")).rejects.toThrow("model down");
   });
 
+  it("does not spend more of the budget when rate limited", async () => {
+    const run = vi
+      .fn()
+      .mockRejectedValue(new Error("3021: rate limiting: inference request per min rate reached"));
+    await expect(runModel(envWith(run), "hi")).rejects.toBeInstanceOf(ModelRateLimitError);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("recognises a rate limit on the direct retry", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const run = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("gateway down"))
+      .mockRejectedValueOnce(new Error("AiError: rate limiting"));
+    await expect(runModel(envWith(run), "hi")).rejects.toBeInstanceOf(ModelRateLimitError);
+  });
+
   it("reads OpenAI-style choices", async () => {
     const run = vi.fn().mockResolvedValue({ choices: [{ message: { content: "73" } }] });
     await expect(runModel(envWith(run), "hi")).resolves.toBe("73");
@@ -54,5 +78,21 @@ describe("runModel", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const run = vi.fn().mockResolvedValue({ choices: [{ message: { content: "" } }] });
     await expect(runModel(envWith(run), "hi")).rejects.toThrow("The model returned no text");
+  });
+});
+
+describe("rateLimitRetryDelay", () => {
+  it("waits longer on each attempt", () => {
+    const limited = new ModelRateLimitError();
+    expect(rateLimitRetryDelay(limited, 1, 3)).toBe(60);
+    expect(rateLimitRetryDelay(limited, 3, 3)).toBe(180);
+  });
+
+  it("gives up once retries run out, so the job can fail visibly", () => {
+    expect(rateLimitRetryDelay(new ModelRateLimitError(), 4, 3)).toBeNull();
+  });
+
+  it("leaves other failures alone", () => {
+    expect(rateLimitRetryDelay(new Error("model down"), 1, 3)).toBeNull();
   });
 });

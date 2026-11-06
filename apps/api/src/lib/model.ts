@@ -38,6 +38,34 @@ export const NO_PAYLOAD_LOGGING = { "cf-aig-collect-log-payload": "false" };
 const GATEWAY_TIMEOUT_MS = 120_000;
 
 /**
+ * Workers AI allows 20 requests a minute per account for this model, shared by
+ * evals, feedback drafts and agent chat. Being over it is temporary, so it is kept
+ * apart from real failures: a job should wait, not fail.
+ */
+export class ModelRateLimitError extends Error {
+  constructor() {
+    super("Workers AI is rate limited right now. Try again in a minute.");
+    this.name = "ModelRateLimitError";
+  }
+}
+
+/** 3021 is the Workers AI code; the wording covers the same error through the gateway. */
+function isRateLimit(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /\b3021\b|rate limit/i.test(message);
+}
+
+/**
+ * How long a queue job should wait after this error, or null if it isn't a rate
+ * limit or the job has used up its retries. Waits grow because the limit is a
+ * per-minute window that other work may be filling too.
+ */
+export function rateLimitRetryDelay(err: unknown, attempts: number, maxRetries: number) {
+  if (!(err instanceof ModelRateLimitError) || attempts > maxRetries) return null;
+  return attempts * 60;
+}
+
+/**
  * Runs a single-user-message completion against Workers AI through AI Gateway.
  * The binding authenticates to a gateway in the same account, so this needs no
  * account id or token. Returns the model's text.
@@ -48,7 +76,8 @@ const GATEWAY_TIMEOUT_MS = 120_000;
  *
  * A gateway failure retries once on the binding directly, because logging must
  * never be the reason a feedback draft or eval fails. A failure there is NOT
- * caught — each caller decides its own fallback.
+ * caught — each caller decides its own fallback. A rate limit skips that retry:
+ * the limit is per account, so it would only spend more of the same budget.
  */
 export async function runModel(
   env: Env,
@@ -69,13 +98,18 @@ export async function runModel(
       }),
     );
   } catch (err) {
+    if (isRateLimit(err)) throw new ModelRateLimitError();
     console.error(
       JSON.stringify({
         msg: "ai_gateway_fallback",
         error: err instanceof Error ? err.message : String(err),
       }),
     );
-    return responseText(await env.AI.run(MODEL, input));
+    try {
+      return responseText(await env.AI.run(MODEL, input));
+    } catch (directErr) {
+      throw isRateLimit(directErr) ? new ModelRateLimitError() : directErr;
+    }
   }
 }
 
