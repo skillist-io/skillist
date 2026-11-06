@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { chunkDocByHeading, docChunkId, stripMdx } from "./docs-rag";
 
 // NOTE: embedText / searchDocs call env.AI + env.VECTORIZE, which are not
-// available in the vitest-pool-workers harness, so only the pure chunking /
+// available in the vitest-plugin harness, so only the pure chunking /
 // stripping helpers are exercised here. The AI/Vectorize paths are covered by
 // running `pnpm embed:docs` against a real account.
 
