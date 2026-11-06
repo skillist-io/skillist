@@ -10,8 +10,9 @@ import {
 import { Link } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
 import { useEffect } from "react";
+import { useActiveOrg } from "@/lib/active-org";
 import { useAgentApprovals } from "@/lib/use-agent-approvals";
-import { decisionError, describeApproval } from "./approval-copy";
+import { canDecideApprovals, decisionError, describeApproval, NEEDS_EDITOR } from "./approval-copy";
 
 export type ApprovalHandlers = {
   orgId: string;
@@ -43,6 +44,7 @@ export function ApprovalCard({
   const { orgId, canRun, onRun } = handlers;
   const { approvals, isPending, refetch, decide } = useAgentApprovals(orgId);
   const row = approvals.find((a) => a.id === approvalId);
+  const canDecide = canDecideApprovals(useActiveOrg().activeOrg?.role);
 
   // The row was staged moments ago, so the 20s poll usually hasn't seen it.
   useEffect(() => {
@@ -80,13 +82,14 @@ export function ApprovalCard({
       </ItemContent>
       <ItemFooter>
         <span role="status" className="text-xs text-muted-foreground">
-          {status === "pending" && "Nothing has run. Waiting for your decision."}
+          {status === "pending" &&
+            (canDecide ? "Nothing has run. Waiting for your decision." : NEEDS_EDITOR)}
           {status === "approved" && "Approved. It hasn't run yet."}
           {status === "executed" && "Approved and run."}
           {status === "denied" && "Denied. Nothing ran."}
           {!status && (isPending ? "Checking this request…" : "This request is no longer open.")}
         </span>
-        {status === "pending" && (
+        {status === "pending" && canDecide && (
           <div className="flex gap-2">
             <Button
               type="button"
