@@ -1,18 +1,15 @@
-import { Sandbox as BaseSandbox, ContainerProxy } from "@cloudflare/sandbox";
 import { describe, expect, it } from "vitest";
-import { Sandbox } from "../durable-objects/sandbox";
-import { SandboxHeavy } from "../durable-objects/sandbox-heavy";
 import {
   BASELINE_ALLOWED_HOSTS,
   DENIED_HOSTS,
   HEAVY_ALLOWED_HOSTS,
+  isOutboundAllowed,
   resolveRunAllowedHosts,
 } from "./sandbox-egress";
 
 // H3: the untrusted-skill sandboxes must run deny-by-default egress. These cover
-// the policy shape and the subclass/proxy wiring. The actual runtime enforcement
-// (allowlist gate, HTTP 520 on denied hosts) can only be verified on a real
-// Cloudflare deploy — the local harness runs no container.
+// the policy itself. Enforcement needs real containers, which this harness doesn't
+// run, so it has to be checked against `wrangler dev` or a deploy.
 
 describe("sandbox egress policy", () => {
   it("baseline allowlist covers the common registry/source hosts", () => {
@@ -41,14 +38,40 @@ describe("sandbox egress policy", () => {
   });
 });
 
-describe("sandbox subclass + proxy wiring", () => {
-  it("Sandbox and SandboxHeavy extend the SDK Sandbox", () => {
-    expect(Sandbox.prototype instanceof BaseSandbox).toBe(true);
-    expect(SandboxHeavy.prototype instanceof BaseSandbox).toBe(true);
+describe("isOutboundAllowed", () => {
+  const allowed = ["github.com", "*.npmjs.org"];
+
+  it("allows listed hosts and wildcard matches", () => {
+    expect(isOutboundAllowed("github.com", allowed)).toBe(true);
+    expect(isOutboundAllowed("registry.npmjs.org", allowed)).toBe(true);
   });
 
-  it("ContainerProxy is exportable (required for egress interception to apply)", () => {
-    expect(typeof ContainerProxy).toBe("function");
+  it("blocks everything else, including an empty allowlist", () => {
+    expect(isOutboundAllowed("example.com", allowed)).toBe(false);
+    expect(isOutboundAllowed("github.com", [])).toBe(false);
+  });
+
+  it("treats dots in a pattern literally", () => {
+    expect(isOutboundAllowed("githubxcom", allowed)).toBe(false);
+  });
+
+  it("isn't fooled by lookalike hosts", () => {
+    expect(isOutboundAllowed("github.com.evil.example", allowed)).toBe(false);
+    expect(isOutboundAllowed("evilgithub.com", allowed)).toBe(false);
+    expect(isOutboundAllowed("npmjs.org.evil.example", allowed)).toBe(false);
+  });
+
+  it("isn't fooled by case or a trailing dot", () => {
+    expect(isOutboundAllowed("GitHub.COM", allowed)).toBe(true);
+    expect(isOutboundAllowed("github.com.", allowed)).toBe(true);
+    expect(isOutboundAllowed("LOCALHOST", ["*"])).toBe(false);
+    expect(isOutboundAllowed("metadata.internal.", ["*"])).toBe(false);
+  });
+
+  it("lets denied hosts win over any allowlist", () => {
+    for (const host of ["169.254.169.254", "127.0.0.1", "10.0.0.1", "192.168.1.1", "172.20.0.1"]) {
+      expect(isOutboundAllowed(host, ["*"])).toBe(false);
+    }
   });
 });
 
