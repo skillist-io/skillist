@@ -1,9 +1,11 @@
 import { createMcpHandler } from "@modelcontextprotocol/server";
+import { isRejectedMcpToken, verifyMcpAccessToken } from "@skillist/auth";
 import type { Context } from "hono";
 import type { Env } from "../env";
+import { createApiAuth } from "../lib/api-auth";
 import { createWorkerDb } from "../lib/db";
 import { buildRegistryMcpServer, mcpServerInfo } from "./registry-server";
-import { createRegistryMcpAuth, mcpWwwAuthenticate, verifyOptionalMcpSession } from "./transport";
+import { mcpWwwAuthenticate, verifyOptionalMcpSession } from "./transport";
 
 /**
  * /mcp endpoint — served by the official MCP TypeScript SDK (v2, protocol
@@ -29,17 +31,37 @@ export async function handleMcpRequest(c: Context<{ Bindings: Env }>) {
   }
 
   // Bearer tokens are verified here, in front of the SDK handler — the SDK
-  // treats auth as pass-through and never reads Authorization itself. A
-  // missing/invalid token is not an error: public registry tools stay open to
-  // anonymous callers, and only the session-gated tools check for a session.
-  // A *thrown* verification failure (e.g. transient trouble reaching Better
-  // Auth) degrades to anonymous too, rather than 500ing public reads.
-  const authClient = createRegistryMcpAuth(apiBaseUrl);
+  // treats auth as pass-through and never reads Authorization itself. No token
+  // means anonymous: public registry tools stay open, and only the session-gated
+  // tools check for a session.
+  //
+  // A bad token gets a 401, because that is the only signal that tells a client
+  // to refresh. Access tokens last an hour, so without it a connected agent would
+  // quietly turn anonymous. `sk_` keys aren't OAuth tokens and stay anonymous here.
+  // Failing to verify at all (trouble reading the keys) also degrades to anonymous
+  // rather than taking public reads down, but it is logged so it can't go unseen.
+  const authorization = c.req.header("Authorization");
   let mcpSession: Awaited<ReturnType<typeof verifyOptionalMcpSession>> = null;
   try {
-    mcpSession = await verifyOptionalMcpSession(authClient, c.req.header("Authorization"));
-  } catch {
-    mcpSession = null;
+    mcpSession = await verifyOptionalMcpSession(
+      (token) => verifyMcpAccessToken(createApiAuth(c.env).auth, token, apiBaseUrl),
+      authorization,
+    );
+  } catch (err) {
+    if (!isRejectedMcpToken(err)) {
+      console.error(
+        JSON.stringify({
+          msg: "mcp_auth_failed",
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    } else if (!authorization?.startsWith("Bearer sk_")) {
+      return c.json(
+        { jsonrpc: "2.0", error: { code: -32001, message: "Invalid or expired token" }, id: null },
+        401,
+        { "WWW-Authenticate": mcpWwwAuthenticate(apiBaseUrl, "invalid_token") },
+      );
+    }
   }
 
   const db = createWorkerDb(c.env);

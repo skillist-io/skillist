@@ -1,10 +1,12 @@
+import { mcp } from "@better-auth/mcp";
 import { passkey } from "@better-auth/passkey";
 import * as schema from "@skillist/db/schema";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { mcp } from "better-auth/plugins";
+import { jwt } from "better-auth/plugins";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { magicLink } from "better-auth/plugins/magic-link";
+import { MCP_SCOPES, mcpResourceUrl } from "./mcp-token";
 import { buildSocialProviders } from "./social-providers";
 import type { WorkerDb } from "./types";
 
@@ -130,13 +132,21 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
         account: schema.accounts,
         verification: schema.verifications,
         passkey: schema.passkeys,
-        oauthApplication: schema.oauthApplications,
+        oauthClient: schema.oauthClients,
+        oauthResource: schema.oauthResources,
+        oauthClientResource: schema.oauthClientResources,
+        oauthRefreshToken: schema.oauthRefreshTokens,
         oauthAccessToken: schema.oauthAccessTokens,
         oauthConsent: schema.oauthConsents,
+        oauthClientAssertion: schema.oauthClientAssertions,
+        jwks: schema.jwks,
       },
     }),
     secret: env.BETTER_AUTH_SECRET,
     baseURL: resolveAuthBaseURL(env),
+    // Session JWTs share the access-token signing key. Without this, a session
+    // JWT could pass a resource check that only looks at issuer and audience.
+    disabledPaths: ["/token"],
     trustedOrigins: [
       env.BETTER_AUTH_URL,
       webUrl,
@@ -179,7 +189,7 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
         "/sign-in/magic-link": { window: 300, max: 3 },
         "/magic-link/verify": { window: 300, max: 10 },
         "/passkey/verify-authentication": { window: 60, max: 10 },
-        "/mcp/register": { window: 3600, max: 5 },
+        "/oauth2/register": { window: 3600, max: 5 },
       },
     },
     advanced: isLocal
@@ -237,10 +247,27 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
           ? ["http://localhost:5173", "http://localhost:5174", "http://localhost:8787"]
           : ["https://skillist.dev", "https://console.skillist.dev", "https://api.skillist.dev"],
       }),
+      jwt({
+        disableSettingJwtHeader: true,
+        // Auth is reachable from several hosts, and the default issuer follows the
+        // request. /mcp pins one issuer, so a token minted via another host would
+        // otherwise fail verification.
+        jwt: { issuer: `${env.BETTER_AUTH_URL.replace(/\/$/, "")}/api/auth` },
+      }),
       mcp({
         // /login lives on the console app now.
         loginPage: `${consoleUrl}/login`,
-        resource: env.BETTER_AUTH_URL,
+        consentPage: `${consoleUrl}/oauth/consent`,
+        resource: mcpResourceUrl(env.BETTER_AUTH_URL),
+        scopes: [...MCP_SCOPES],
+        // Agents can't be pre-registered, so anonymous registration stays on.
+        // CIMD is the MCP-preferred replacement, but it needs a fetch transport
+        // that pins resolved addresses, which Workers can't provide. The consent
+        // page is what makes this safe: no anonymous client skips it.
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+        clientRegistrationDefaultApplicationType: "infer",
+        clientRegistrationDefaultScopes: [...MCP_SCOPES],
       }),
       ...(ssoPlugin ? [ssoPlugin] : []),
     ],
@@ -248,3 +275,6 @@ export function createAuth(db: WorkerDb, env: AuthEnv, sendEmail?: EmailSender) 
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+export type { McpSession } from "./mcp-token";
+export { isRejectedMcpToken, mcpResourceUrl, verifyMcpAccessToken } from "./mcp-token";

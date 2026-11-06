@@ -135,8 +135,8 @@ function AccountPage() {
   });
 
   const unlink = useMutation({
-    mutationFn: async (providerId: string) => {
-      const { error: err } = await authClient.unlinkAccount({ providerId });
+    mutationFn: async (accountId: string) => {
+      const { error: err } = await authClient.unlinkAccount({ accountId });
       if (err) throw new Error(err.message ?? "Failed to unlink account");
     },
     onSuccess: async () => {
@@ -318,7 +318,7 @@ function AccountPage() {
                   variant="outline"
                   size="sm"
                   disabled={unlink.isPending || (accountsQuery.data?.length ?? 0) <= 1}
-                  onClick={() => unlink.mutate(account.providerId)}
+                  onClick={() => unlink.mutate(account.id)}
                 >
                   Unlink
                 </Button>

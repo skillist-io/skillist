@@ -21,6 +21,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ObservabilityRouteImport } from './routes/observability'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AdminMirrorsRouteImport } from './routes/admin/mirrors'
+import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
 import { Route as OrgsOrgIdProjectsIndexRouteImport } from './routes/orgs/$orgId/projects/index'
 import { Route as OrgsOrgIdProjectsProjectIdRouteImport } from './routes/orgs/$orgId/projects/$projectId'
 import { Route as OrgsOrgIdSkillsRepoRouteImport } from './routes/orgs/$orgId/skills/$repo'
@@ -85,6 +86,11 @@ const AdminMirrorsRoute = AdminMirrorsRouteImport.update({
   path: '/admin/mirrors',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgsOrgIdProjectsIndexRoute = OrgsOrgIdProjectsIndexRouteImport.update({
   id: '/orgs/$orgId/projects/',
   path: '/orgs/$orgId/projects/',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/admin/mirrors': typeof AdminMirrorsRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
   '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/admin/mirrors': typeof AdminMirrorsRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
   '/orgs/$orgId/projects': typeof OrgsOrgIdProjectsIndexRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/observability': typeof ObservabilityRoute
   '/settings': typeof SettingsRoute
   '/admin/mirrors': typeof AdminMirrorsRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/orgs/$orgId/projects/$projectId': typeof OrgsOrgIdProjectsProjectIdRoute
   '/orgs/$orgId/skills/$repo': typeof OrgsOrgIdSkillsRepoRoute
   '/orgs/$orgId/projects/': typeof OrgsOrgIdProjectsIndexRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/settings'
     | '/admin/mirrors'
+    | '/oauth/consent'
     | '/orgs/$orgId/projects/$projectId'
     | '/orgs/$orgId/skills/$repo'
     | '/orgs/$orgId/projects/'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/settings'
     | '/admin/mirrors'
+    | '/oauth/consent'
     | '/orgs/$orgId/projects/$projectId'
     | '/orgs/$orgId/skills/$repo'
     | '/orgs/$orgId/projects'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/observability'
     | '/settings'
     | '/admin/mirrors'
+    | '/oauth/consent'
     | '/orgs/$orgId/projects/$projectId'
     | '/orgs/$orgId/skills/$repo'
     | '/orgs/$orgId/projects/'
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   ObservabilityRoute: typeof ObservabilityRoute
   SettingsRoute: typeof SettingsRoute
   AdminMirrorsRoute: typeof AdminMirrorsRoute
+  OauthConsentRoute: typeof OauthConsentRoute
   OrgsOrgIdProjectsProjectIdRoute: typeof OrgsOrgIdProjectsProjectIdRoute
   OrgsOrgIdSkillsRepoRoute: typeof OrgsOrgIdSkillsRepoRoute
   OrgsOrgIdProjectsIndexRoute: typeof OrgsOrgIdProjectsIndexRoute
@@ -312,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMirrorsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orgs/$orgId/projects/': {
       id: '/orgs/$orgId/projects/'
       path: '/orgs/$orgId/projects'
@@ -349,6 +369,7 @@ const rootRouteChildren: RootRouteChildren = {
   ObservabilityRoute: ObservabilityRoute,
   SettingsRoute: SettingsRoute,
   AdminMirrorsRoute: AdminMirrorsRoute,
+  OauthConsentRoute: OauthConsentRoute,
   OrgsOrgIdProjectsProjectIdRoute: OrgsOrgIdProjectsProjectIdRoute,
   OrgsOrgIdSkillsRepoRoute: OrgsOrgIdSkillsRepoRoute,
   OrgsOrgIdProjectsIndexRoute: OrgsOrgIdProjectsIndexRoute,

@@ -20,8 +20,11 @@ catalog:
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
   tailwind-merge: ^3.7.0
-  better-auth: 1.6.23
-  "@better-auth/passkey": 1.6.23
+  better-auth: ^1.7.18
+  "@better-auth/mcp": 1.7.18
+  "@better-auth/oauth-provider": 1.7.18
+  "@better-auth/passkey": 1.7.18
+  jose: ^6.2.3
   react-markdown: ^10.1.0
   remark-gfm: ^4.0.1
   zod: ^4.6.7

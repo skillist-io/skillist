@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "catalog:",
     "@cloudflare/ai-chat": "catalog:",
     "@cloudflare/sandbox": "^0.12.14",
     "@hono/zod-openapi": "^1.6.3",
@@ -33,6 +34,7 @@
     "@cloudflare/vitest-plugin": "^1.6.0",
     "@cloudflare/workers-types": "catalog:",
     "@skillist/tsconfig": "workspace:*",
+    "jose": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "wrangler": "catalog:"

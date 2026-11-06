@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
+import type { McpSession } from "@skillist/auth";
 import { addProjectItemSchema } from "@skillist/contracts";
 import { organizations, projectItems, projects, skills } from "@skillist/db/schema";
-import type { McpSession } from "better-auth/plugins/mcp/client";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { AuthContext } from "../lib/auth-middleware";
@@ -549,7 +549,7 @@ export function mcpServerInfo(apiBaseUrl?: string) {
     legacyProtocolVersions: MCP_LEGACY_PROTOCOL_VERSIONS,
     oauth: {
       authorizationServer: `${base}/.well-known/oauth-authorization-server`,
-      protectedResource: `${base}/.well-known/oauth-protected-resource`,
+      protectedResource: `${base}/.well-known/oauth-protected-resource/mcp`,
       // /login lives on the console app; skillist.dev/login is not a route and
       // resolves to the SPA shell with a 200, so agents following this URL
       // would land on a soft-404 instead of a sign-in page.

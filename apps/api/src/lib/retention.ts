@@ -1,12 +1,16 @@
 import {
   auditEvents,
   oauthAccessTokens,
+  oauthClientAssertions,
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
   sessions,
   skillRuns,
   telemetryEvents,
   verifications,
 } from "@skillist/db/schema";
-import { and, lt, sql } from "drizzle-orm";
+import { and, eq, isNull, lt, notExists, sql } from "drizzle-orm";
 import { inList, type WorkerDb } from "./db";
 
 /**
@@ -34,6 +38,8 @@ export const RETENTION = {
   verificationsAfterExpiryDays: 1,
   /** MCP OAuth grants, once the refresh token is dead too. */
   oauthTokensAfterExpiryDays: 7,
+  /** Anonymously registered MCP clients that nobody ever authorized. */
+  oauthAbandonedClientDays: 30,
   /** Run logs are user data: whatever the script printed. */
   runOutputDays: 30,
   runRowDays: 180,
@@ -93,25 +99,86 @@ export async function applyRetention(db: WorkerDb, now = Date.now()): Promise<Re
   }
   report.verifications = expiredVerifications.length;
 
+  // Deleting a refresh token cascades to the access-token rows issued from it.
+  // Rows with no refresh token are handled by the rule after this one.
   const expiredTokens = await db
-    .select({ id: oauthAccessTokens.id })
-    .from(oauthAccessTokens)
-    .where(
-      lt(
-        oauthAccessTokens.refreshTokenExpiresAt,
-        cutoff(now, RETENTION.oauthTokensAfterExpiryDays),
-      ),
-    )
+    .select({ id: oauthRefreshTokens.id })
+    .from(oauthRefreshTokens)
+    .where(lt(oauthRefreshTokens.expiresAt, cutoff(now, RETENTION.oauthTokensAfterExpiryDays)))
     .limit(RETENTION_BATCH);
   if (expiredTokens.length > 0) {
-    await db.delete(oauthAccessTokens).where(
+    await db.delete(oauthRefreshTokens).where(
       inList(
-        oauthAccessTokens.id,
+        oauthRefreshTokens.id,
         expiredTokens.map((r) => r.id),
       ),
     );
   }
-  report.oauthAccessTokens = expiredTokens.length;
+  report.oauthRefreshTokens = expiredTokens.length;
+
+  const expiredAccessTokens = await db
+    .select({ id: oauthAccessTokens.id })
+    .from(oauthAccessTokens)
+    .where(lt(oauthAccessTokens.expiresAt, cutoff(now, RETENTION.oauthTokensAfterExpiryDays)))
+    .limit(RETENTION_BATCH);
+  if (expiredAccessTokens.length > 0) {
+    await db.delete(oauthAccessTokens).where(
+      inList(
+        oauthAccessTokens.id,
+        expiredAccessTokens.map((r) => r.id),
+      ),
+    );
+  }
+  report.oauthAccessTokens = expiredAccessTokens.length;
+
+  const expiredAssertions = await db
+    .select({ id: oauthClientAssertions.id })
+    .from(oauthClientAssertions)
+    .where(lt(oauthClientAssertions.expiresAt, cutoff(now, RETENTION.oauthTokensAfterExpiryDays)))
+    .limit(RETENTION_BATCH);
+  if (expiredAssertions.length > 0) {
+    await db.delete(oauthClientAssertions).where(
+      inList(
+        oauthClientAssertions.id,
+        expiredAssertions.map((r) => r.id),
+      ),
+    );
+  }
+  report.oauthClientAssertions = expiredAssertions.length;
+
+  // Registration is open to anyone, so this is the one table an unauthenticated
+  // caller can grow. A client with a consent or a refresh token is in use.
+  const abandonedClients = await db
+    .select({ clientId: oauthClients.clientId })
+    .from(oauthClients)
+    .where(
+      and(
+        isNull(oauthClients.userId),
+        lt(oauthClients.createdAt, cutoff(now, RETENTION.oauthAbandonedClientDays)),
+        notExists(
+          db
+            .select({ id: oauthConsents.id })
+            .from(oauthConsents)
+            .where(eq(oauthConsents.clientId, oauthClients.clientId)),
+        ),
+        notExists(
+          db
+            .select({ id: oauthRefreshTokens.id })
+            .from(oauthRefreshTokens)
+            .where(eq(oauthRefreshTokens.clientId, oauthClients.clientId)),
+        ),
+      ),
+    )
+    .limit(RETENTION_BATCH);
+  if (abandonedClients.length > 0) {
+    await db.delete(oauthClients).where(
+      inList(
+        oauthClients.clientId,
+        abandonedClients.map((r) => r.clientId),
+      ),
+    );
+  }
+  report.oauthAbandonedClients = abandonedClients.length;
 
   // Blank the output but keep the row: status, timing, and exit code stay
   // available for observability long after the logs themselves should be gone.

@@ -1,4 +1,6 @@
 import {
+  continueOAuthAuthorization,
+  hasSignedOAuthQuery,
   isSameSitePath,
   sendMagicLink,
   signInWithGitHub,
@@ -42,13 +44,23 @@ function LoginPage() {
     if (message) setError(message);
   }, [authError, authErrorDescription]);
 
-  useEffect(() => {
-    if (session?.user) {
-      void navigate({ to: redirect ?? "/dashboard", replace: true });
-    }
-  }, [session?.user, redirect, navigate]);
+  // Only social sign-in carries an MCP authorization through to the session, so
+  // every method returns here with the signed query and this resumes it.
+  const oauthFlow = hasSignedOAuthQuery();
+  const afterSignIn = oauthFlow ? `/login${window.location.search}` : (redirect ?? "/dashboard");
 
-  if (session?.user) {
+  useEffect(() => {
+    if (!session?.user) return;
+    if (oauthFlow) {
+      continueOAuthAuthorization().catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Could not continue authorization");
+      });
+      return;
+    }
+    void navigate({ to: redirect ?? "/dashboard", replace: true });
+  }, [session?.user, oauthFlow, redirect, navigate]);
+
+  if (session?.user && !(oauthFlow && error)) {
     return null;
   }
 
@@ -56,7 +68,7 @@ function LoginPage() {
     setError(null);
     setLoading("github");
     try {
-      await signInWithGitHub(redirect ?? "/dashboard");
+      await signInWithGitHub(afterSignIn);
     } catch (err) {
       setError(
         authErrorMessage("oauth_error", err instanceof Error ? err.message : undefined) ??
@@ -70,7 +82,7 @@ function LoginPage() {
     setError(null);
     setLoading("google");
     try {
-      await signInWithGoogle(redirect ?? "/dashboard");
+      await signInWithGoogle(afterSignIn);
     } catch (err) {
       setError(
         authErrorMessage("oauth_error", err instanceof Error ? err.message : undefined) ??
@@ -84,7 +96,7 @@ function LoginPage() {
     setError(null);
     setLoading("magic");
     try {
-      await sendMagicLink(email, redirect ?? "/dashboard");
+      await sendMagicLink(email, afterSignIn);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send sign-in link");
@@ -97,7 +109,7 @@ function LoginPage() {
     setError(null);
     setLoading("sso");
     try {
-      await signInWithSso(redirect ?? "/dashboard");
+      await signInWithSso(afterSignIn);
     } catch (err) {
       setError(err instanceof Error ? err.message : "SSO sign-in failed");
       setLoading(null);
@@ -108,7 +120,7 @@ function LoginPage() {
     setError(null);
     setLoading("passkey");
     try {
-      await signInWithPasskey(redirect ?? "/dashboard");
+      await signInWithPasskey(afterSignIn);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Passkey sign-in failed");
       setLoading(null);
