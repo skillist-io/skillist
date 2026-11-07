@@ -66,17 +66,36 @@ See [Tools reference](/mcp/tools/) for parameters and examples.
 ## Skills extension
 
 Hosts that support the [Skills extension](https://modelcontextprotocol.io/extensions/skills/overview)
-(`io.modelcontextprotocol/skills`) can load public skills directly, without the CLI:
+(`io.modelcontextprotocol/skills`) can load skills directly, without the CLI:
 
 - `skills/get` and `resources/read` work for any public skill, at
   `skill://{org}/{repo}/SKILL.md`. No sign-in is needed.
-- `skills/list` returns the public skills in projects you can read. It needs an
-  authenticated MCP session, and is empty otherwise.
+- `skills/list` returns the skills you can load in projects you can read. It needs
+  an authenticated MCP session, and is empty otherwise.
 
 Each entry includes a manifest with the SHA-256 digest and byte size of every
-file in the latest published version. Private skills aren't served this way, and
-hosts receive a skill's files without running them: sandbox **run** still uses the
-[CLI](/getting-started/cli/).
+file in the latest published version. Hosts receive a skill's files without running
+them: sandbox **run** still uses the [CLI](/getting-started/cli/).
+
+### Private skills
+
+Private skills are off by default. An org owner can turn them on under **Governance**
+with **Serve private skills over MCP**. Members of that org can then load the org's
+private skills through an authenticated MCP session, and everyone else gets the same
+"not found" as for a skill that doesn't exist.
+
+Before you turn this on:
+
+- **Every MCP client a member connects can read these skills.** MCP sign-in has no
+  per-skill scopes, so a client gets whatever that member can read.
+- **Access is per org, not per project.** A private project keeps a skill out of a
+  member's `skills/list`, but any member can still load it by URI, as they can in the
+  console.
+- **Downloaded files can't be recalled.** Turning this off or removing a member stops
+  new reads immediately, but a host keeps any copies it already has.
+
+API keys stay anonymous on `/mcp`. To read private skills from CI, use the
+[CLI](/getting-started/cli/) with a `skills:read` key.
 
 ## Public reads, scoped writes
 

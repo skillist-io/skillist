@@ -16,6 +16,7 @@ import {
   Input,
   type InstallPolicy,
   Label,
+  type McpPolicy,
   NativeSelect,
   notify,
   type Org,
@@ -526,6 +527,7 @@ export function GovernancePanel({ org }: { org: Org }) {
   const [containerHourly, setContainerHourly] = useState(10);
   const [anonymousHourly, setAnonymousHourly] = useState(10);
   const [allowPublicRuns, setAllowPublicRuns] = useState(false);
+  const [servePrivateSkills, setServePrivateSkills] = useState(false);
   const [requiredOrgSlug, setRequiredOrgSlug] = useState("");
   const [requiredSkillSlug, setRequiredSkillSlug] = useState("");
   const [removingRequired, setRemovingRequired] = useState<{
@@ -542,6 +544,11 @@ export function GovernancePanel({ org }: { org: Org }) {
   const { data: executionData } = useQuery({
     queryKey: ["execution-policy", orgId],
     queryFn: () => api<{ executionPolicy: ExecutionPolicy }>(`/v1/orgs/${orgId}/execution-policy`),
+  });
+
+  const { data: mcpData } = useQuery({
+    queryKey: ["mcp-policy", orgId],
+    queryFn: () => api<{ mcpPolicy: McpPolicy }>(`/v1/orgs/${orgId}/mcp-policy`),
   });
 
   const { data: installData } = useQuery({
@@ -593,6 +600,10 @@ export function GovernancePanel({ org }: { org: Org }) {
   }, [executionData]);
 
   useEffect(() => {
+    if (mcpData) setServePrivateSkills(mcpData.mcpPolicy.servePrivateSkills);
+  }, [mcpData]);
+
+  useEffect(() => {
     const p = installData?.installPolicy;
     if (p) {
       if (p.warnSeverity) setWarnSeverity(p.warnSeverity);
@@ -633,6 +644,16 @@ export function GovernancePanel({ org }: { org: Org }) {
         }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["execution-policy", orgId] }),
+  });
+
+  const saveMcpPolicy = useMutation({
+    meta: { success: "MCP access saved", failure: "Could not save MCP access" },
+    mutationFn: () =>
+      api(`/v1/orgs/${orgId}/mcp-policy`, {
+        method: "PATCH",
+        body: JSON.stringify({ servePrivateSkills }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mcp-policy", orgId] }),
   });
 
   const saveInstallPolicy = useMutation({
@@ -895,6 +916,31 @@ export function GovernancePanel({ org }: { org: Org }) {
             refused unless you turn this on.
           </p>
           <SaveButton label="Save quotas" mutation={saveExecutionPolicy} />
+        </CardContent>
+      </Card>
+
+      <Card size="sm" id="mcp-access" className="scroll-mt-28">
+        <CardHeader>
+          <CardTitle>MCP access</CardTitle>
+          <CardDescription>What members can load through connected agents</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="serve-private-skills"
+              checked={servePrivateSkills}
+              onCheckedChange={setServePrivateSkills}
+            />
+            <label htmlFor="serve-private-skills" className="text-sm">
+              Serve private skills over MCP
+            </label>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Off by default. When on, every MCP client a member connects can read this organization's
+            private skills. Turning it off stops new reads, but clients keep any copies they already
+            have.
+          </p>
+          <SaveButton label="Save MCP access" mutation={saveMcpPolicy} />
         </CardContent>
       </Card>
 

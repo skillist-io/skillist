@@ -43,6 +43,13 @@
       "when": 1794004748889,
       "tag": "0005_flashy_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794021267929,
+      "tag": "0006_familiar_drax",
+      "breakpoints": true
     }
   ]
 }

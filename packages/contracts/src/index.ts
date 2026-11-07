@@ -349,6 +349,16 @@ export const executionPolicySchema = z.object({
   allowPublicRuns: z.boolean().optional(),
 });
 export type ExecutionPolicy = z.infer<typeof executionPolicySchema>;
+
+export const mcpPolicySchema = z.object({
+  /**
+   * Let this org's members load its private skills through MCP. Defaults to
+   * false: MCP tokens carry no skill scopes, so every client a member connects
+   * gets everything that member can read, and an owner should choose that.
+   */
+  servePrivateSkills: z.boolean(),
+});
+export type McpPolicy = z.infer<typeof mcpPolicySchema>;
 export type PublishPolicy = z.infer<typeof publishPolicySchema>;
 
 export const installCheckSchema = z.object({

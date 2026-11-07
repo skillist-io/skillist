@@ -180,6 +180,9 @@ export const organizations = sqliteTable(
       anonymousHourlyLimit?: number;
       allowPublicRuns?: boolean;
     }>(),
+    // Its own column, not a policy JSON field: those PATCH routes replace the whole
+    // object, so saving quotas could silently change who can read private skills.
+    mcpPrivateSkills: integer("mcp_private_skills", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },

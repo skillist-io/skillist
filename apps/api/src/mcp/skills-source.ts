@@ -7,6 +7,7 @@ import {
 import type { McpSession } from "@skillist/auth";
 import {
   organizations,
+  orgMembers,
   projectItems,
   projects,
   skillFiles,
@@ -14,7 +15,7 @@ import {
   skillVersions,
 } from "@skillist/db/schema";
 import { isBinaryAssetPath, parseSkillMd } from "@skillist/skill-format";
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, asc, eq, or, type SQL } from "drizzle-orm";
 import { inList, type WorkerDb } from "../lib/db";
 import { readableProjectsFilter } from "../lib/project-access";
 import { contentTypeForPath } from "../lib/r2";
@@ -41,11 +42,33 @@ const publishedSkillColumns = {
 };
 
 /**
- * The fail-closed gate for everything served here. Only public skills qualify:
- * delivery has the same rule, and private skills need their own access design
- * before they can be exposed (including `cacheScope`, which is per-response).
+ * The orgs whose non-public skills this caller may load: ones they belong to
+ * that have opted in. Membership is read on every request, so leaving an org or
+ * an owner switching this off takes effect while a token is still valid.
  */
-const servableSkill = and(eq(skills.visibility, "public"), eq(skillVersions.status, "published"));
+async function privateSkillOrgIds(db: WorkerDb, session: McpSession | null): Promise<string[]> {
+  if (!session) return [];
+  const rows = await db
+    .select({ orgId: orgMembers.orgId })
+    .from(orgMembers)
+    .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+    .where(and(eq(orgMembers.userId, session.userId), eq(organizations.mcpPrivateSkills, true)));
+  return rows.map((row) => row.orgId);
+}
+
+/**
+ * The fail-closed gate for everything served here. Everyone gets public skills;
+ * anything else needs an org from `privateSkillOrgIds`. Same rule as REST, where
+ * any org member can read the org's skills, so a private project doesn't hide a
+ * skill from a member who asks for it by URI. It only keeps it out of their list.
+ */
+function servableSkill(privateOrgIds: string[]) {
+  const isPublic = eq(skills.visibility, "public");
+  return and(
+    privateOrgIds.length > 0 ? or(isPublic, inList(skills.orgId, privateOrgIds)) : isPublic,
+    eq(skillVersions.status, "published"),
+  );
+}
 
 /** Maps `skill://{org}/{repo}/{path}` to its parts. The path is only ever matched against `skill_files`. */
 function parseSkillUri(uri: string) {
@@ -59,18 +82,24 @@ function fileUri(row: PublishedSkillRow, path: string) {
   return `${SKILL_URI_SCHEME}${row.orgSlug}/${row.repo}/${path}`;
 }
 
-function publishedSkills(db: WorkerDb, where: SQL | undefined) {
+function publishedSkills(db: WorkerDb, servable: SQL | undefined, where: SQL | undefined) {
   return db
     .select(publishedSkillColumns)
     .from(skills)
     .innerJoin(organizations, eq(skills.orgId, organizations.id))
     .innerJoin(skillVersions, eq(skillVersions.id, skills.latestPublishedVersionId))
-    .where(and(servableSkill, where));
+    .where(and(servable, where));
 }
 
-async function findPublishedSkill(db: WorkerDb, org: string, repo: string) {
+async function findPublishedSkill(
+  db: WorkerDb,
+  servable: SQL | undefined,
+  org: string,
+  repo: string,
+) {
   const [row] = await publishedSkills(
     db,
+    servable,
     and(eq(organizations.slug, org), eq(skills.repo, repo)),
   ).limit(1);
   return row;
@@ -134,10 +163,18 @@ export function createSkillSource(
   bucket: R2Bucket,
   session: McpSession | null,
 ): SkillSource {
+  // Looked up once per request. The source is built per request, so a host's
+  // later `get` and `read` calls each check membership again.
+  let servable: Promise<SQL | undefined> | undefined;
+  const servableForCaller = () => {
+    servable ??= privateSkillOrgIds(db, session).then(servableSkill);
+    return servable;
+  };
+
   return {
     // Partial by design: the spec allows it, and a host puts every listed skill
     // in front of its model. Callers see the skills their projects curate;
-    // anything else public stays reachable by URI through `get`.
+    // anything else they may read stays reachable by URI through `get`.
     async list({ cursor }) {
       if (!session) return { skills: [] };
       const readable = await readableProjectsFilter(db, session.userId);
@@ -151,7 +188,7 @@ export function createSkillSource(
         .innerJoin(skills, eq(projectItems.skillId, skills.id))
         .innerJoin(organizations, eq(skills.orgId, organizations.id))
         .innerJoin(skillVersions, eq(skillVersions.id, skills.latestPublishedVersionId))
-        .where(and(servableSkill, readable))
+        .where(and(await servableForCaller(), readable))
         .orderBy(asc(skills.id))
         .limit(LIST_PAGE_SIZE + 1)
         .offset(offset);
@@ -166,7 +203,7 @@ export function createSkillSource(
     async get(uri) {
       const parsed = parseSkillUri(uri);
       if (parsed?.path !== SKILL_MD) return undefined;
-      const row = await findPublishedSkill(db, parsed.org, parsed.repo);
+      const row = await findPublishedSkill(db, await servableForCaller(), parsed.org, parsed.repo);
       if (!row) return undefined;
       const [entry] = await toSkillEntries(db, bucket, [row]);
       return entry;
@@ -175,7 +212,7 @@ export function createSkillSource(
     async read(uri): Promise<SkillReadResult | undefined> {
       const parsed = parseSkillUri(uri);
       if (!parsed) return undefined;
-      const row = await findPublishedSkill(db, parsed.org, parsed.repo);
+      const row = await findPublishedSkill(db, await servableForCaller(), parsed.org, parsed.repo);
       if (!row) return undefined;
 
       // The manifest is the allowlist: a path that isn't a file row never

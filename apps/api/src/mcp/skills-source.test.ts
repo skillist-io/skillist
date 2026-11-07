@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import {
+  organizations,
   orgMembers,
   projectItems,
   projects,
@@ -259,5 +260,165 @@ describe("Skills extension", () => {
     const stranger = await seedUser(db);
     const { result } = await rpc(db, sessionFor(stranger.id), "skills/list");
     expect(result.skills).toEqual([]);
+  });
+});
+
+describe("private skills", () => {
+  const setPrivateSkills = (db: Db, orgId: string, on: boolean) =>
+    db.update(organizations).set({ mcpPrivateSkills: on }).where(eq(organizations.id, orgId));
+
+  const addMember = (db: Db, orgId: string, userId: string) =>
+    db.insert(orgMembers).values({ orgId, userId, role: "viewer" });
+
+  const listedUris = async (db: Db, session: McpSession | null) => {
+    const { result } = await rpc(db, session, "skills/list");
+    return result.skills.map((s: { uri: string }) => s.uri);
+  };
+
+  /** The refusal a caller gets, with the URI removed so two URIs can be compared. */
+  const refusal = async (db: Db, session: McpSession | null, uri: string) => {
+    const got = await rpc(db, session, "skills/get", { uri });
+    const read = await rpc(db, session, "resources/read", { uri });
+    expect(got.result).toBeUndefined();
+    expect(read.result).toBeUndefined();
+    return [got.error, read.error].map((error) => ({
+      code: error.code,
+      message: error.message.replaceAll(uri, "<uri>"),
+    }));
+  };
+
+  it("stays closed until an owner opts in, even for that owner", async () => {
+    const db = testDb();
+    const { owner, uri } = await seedRegistry(db);
+
+    const session = sessionFor(owner.id);
+    expect(await refusal(db, session, uri("hidden"))).toEqual(
+      await refusal(db, session, uri("missing")),
+    );
+    expect(await listedUris(db, session)).toEqual([uri("listed")]);
+  });
+
+  it("serves a verifiable private skill to a member once opted in", async () => {
+    const db = testDb();
+    const { owner, org, uri } = await seedRegistry(db);
+    await setPrivateSkills(db, org.id, true);
+    const session = sessionFor(owner.id);
+
+    expect((await listedUris(db, session)).sort()).toEqual([uri("hidden"), uri("listed")]);
+
+    const got = await rpc(db, session, "skills/get", { uri: uri("hidden") });
+    expect(got.result.cacheScope).toBe("private");
+    expect(got.result.ttlMs).toBe(0);
+    const [entry] = got.result.skill.resources;
+    const read = await rpc(db, session, "resources/read", { uri: entry.uri });
+    const bytes = contentBytes(read.result.contents[0]);
+    expect(bytes.byteLength).toBe(entry.size);
+    expect(await digestOf(bytes)).toBe(entry.digest);
+  });
+
+  it("treats org-visibility skills the same as private ones", async () => {
+    const db = testDb();
+    const { owner, org, uri } = await seedRegistry(db);
+    await db
+      .update(skills)
+      .set({ visibility: "org" })
+      .where(and(eq(skills.orgId, org.id), eq(skills.repo, "hidden")));
+
+    const session = sessionFor(owner.id);
+    expect((await rpc(db, session, "skills/get", { uri: uri("hidden") })).error).toBeDefined();
+    await setPrivateSkills(db, org.id, true);
+    expect((await rpc(db, session, "skills/get", { uri: uri("hidden") })).result).toBeDefined();
+  });
+
+  it("looks identical to a missing skill for anyone outside the org", async () => {
+    const db = testDb();
+    const { org, uri } = await seedRegistry(db);
+    await setPrivateSkills(db, org.id, true);
+    const stranger = await seedUser(db);
+
+    // Someone in a different opted-in org is the case a loose check would miss.
+    const outsider = await seedUser(db);
+    const otherOrg = await seedOrg(db, outsider.id);
+    await setPrivateSkills(db, otherOrg.id, true);
+
+    for (const session of [null, sessionFor(stranger.id), sessionFor(outsider.id)]) {
+      expect(await refusal(db, session, uri("hidden"))).toEqual(
+        await refusal(db, session, uri("missing")),
+      );
+    }
+  });
+
+  it("never serves an unpublished private skill", async () => {
+    const db = testDb();
+    const { owner, org, uri } = await seedRegistry(db);
+    await setPrivateSkills(db, org.id, true);
+    await seedSkill(db, org.id, "wip", objectToBundle({ "SKILL.md": skillMd("wip") }), {
+      visibility: "private",
+      status: "draft",
+    });
+
+    const session = sessionFor(owner.id);
+    expect(await refusal(db, session, uri("wip"))).toEqual(
+      await refusal(db, session, uri("missing")),
+    );
+  });
+
+  it("gives any member URI access, while a private project stays out of their list", async () => {
+    const db = testDb();
+    const { org, uri } = await seedRegistry(db);
+    await setPrivateSkills(db, org.id, true);
+    const member = await seedUser(db);
+    await addMember(db, org.id, member.id);
+
+    const session = sessionFor(member.id);
+    expect(await listedUris(db, session)).toEqual([]);
+    expect((await rpc(db, session, "skills/get", { uri: uri("hidden") })).result).toBeDefined();
+  });
+
+  it("revokes at once when the owner opts out or a member leaves", async () => {
+    const db = testDb();
+    const { org, uri } = await seedRegistry(db);
+    await setPrivateSkills(db, org.id, true);
+    const member = await seedUser(db);
+    await addMember(db, org.id, member.id);
+    const session = sessionFor(member.id);
+    const canRead = async () =>
+      (await rpc(db, session, "resources/read", { uri: uri("hidden") })).result !== undefined;
+
+    expect(await canRead()).toBe(true);
+    await setPrivateSkills(db, org.id, false);
+    expect(await canRead()).toBe(false);
+
+    await setPrivateSkills(db, org.id, true);
+    expect(await canRead()).toBe(true);
+    await db.delete(orgMembers).where(eq(orgMembers.userId, member.id));
+    expect(await canRead()).toBe(false);
+  });
+
+  it("does not expose a skill through another org's project after it goes private", async () => {
+    const db = testDb();
+    const { org, uri } = await seedRegistry(db);
+    await setPrivateSkills(db, org.id, true);
+
+    const outsider = await seedUser(db);
+    const otherOrg = await seedOrg(db, outsider.id);
+    await setPrivateSkills(db, otherOrg.id, true);
+    const [project] = await db
+      .insert(projects)
+      .values({ orgId: otherOrg.id, slug: "theirs", name: "Theirs" })
+      .returning();
+    const [listed] = await db
+      .select({ id: skills.id })
+      .from(skills)
+      .where(and(eq(skills.orgId, org.id), eq(skills.repo, "listed")));
+    await db
+      .insert(projectItems)
+      .values({ projectId: project!.id, kind: "skill", skillId: listed!.id, path: "" });
+
+    const session = sessionFor(outsider.id);
+    expect(await listedUris(db, session)).toEqual([uri("listed")]);
+
+    await db.update(skills).set({ visibility: "private" }).where(eq(skills.id, listed!.id));
+    expect(await listedUris(db, session)).toEqual([]);
   });
 });
