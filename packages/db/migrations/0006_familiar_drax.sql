@@ -1,0 +1,1 @@
+ALTER TABLE `organizations` ADD `mcp_private_skills` integer DEFAULT false NOT NULL;

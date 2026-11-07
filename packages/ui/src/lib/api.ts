@@ -106,6 +106,11 @@ export type SkillRun = {
   completedAt: string | null;
 };
 
+export type McpPolicy = {
+  /** Let org members load its private skills through MCP. */
+  servePrivateSkills: boolean;
+};
+
 export type ExecutionPolicy = {
   hourlyRunLimit?: number;
   dailyRunLimit?: number;

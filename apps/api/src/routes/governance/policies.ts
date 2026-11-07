@@ -3,6 +3,7 @@ import {
   executionPolicySchema,
   installCheckSchema,
   installPolicySchema,
+  mcpPolicySchema,
   publishPolicySchema,
   requiredSkillSchema,
   reviewRubricSchema,
@@ -437,6 +438,83 @@ policiesRoutes.openapi(getExecutionPolicyRoute, async (c) => {
     .limit(1);
 
   return c.json({ executionPolicy: org?.executionPolicy ?? {} }, 200);
+});
+
+const patchMcpPolicyRoute = createRoute({
+  method: "patch",
+  path: "/orgs/{orgId}/mcp-policy",
+  tags: ["Governance"],
+  operationId: "updateMcpPolicy",
+  summary: "Update an organization's MCP policy",
+  request: {
+    params: z.object({ orgId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: mcpPolicySchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({ ok: z.boolean(), mcpPolicy: mcpPolicySchema }) },
+      },
+      description: "MCP policy updated",
+    },
+    ...errorResponses(),
+  },
+});
+
+policiesRoutes.openapi(patchMcpPolicyRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const body = c.req.valid("json");
+  // No `apiKeyScope`, so this stays console-only: exposing private skills is a
+  // person's decision, and a leaked key shouldn't be able to make it.
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "owner");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  await c.var.db
+    .update(organizations)
+    .set({ mcpPrivateSkills: body.servePrivateSkills, updatedAt: new Date() })
+    .where(eq(organizations.id, orgId));
+
+  await logAudit(c.var.db, {
+    orgId,
+    actorId: access.actorId,
+    actorType: access.actorType,
+    action: "mcp_policy.updated",
+    resourceType: "organization",
+    resourceId: orgId,
+    metadata: body,
+  });
+
+  return c.json({ ok: true, mcpPolicy: body }, 200);
+});
+
+const getMcpPolicyRoute = createRoute({
+  method: "get",
+  path: "/orgs/{orgId}/mcp-policy",
+  tags: ["Governance"],
+  operationId: "getMcpPolicy",
+  summary: "Get an organization's MCP policy",
+  request: { params: z.object({ orgId: z.string().uuid() }) },
+  responses: {
+    200: {
+      content: { "application/json": { schema: z.object({ mcpPolicy: mcpPolicySchema }) } },
+      description: "MCP policy",
+    },
+    ...errorResponses(),
+  },
+});
+
+policiesRoutes.openapi(getMcpPolicyRoute, async (c) => {
+  const { orgId } = c.req.valid("param");
+  const access = await requireOrgAccess(c.var.db, orgId, c.var.auth, "viewer");
+  if (!access.ok) return c.json({ error: "Forbidden" }, access.status);
+
+  const [org] = await c.var.db
+    .select({ mcpPrivateSkills: organizations.mcpPrivateSkills })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+
+  return c.json({ mcpPolicy: { servePrivateSkills: org?.mcpPrivateSkills ?? false } }, 200);
 });
 
 const listRequiredSkillsRoute = createRoute({
