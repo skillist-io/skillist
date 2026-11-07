@@ -626,6 +626,18 @@ registryRoutes.openapi(updateVisibilityRoute, async (c) => {
     // Leaving public: drop the skill from the public registry index so it stops
     // appearing in discovery.
     await c.var.db.delete(registryEntries).where(eq(registryEntries.skillId, skill.id));
+
+    const [orgRow] = await c.var.db
+      .select({ slug: organizations.slug })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1);
+    if (orgRow) {
+      const { purgeDeliveryCache } = await import("../lib/publish");
+      // Hono's ExecutionContext type predates `cache`.
+      const { cache } = c.executionCtx as unknown as { cache?: CacheContext };
+      await purgeDeliveryCache(cache, orgRow.slug, repo);
+    }
   }
 
   return c.json({ ok: true }, 200);
