@@ -126,7 +126,7 @@
         ],
         "operationId": "deleteAccount",
         "summary": "Permanently delete the signed-in user and their personal data",
-        "description": "Deletes the user record. Sessions, OAuth accounts, passkeys, and org memberships cascade.\n\nOrgs where the caller is the **sole owner but not the sole member** block deletion: promote\nanother owner or remove the other members first. An org where they are the only member is\ndeleted with them.\n\nAudit events are deliberately retained — they record who performed privileged actions and\nare a security record, not profile data. They reference the user id as plain text, which\nsurvives this deletion.\n\nSession-authenticated only: an API key cannot delete the human who created it.",
+        "description": "Deletes the user record. Sessions, OAuth accounts, passkeys, and org memberships cascade.\nPlatform-agent transcripts are wiped first: the caller's in every org, and every chat in\nan org deleted with them. If a wipe fails, nothing is deleted and the call can be retried.\n\nOrgs where the caller is the **sole owner but not the sole member** block deletion: promote\nanother owner or remove the other members first. An org where they are the only member is\ndeleted with them.\n\nAudit events are deliberately retained — they record who performed privileged actions and\nare a security record, not profile data. They reference the user id as plain text, which\nsurvives this deletion.\n\nSession-authenticated only: an API key cannot delete the human who created it.",
         "responses": {
           "200": {
             "description": "Account deleted",

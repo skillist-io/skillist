@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { organizations, orgMembers, users } from "@skillist/db/schema";
 import { and, eq, ne } from "drizzle-orm";
 import type { Env } from "../env";
+import { eraseAgentChats } from "../lib/agent/erase-chats";
 import { logAudit } from "../lib/audit";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
@@ -56,6 +57,8 @@ const deleteAccountRoute = createRoute({
   summary: "Permanently delete the signed-in user and their personal data",
   description: [
     "Deletes the user record. Sessions, OAuth accounts, passkeys, and org memberships cascade.",
+    "Platform-agent transcripts are wiped first: the caller's in every org, and every chat in",
+    "an org deleted with them. If a wipe fails, nothing is deleted and the call can be retried.",
     "",
     "Orgs where the caller is the **sole owner but not the sole member** block deletion: promote",
     "another owner or remove the other members first. An org where they are the only member is",
@@ -123,6 +126,16 @@ accountRoutes.openapi(deleteAccountRoute, async (c) => {
       .from(orgMembers)
       .where(and(eq(orgMembers.orgId, org.orgId), ne(orgMembers.userId, userId)));
     if (others.length === 0) soloOrgIds.push(org.orgId);
+  }
+
+  // Transcripts first, while the rows that name them still exist. If any wipe fails,
+  // nothing has been deleted yet, so the person can try again.
+  const erased = await eraseAgentChats(c.var.db, c.env.SKILLIST_AGENT, {
+    userId,
+    orgIds: soloOrgIds,
+  });
+  if (erased.failed > 0) {
+    return c.json({ error: "Could not delete your agent conversations. Try again." }, 500);
   }
 
   // Audited BEFORE the delete: audit_events.actor_id is plain text with no FK

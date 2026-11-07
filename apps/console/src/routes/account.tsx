@@ -516,8 +516,9 @@ function DeleteAccountCard({ email }: { email: string }) {
       <CardHeader>
         <CardTitle className="text-destructive">Delete account</CardTitle>
         <CardDescription>
-          Permanently deletes your profile, sessions, linked providers, and passkeys. Organisations
-          where you are the only member are deleted too. This cannot be undone.
+          Permanently deletes your profile, sessions, linked providers, passkeys, and agent
+          conversations. Organisations where you are the only member are deleted too. This cannot be
+          undone.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
