@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAgent } from "agents/react";
 import { ArrowDown, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { type AgentContext, formatApproval, formatContext } from "@/lib/agent-context";
+import { type AgentContext, formatContext } from "@/lib/agent-context";
 import { useAgentDraft } from "@/lib/use-agent-draft";
 import { AgentMessage, touchesState } from "./agent-message";
 import type { ApprovalHandlers } from "./approval-card";
@@ -49,8 +49,6 @@ export function AgentChat({
   compact = false,
   focusOnReady = false,
   onListRefresh,
-  pendingRunId,
-  onRunStarted,
 }: {
   orgId: string;
   orgName: string;
@@ -64,9 +62,6 @@ export function AgentChat({
   focusOnReady?: boolean;
   /** Ask the owner to refetch the conversation index (new chat + auto-title). */
   onListRefresh?: () => void;
-  /** An approval to run as soon as this conversation can take a message. */
-  pendingRunId?: string;
-  onRunStarted?: () => void;
 }) {
   const [connState, setConnState] = useState<ConnState>("connecting");
   const [connError, setConnError] = useState<string | null>(null);
@@ -86,6 +81,7 @@ export function AgentChat({
   const [showNoReply, setShowNoReply] = useState(false);
   // Waiting decisions scrolled out of view, so they can't be missed or read halfway.
   const [waitingOffscreen, setWaitingOffscreen] = useState(0);
+  const [waitingCount, setWaitingCount] = useState(0);
   const queryClient = useQueryClient();
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
@@ -235,6 +231,7 @@ export function AgentChat({
     if (!el) return;
     const box = el.getBoundingClientRect();
     const cards = [...el.querySelectorAll<HTMLElement>("[data-approval-pending]")];
+    setWaitingCount(cards.length);
     const newest = cards.at(-1);
     const id = newest?.dataset.approvalPending;
     // Pinning to the bottom can leave only a card's buttons on screen, without the
@@ -341,27 +338,23 @@ export function AgentChat({
     setAttachContext(true);
   }, [context?.pathname]);
 
-  const approvals = useMemo<ApprovalHandlers>(
-    () => ({
-      orgId,
-      canRun: canSend,
-      onRun: (approvalId) => {
-        if (!canSend) return;
-        atBottomRef.current = true;
-        sendMessage({ text: formatApproval(approvalId) });
-      },
-    }),
-    [orgId, canSend, sendMessage],
-  );
+  const approvals = useMemo<ApprovalHandlers>(() => ({ orgId }), [orgId]);
 
-  // From the panel, which can't reach the socket. Waits out a reply in progress.
+  // ⌥A from anywhere, so reaching a decision doesn't mean tabbing back through the
+  // transcript. `code`, because Option turns the character into å.
   useEffect(() => {
-    if (!pendingRunId || !canSend) return;
-    onRunStarted?.();
-    atBottomRef.current = true;
-    sendMessage({ text: formatApproval(pendingRunId) });
-    onListRefresh?.();
-  }, [pendingRunId, canSend, onRunStarted, sendMessage, onListRefresh]);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey || e.code !== "KeyA") return;
+      const cards = scrollRef.current?.querySelectorAll("[data-approval-pending]");
+      const button = cards?.[cards.length - 1]?.querySelector<HTMLElement>("button");
+      if (!button) return;
+      e.preventDefault();
+      jumpToWaiting();
+      button.focus();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [jumpToWaiting]);
 
   const lastUserId = [...messages].reverse().find((m) => m.role === "user")?.id;
 
@@ -541,6 +534,13 @@ export function AgentChat({
 
       <ConnectionBanner state={connState} reason={connError} />
 
+      {/* A card lands in the log without moving focus, so say so. */}
+      <span aria-live="polite" className="sr-only">
+        {waitingCount > 0
+          ? `${waitingCount} ${waitingCount === 1 ? "action is" : "actions are"} waiting for your decision`
+          : ""}
+      </span>
+
       <div ref={composerRegionRef} className="border-t border-border">
         <Composer
           ref={composerRef}
@@ -548,6 +548,7 @@ export function AgentChat({
           value={input}
           onChange={setInput}
           onSubmit={() => submit(input)}
+          waiting={waitingCount}
           onStop={() => {
             stopped.current = true;
             void stop();
@@ -589,8 +590,9 @@ function EmptyState({
       <div className="space-y-1">
         <h2 className="text-title">Skillist Agent</h2>
         <p className="max-w-prose text-sm text-muted-foreground">
-          Ask about coverage, recurring failures, stale evals, and what {orgName} should require —
-          the agent reads your org's telemetry and can draft improvements.
+          Ask about coverage, recurring failures, stale evals, and what {orgName} should require.
+          The agent reads your org's telemetry, and can draft improvements and save org facts once
+          you approve them.
         </p>
       </div>
       <div className="flex flex-col gap-2">

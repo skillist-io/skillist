@@ -8,6 +8,7 @@ import {
   callSignature,
   decideApproval,
   effectiveStatus,
+  executeApproval,
   getApproval,
   listApprovals,
   listOrgApprovals,
@@ -78,7 +79,7 @@ describe("requireApproval", () => {
 
   /** Stage a call and return its approval id. */
   async function stage(input: ReturnType<typeof call>) {
-    const first = await requireApproval(db, input, async () => ({ ok: true as const }));
+    const first = await requireApproval(db, input);
     if (!("approvalId" in first)) throw new Error("expected the call to be gated");
     return first.approvalId;
   }
@@ -98,21 +99,20 @@ describe("requireApproval", () => {
     ]);
   });
 
+  const ok = async () => ({ ok: true as const });
+  const execute = <T>(id: string, run: () => Promise<T>) =>
+    executeApproval(db, { orgId, userId, id }, run);
+
   it.each(["viewer", "publisher"] as const)(
     "refuses a %s without staging a request nobody could decide",
     async (role) => {
       const id = `${role}_${suffix}`;
       await db.insert(users).values({ id, name: role, email: `${id}@ex.com` });
       await db.insert(orgMembers).values({ orgId, userId: id, role });
-      let ran = false;
 
-      const result = await requireApproval(db, { ...call(), userId: id }, async () => {
-        ran = true;
-        return { ok: true as const };
-      });
+      const result = await requireApproval(db, { ...call(), userId: id });
 
       expect(result).toEqual({ ok: false, reason: "needs_editor" });
-      expect(ran).toBe(false);
       const rows = await db.select().from(agentApprovals).where(eq(agentApprovals.userId, id));
       expect(rows).toHaveLength(0);
     },
@@ -122,46 +122,48 @@ describe("requireApproval", () => {
     const id = `demoted_${suffix}`;
     await db.insert(users).values({ id, name: "D", email: `${id}@ex.com` });
     await db.insert(orgMembers).values({ orgId, userId: id, role: "editor" });
-    const input = { ...call(), userId: id };
-    const approvalId = await stage(input);
+    const approvalId = await stage({ ...call(), userId: id });
     await decideApproval(db, { orgId, userId: id, id: approvalId, status: "approved" });
     await db.update(orgMembers).set({ role: "viewer" }).where(eq(orgMembers.userId, id));
     let ran = false;
 
-    const result = await requireApproval(db, input, async () => {
+    const finished = await executeApproval(db, { orgId, userId: id, id: approvalId }, async () => {
       ran = true;
       return { ok: true as const };
     });
 
-    expect(result).toEqual({ ok: false, reason: "needs_editor" });
+    expect(finished).toBeNull();
     expect(ran).toBe(false);
   });
 
-  it("stages the call without running it, and records its conversation", async () => {
+  it("stages the call and records its conversation", async () => {
     const input = call();
-    let ran = false;
-    const result = await requireApproval(db, input, async () => {
-      ran = true;
-      return { ok: true as const };
-    });
-    expect(ran).toBe(false);
+    const result = await requireApproval(db, input);
     expect(result).toMatchObject({ ok: false, status: "awaiting_approval" });
     if (!("approvalId" in result)) throw new Error("expected an approval id");
     const row = await getApproval(db, orgId, userId, result.approvalId);
     expect(row).toMatchObject({ status: "pending", chatId: "chat-1" });
   });
 
-  it("does not run a denied call", async () => {
+  it("gives a model no way to run anything, even once approved", async () => {
+    const input = call();
+    const id = await stage(input);
+    await approve(id);
+    expect(await requireApproval(db, input)).toMatchObject({ status: "awaiting_approval" });
+    expect((await getApproval(db, orgId, userId, id))?.status).toBe("approved");
+  });
+
+  it("reports a denied call as denied", async () => {
     const input = call();
     const id = await stage(input);
     await decideApproval(db, { orgId, userId, id, status: "denied" });
-    let ran = false;
-    const result = await requireApproval(db, input, async () => {
-      ran = true;
-      return { ok: true as const };
-    });
-    expect(ran).toBe(false);
-    expect(result).toEqual({ ok: false, status: "denied" });
+    expect(await requireApproval(db, input)).toEqual({ ok: false, status: "denied" });
+  });
+
+  it("won't run what nobody approved", async () => {
+    const id = await stage(call());
+    expect(await execute(id, ok)).toBeNull();
+    expect((await getApproval(db, orgId, userId, id))?.status).toBe("pending");
   });
 
   it("runs an approved call once, and a repeat is a new request beside the record", async () => {
@@ -169,18 +171,12 @@ describe("requireApproval", () => {
     const id = await stage(input);
     await approve(id);
 
-    const result = await requireApproval(db, input, async () => ({ ok: true as const }));
-    expect(result).toEqual({ ok: true });
-    const ran = await getApproval(db, orgId, userId, id);
+    const ran = await execute(id, ok);
     expect(ran).toMatchObject({ status: "executed", decidedBy: userId });
     expect(ran?.executedAt).toBeInstanceOf(Date);
+    expect(await execute(id, ok)).toBeNull();
 
-    let ranAgain = false;
-    const repeat = await requireApproval(db, { ...input, chatId: "chat-2" }, async () => {
-      ranAgain = true;
-      return { ok: true as const };
-    });
-    expect(ranAgain).toBe(false);
+    const repeat = await requireApproval(db, { ...input, chatId: "chat-2" });
     if (!("approvalId" in repeat)) throw new Error("expected the repeat to be gated");
     expect(repeat.approvalId).not.toBe(id);
 
@@ -192,47 +188,75 @@ describe("requireApproval", () => {
     });
   });
 
+  it("runs once when two decisions race", async () => {
+    const id = await stage(call());
+    await approve(id);
+    let runs = 0;
+    const once = async () => {
+      runs += 1;
+      return { ok: true as const };
+    };
+    const results = await Promise.all([execute(id, once), execute(id, once)]);
+    expect(runs).toBe(1);
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
   it("lands a retry on the one open request", async () => {
     const input = call();
     const id = await stage(input);
     expect(await stage(input)).toBe(id);
   });
 
-  it("records a refused action without claiming it ran", async () => {
-    const input = call();
-    const id = await stage(input);
+  it("records a refusal and its reason without claiming it ran", async () => {
+    const id = await stage(call());
     await approve(id);
-    const result = await requireApproval(db, input, async () => ({
+    const finished = await execute(id, async () => ({
       ok: false as const,
-      reason: "skill_not_found" as const,
+      reason: "skill_not_found",
     }));
-    expect(result).toEqual({ ok: false, reason: "skill_not_found" });
-    const row = await getApproval(db, orgId, userId, id);
-    expect(row).toMatchObject({ status: "refused", executedAt: null });
+    expect(finished).toMatchObject({
+      status: "refused",
+      executedAt: null,
+      outcomeReason: "skill_not_found",
+    });
   });
 
-  it("won't run a revoked approval, and a repeat needs a new decision", async () => {
+  it("leaves a run that threw approved, so it can be tried again", async () => {
+    const id = await stage(call());
+    await approve(id);
+    await expect(
+      execute(id, async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+    expect(await getApproval(db, orgId, userId, id)).toMatchObject({
+      status: "approved",
+      executedAt: null,
+    });
+    expect(await execute(id, ok)).toMatchObject({ status: "executed" });
+  });
+
+  it("keeps who approved when an approval is revoked", async () => {
     const input = call();
     const id = await stage(input);
-    await approve(id);
-    expect(await revokeApproval(db, { orgId, userId, id })).toMatchObject({ status: "revoked" });
-
-    let ran = false;
-    const result = await requireApproval(db, input, async () => {
-      ran = true;
-      return { ok: true as const };
+    const approved = await approve(id);
+    const revoked = await revokeApproval(db, { orgId, userId, id });
+    expect(revoked).toMatchObject({
+      status: "revoked",
+      decidedBy: userId,
+      decidedAt: approved?.decidedAt,
+      revokedBy: userId,
     });
-    expect(ran).toBe(false);
-    expect(result).toMatchObject({ status: "awaiting_approval" });
+    expect(await execute(id, ok)).toBeNull();
+    expect(await requireApproval(db, input)).toMatchObject({ status: "awaiting_approval" });
   });
 
   it("can't revoke what has already run, or another user's approval", async () => {
-    const input = call();
-    const id = await stage(input);
+    const id = await stage(call());
     await approve(id);
     expect(await revokeApproval(db, { orgId, userId: otherUserId, id })).toBeNull();
 
-    await requireApproval(db, input, async () => ({ ok: true as const }));
+    await execute(id, ok);
     expect(await revokeApproval(db, { orgId, userId, id })).toBeNull();
     expect((await getApproval(db, orgId, userId, id))?.status).toBe("executed");
   });
@@ -248,13 +272,8 @@ describe("requireApproval", () => {
     expect(listed.map((r) => r.id)).toContain(id);
     expect((await listApprovals(db, orgId, userId, "approved")).map((r) => r.id)).not.toContain(id);
 
-    let ran = false;
-    const result = await requireApproval(db, input, async () => {
-      ran = true;
-      return { ok: true as const };
-    });
-    expect(ran).toBe(false);
-    expect(result).toMatchObject({ status: "awaiting_approval" });
+    expect(await execute(id, ok)).toBeNull();
+    expect(await requireApproval(db, input)).toMatchObject({ status: "awaiting_approval" });
     expect((await getApproval(db, orgId, userId, id))?.status).toBe("expired");
   });
 

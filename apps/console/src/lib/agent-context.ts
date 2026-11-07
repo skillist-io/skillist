@@ -72,14 +72,10 @@ function capitalize(word: string): string {
 export const CONTEXT_PREFIX = "[context]";
 
 /**
- * Marks a message that tells the agent a person approved a request. Same stance
- * as the context line: it travels in the message and is shown back to the sender.
+ * Marked a message telling the agent a person approved a request. Nothing sends these
+ * now, since approving runs the action on the server, but old transcripts hold them.
  */
 export const APPROVAL_PREFIX = "[approval]";
-
-export function formatApproval(approvalId: string): string {
-  return `${APPROVAL_PREFIX} id: ${approvalId}\nApproved. Run it.`;
-}
 
 export function formatContext(context: AgentContext): string {
   const parts = [`page: ${context.page}`, `path: ${context.pathname}`];

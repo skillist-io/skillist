@@ -52,3 +52,17 @@ describe("SkillistAgent.cleanup", () => {
     await expect(wipeChat(aborting)).resolves.toBeUndefined();
   });
 });
+
+describe("SkillistAgent.noteDecision", () => {
+  it("adds the line, marked so the transcript can tell it from a reply", async () => {
+    const ns = env.SKILLIST_AGENT;
+    const id = ns.idFromName(composeAgentName(crypto.randomUUID(), "user-1", crypto.randomUUID()));
+    await ns.get(id).noteDecision("Denied by you. Nothing ran.");
+
+    await runInDurableObject(ns.get(id), async (agent: SkillistAgent) => {
+      const line = agent.messages.at(-1);
+      expect(line?.metadata).toEqual({ decision: true });
+      expect(line?.parts).toEqual([{ type: "text", text: "Denied by you. Nothing ran." }]);
+    });
+  });
+});

@@ -1,19 +1,21 @@
 import type { Org } from "@skillist/ui";
 import {
   Button,
+  cn,
   Popover,
   PopoverContent,
   PopoverTrigger,
   QueryError,
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetTitle,
   Skeleton,
 } from "@skillist/ui";
 import { Link } from "@tanstack/react-router";
-import { MessagesSquare, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { MessagesSquare, Plus, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LazyAgentChat, prefetchAgentChat } from "@/components/agent/agent-chat-lazy";
 import { ApprovalsPanel } from "@/components/agent/approvals-panel";
 import { ChatHistoryList } from "@/components/agent/chat-history";
@@ -43,6 +45,12 @@ export function AgentDrawer({
   const { activeOrg, isPending, isError, refetch } = useActiveOrg();
   const context = useAgentContext();
 
+  const opener = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }, [open]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       {/* Width utilities carry the `data-[side=right]:` prefix because that is what
@@ -52,10 +60,16 @@ export function AgentDrawer({
       <SheetContent
         side="right"
         showOverlay={false}
+        showCloseButton={false}
         className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md data-[side=right]:lg:max-w-lg"
         aria-describedby={undefined}
         onInteractOutside={(e) => e.preventDefault()}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        // ⌘K has no trigger to return to, so put focus back where it was.
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          opener.current?.focus();
+        }}
         // While a reply streams in the composer, Esc means "stop", which the composer
         // handles. Closing the drawer on the same keypress would hide what stopped.
         onEscapeKeyDown={(e) => {
@@ -63,21 +77,31 @@ export function AgentDrawer({
           if (el instanceof HTMLElement && el.dataset.agentBusy) e.preventDefault();
         }}
       >
-        {/* pr-14 clears SheetContent's absolutely-positioned close button (top-4
-            right-4). `items-start` top-aligns the org chip with that close X so
-            the two read as one row; the title stack sits on the left. */}
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border py-3 pr-14 pl-4">
+        {/* The close button lives in this row rather than SheetContent's absolute slot,
+            which is placed for a roomier sheet: there it sat 11px low and crossed the
+            divider. `pr-2` lines its right edge up with the toolbar below. */}
+        <div className="flex shrink-0 items-center gap-3 border-b border-border py-2 pr-2 pl-4">
           <SheetTitle className="text-sm font-medium text-foreground">Agent</SheetTitle>
           <SheetDescription className="sr-only">
             Ask about the page you're on. The page stays usable behind this panel.
           </SheetDescription>
-          {/* Read-only indicator of the active org — switching is done from the
-              global top-bar switcher. */}
+          {/* Read-only, so it's plain text: a box here looked like a control. Switching
+              is done from the global top-bar switcher. */}
           {activeOrg && (
-            <span className="max-w-[10rem] shrink-0 truncate border border-border px-2 py-0.5 text-xs text-muted-foreground">
+            <span className="ml-auto max-w-[10rem] truncate text-xs text-muted-foreground">
               {activeOrg.name}
             </span>
           )}
+          <SheetClose asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className={cn("pointer-coarse:size-11", !activeOrg && "ml-auto")}
+              aria-label="Close"
+            >
+              <X className="size-3.5" aria-hidden />
+            </Button>
+          </SheetClose>
         </div>
 
         {isError ? (
@@ -126,9 +150,6 @@ function DrawerBody({
     deleteChat,
     deleteFailed,
     invalidate,
-    runApproval,
-    pendingRunId,
-    clearRunRequest,
   } = useAgentChats(activeOrg.id);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -170,13 +191,7 @@ function DrawerBody({
             the ambient drawer. */}
         <div className="flex items-center gap-1">
           <MemoryPanel orgId={activeOrg.id} compact />
-          <ApprovalsPanel
-            orgId={activeOrg.id}
-            compact
-            onOpenChat={selectChat}
-            onRun={runApproval}
-            chatIds={chatIds}
-          />
+          <ApprovalsPanel orgId={activeOrg.id} compact onOpenChat={selectChat} chatIds={chatIds} />
         </div>
       </div>
 
@@ -192,8 +207,6 @@ function DrawerBody({
         compact
         focusOnReady
         onListRefresh={invalidate}
-        pendingRunId={pendingRunId}
-        onRunStarted={clearRunRequest}
       />
     </>
   );

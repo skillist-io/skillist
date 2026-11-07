@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canDecideApprovals, describeApproval } from "./approval-copy";
+import { canDecideApprovals, currentOrgFact, describeApproval, outcomeLine } from "./approval-copy";
 
 describe("canDecideApprovals", () => {
   it("matches the route's editor minimum", () => {
@@ -26,5 +26,31 @@ describe("describeApproval", () => {
   it("keeps the title and its parts in step", () => {
     const copy = describeApproval("remember", { key: "policy:x", value: "v" });
     expect(`${copy.action} ${copy.subject}`).toBe(copy.title);
+  });
+});
+
+describe("what a decision is made on", () => {
+  const memories = [
+    { key: "k", value: "personal", userId: "u1" },
+    { key: "k", value: "org value", userId: null },
+  ];
+
+  it("shows the value being forgotten, from the org's facts only", () => {
+    const current = currentOrgFact(memories, { key: "k" });
+    expect(describeApproval("forget", { key: "k" }, current).detail).toBe("org value");
+  });
+
+  it("warns about an overwrite, but not when nothing would change", () => {
+    const args = { key: "k", value: "new" };
+    expect(describeApproval("remember", args, "old").replaces).toBe("old");
+    expect(describeApproval("remember", args, "new").replaces).toBeUndefined();
+  });
+});
+
+describe("outcomeLine", () => {
+  it("says why a refused action didn't run", () => {
+    expect(outcomeLine("refused", "skill_not_found")).toBe(
+      "Approved, but it couldn't run: skill not found. Nothing changed.",
+    );
   });
 });

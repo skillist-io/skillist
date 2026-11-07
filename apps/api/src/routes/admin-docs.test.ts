@@ -70,3 +70,26 @@ describe("requireDocsAdmin", () => {
     });
   });
 });
+
+describe("requireDocsAdmin with the agent-chats scope", () => {
+  it("doesn't let a docs key delete chats", () => {
+    const docsKey = auth({
+      apiKeyId: "key-4",
+      apiKeyCreatedBy: ADMIN,
+      apiKeyScopes: ["admin:docs"],
+    });
+    expect(requireDocsAdmin(env(ADMIN), docsKey, "admin:agent-chats")).toMatchObject({
+      ok: false,
+      status: 403,
+    });
+  });
+
+  it("accepts a key with that scope", () => {
+    const key = auth({
+      apiKeyId: "key-5",
+      apiKeyCreatedBy: ADMIN,
+      apiKeyScopes: ["admin:agent-chats"],
+    });
+    expect(requireDocsAdmin(env(ADMIN), key, "admin:agent-chats")).toMatchObject({ ok: true });
+  });
+});

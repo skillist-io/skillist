@@ -48,6 +48,10 @@ describe("composerReadout", () => {
     );
   });
 
+  it("says how to reach a decision that's waiting", () => {
+    expect(composerReadout({ ...idle, waiting: 1 })).toBe("1 waiting · ⌥A to review · Enter send");
+  });
+
   it("doesn't offer a Shift key to a touch keyboard", () => {
     expect(composerReadout({ ...idle, touch: true })).toBe("Return sends");
   });

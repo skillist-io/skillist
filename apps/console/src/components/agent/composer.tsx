@@ -33,6 +33,7 @@ export function Composer({
   terminal,
   busy,
   held,
+  waiting = 0,
   context,
   contextAttached,
   onToggleContext,
@@ -48,6 +49,8 @@ export function Composer({
   terminal: boolean;
   busy: boolean;
   held: boolean;
+  /** Decisions waiting in this conversation. */
+  waiting?: number;
   context?: AgentContext;
   contextAttached: boolean;
   onToggleContext: () => void;
@@ -112,6 +115,7 @@ export function Composer({
           <span id={readoutId} className="min-w-0 truncate font-mono">
             {composerReadout({
               touch: window.matchMedia("(pointer: coarse)").matches,
+              waiting,
               connState,
               terminal,
               busy,

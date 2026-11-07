@@ -61,7 +61,7 @@ export function MessageActions({
         size="icon-xs"
         onClick={copy}
         aria-label={copied ? "Copied to clipboard" : "Copy response"}
-        className="size-6"
+        className="size-6 pointer-coarse:size-11"
       >
         {copied ? (
           <Check className="size-3.5 text-foreground" aria-hidden />
@@ -76,7 +76,7 @@ export function MessageActions({
           size="icon-xs"
           onClick={onRegenerate}
           aria-label="Regenerate response"
-          className="size-6"
+          className="size-6 pointer-coarse:size-11"
         >
           <RefreshCw className="size-3.5" aria-hidden />
         </Button>

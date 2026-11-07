@@ -1,6 +1,6 @@
 import type { AgentApprovalStatus } from "@skillist/contracts";
 import { agentApprovals } from "@skillist/db/schema";
-import { and, desc, eq, gte, lt, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, or, type SQL } from "drizzle-orm";
 import type { WorkerDb } from "../db";
 import { requireOrgRole } from "../org-access";
 import { sha256 } from "../r2";
@@ -8,27 +8,24 @@ import { sha256 } from "../r2";
 /**
  * Human-in-the-loop approvals for the platform agent's write actions.
  *
- * Flow (see `requireApproval`):
- *   0. Someone below editor is refused with `needs_editor`. Approvals are per-user
- *      and deciding needs the editor role, so their request could never be decided.
- *   1. The model calls a wrapped tool with some args.
- *   2. We compute a deterministic `callSignature` (sha-256 of the tool name +
- *      sorted args) and SELECT-or-INSERT an `agent_approvals` row.
- *   3. status = "pending"  → return `{ ok:false, status:"awaiting_approval" }`
- *      WITHOUT running — the agent tells the user to approve in the console.
- *   4. status = "denied"   → return `{ ok:false, status:"denied" }`.
- *   5. status = "approved" → run the wrapped action, then mark the row `executed`.
- *      A refused action (`ok:false`) changed nothing, so it is marked `refused`
- *      rather than claiming it ran.
- *   6. Anything finished (`executed`, `revoked`, `expired`, `refused`) → a fresh
- *      identical call stages a NEW row. An approval is only ever good for one run.
+ * Asking and running are separate on purpose. A tool can only ask (`requireApproval`):
+ * it stages a row and returns `awaiting_approval`, and it can never run anything.
+ * Running happens when a person approves, through `executeApproval`, from the stored
+ * arguments. So a click means the action happened, not that a model was asked to
+ * do it, and there's one place that can run an action.
+ *
+ *   - Someone below editor is refused with `needs_editor`. Approvals are per-user and
+ *     deciding needs the editor role, so their request could never be decided.
+ *   - A deterministic `callSignature` (sha-256 of the tool name + sorted args) finds
+ *     the open row, so a model re-firing while it waits lands on the same one.
+ *   - Anything finished (`executed`, `revoked`, `expired`, `refused`) stages a NEW row
+ *     on a fresh identical call. An approval is only ever good for one run.
+ *   - A refused action (`ok:false`) changed nothing, so it's marked `refused` with its
+ *     reason rather than claiming it ran.
  *
  * Finished rows are the record of what a person allowed, and a card in an old
  * transcript is keyed to its row, so they are never reopened: doing that once made
  * "Approved and run." turn back into a live request.
- *
- * The partial UNIQUE index over open rows makes a retry of the same logical call
- * idempotent: the model can re-fire while waiting and always lands on the same row.
  */
 
 /** How long an approval stays good for. Consent given last month isn't consent now. */
@@ -75,11 +72,8 @@ export async function callSignature(
   return sha256(`${toolName}:${JSON.stringify(sortKeys(args))}`);
 }
 
-/**
- * Gate `run()` behind a human decision. Returns the wrapped action's result
- * once approved (and consumes the approval), or an awaiting/denied sentinel.
- */
-export async function requireApproval<T>(
+/** Ask for a decision on a gated call. Runs nothing, whatever state the row is in. */
+export async function requireApproval(
   db: WorkerDb,
   input: {
     orgId: string;
@@ -88,10 +82,7 @@ export async function requireApproval<T>(
     toolName: string;
     args: Record<string, unknown>;
   },
-  run: () => Promise<T>,
-): Promise<T | AwaitingApproval | DeniedApproval | NeedsEditor> {
-  // Checked on every call, so an approval also stops working if its requester loses
-  // the role before it runs.
+): Promise<AwaitingApproval | DeniedApproval | NeedsEditor> {
   const access = await requireOrgRole(db, input.orgId, input.userId, "editor");
   if (!access.ok) return { ok: false, reason: "needs_editor" };
 
@@ -152,28 +143,74 @@ export async function requireApproval<T>(
     row = inserted ?? (await latest());
   }
 
-  if (!row || row.status === "pending") {
-    return { ok: false, status: "awaiting_approval", approvalId: row?.id ?? "" };
-  }
-  if (row.status === "denied") {
-    return { ok: false, status: "denied" };
-  }
-
-  // Approved: run the action, then consume the approval so a re-run needs a fresh
-  // decision. A throw leaves it approved, because nothing is known to have happened.
-  const result = await run();
-  await db
-    .update(agentApprovals)
-    .set(isRefused(result) ? { status: "refused" } : { status: "executed", executedAt: new Date() })
-    .where(eq(agentApprovals.id, row.id));
-  return result;
+  if (row?.status === "denied") return { ok: false, status: "denied" };
+  // Pending or approved: either way it's a person's move, not the model's.
+  return { ok: false, status: "awaiting_approval", approvalId: row?.id ?? "" };
 }
 
 const FINISHED: AgentApprovalStatus[] = ["executed", "revoked", "expired", "refused"];
 
 /** Tools report a refusal as `{ ok: false }` in a normal result, not by throwing. */
-function isRefused(result: unknown): boolean {
-  return typeof result === "object" && result !== null && "ok" in result && result.ok === false;
+function refusalOf(result: unknown): string | null {
+  if (typeof result !== "object" || result === null || !("ok" in result)) return null;
+  if (result.ok !== false) return null;
+  return "reason" in result && typeof result.reason === "string" ? result.reason : "refused";
+}
+
+/**
+ * Run an approved action, once. `executed_at` is claimed in a single UPDATE before
+ * anything happens, so a double click or a second tab loses the race instead of
+ * running it twice. Null when there's nothing to run: not approved, out of date,
+ * already claimed, or the person has lost the role.
+ *
+ * A throw releases the claim and leaves the row approved, because nothing is known to
+ * have happened and the person can try again.
+ */
+export async function executeApproval<T>(
+  db: WorkerDb,
+  input: { orgId: string; userId: string; id: string },
+  run: (row: typeof agentApprovals.$inferSelect) => Promise<T>,
+) {
+  const access = await requireOrgRole(db, input.orgId, input.userId, "editor");
+  if (!access.ok) return null;
+
+  const [row] = await db
+    .update(agentApprovals)
+    .set({ executedAt: new Date() })
+    .where(
+      and(
+        eq(agentApprovals.id, input.id),
+        eq(agentApprovals.orgId, input.orgId),
+        eq(agentApprovals.userId, input.userId),
+        statusIs("approved"),
+        isNull(agentApprovals.executedAt),
+      ),
+    )
+    .returning();
+  if (!row) return null;
+
+  const release = () =>
+    db.update(agentApprovals).set({ executedAt: null }).where(eq(agentApprovals.id, row.id));
+
+  let result: T;
+  try {
+    result = await run(row);
+  } catch (err) {
+    await release();
+    throw err;
+  }
+
+  const refusal = refusalOf(result);
+  const [finished] = await db
+    .update(agentApprovals)
+    .set(
+      refusal
+        ? { status: "refused", executedAt: null, outcomeReason: refusal }
+        : { status: "executed" },
+    )
+    .where(eq(agentApprovals.id, row.id))
+    .returning();
+  return finished ?? null;
 }
 
 /** One of the caller's approvals. Scoped so an id can never reach another user's row. */
@@ -304,13 +341,15 @@ export async function revokeApproval(
 ) {
   const [row] = await db
     .update(agentApprovals)
-    .set({ status: "revoked", decidedAt: new Date(), decidedBy: input.userId })
+    .set({ status: "revoked", revokedAt: new Date(), revokedBy: input.userId })
     .where(
       and(
         eq(agentApprovals.id, input.id),
         eq(agentApprovals.orgId, input.orgId),
         eq(agentApprovals.userId, input.userId),
         eq(agentApprovals.status, "approved"),
+        // Claimed means it's running now, which is too late to take back.
+        isNull(agentApprovals.executedAt),
       ),
     )
     .returning();

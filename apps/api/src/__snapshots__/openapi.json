@@ -962,7 +962,8 @@
                         "feedback:submit",
                         "feedback:approve",
                         "skills:publish",
-                        "admin:docs"
+                        "admin:docs",
+                        "admin:agent-chats"
                       ]
                     },
                     "minItems": 1
@@ -16594,6 +16595,18 @@
                           "executedAt": {
                             "type": "string",
                             "nullable": true
+                          },
+                          "revokedAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "revokedBy": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "outcomeReason": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -16608,7 +16621,10 @@
                           "createdAt",
                           "decidedAt",
                           "decidedBy",
-                          "executedAt"
+                          "executedAt",
+                          "revokedAt",
+                          "revokedBy",
+                          "outcomeReason"
                         ]
                       }
                     }
@@ -16843,6 +16859,18 @@
                           "executedAt": {
                             "type": "string",
                             "nullable": true
+                          },
+                          "revokedAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "revokedBy": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "outcomeReason": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -16857,7 +16885,10 @@
                           "createdAt",
                           "decidedAt",
                           "decidedBy",
-                          "executedAt"
+                          "executedAt",
+                          "revokedAt",
+                          "revokedBy",
+                          "outcomeReason"
                         ]
                       }
                     },
@@ -17060,6 +17091,18 @@
                         "executedAt": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "revokedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "revokedBy": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "outcomeReason": {
+                          "type": "string",
+                          "nullable": true
                         }
                       },
                       "required": [
@@ -17074,7 +17117,10 @@
                         "createdAt",
                         "decidedAt",
                         "decidedBy",
-                        "executedAt"
+                        "executedAt",
+                        "revokedAt",
+                        "revokedBy",
+                        "outcomeReason"
                       ]
                     }
                   },
@@ -17203,7 +17249,7 @@
           "Agent"
         ],
         "operationId": "decideAgentApproval",
-        "summary": "Approve or deny a pending request, or revoke an approval that hasn't run",
+        "summary": "Approve and run, or deny, a pending request, or revoke an approval that hasn't run",
         "parameters": [
           {
             "schema": {
@@ -17268,11 +17314,16 @@
                         "expired",
                         "refused"
                       ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "nullable": true
                     }
                   },
                   "required": [
                     "ok",
-                    "status"
+                    "status",
+                    "reason"
                   ]
                 }
               }
@@ -19352,6 +19403,343 @@
                     "configured",
                     "ok",
                     "status",
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not permitted (role or API-key scope).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (120 requests / 60s per IP on /v1).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error. Quote `correlationId` when reporting.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "correlationId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/agent-chats/unclaimed": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "findUnclaimedAgentChats",
+        "summary": "Which chat object ids no conversation row accounts for",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "objectIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[0-9a-fA-F]{64}$"
+                    },
+                    "minItems": 1,
+                    "maxItems": 1000
+                  }
+                },
+                "required": [
+                  "objectIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The ids with no row. Reads rows only and opens no object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unclaimed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "unclaimed"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not permitted (role or API-key scope).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (120 requests / 60s per IP on /v1).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error. Quote `correlationId` when reporting.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "correlationId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/agent-chats/purge": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "operationId": "purgeOrphanAgentChats",
+        "summary": "Permanently wipe chat objects that have no conversation row",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chats": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "objectId": {
+                          "type": "string",
+                          "pattern": "^[0-9a-fA-F]{64}$"
+                        },
+                        "orgId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "userId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "objectId",
+                        "orgId",
+                        "userId",
+                        "chatId"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 25
+                  }
+                },
+                "required": [
+                  "chats"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One outcome per chat. Only `wiped` deleted anything.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "objectId": {
+                            "type": "string"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "enum": [
+                              "wiped",
+                              "has_row",
+                              "id_mismatch",
+                              "failed"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "objectId",
+                          "outcome"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "results"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
                     "error"
                   ]
                 }
