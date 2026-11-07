@@ -49,6 +49,21 @@ export type RunSkillResult = {
   runtime: SkillRuntime;
 };
 
+/** Thrown while the `SKILL_EXECUTION_DISABLED` kill switch is on. */
+export class SkillExecutionDisabledError extends Error {
+  constructor() {
+    super("Hosted skill execution is temporarily disabled");
+    this.name = "SkillExecutionDisabledError";
+  }
+}
+
+/** True while the kill switch is on. Any spelling of true counts, so it can't be mistyped off. */
+export function isSkillExecutionDisabled(env: Pick<Env, "SKILL_EXECUTION_DISABLED">): boolean {
+  return ["true", "1", "yes", "on"].includes(
+    env.SKILL_EXECUTION_DISABLED?.trim().toLowerCase() ?? "",
+  );
+}
+
 /**
  * Thrown when a published version is refused execution because it failed its
  * security scan. Kept distinct from validation/quota errors so the route can map
@@ -148,6 +163,9 @@ export async function runSkillScript(
   db: WorkerDb,
   input: RunSkillInput,
 ): Promise<RunSkillResult> {
+  // First, before any lookup or quota reservation: a disabled platform does no work.
+  if (isSkillExecutionDisabled(env)) throw new SkillExecutionDisabledError();
+
   const { orgSlug, skillRepo, scriptPath, args = [], targetUrl } = input;
 
   if (!validateScriptPath(scriptPath)) {

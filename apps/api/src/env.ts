@@ -63,6 +63,12 @@ export type Env = {
   GITHUB_WEBHOOK_SECRET?: string;
   /** Comma-separated Better Auth user IDs allowed to manage mirrors. */
   SKILLIST_ADMIN_USER_IDS?: string;
+  /**
+   * Kill switch for hosted skill execution. "true" makes every run refuse to start.
+   * A Worker secret, so it takes effect in seconds without a CI deploy:
+   *   echo true | wrangler secret put SKILL_EXECUTION_DISABLED --config wrangler.production.jsonc
+   */
+  SKILL_EXECUTION_DISABLED?: string;
 };
 
 export type AiJobMessage =

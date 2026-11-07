@@ -11,6 +11,7 @@ import {
   getRunnableScriptsFromBundle,
   runSkillScript,
   SkillExecutionBlockedError,
+  SkillExecutionDisabledError,
   SkillNotFoundError,
 } from "./skill-runner";
 
@@ -144,6 +145,9 @@ export async function loadSession(
         if (err instanceof RunQuotaExceededError) return { ok: false, error: "quota_exceeded" };
         if (err instanceof SkillExecutionBlockedError) {
           return { ok: false, error: "blocked_by_security_scan" };
+        }
+        if (err instanceof SkillExecutionDisabledError) {
+          return { ok: false, error: "execution_disabled" };
         }
         console.error(
           JSON.stringify({
