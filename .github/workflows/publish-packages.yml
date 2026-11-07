@@ -61,3 +61,20 @@ jobs:
             pnpm --filter @skillist/cli pack --pack-destination "$RUNNER_TEMP"
             npm publish "$RUNNER_TEMP/skillist-cli-$pkg_version.tgz" --access public
           fi
+
+      # Depends on skill-format, so it publishes after it. A brand-new npm name
+      # has no trusted publisher yet: the first release must be published by
+      # hand and the publisher configured on npmjs.com before this step works.
+      - run: pnpm --filter @skillist/agents build
+
+      - name: Publish @skillist/agents
+        run: |
+          published=$(npm view @skillist/agents version 2>/dev/null || true)
+          pkg_version=$(node -p "require('./packages/agents/package.json').version")
+          if [ "$published" = "$pkg_version" ]; then
+            echo "@skillist/agents@$pkg_version already on npm, skipping"
+          else
+            # pnpm pack turns workspace:* and catalog: into real versions, npm does the publish.
+            pnpm --filter @skillist/agents pack --pack-destination "$RUNNER_TEMP"
+            npm publish "$RUNNER_TEMP/skillist-agents-$pkg_version.tgz" --access public
+          fi

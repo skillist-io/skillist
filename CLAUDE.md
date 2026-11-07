@@ -23,11 +23,12 @@ packages/
   harness/       Skills-only agent loop: catalog, skill tools, turn runner. Platform-free; apps/api supplies the host
   skill-format/  agentskills.io bundle validator, semver, security/review helpers (published to npm)
   cli/           `@skillist/cli` — pull/push skills (published to npm)
+  agents/        `@skillist/agents` — Cloudflare Agents `SkillSource` over public delivery (published to npm)
   auth/          Better Auth config shared by api + console
   tsconfig/      Shared tsconfig bases
 ```
 
-`packages/db`, `contracts`, `auth`, `ui`, `harness` are consumed as source (`workspace:*`, no build step); `skill-format` and `cli` are built with `tsc` and published to npm. Shared dependency versions are pinned via **pnpm catalogs** (`pnpm-workspace.yaml` `catalog:`) so React-context singletons (router, query, auth) resolve to one instance — package.jsons reference `"catalog:"`. Any dependency used by two or more manifests must live in the catalog; `pnpm check:catalog` enforces this in CI. Bump versions in `pnpm-workspace.yaml`, not in a manifest.
+`packages/db`, `contracts`, `auth`, `ui`, `harness` are consumed as source (`workspace:*`, no build step); `skill-format`, `cli` and `agents` are built with `tsc` and published to npm. Shared dependency versions are pinned via **pnpm catalogs** (`pnpm-workspace.yaml` `catalog:`) so React-context singletons (router, query, auth) resolve to one instance — package.jsons reference `"catalog:"`. Any dependency used by two or more manifests must live in the catalog; `pnpm check:catalog` enforces this in CI. Bump versions in `pnpm-workspace.yaml`, not in a manifest.
 
 ## Commands
 
