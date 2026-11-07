@@ -33,6 +33,9 @@ export const apiKeyScopeSchema = z.enum([
   // is not an admin. Held separately because admin-created keys are ordinarily
   // scoped for CLI work, and those must not inherit admin power implicitly.
   "admin:docs",
+  // Wiping chats nobody can reach. Same double gate, and its own scope because a key
+  // that reindexes docs shouldn't be able to delete transcripts.
+  "admin:agent-chats",
 ]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 
