@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import type { ApiKeyScope } from "@skillist/contracts";
 import type { Env } from "../env";
 import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
@@ -26,13 +27,13 @@ export const adminDocsRoutes = new OpenAPIHono<AppEnv>();
  * Scope is checked before the allow-list so a non-admin's key cannot probe
  * membership of that list.
  */
-export function requireDocsAdmin(env: Env, auth: AuthContext) {
+export function requireDocsAdmin(env: Env, auth: AuthContext, scope: ApiKeyScope = "admin:docs") {
   const allow = (env.SKILLIST_ADMIN_USER_IDS ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
   if (allow.length === 0) return { ok: false as const, status: 403 as const, error: "Admin only" };
-  if (auth.apiKeyId && !auth.apiKeyScopes.includes("admin:docs")) {
+  if (auth.apiKeyId && !auth.apiKeyScopes.includes(scope)) {
     return { ok: false as const, status: 403 as const, error: "Insufficient scope" };
   }
   // A session user OR the creator of the presented API key must be an admin.

@@ -23,6 +23,7 @@ const SCOPE_MIN_ROLE: Record<ApiKeyScope, OrgRole> = {
   // org role, so it maps to the highest one — if this scope is ever routed
   // through requireOrgAccess by mistake, it denies rather than grants.
   "admin:docs": "owner",
+  "admin:agent-chats": "owner",
 };
 
 export type OrgAccessResult =
