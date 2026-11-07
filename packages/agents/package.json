@@ -1,0 +1,62 @@
+{
+  "name": "@skillist/agents",
+  "version": "0.1.0",
+  "description": "Load Skillist skills into Cloudflare Agents (agents/skills SkillSource)",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skillist-io/skillist.git",
+    "directory": "packages/agents"
+  },
+  "homepage": "https://skillist.dev",
+  "keywords": [
+    "agents",
+    "skills",
+    "agentskills",
+    "cloudflare",
+    "skillist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "dependencies": {
+    "@skillist/skill-format": "workspace:*"
+  },
+  "peerDependencies": {
+    "agents": "catalog:"
+  },
+  "devDependencies": {
+    "@skillist/tsconfig": "workspace:*",
+    "agents": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

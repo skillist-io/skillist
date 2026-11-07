@@ -1,0 +1,11 @@
+{
+  "extends": "@skillist/tsconfig/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    // fetch, Response, URL, TextEncoder: globals in Workers, Node 18+ and browsers alike.
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

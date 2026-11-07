@@ -631,6 +631,25 @@ importers:
         specifier: 'catalog:'
         version: 4.158.0(@cloudflare/workers-types@5.20261106.1)(@types/node@26.6.6)
 
+  packages/agents:
+    dependencies:
+      '@skillist/skill-format':
+        specifier: workspace:*
+        version: link:../skill-format
+    devDependencies:
+      '@skillist/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      agents:
+        specifier: 'catalog:'
+        version: 0.33.0(@ai-sdk/provider@4.0.36)(@ai-sdk/react@4.0.167(react@19.3.1)(zod@4.6.7))(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@modelcontextprotocol/client@2.4.0)(@modelcontextprotocol/server@2.4.0)(ai@7.0.163(zod@4.6.7))(react@19.3.1)(rolldown@1.3.0)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(zod@4.6.7)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@opentelemetry/api@1.9.1)(@types/node@26.6.6)(jsdom@31.0.0(@noble/hashes@2.2.0))(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/auth:
     dependencies:
       '@better-auth/mcp':
