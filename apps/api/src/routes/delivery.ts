@@ -4,7 +4,6 @@ import type { AuthContext } from "../lib/auth-middleware";
 import type { WorkerDb } from "../lib/db";
 import { createWorkerDb } from "../lib/db";
 import {
-  etagMatches,
   parseRepoSpecifier,
   serveSkillBundle,
   serveSkillMd,
@@ -56,6 +55,8 @@ function badSpecifier(): Response {
   );
 }
 
+type WaitUntil = { waitUntil(promise: Promise<unknown>): void };
+
 /**
  * Lazy DB accessor for the delivery routes.
  *
@@ -65,63 +66,6 @@ function badSpecifier(): Response {
  * KV-only path free of a connection. Anything we create here, we close; a db
  * that came from the middleware is left alone for the middleware to close.
  */
-type WaitUntil = { waitUntil(promise: Promise<unknown>): void };
-
-/**
- * Edge-cache a pinned-version delivery response.
- *
- * A Worker's own responses are NOT cached by Cloudflare unless the Worker opts
- * in, so the Cache-Control headers on these routes previously reached browsers
- * but produced no CDN hits — every request ran the Worker, and Smart Placement
- * pins that Worker next to the database, so a distant reader paid a round trip
- * to read a KV value.
- *
- * Applied ONLY to exact-version URLs (`@1.2.3`), never to mutable `latest` and
- * never to a non-200. Content at a pinned version cannot change, but the
- * skill's visibility can, so this relies on `s-maxage` (see
- * IMMUTABLE_CACHE_CONTROL in lib/delivery.ts) to bound how long a
- * public→private flip keeps being served. The Cache API is per-colo, so there
- * is deliberately no purge path here — bounding the TTL is the mechanism.
- */
-async function withPinnedVersionCache(
-  c: { req: { raw: Request }; executionCtx: WaitUntil },
-  produce: () => Promise<Response>,
-): Promise<Response> {
-  // GET-only and no auth on these routes, so the URL is a complete cache key.
-  const cacheKey = new Request(c.req.raw.url, { method: "GET" });
-  const cache = caches.default;
-
-  const hit = await cache.match(cacheKey);
-  if (hit) {
-    // cache.match does no ETag negotiation, so a hit would otherwise return a
-    // full 200 to a client that sent a matching If-None-Match — losing the 304
-    // these routes already support. Revalidate against the cached entry.
-    const ifNoneMatch = c.req.raw.headers.get("If-None-Match");
-    const etag = hit.headers.get("ETag");
-    // The stored header is quoted; etagMatches compares raw values.
-    if (etag && etagMatches(ifNoneMatch, etag.replace(/^W\//i, "").replace(/"/g, ""))) {
-      return new Response(null, {
-        status: 304,
-        headers: {
-          ETag: etag,
-          "Cache-Control": hit.headers.get("Cache-Control") ?? "",
-        },
-      });
-    }
-    return hit;
-  }
-
-  const res = await produce();
-  if (res.ok) {
-    try {
-      c.executionCtx.waitUntil(cache.put(cacheKey, res.clone()));
-    } catch {
-      // No executionCtx (tests): skip caching rather than block the response.
-    }
-  }
-  return res;
-}
-
 function lazyDb(c: { env: Env; var: { db?: WorkerDb }; executionCtx: WaitUntil }): {
   getDb: () => WorkerDb;
   release: () => void;
@@ -172,14 +116,12 @@ deliveryRoutes.openapi(getSkillMdRoute, async (c) => {
   if (!spec) return badSpecifier();
   if (spec.version) {
     const version = spec.version;
-    return withPinnedVersionCache(c, async () => {
-      const { getDb, release } = lazyDb(c);
-      try {
-        return await serveSkillMdAtVersion(c.env, getDb, org, spec.repo, version, ifNoneMatch);
-      } finally {
-        release();
-      }
-    });
+    const { getDb, release } = lazyDb(c);
+    try {
+      return await serveSkillMdAtVersion(c.env, getDb, org, spec.repo, version, ifNoneMatch);
+    } finally {
+      release();
+    }
   }
   return serveSkillMd(c.env.SKILLS_KV, org, spec.repo, ifNoneMatch);
 });
@@ -209,14 +151,12 @@ deliveryRoutes.openapi(getSkillMetaRoute, async (c) => {
   if (!spec) return badSpecifier();
   if (spec.version) {
     const version = spec.version;
-    return withPinnedVersionCache(c, async () => {
-      const { getDb, release } = lazyDb(c);
-      try {
-        return await serveSkillMetaAtVersion(c.env, getDb, org, spec.repo, version, ifNoneMatch);
-      } finally {
-        release();
-      }
-    });
+    const { getDb, release } = lazyDb(c);
+    try {
+      return await serveSkillMetaAtVersion(c.env, getDb, org, spec.repo, version, ifNoneMatch);
+    } finally {
+      release();
+    }
   }
   return serveSkillMeta(c.env.SKILLS_KV, org, spec.repo, ifNoneMatch);
 });
@@ -253,15 +193,10 @@ deliveryRoutes.openapi(getBundleRoute, async (c) => {
   if (!spec) return badSpecifier();
   const ifNoneMatch = c.req.header("If-None-Match") ?? null;
 
-  const serve = async () => {
-    const { getDb, release } = lazyDb(c);
-    try {
-      return await serveSkillBundle(c.env, getDb, org, spec.repo, ifNoneMatch, spec.version);
-    } finally {
-      release();
-    }
-  };
-
-  // Only the pinned form is edge-cacheable; an unpinned bundle tracks `latest`.
-  return spec.version ? withPinnedVersionCache(c, serve) : serve();
+  const { getDb, release } = lazyDb(c);
+  try {
+    return await serveSkillBundle(c.env, getDb, org, spec.repo, ifNoneMatch, spec.version);
+  } finally {
+    release();
+  }
 });

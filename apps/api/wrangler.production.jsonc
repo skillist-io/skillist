@@ -14,12 +14,14 @@
   "placement": { "mode": "smart" },
   // Workers Caching sits IN FRONT of the Worker: a hit is served without
   // running it. That is what makes the delivery Cache-Control headers real —
-  // a Worker's own responses are not otherwise cached by Cloudflare, and the
-  // per-colo Cache API in routes/delivery.ts could only ever be consulted
-  // AFTER the request had already travelled to the Smart Placement location
-  // beside the database. Measured: a pinned-version read that hit the Cache
-  // API still cost ~120ms of server time versus ~50ms for an edge-served
-  // asset, because the hit was in the placement colo, not the reader's.
+  // a Worker's own responses are not otherwise cached by Cloudflare. It replaced
+  // a per-colo Cache API layer, which was only consulted AFTER the request had
+  // travelled to the Smart Placement location beside the database: a hit still
+  // cost ~120ms of server time versus ~50ms for an edge-served asset.
+  //
+  // This cache belongs to the Worker, not the zone: dashboard and API zone purges
+  // report success and do nothing to it. Only ctx.cache.purge() reaches it (see
+  // purgeDeliveryCache in src/lib/publish.ts).
   //
   // Caching is opt-in per response: a global middleware in src/index.ts marks
   // anything without an explicit Cache-Control as `no-store`, so only the
