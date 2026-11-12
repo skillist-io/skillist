@@ -1,0 +1,4 @@
+{
+  "name": "sandbox-egress-check",
+  "network": { "allowedHosts": ["httpbin.org"] }
+}

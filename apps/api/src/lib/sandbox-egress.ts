@@ -3,23 +3,13 @@ import { isAllowedHostPattern } from "@skillist/skill-format";
 /**
  * Deny-by-default egress policy for the untrusted-skill-execution sandboxes.
  *
- * The stock `@cloudflare/sandbox` class runs with `enableInternet = true` and no
- * host rules, so skill scripts can reach any host — an exfiltration / SSRF hole.
- * The `Sandbox` / `SandboxHeavy` subclasses apply the values here: with
- * `enableInternet = false` plus a non-empty `allowedHosts`, the runtime's egress
- * chain blocks (HTTP 520) every host that isn't on the allowlist, and forwards
- * allowed hosts to the internet. `deniedHosts` is an unconditional blocklist that
- * wins over everything.
+ * Containers start with `enableInternet: false`, and `SkillSandbox` routes ports 80
+ * and 443 through the `Outbound` entrypoint, which applies `isOutboundAllowed`. Every
+ * other port stays blocked. `DENIED_HOSTS` wins over everything, and it is a constant
+ * here rather than a per-run value, so nothing a caller passes can loosen it.
  *
- * IMPORTANT: this only takes effect when the Worker entry exports `ContainerProxy`
- * (see apps/api/src/index.ts) — without that export the interception silently
- * no-ops and egress stays open. Enforcement can only be verified against a real
- * Cloudflare deploy; the local test harness runs no container.
- *
- * Hosts a legitimate skill needs but that aren't covered here are a deliberate
- * follow-up: derive a per-skill allowlist from the agentskills.io manifest and
- * apply it at runtime via `sandbox.setAllowedHosts(...)`, so each run opens only
- * the hosts it declares instead of widening this shared baseline.
+ * Each run gets the baseline plus the hosts its manifest declares, fixed when the
+ * container starts. Fresh sandbox per run, so nothing reaches the next tenant.
  */
 
 /**
@@ -70,6 +60,21 @@ export const DENIED_HOSTS: string[] = [
   "localhost",
   "*.internal",
 ];
+
+/** "*" matches any run of characters, including dots. */
+function hostMatches(pattern: string, hostname: string): boolean {
+  const escaped = pattern.split("*").map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^${escaped.join(".*")}$`).test(hostname);
+}
+
+/** The whole outbound policy. Denied hosts first, then the allowlist. */
+export function isOutboundAllowed(hostname: string, allowedHosts: string[]): boolean {
+  // Hostnames are case-insensitive, and `example.com.` is the same host as
+  // `example.com`, so either spelling must not slip past a rule.
+  const host = hostname.toLowerCase().replace(/\.+$/, "");
+  if (DENIED_HOSTS.some((pattern) => hostMatches(pattern, host))) return false;
+  return allowedHosts.some((pattern) => hostMatches(pattern, host));
+}
 
 /**
  * Merge a skill's manifest-declared `network.allowedHosts` onto the sandbox

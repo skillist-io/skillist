@@ -13,7 +13,7 @@
   "dependencies": {
     "@better-auth/oauth-provider": "catalog:",
     "@cloudflare/ai-chat": "catalog:",
-    "@cloudflare/sandbox": "^0.12.14",
+    "@cloudflare/sandbox": "^1.0.3",
     "@hono/zod-openapi": "^1.6.3",
     "@modelcontextprotocol/server": "2.4.0",
     "@scalar/hono-api-reference": "^0.12.18",

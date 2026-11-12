@@ -1,5 +1,7 @@
 import type { Ai, DurableObjectNamespace, RateLimit, SendEmail } from "@cloudflare/workers-types";
 import type { SyncQueueMessage } from "@skillist/contracts";
+import type { Sandbox } from "./durable-objects/sandbox";
+import type { SandboxHeavy } from "./durable-objects/sandbox-heavy";
 import type { SkillHarnessSession } from "./durable-objects/skill-harness-session";
 
 export type Env = {
@@ -7,8 +9,8 @@ export type Env = {
   SKILLS_KV: KVNamespace;
   SKILLS_R2: R2Bucket;
   SKILL_HUB: DurableObjectNamespace;
-  SANDBOX: DurableObjectNamespace;
-  SANDBOX_HEAVY: DurableObjectNamespace;
+  SANDBOX: DurableObjectNamespace<Sandbox>;
+  SANDBOX_HEAVY: DurableObjectNamespace<SandboxHeavy>;
   /** Per-org platform agent (AIChatAgent DO). Instance name = orgId. */
   SKILLIST_AGENT: DurableObjectNamespace;
   SKILL_HARNESS: DurableObjectNamespace<SkillHarnessSession>;
@@ -61,6 +63,12 @@ export type Env = {
   GITHUB_WEBHOOK_SECRET?: string;
   /** Comma-separated Better Auth user IDs allowed to manage mirrors. */
   SKILLIST_ADMIN_USER_IDS?: string;
+  /**
+   * Kill switch for hosted skill execution. "true" makes every run refuse to start.
+   * A Worker secret, so it takes effect in seconds without a CI deploy:
+   *   echo true | wrangler secret put SKILL_EXECUTION_DISABLED --config wrangler.production.jsonc
+   */
+  SKILL_EXECUTION_DISABLED?: string;
 };
 
 export type AiJobMessage =

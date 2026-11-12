@@ -10,9 +10,9 @@
  *
  *   1. A package in the catalog is hardcoded in a manifest.
  *   2. A package used by two or more manifests is missing from the catalog.
- *   3. The Sandbox base image disagrees with the @cloudflare/sandbox SDK. A
- *      catalog can't reach a Dockerfile, and a mismatch breaks the DO<->container
- *      control protocol at runtime rather than at build time.
+ *   3. The sandbox-shim image disagrees with the @cloudflare/sandbox SDK. A catalog
+ *      can't reach a Dockerfile, and a mismatch breaks file calls at runtime rather
+ *      than at build time.
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -69,9 +69,9 @@ for (const [name, paths] of usedBy) {
 const lockfile = parse(read("pnpm-lock.yaml"));
 const sandbox = lockfile.importers["apps/api"].dependencies["@cloudflare/sandbox"].version;
 for (const path of DOCKERFILES) {
-  const tag = read(path).match(/^FROM\s+\S*cloudflare\/sandbox:(\S+)/m)?.[1];
+  const tag = read(path).match(/cloudflare\/sandbox:(\S+)/)?.[1];
   if (tag !== sandbox) {
-    errors.push(`${path}: base image is ${tag}, but @cloudflare/sandbox is ${sandbox}`);
+    errors.push(`${path}: sandbox-shim is ${tag}, but @cloudflare/sandbox is ${sandbox}`);
   }
 }
 

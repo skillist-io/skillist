@@ -15,6 +15,7 @@ import {
   getRunnableScriptsFromBundle,
   runSkillScript,
   SkillExecutionBlockedError,
+  SkillExecutionDisabledError,
   SkillNotFoundError,
 } from "../lib/skill-runner";
 
@@ -269,6 +270,9 @@ executionRoutes.openapi(runScriptRoute, async (c) => {
     }
     if (err instanceof SkillExecutionBlockedError) {
       return c.json({ error: err.message }, 403);
+    }
+    if (err instanceof SkillExecutionDisabledError) {
+      return c.json({ error: err.message }, 503, { "Retry-After": "300" });
     }
     if (err instanceof SkillNotFoundError) {
       return c.json({ error: "Not found" }, 404);
