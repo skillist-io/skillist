@@ -16,7 +16,7 @@
     "@cloudflare/sandbox": "^0.12.14",
     "@hono/zod-openapi": "^1.6.3",
     "@modelcontextprotocol/server": "2.4.0",
-    "@scalar/hono-api-reference": "^0.12.18",
+    "@scalar/hono-api-reference": "^0.12.20",
     "@skillist/auth": "workspace:*",
     "@skillist/contracts": "workspace:*",
     "@skillist/db": "workspace:*",
@@ -26,7 +26,7 @@
     "ai": "catalog:",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
-    "hono": "^4.13.16",
+    "hono": "^4.13.18",
     "workers-ai-provider": "^4.0.1",
     "zod": "catalog:"
   },

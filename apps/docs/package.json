@@ -11,12 +11,12 @@
     "typecheck": "astro sync && tsc --noEmit"
   },
   "dependencies": {
-    "@astrojs/react": "^7.1.4",
-    "@astrojs/starlight": "^0.42.9",
+    "@astrojs/react": "^7.1.9",
+    "@astrojs/starlight": "^0.43.0",
     "@fontsource-variable/inter": "catalog:",
     "@radix-ui/react-slot": "catalog:",
     "@skillist/ui": "workspace:*",
-    "astro": "^7.4.7",
+    "astro": "^7.4.12",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "catalog:",
