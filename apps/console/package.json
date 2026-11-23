@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/react": "4.0.167",
+    "@ai-sdk/react": "4.0.182",
     "@better-auth/passkey": "catalog:",
     "@cloudflare/ai-chat": "catalog:",
     "@fontsource-variable/inter": "catalog:",
@@ -41,7 +41,7 @@
     "react-dom": "catalog:",
     "react-markdown": "catalog:",
     "remark-gfm": "catalog:",
-    "streamdown": "^2.7.1",
+    "streamdown": "^2.8.0",
     "tailwind-merge": "catalog:",
     "tw-animate-css": "catalog:",
     "zod": "catalog:"
